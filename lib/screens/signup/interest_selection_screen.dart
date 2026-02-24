@@ -15,7 +15,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
     "Culture": [
       "Cultural Commentary",
       "Subcultures",
-      "Festivals",
+      "Festival",
       "Pop Culture",
       "Social Issues"
     ],
