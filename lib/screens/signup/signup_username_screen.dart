@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'signup_password_screen.dart';
+import '../login_screen.dart';
 
 class SignupUsernameScreen extends StatefulWidget {
-  const SignupUsernameScreen({super.key});
+  final String email;
+  const SignupUsernameScreen({super.key, required this.email});
 
   @override
   State<SignupUsernameScreen> createState() =>
@@ -16,16 +18,34 @@ class _SignupUsernameScreenState
       TextEditingController();
 
   void goNext() {
+    final username = usernameController.text.trim();
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please choose a username")),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const SignupPasswordScreen(),
+        builder: (_) => SignupPasswordScreen(
+          email: widget.email,
+          username: username,
+        ),
       ),
     );
   }
 
   void goBack() {
     Navigator.pop(context);
+  }
+
+  void goLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -144,6 +164,20 @@ class _SignupUsernameScreenState
                       ),
                     ),
 
+                    const SizedBox(height: 22),
+
+                    Center(
+                      child: GestureDetector(
+                        onTap: goLogin,
+                        child: const Text(
+                          "Already have an account? Log in",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

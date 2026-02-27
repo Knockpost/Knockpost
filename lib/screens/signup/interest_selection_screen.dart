@@ -1,7 +1,26 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../home_screen.dart';
+import '../login_screen.dart';
 
 class InterestSelectionScreen extends StatefulWidget {
-  const InterestSelectionScreen({super.key});
+  final String email;
+  final String username;
+  final String password;
+  final String fullName;
+  final File? profileImage;
+
+  const InterestSelectionScreen({
+    super.key,
+    required this.email,
+    required this.username,
+    required this.password,
+    required this.fullName,
+    this.profileImage,
+  });
 
   @override
   State<InterestSelectionScreen> createState() =>
@@ -9,118 +28,108 @@ class InterestSelectionScreen extends StatefulWidget {
 }
 
 class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
+  bool isLoading = false;
 
   final Map<String, List<String>> interestMap = {
-
-    "Culture": [
-      "Cultural Commentary",
-      "Subcultures",
-      "Festival",
-      "Pop Culture",
-      "Social Issues"
-    ],
-    "Technology": [
-      "AI",
-      "Startups",
-      "Programming",
-      "Cybersecurity",
-      "Gadgets"
-    ],
-    "Business": [
-      "Finance",
-      "Investing",
-      "Economy",
-      "Entrepreneurship",
-      "Marketing"
-    ],
-    "Science": [
-      "Space",
-      "Psychology",
-      "Biology",
-      "Physics",
-      "Environment"
-    ],
-    "Music": [
-      "Indie",
-      "Hip Hop",
-      "Classical",
-      "Pop",
-      "Electronic"
-    ],
-    "Sports": [
-      "Football",
-      "Cricket",
-      "Basketball",
-      "Tennis",
-      "Fitness"
-    ],
-    "Art": [
-      "Illustration",
-      "Painting",
-      "Photography",
-      "Design",
-      "Street Art"
-    ],
-    "Movies": [
-      "Hollywood",
-      "Bollywood",
-      "Anime",
-      "Documentary",
-      "Thriller"
-    ],
-    "Books": [
-      "Fiction",
-      "Non-fiction",
-      "Self Help",
-      "Fantasy",
-      "Poetry"
-    ],
-    "Lifestyle": [
-      "Minimalism",
-      "Travel",
-      "Productivity",
-      "Mindfulness",
-      "Habits"
-    ],
-    "Health": [
-      "Nutrition",
-      "Mental Health",
-      "Workout",
-      "Yoga",
-      "Sleep"
-    ],
-    "Food": [
-      "Cooking",
-      "Street Food",
-      "Vegan",
-      "Desserts",
-      "Coffee"
-    ],
-    "Politics": [
-      "World Politics",
-      "Indian Politics",
-      "Policy",
-      "Geopolitics",
-      "Debates"
-    ],
-    "Gaming": [
-      "PC Gaming",
-      "Console",
-      "Esports",
-      "Mobile Gaming",
-      "Indie Games"
-    ],
-    "Fashion": [
-      "Streetwear",
-      "Luxury",
-      "Minimal",
-      "Vintage",
-      "Sneakers"
-    ],
+    "Culture": ["Cultural Commentary", "Subcultures", "Festival", "Pop Culture", "Social Issues"],
+    "Technology": ["AI", "Startups", "Programming", "Cybersecurity", "Gadgets"],
+    "Business": ["Finance", "Investing", "Economy", "Entrepreneurship", "Marketing"],
+    "Science": ["Space", "Psychology", "Biology", "Physics", "Environment"],
+    "Music": ["Indie", "Hip Hop", "Classical", "Pop", "Electronic"],
+    "Sports": ["Football", "Cricket", "Basketball", "Tennis", "Fitness"],
+    "Art": ["Illustration", "Painting", "Photography", "Design", "Street Art"],
+    "Movies": ["Hollywood", "Bollywood", "Anime", "Documentary", "Thriller"],
+    "Books": ["Fiction", "Non-fiction", "Self Help", "Fantasy", "Poetry"],
+    "Lifestyle": ["Minimalism", "Travel", "Productivity", "Mindfulness", "Habits"],
+    "Health": ["Nutrition", "Mental Health", "Workout", "Yoga", "Sleep"],
+    "Food": ["Cooking", "Street Food", "Vegan", "Desserts", "Coffee"],
+    "Politics": ["World Politics", "Indian Politics", "Policy", "Geopolitics", "Debates"],
+    "Gaming": ["PC Gaming", "Console", "Esports", "Mobile Gaming", "Indie Games"],
+    "Fashion": ["Streetwear", "Luxury", "Minimal", "Vintage", "Sneakers"],
   };
 
   final Set<String> selectedInterests = {};
-  final Set<String> expandedCategories = {}; // ✅ FIXED HERE
+  final Set<String> expandedCategories = {};
+
+  Future<void> createAccount() async {
+    if (selectedInterests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select at least one interest")),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // 1. Create Auth User
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+              email: widget.email, password: widget.password);
+
+      String? profileImageUrl;
+
+      // 2. Upload Image to Storage (if selected)
+      if (widget.profileImage != null) {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('profile_images')
+            .child('${userCredential.user!.uid}.jpg');
+        await ref.putFile(widget.profileImage!);
+        profileImageUrl = await ref.getDownloadURL();
+      }
+
+      // 3. Save Profile to Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+        'uid': userCredential.user!.uid,
+        'email': widget.email,
+        'username': widget.username,
+        'fullName': widget.fullName,
+        'profileImageUrl': profileImageUrl ?? "",
+        'interests': selectedInterests.toList(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Authentication failed")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  void goLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,9 +141,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               const SizedBox(height: 10),
-
               const Text(
                 "Choose your interests",
                 style: TextStyle(
@@ -143,9 +150,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                   letterSpacing: -0.5,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               const Text(
                 "Select topics to personalize your experience.",
                 style: TextStyle(
@@ -153,9 +158,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                   color: Colors.black54,
                 ),
               ),
-
               const SizedBox(height: 30),
-
               Expanded(
                 child: SingleChildScrollView(
                   child: Wrap(
@@ -165,28 +168,50 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              Container(
-                height: 58,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(30),
+              GestureDetector(
+                onTap: isLoading ? null : createAccount,
+                child: Container(
+                  height: 58,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "Continue",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
                 ),
-                child: const Center(
-                  child: Text(
-                    "Continue",
+              ),
+              const SizedBox(height: 22),
+              Center(
+                child: GestureDetector(
+                  onTap: goLogin,
+                  child: const Text(
+                    "Already have an account? Log in",
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Colors.black54,
                     ),
                   ),
                 ),
               ),
-
             ],
           ),
         ),
@@ -195,31 +220,23 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
   }
 
   List<Widget> buildInterestChips() {
-
     List<Widget> widgets = [];
-
     interestMap.forEach((category, subList) {
-
       widgets.add(buildChip(category, isMain: true));
-
       if (expandedCategories.contains(category)) {
         for (var sub in subList) {
           widgets.add(buildChip(sub, isMain: false));
         }
       }
     });
-
     return widgets;
   }
 
   Widget buildChip(String label, {required bool isMain}) {
-
     bool isSelected = selectedInterests.contains(label);
-
     return GestureDetector(
       onTap: () {
         setState(() {
-
           if (isMain) {
             if (expandedCategories.contains(label)) {
               expandedCategories.remove(label);
@@ -233,7 +250,6 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               selectedInterests.add(label);
             }
           }
-
         });
       },
       child: Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'signup_username_screen.dart';
+import '../login_screen.dart';
 
 class SignupVerificationScreen extends StatefulWidget {
   final String email;
@@ -17,16 +18,36 @@ class _SignupVerificationScreenState
   final TextEditingController codeController = TextEditingController();
 
   void goNext() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const SignupUsernameScreen(),
-      ),
-    );
+    final code = codeController.text.trim();
+    if (code == "123456") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SignupUsernameScreen(
+            email: widget.email,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Invalid verification code. Please try 123456"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   void goBack() {
     Navigator.pop(context);
+  }
+
+  void goLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -146,6 +167,20 @@ class _SignupVerificationScreenState
                       ),
                     ),
 
+                    const SizedBox(height: 22),
+
+                    Center(
+                      child: GestureDetector(
+                        onTap: goLogin,
+                        child: const Text(
+                          "Already have an account? Log in",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

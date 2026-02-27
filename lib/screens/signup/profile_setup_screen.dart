@@ -3,9 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'interest_selection_screen.dart';
+import '../login_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  final String email;
+  final String username;
+  final String password;
+  const ProfileSetupScreen({
+    super.key,
+    required this.email,
+    required this.username,
+    required this.password,
+  });
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -244,17 +253,37 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void goNext() {
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your full name")),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const InterestSelectionScreen(),
+        builder: (_) => InterestSelectionScreen(
+          email: widget.email,
+          username: widget.username,
+          password: widget.password,
+          fullName: name,
+          profileImage: selectedImage,
+        ),
       ),
     );
   }
 
   void goBack() {
     Navigator.pop(context);
+  }
+
+  void goLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   String formatDate() {
@@ -530,6 +559,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     ),
 
+                    const SizedBox(height: 22),
+
+                    Center(
+                      child: GestureDetector(
+                        onTap: goLogin,
+                        child: const Text(
+                          "Already have an account? Log in",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

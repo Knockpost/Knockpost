@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'signup/signup_email_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -90,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: userController,
 
                           decoration: InputDecoration(
-                            hintText: "Username or Email",
+                            hintText: "Email",
 
                             filled: true,
                             fillColor: const Color(0xfff2f2f2),
@@ -165,11 +167,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
 
-                            onPressed: login,
+                            onPressed: isLoading ? null : login,
 
                             child: isLoading
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white,
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Text(
                                     "Log in",
@@ -282,15 +289,53 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void login() async {
+    final email = userController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter both email and password")),
+      );
+      return;
+    }
 
     setState(() {
       isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    setState(() {
-      isLoading = false;
-    });
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Firebase Login Error: ${e.code} - ${e.message}");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Authentication failed")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Generic Login Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 }

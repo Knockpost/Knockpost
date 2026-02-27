@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'profile_setup_screen.dart';
+import '../login_screen.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
-  const SignupPasswordScreen({super.key});
+  final String email;
+  final String username;
+  const SignupPasswordScreen({super.key, required this.email, required this.username});
 
   @override
   State<SignupPasswordScreen> createState() =>
@@ -18,16 +21,35 @@ class _SignupPasswordScreenState
   bool isObscured = true;
 
   void goNext() {
+    final password = passwordController.text.trim();
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password must be at least 6 characters")),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const ProfileSetupScreen(),
+        builder: (_) => ProfileSetupScreen(
+          email: widget.email,
+          username: widget.username,
+          password: password,
+        ),
       ),
     );
   }
 
   void goBack() {
     Navigator.pop(context);
+  }
+
+  void goLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -160,6 +182,20 @@ class _SignupPasswordScreenState
                       ),
                     ),
 
+                    const SizedBox(height: 22),
+
+                    Center(
+                      child: GestureDetector(
+                        onTap: goLogin,
+                        child: const Text(
+                          "Already have an account? Log in",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
