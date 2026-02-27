@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "56941114478",
+    "project_id": "knockpost-84b21",
+    "storage_bucket": "knockpost-84b21.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:56941114478:android:9b62005860b23a6267627f",
+        "android_client_info": {
+          "package_name": "com.example.knockpost"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC99upOM3pcXmc0NN2nEK3bVIEE7CgFUSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

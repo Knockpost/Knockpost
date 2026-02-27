@@ -11,16 +11,42 @@ class SignupEmailScreen extends StatefulWidget {
 
 class _SignupEmailScreenState extends State<SignupEmailScreen> {
   final TextEditingController emailController = TextEditingController();
+  bool isLoading = false;
 
-  void goNext() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SignupVerificationScreen(
-          email: emailController.text.trim(),
+  void goNext() async {
+    final email = emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your email")),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    // Simulate sending an OTP
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("A verification code has been sent (Test: 123456)")),
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SignupVerificationScreen(
+            email: email,
+          ),
         ),
-      ),
-    );
+      );
+
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   void goBackToLogin() {
@@ -127,7 +153,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: goNext,
+                      onTap: isLoading ? null : goNext,
                       child: Container(
                         height: 58,
                         width: double.infinity,
@@ -135,15 +161,24 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                           color: Colors.black,
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        child: const Center(
-                          child: Text(
-                            "Next",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: Center(
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  "Next",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
