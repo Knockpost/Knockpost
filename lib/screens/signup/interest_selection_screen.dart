@@ -12,6 +12,7 @@ class InterestSelectionScreen extends StatefulWidget {
   final String password;
   final String fullName;
   final File? profileImage;
+  final bool isGoogleSignup;
 
   const InterestSelectionScreen({
     super.key,
@@ -20,6 +21,7 @@ class InterestSelectionScreen extends StatefulWidget {
     required this.password,
     required this.fullName,
     this.profileImage,
+    this.isGoogleSignup = false,
   });
 
   @override
@@ -59,24 +61,40 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
-
     try {
-      // 1. Create Auth User
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-              email: widget.email, password: widget.password);
-
       String? profileImageUrl;
+      String uid = "";
+
+      // Check if we are already logged in (Google Signup) or if we need to create an account
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null && currentUser.email == widget.email) {
+        // We are already logged in (Google)
+        uid = currentUser.uid;
+
+        // Link with Email/Password so they can use the Login button too!
+        try {
+          AuthCredential credential = EmailAuthProvider.credential(
+              email: widget.email, password: widget.password);
+          await currentUser.linkWithCredential(credential);
+        } catch (e) {
+          debugPrint("Note: Account already linked or error: $e");
+          // If already linked, or error, we still proceed to save the profile
+        }
+      } else {
+        // Email/Password Signup - Create Auth User first
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+                email: widget.email, password: widget.password);
+        uid = userCredential.user!.uid;
+      }
 
       // 2. Upload Image to Storage (if selected)
       if (widget.profileImage != null) {
         final ref = FirebaseStorage.instance
             .ref()
             .child('profile_images')
-            .child('${userCredential.user!.uid}.jpg');
+            .child('$uid.jpg');
         await ref.putFile(widget.profileImage!);
         profileImageUrl = await ref.getDownloadURL();
       }
@@ -84,9 +102,9 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       // 3. Save Profile to Firestore
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(userCredential.user!.uid)
+          .doc(uid)
           .set({
-        'uid': userCredential.user!.uid,
+        'uid': uid,
         'email': widget.email,
         'username': widget.username,
         'fullName': widget.fullName,

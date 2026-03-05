@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_password_screen.dart';
+import 'profile_setup_screen.dart';
 import '../login_screen.dart';
 
 class SignupUsernameScreen extends StatefulWidget {
   final String email;
-  const SignupUsernameScreen({super.key, required this.email});
+  final bool isGoogleSignup;
+  const SignupUsernameScreen({
+    super.key,
+    required this.email,
+    this.isGoogleSignup = false,
+  });
 
   @override
   State<SignupUsernameScreen> createState() =>
@@ -16,8 +23,10 @@ class _SignupUsernameScreenState
 
   final TextEditingController usernameController =
       TextEditingController();
+  
+  bool isLoading = false;
 
-  void goNext() {
+  void goNext() async {
     final username = usernameController.text.trim();
     if (username.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -25,15 +34,55 @@ class _SignupUsernameScreenState
       );
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SignupPasswordScreen(
-          email: widget.email,
-          username: username,
-        ),
-      ),
-    );
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Check if username already exists in Firestore
+      final result = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get();
+
+      if (result.docs.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("This username is already taken. Please choose another.")),
+          );
+        }
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SignupPasswordScreen(
+              email: widget.email,
+              username: username,
+              isGoogleSignup: widget.isGoogleSignup,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error checking username: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   void goBack() {
@@ -143,7 +192,7 @@ class _SignupUsernameScreenState
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: goNext,
+                      onTap: isLoading ? null : goNext,
                       child: Container(
                         height: 58,
                         width: double.infinity,
@@ -151,15 +200,24 @@ class _SignupUsernameScreenState
                           color: Colors.black,
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        child: const Center(
-                          child: Text(
-                            "Next",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: Center(
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  "Next",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                     ),

@@ -12,7 +12,20 @@
           "package_name": "com.example.knockpost"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "56941114478-gtt1grle6l90fokarf75h95luusctq6g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.knockpost",
+            "certificate_hash": "dbfdf6432acb0612997c59d2449210b3f33d7370"
+          }
+        },
+        {
+          "client_id": "56941114478-99oi3tmack3hmtelf5l0vp6j4oe8hson.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC99upOM3pcXmc0NN2nEK3bVIEE7CgFUSg"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "56941114478-99oi3tmack3hmtelf5l0vp6j4oe8hson.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

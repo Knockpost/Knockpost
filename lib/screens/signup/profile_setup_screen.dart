@@ -9,11 +9,14 @@ class ProfileSetupScreen extends StatefulWidget {
   final String email;
   final String username;
   final String password;
+  final bool isGoogleSignup;
+
   const ProfileSetupScreen({
     super.key,
     required this.email,
     required this.username,
     required this.password,
+    this.isGoogleSignup = false,
   });
 
   @override
@@ -269,6 +272,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           password: widget.password,
           fullName: name,
           profileImage: selectedImage,
+          isGoogleSignup: widget.isGoogleSignup,
         ),
       ),
     );

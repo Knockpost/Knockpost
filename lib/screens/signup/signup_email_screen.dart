@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'signup_username_screen.dart';
 import '../login_screen.dart';
-import 'signup_verification_screen.dart';
 
 class SignupEmailScreen extends StatefulWidget {
   const SignupEmailScreen({super.key});
@@ -22,31 +22,14 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
-
-    // Simulate sending an OTP
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("A verification code has been sent (Test: 123456)")),
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SignupVerificationScreen(
-            email: email,
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SignupUsernameScreen(
+          email: email,
         ),
-      );
-
-      setState(() {
-        isLoading = false;
-      });
-    }
+      ),
+    );
   }
 
   void goBackToLogin() {

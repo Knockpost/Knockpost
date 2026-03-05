@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup/signup_email_screen.dart';
+import 'signup/signup_username_screen.dart';
+import 'signup/signup_verification_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -227,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
 
-                            onPressed: () {},
+                            onPressed: isLoading ? null : signInWithGoogle,
 
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -309,12 +313,45 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
+      final User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (mounted) {
+          if (!user.emailVerified) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SignupVerificationScreen(
+                  email: user.email ?? "",
+                ),
+              ),
+            );
+            return;
+          }
+
+          if (userDoc.exists) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          } else {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SignupUsernameScreen(
+                  email: user.email ?? "",
+                  isGoogleSignup: true,
+                ),
+              ),
+              (route) => false,
+            );
+          }
+        }
       }
     } on FirebaseAuthException catch (e) {
       debugPrint("Firebase Login Error: ${e.code} - ${e.message}");
@@ -328,6 +365,106 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // 1. Configure with Web Client ID
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: '56941114478-99oi3tmack3hmtelf5l0vp6j4oe8hson.apps.googleusercontent.com',
+      );
+      
+      await googleSignIn.signOut().catchError((_) => null);
+
+      // 2. Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // The user canceled the sign-in
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      // 3. Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // 4. Create a new credential
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // 5. Once signed in, return the UserCredential
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      final User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (mounted) {
+          if (!user.emailVerified) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SignupVerificationScreen(
+                  email: user.email ?? "",
+                ),
+              ),
+            );
+            return;
+          }
+
+          if (userDoc.exists) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          } else {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SignupUsernameScreen(
+                  email: user.email ?? "",
+                  isGoogleSignup: true,
+                ),
+              ),
+              (route) => false,
+            );
+          }
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Firebase Login Error: ${e.code} - ${e.message}");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Authentication failed")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Google Sign-In Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign-In failed: $e")),
         );
       }
     } finally {
