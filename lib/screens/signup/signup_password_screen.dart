@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
-import 'profile_setup_screen.dart';
+import 'signup_verification_screen.dart';
 import '../login_screen.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
   final String email;
   final String username;
-  const SignupPasswordScreen({super.key, required this.email, required this.username});
+  final bool isGoogleSignup;
+  const SignupPasswordScreen({
+    super.key,
+    required this.email,
+    required this.username,
+    this.isGoogleSignup = false,
+  });
 
   @override
   State<SignupPasswordScreen> createState() =>
@@ -28,10 +34,11 @@ class _SignupPasswordScreenState
       );
       return;
     }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ProfileSetupScreen(
+        builder: (_) => SignupVerificationScreen(
           email: widget.email,
           username: widget.username,
           password: password,
