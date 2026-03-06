@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'signup_username_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'signup_verification_screen.dart';
 import '../login_screen.dart';
 
 class SignupEmailScreen extends StatefulWidget {
@@ -22,14 +24,62 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SignupUsernameScreen(
-          email: email,
-        ),
-      ),
-    );
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // 1. Store email locally for verification later
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('email_for_link', email);
+
+      // 2. Configure ActionCodeSettings for passwordless link
+      final actionCodeSettings = ActionCodeSettings(
+        url: 'https://knockpost-84b21.firebaseapp.com', // Must be an authorized domain
+        handleCodeInApp: true,
+        androidPackageName: 'com.example.knockpost',
+        androidInstallApp: true,
+        androidMinimumVersion: '12',
+      );
+
+      // 3. Send the link
+      await FirebaseAuth.instance.sendSignInLinkToEmail(
+        email: email,
+        actionCodeSettings: actionCodeSettings,
+      );
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SignupVerificationScreen(
+              email: email,
+            ),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: [${e.code}] ${e.message}"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   void goBackToLogin() {

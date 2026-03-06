@@ -322,6 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (mounted) {
           if (!user.emailVerified) {
+            // For regular email/password login, unverified users MUST verify first
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -421,18 +422,7 @@ class _LoginScreenState extends State<LoginScreen> {
             .get();
 
         if (mounted) {
-          if (!user.emailVerified) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SignupVerificationScreen(
-                  email: user.email ?? "",
-                ),
-              ),
-            );
-            return;
-          }
-
+          // Google users are pre-verified, so we skip SignupVerificationScreen entirely
           if (userDoc.exists) {
             Navigator.pushAndRemoveUntil(
               context,
@@ -440,6 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
               (route) => false,
             );
           } else {
+            // New Google user -> Pick a username first
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(

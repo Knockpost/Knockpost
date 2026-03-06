@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
+import 'profile_setup_screen.dart';
 import '../login_screen.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
   final String email;
-  final String username;
+  final String? username; // Optional now: regular signup doesn't have it yet
   final bool isGoogleSignup;
   const SignupPasswordScreen({
     super.key,
     required this.email,
-    required this.username,
+    this.username,
     this.isGoogleSignup = false,
   });
 
@@ -25,8 +27,9 @@ class _SignupPasswordScreenState
       TextEditingController();
 
   bool isObscured = true;
+  bool isLoading = false;
 
-  void goNext() {
+  void goNext() async {
     final password = passwordController.text.trim();
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -34,17 +37,49 @@ class _SignupPasswordScreenState
       );
       return;
     }
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SignupVerificationScreen(
-          email: widget.email,
-          username: widget.username,
-          password: password,
-        ),
-      ),
-    );
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Since user is already signed in via Email Link or Google Auth,
+        // we use updatePassword to set their permanent password.
+        await user.updatePassword(password);
+
+        if (mounted) {
+          // After setting password, go to Profile Setup
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProfileSetupScreen(
+                email: widget.email,
+                username: widget.username ?? "User", // Should have username from previous screen
+                password: password,
+              ),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        throw Exception("User session not found. Please try again.");
+      }
+    } catch (e) {
+      if (mounted) {
+        debugPrint("Password Setting Error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not set password: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   void goBack() {
