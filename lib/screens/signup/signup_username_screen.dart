@@ -6,10 +6,12 @@ import '../login_screen.dart';
 
 class SignupUsernameScreen extends StatefulWidget {
   final String email;
+  final String? password; // Optional: regular signup passed it after verification
   final bool isGoogleSignup;
   const SignupUsernameScreen({
     super.key,
     required this.email,
+    this.password,
     this.isGoogleSignup = false,
   });
 
@@ -59,13 +61,15 @@ class _SignupUsernameScreenState
       }
 
       if (mounted) {
+        // In the new flow (Email -> Link -> Username -> Password)
+        // We always go to SignupPasswordScreen next to set/link the password.
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => SignupPasswordScreen(
               email: widget.email,
               username: username,
-              isGoogleSignup: widget.isGoogleSignup,
+              isGoogleSignup: widget.isGoogleSignup, // if true, it handles linking or update
             ),
           ),
         );
