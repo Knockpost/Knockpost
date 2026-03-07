@@ -35,6 +35,8 @@ flutter:
     - assets/icon.png
     - assets/icon(white).png
     - assets/google.png
+    - assets/reaction_default.png
+    - assets/test1.jpg
 
 flutter_launcher_icons:
   android: true
