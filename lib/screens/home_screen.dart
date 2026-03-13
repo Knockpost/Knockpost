@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import '../widgets/post_card.dart';
+import 'messages/messages_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,7 +11,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   final ScrollController _scrollController = ScrollController();
   bool showFab = true;
 
@@ -19,74 +19,73 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     _scrollController.addListener(() {
-
       if (_scrollController.position.userScrollDirection ==
           ScrollDirection.reverse) {
-
         if (showFab) {
           setState(() {
             showFab = false;
           });
         }
-
       } else {
-
         if (!showFab) {
           setState(() {
             showFab = true;
           });
         }
-
       }
-
     });
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       backgroundColor: Colors.white,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-
         titleSpacing: 10,
 
         title: Row(
           children: [
+            Image.asset("assets/icon(white).png", height: 26),
 
-            Image.asset(
-              "assets/icon(white).png",
-              height: 26,
-            ),
-
-            const SizedBox(width:6),
+            const SizedBox(width: 6),
 
             const Text(
               "KnockPost",
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.w700,
-                fontSize:18,
+                fontSize: 18,
               ),
             ),
-
           ],
         ),
 
         actions: [
-
+          /// Notifications
           IconButton(
-            icon: const Icon(
-              Icons.notifications_none,
-              color: Colors.black,
-            ),
+            icon: const Icon(Icons.notifications_none, color: Colors.black),
             onPressed: () {},
-          )
+          ),
 
+          /// Messages
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MessagesScreen()),
+              );
+            },
+          ),
         ],
       ),
 
@@ -94,36 +93,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ? FloatingActionButton(
               backgroundColor: Colors.black,
               onPressed: () {},
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
 
       body: ListView.separated(
-
         controller: _scrollController,
 
         itemCount: 5,
 
-        separatorBuilder: (context,index) {
-
-          return const Divider(
-            thickness:1,
-            color: Color(0xffeeeeee),
-          );
-
+        separatorBuilder: (context, index) {
+          return const Divider(thickness: 1, color: Color(0xffeeeeee));
         },
 
-        itemBuilder: (context,index) {
-
+        itemBuilder: (context, index) {
           return const PostCard();
-
         },
-
       ),
-
     );
   }
 }
