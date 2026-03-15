@@ -44,11 +44,17 @@ class NewMessageScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
 
+              // ignore: prefer_const_literals_to_create_immutables
               children: [
+                // ignore: prefer_const_constructors
                 UserTile(name: "John Doe"),
+                // ignore: prefer_const_constructors
                 UserTile(name: "Sarah Wilson"),
+                // ignore: prefer_const_constructors
                 UserTile(name: "Alex Brown"),
+                // ignore: prefer_const_constructors
                 UserTile(name: "Emma Smith"),
+                // ignore: prefer_const_constructors
                 UserTile(name: "Michael Clark"),
               ],
             ),

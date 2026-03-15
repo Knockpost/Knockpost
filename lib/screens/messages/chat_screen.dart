@@ -56,6 +56,7 @@ class ChatScreen extends StatelessWidget {
             );
           },
 
+          // ignore: prefer_const_constructors
           child: Row(
             children: const [
               CircleAvatar(
@@ -180,6 +181,7 @@ class MessageBubble extends StatelessWidget {
 
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),

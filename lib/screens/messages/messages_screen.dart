@@ -63,37 +63,44 @@ class MessagesScreen extends StatelessWidget {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
+              // ignore: prefer_const_literals_to_create_immutables
               children: [
+                // ignore: prefer_const_constructors
                 MessageTile(
                   name: "John Doe",
                   message: "Just finished work, what's up?",
                   time: "2m",
                 ),
 
+                // ignore: prefer_const_constructors
                 MessageTile(
                   name: "Jane Doe",
                   message: "That sounds awesome! 😂",
                   time: "10m",
                 ),
 
+                // ignore: prefer_const_constructors
                 MessageTile(
                   name: "Alex Smith",
                   message: "Are we still on for tomorrow?",
                   time: "30m",
                 ),
 
+                // ignore: prefer_const_constructors
                 MessageTile(
                   name: "Emily Brown",
                   message: "Sure, I'll send it over to you!",
                   time: "45m",
                 ),
 
+                // ignore: prefer_const_constructors
                 MessageTile(
                   name: "Daniel Lee",
                   message: "Can you call me when you're free?",
                   time: "1h",
                 ),
 
+                // ignore: prefer_const_constructors
                 MessageTile(
                   name: "Sarah Wilson",
                   message: "Haha that's so funny!",
