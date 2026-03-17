@@ -47,12 +47,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.black : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
 
       floatingActionButton: showFab
           ? FloatingActionButton(
-              backgroundColor: Colors.black,
+              backgroundColor: textColor,
               onPressed: () {
                 Navigator.push(
                   context,
@@ -61,31 +65,46 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
-              child: const Icon(Icons.add, color: Colors.white),
+              child: Icon(Icons.add, color: bgColor),
             )
           : null,
 
-      body: NestedScrollView(
-        controller: _scrollController,
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: bgColor,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          systemNavigationBarColor: bgColor,
+          systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        ),
+        child: SafeArea(
+        child: NestedScrollView(
+          controller: _scrollController,
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverAppBar(
+              backgroundColor: bgColor,
+              surfaceTintColor: bgColor,
               elevation: 0,
               floating: true,
               snap: true,
               titleSpacing: 10,
-              systemOverlayStyle: SystemUiOverlayStyle.dark,
+              systemOverlayStyle: SystemUiOverlayStyle(
+                statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+              ),
 
               title: Row(
                 children: [
-                  Image.asset("assets/icon(white).png", height: 26),
+                  Image.asset(
+                    isDark ? "assets/icon(white).png" : "assets/icon(black).png",
+                    height: 26,
+                    errorBuilder: (context, error, stackTrace) => Image.asset("assets/icon(white).png", height: 26),
+                  ),
                   const SizedBox(width: 6),
-                  const Text(
+                  Text(
                     "KnockPost",
                     style: TextStyle(
-                      color: Colors.black,
+                      color: textColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
                     ),
@@ -95,11 +114,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.notifications_none, color: Colors.black),
+                  icon: Icon(Icons.notifications_none, color: textColor),
                   onPressed: () {},
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline, color: Colors.black),
+                  icon: Icon(Icons.chat_bubble_outline, color: textColor),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -119,10 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
           itemCount: _demoPostImages.length,
 
           separatorBuilder: (context, index) {
-            return const Divider(
+            return Divider(
               thickness: 6,
               height: 6,
-              color: Color(0xfff0f0f0),
+              color: isDark ? const Color(0xff121212) : const Color(0xfff0f0f0),
             );
           },
 
@@ -130,6 +149,8 @@ class _HomeScreenState extends State<HomeScreen> {
             return PostCard(imagePaths: _demoPostImages[index]);
           },
         ),
+      ),
+      ),
       ),
     );
   }

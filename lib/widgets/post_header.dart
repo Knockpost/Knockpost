@@ -24,7 +24,7 @@ class _PostHeaderState extends State<PostHeader> {
       _showBlackFlash = true;
     });
 
-    Future.delayed(const Duration(milliseconds: 700), () {
+    Future.delayed(const Duration(milliseconds: 900), () {
       if (mounted) {
         setState(() => _showBlackFlash = false);
       }

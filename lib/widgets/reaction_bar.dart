@@ -258,31 +258,6 @@ class _ReactionBarState extends State<ReactionBar>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Label above hovered emoji
-                            AnimatedOpacity(
-                              opacity: isHovered ? 1.0 : 0.0,
-                              duration: const Duration(milliseconds: 150),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 4),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color.fromRGBO(0, 0, 0, 0.75),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  _reactions[index].label,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
                             // Emoji
                             AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 200),
