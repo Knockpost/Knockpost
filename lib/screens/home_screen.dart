@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import '../widgets/post_card.dart';
 import 'messages/messages_screen.dart';
+import 'create_post/create_post_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -92,7 +93,14 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: showFab
           ? FloatingActionButton(
               backgroundColor: Colors.black,
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreatePostScreen(),
+                  ),
+                );
+              },
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
