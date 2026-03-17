@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import '../widgets/post_card.dart';
-import 'messages/messages_screen.dart';
+import '../widgets/custom_bottom_nav.dart';
+import 'messages/messages_list_screen.dart';
 import 'create_post/create_post_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   bool showFab = true;
+  int _currentNavIndex = 0;
 
   // Demo posts with varying image counts
   final List<List<String>> _demoPostImages = const [
@@ -54,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: bgColor,
 
-      floatingActionButton: showFab
+      floatingActionButton: (_currentNavIndex == 0 && showFab)
           ? FloatingActionButton(
               backgroundColor: textColor,
               onPressed: () {
@@ -77,80 +79,96 @@ class _HomeScreenState extends State<HomeScreen> {
           systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         ),
         child: SafeArea(
-        child: NestedScrollView(
-          controller: _scrollController,
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverAppBar(
-              backgroundColor: bgColor,
-              surfaceTintColor: bgColor,
-              elevation: 0,
-              floating: true,
-              snap: true,
-              titleSpacing: 10,
-              systemOverlayStyle: SystemUiOverlayStyle(
-                statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-                statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-              ),
-
-              title: Row(
-                children: [
-                  Image.asset(
-                    isDark ? "assets/icon(white).png" : "assets/icon(black).png",
-                    height: 26,
-                    errorBuilder: (context, error, stackTrace) => Image.asset("assets/icon(white).png", height: 26),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    "KnockPost",
-                    style: TextStyle(
-                      color: textColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
+          child: IndexedStack(
+            index: _currentNavIndex,
+            children: [
+              // 0: HOME FEED
+              NestedScrollView(
+                controller: _scrollController,
+                headerSliverBuilder: (context, innerBoxIsScrolled) {
+                  return [
+                    SliverAppBar(
+                    backgroundColor: bgColor,
+                    surfaceTintColor: bgColor,
+                    elevation: 0,
+                    floating: true,
+                    snap: true,
+                    titleSpacing: 10,
+                    systemOverlayStyle: SystemUiOverlayStyle(
+                      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
                     ),
+
+                    title: Row(
+                      children: [
+                        Image.asset(
+                          isDark ? "assets/icon(white).png" : "assets/icon(black).png",
+                          height: 26,
+                          errorBuilder: (context, error, stackTrace) => Image.asset("assets/icon(white).png", height: 26),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "KnockPost",
+                          style: TextStyle(
+                            color: textColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    actions: [
+                      IconButton(
+                        icon: Icon(Icons.notifications_none, color: textColor),
+                        onPressed: () {},
+                      ),
+                    ],
                   ),
-                ],
+                ];
+              },
+
+              body: ListView.separated(
+                padding: EdgeInsets.zero,
+
+                itemCount: _demoPostImages.length,
+
+                separatorBuilder: (context, index) {
+                  return Divider(
+                    thickness: 6,
+                    height: 6,
+                    color: isDark ? const Color(0xff121212) : const Color(0xfff0f0f0),
+                  );
+                },
+
+                itemBuilder: (context, index) {
+                  return PostCard(imagePaths: _demoPostImages[index]);
+                },
+              ),
               ),
 
-              actions: [
-                IconButton(
-                  icon: Icon(Icons.notifications_none, color: textColor),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: Icon(Icons.chat_bubble_outline, color: textColor),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const MessagesScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ];
-        },
+              // 1: SEARCH PIPELINE
+              const Center(child: Text("Search")),
 
-        body: ListView.separated(
-          padding: EdgeInsets.zero,
+              // 2: REELS / VIDEO PIPELINE
+              const Center(child: Text("Reels")),
 
-          itemCount: _demoPostImages.length,
+              // 3: MESSAGES PIPELINE
+              const MessagesScreen(),
 
-          separatorBuilder: (context, index) {
-            return Divider(
-              thickness: 6,
-              height: 6,
-              color: isDark ? const Color(0xff121212) : const Color(0xfff0f0f0),
-            );
-          },
-
-          itemBuilder: (context, index) {
-            return PostCard(imagePaths: _demoPostImages[index]);
-          },
+              // 4: PROFILE PIPELINE
+              const Center(child: Text("Profile")),
+            ],
+          ),
         ),
       ),
-      ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: _currentNavIndex,
+        onTap: (index) {
+          setState(() {
+            _currentNavIndex = index;
+          });
+        },
       ),
     );
   }
