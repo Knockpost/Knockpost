@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> startApp() async {
 
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 100));
 
     // Restore system UI
     SystemChrome.setEnabledSystemUIMode(
@@ -158,24 +158,20 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF1C1C1E),
 
       body: Center(
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-
+          borderRadius: BorderRadius.circular(28), 
           child: Image.asset(
-            'assets/icon.png',
-            width: 150,
-            height: 150,
+            'assets/icon4.png',
+            width: 200,
+            height: 200,
           ),
         ),
       ),
-
     );
-
   }
 
 }
