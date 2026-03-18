@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/haptic_helper.dart';
 
 class PostHeader extends StatefulWidget {
   const PostHeader({super.key});
@@ -12,6 +13,7 @@ class _PostHeaderState extends State<PostHeader> {
   bool _showBlackFlash = false;
 
   void _toggleKnock() {
+    KnockHaptics.tap();
     if (_isKnocked) {
       // Already knocked — just un-knock
       setState(() => _isKnocked = false);
@@ -32,6 +34,7 @@ class _PostHeaderState extends State<PostHeader> {
   }
 
   void _showMoreOptions() {
+    KnockHaptics.impact();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -95,7 +98,7 @@ class _PostHeaderState extends State<PostHeader> {
     Color color = Colors.black87,
   }) {
     return InkWell(
-      onTap: onTap,
+      onTap: () { KnockHaptics.selection(); onTap(); },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(

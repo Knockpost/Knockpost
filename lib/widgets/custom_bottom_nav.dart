@@ -1,6 +1,7 @@
 // widgets/custom_bottom_nav.dart
 
 import 'package:flutter/material.dart';
+import '../utils/haptic_helper.dart';
 
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -42,7 +43,7 @@ class CustomBottomNav extends StatelessWidget {
             children: [
               // HOME
               GestureDetector(
-                onTap: () => onTap(0),
+                onTap: () { KnockHaptics.tap(); onTap(0); },
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -56,7 +57,7 @@ class CustomBottomNav extends StatelessWidget {
 
               // SEARCH
               GestureDetector(
-                onTap: () => onTap(1),
+                onTap: () { KnockHaptics.tap(); onTap(1); },
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -71,7 +72,7 @@ class CustomBottomNav extends StatelessWidget {
 
               // VIDEO / REELS (Like Substacks distinct video icon)
               GestureDetector(
-                onTap: () => onTap(2),
+                onTap: () { KnockHaptics.tap(); onTap(2); },
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -85,7 +86,7 @@ class CustomBottomNav extends StatelessWidget {
 
               // CHAT / MESSAGES
               GestureDetector(
-                onTap: () => onTap(3),
+                onTap: () { KnockHaptics.tap(); onTap(3); },
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -99,7 +100,7 @@ class CustomBottomNav extends StatelessWidget {
 
               // PROFILE
               GestureDetector(
-                onTap: () => onTap(4),
+                onTap: () { KnockHaptics.tap(); onTap(4); },
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),

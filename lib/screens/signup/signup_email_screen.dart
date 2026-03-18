@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'signup_verification_screen.dart';
@@ -106,7 +107,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                 children: [
 
                   GestureDetector(
-                    onTap: goBackToLogin,
+                    onTap: () { KnockHaptics.tap(); goBackToLogin(); },
                     child: const Icon(
                       Icons.arrow_back,
                       size: 25,
@@ -186,7 +187,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: isLoading ? null : goNext,
+                      onTap: isLoading ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
@@ -220,7 +221,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                     Center(
                       child: GestureDetector(
-                        onTap: goBackToLogin,
+                        onTap: () { KnockHaptics.tap(); goBackToLogin(); },
                         child: const Text(
                           "I already have an account",
                           style: TextStyle(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/haptic_helper.dart';
 import 'post_header.dart';
 import 'media_carousel.dart';
 import 'reaction_bar.dart';
@@ -19,6 +20,7 @@ class _PostCardState extends State<PostCard> {
   bool _doubleTapped = false;
 
   void _onDoubleTap() {
+    KnockHaptics.impact();
     setState(() => _doubleTapped = true);
   }
 
@@ -66,6 +68,8 @@ class _PostCardState extends State<PostCard> {
           child: ReactionBar(
             doubleTapped: _doubleTapped,
             onDoubleTapHandled: _onDoubleTapHandled,
+            postId: 'demo_post_${widget.imagePaths.length}',
+            isPostOwner: false, // Viewer perspective for demo
           ),
         ),
 

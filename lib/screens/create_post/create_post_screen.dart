@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
@@ -169,6 +170,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
             child: Center(
               child: GestureDetector(
                 onTap: () {
+                  KnockHaptics.tap();
                   // TODO: handle post
                 },
                 child: const Text(
@@ -275,6 +277,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                               right: 8,
                               child: GestureDetector(
                                 onTap: () {
+                                  KnockHaptics.heavy();
                                   setState(() => mediaFiles.removeAt(i));
                                 },
                                 child: Container(
@@ -343,7 +346,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                 ),
                 trailing: Icon(Icons.arrow_forward_ios,
                     size: 14, color: Colors.grey.shade400),
-                onTap: () {},
+                onTap: () { KnockHaptics.tap(); },
               ),
               const Divider(height: 1, color: Color(0xFFEEEEEE)),
             ],
@@ -420,7 +423,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
           // Cancel
           GestureDetector(
-            onTap: cancelRecording,
+            onTap: () { KnockHaptics.tap(); cancelRecording(); },
             child: Icon(Icons.delete_outline,
                 color: Colors.grey.shade600, size: 22),
           ),
@@ -429,7 +432,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
           // Stop
           GestureDetector(
-            onTap: stopRecording,
+            onTap: () { KnockHaptics.tap(); stopRecording(); },
             child: Container(
               width: 34,
               height: 34,
@@ -496,7 +499,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
           // Delete
           GestureDetector(
-            onTap: deleteRecording,
+            onTap: () { KnockHaptics.heavy(); deleteRecording(); },
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -514,7 +517,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
   // ─── ICON BUILDER ─────────────────────────────────────────
   Widget _icon(IconData icon, VoidCallback? onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap != null ? () { KnockHaptics.tap(); onTap(); } : null,
       child: Icon(
         icon,
         size: 26,

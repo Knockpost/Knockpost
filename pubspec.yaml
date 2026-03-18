@@ -22,6 +22,7 @@ dependencies:
   app_links: ^7.0.0
   record: ^6.2.0
   path_provider: ^2.1.5
+  pro_image_editor: ^12.0.7
 
 dev_dependencies:
   flutter_test:

@@ -1,9 +1,97 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
 
-class MessagesScreen extends StatelessWidget {
+class _ConversationData {
+  final String name;
+  final String message;
+  final String time;
+  final int unreadCount;
+  final bool read;
+
+  const _ConversationData({
+    required this.name,
+    required this.message,
+    required this.time,
+    this.unreadCount = 0,
+    this.read = false,
+  });
+}
+
+class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
+
+  @override
+  State<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends State<MessagesScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  static const List<_ConversationData> _conversations = [
+    _ConversationData(
+      name: "John Doe",
+      message: "Just finished work, what's up?",
+      time: "2m",
+      unreadCount: 2,
+    ),
+    _ConversationData(
+      name: "Jane Doe",
+      message: "That sounds awesome! 😂",
+      time: "10m",
+      unreadCount: 1,
+    ),
+    _ConversationData(
+      name: "Alex Smith",
+      message: "Are we still on for tomorrow?",
+      time: "30m",
+      read: true,
+    ),
+    _ConversationData(
+      name: "Emily Brown",
+      message: "Sure, I'll send it over to you!",
+      time: "45m",
+      read: true,
+    ),
+    _ConversationData(
+      name: "Daniel Lee",
+      message: "Can you call me when you're free?",
+      time: "1h",
+      read: true,
+    ),
+    _ConversationData(
+      name: "Sarah Wilson",
+      message: "Haha that's so funny!",
+      time: "2h",
+      read: true,
+    ),
+  ];
+
+  List<_ConversationData> get _filteredConversations {
+    if (_searchQuery.isEmpty) return _conversations;
+    final query = _searchQuery.toLowerCase();
+    return _conversations.where((c) {
+      return c.name.toLowerCase().contains(query) ||
+          c.message.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      final q = _searchController.text.trim();
+      if (q != _searchQuery) setState(() => _searchQuery = q);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,6 +99,9 @@ class MessagesScreen extends StatelessWidget {
     final bgColor = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final searchBgColor = isDark ? Colors.grey.shade900 : Colors.grey.shade100;
+    final hintColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
+    final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final filtered = _filteredConversations;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -45,12 +136,23 @@ class MessagesScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
+                controller: _searchController,
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
-                  icon: Icon(Icons.search, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                  icon: Icon(Icons.search, color: iconColor),
                   hintText: "Search",
-                  hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+                  hintStyle: TextStyle(color: hintColor),
                   border: InputBorder.none,
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _searchController.clear();
+                            FocusScope.of(context).unfocus();
+                          },
+                          child: Icon(Icons.close_rounded,
+                              color: iconColor, size: 20),
+                        )
+                      : null,
                 ),
               ),
             ),
@@ -60,58 +162,46 @@ class MessagesScreen extends StatelessWidget {
 
           /// MESSAGE LIST
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 0),
-              children: [
-                MessageTile(
-                  name: "John Doe",
-                  message: "Just finished work, what's up?",
-                  time: "2m",
-                  unreadCount: 2,
-                ),
-
-                MessageTile(
-                  name: "Jane Doe",
-                  message: "That sounds awesome! 😂",
-                  time: "10m",
-                  unreadCount: 1,
-                ),
-
-                MessageTile(
-                  name: "Alex Smith",
-                  message: "Are we still on for tomorrow?",
-                  time: "30m",
-                  read: true,
-                ),
-
-                MessageTile(
-                  name: "Emily Brown",
-                  message: "Sure, I'll send it over to you!",
-                  time: "45m",
-                  read: true,
-                ),
-
-                MessageTile(
-                  name: "Daniel Lee",
-                  message: "Can you call me when you're free?",
-                  time: "1h",
-                  read: true,
-                ),
-
-                MessageTile(
-                  name: "Sarah Wilson",
-                  message: "Haha that's so funny!",
-                  time: "2h",
-                  read: true,
-                ),
-              ],
-            ),
+            child: filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search_off_rounded,
+                            size: 48, color: hintColor),
+                        const SizedBox(height: 12),
+                        Text(
+                          "No results for \"$_searchQuery\"",
+                          style: TextStyle(
+                            color: hintColor,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final c = filtered[index];
+                      return MessageTile(
+                        name: c.name,
+                        message: c.message,
+                        time: c.time,
+                        unreadCount: c.unreadCount,
+                        read: c.read,
+                        searchQuery: _searchQuery,
+                      );
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
 }
+
 
 class _NewMessageIcon extends StatefulWidget {
   const _NewMessageIcon();
@@ -132,6 +222,7 @@ class _NewMessageIconState extends State<_NewMessageIcon> {
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) {
         setState(() => _isPressed = false);
+        KnockHaptics.tap();
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -158,6 +249,7 @@ class MessageTile extends StatelessWidget {
   final String time;
   final int unreadCount;
   final bool read;
+  final String searchQuery;
 
   const MessageTile({
     super.key,
@@ -166,7 +258,25 @@ class MessageTile extends StatelessWidget {
     required this.time,
     this.unreadCount = 0,
     this.read = false,
+    this.searchQuery = '',
   });
+
+  /// Build a RichText with the matching substring highlighted.
+  Widget _highlightText(
+    String text, {
+    required Color color,
+    required FontWeight fontWeight,
+    double fontSize = 14,
+    int? maxLines,
+    TextOverflow? overflow,
+  }) {
+    return Text(
+      text,
+      maxLines: maxLines,
+      overflow: overflow,
+      style: TextStyle(color: color, fontWeight: fontWeight, fontSize: fontSize),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +286,9 @@ class MessageTile extends StatelessWidget {
     final highlightColor = const Color(0xFF0A7CFF); // Vibrant Blue
 
     return InkWell(
+      enableFeedback: false,
       onTap: () {
+        KnockHaptics.selection();
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const ChatScreen()),
@@ -197,25 +309,21 @@ class MessageTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  _highlightText(
                     name,
-                    style: TextStyle(
-                      color: textColor,
-                      fontWeight: (!read && unreadCount > 0) ? FontWeight.bold : FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                    color: textColor,
+                    fontWeight: (!read && unreadCount > 0) ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 16,
                   ),
 
                   const SizedBox(height: 4),
 
-                  Text(
-                    message, 
+                  _highlightText(
+                    message,
+                    color: (!read && unreadCount > 0) ? textColor : subtitleColor,
+                    fontWeight: (!read && unreadCount > 0) ? FontWeight.w600 : FontWeight.normal,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: (!read && unreadCount > 0) ? textColor : subtitleColor,
-                      fontWeight: (!read && unreadCount > 0) ? FontWeight.w600 : FontWeight.normal,
-                    ),
                   ),
                 ],
               ),
@@ -259,3 +367,4 @@ class MessageTile extends StatelessWidget {
     );
   }
 }
+

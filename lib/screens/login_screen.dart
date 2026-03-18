@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -132,6 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.black54,
                               ),
                               onPressed: () {
+                                KnockHaptics.selection();
                                 setState(() {
                                   obscurePassword = !obscurePassword;
                                 });
@@ -158,7 +160,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
 
-                            onPressed: isLoading ? null : login,
+                            onPressed: isLoading ? null : () {
+                              KnockHaptics.tap();
+                              login();
+                            },
 
                             child: isLoading
                                 ? const SizedBox(
@@ -216,7 +221,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
 
-                            onPressed: isLoading ? null : signInWithGoogle,
+                            onPressed: isLoading ? null : () {
+                              KnockHaptics.tap();
+                              signInWithGoogle();
+                            },
 
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -247,6 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         GestureDetector(
                           onTap: () {
+                            KnockHaptics.tap();
                             Navigator.push(
                               context,
                               MaterialPageRoute(
