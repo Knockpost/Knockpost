@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> startApp() async {
 
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 10));
 
     // Restore system UI
     SystemChrome.setEnabledSystemUIMode(
