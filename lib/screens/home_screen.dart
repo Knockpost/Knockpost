@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import '../utils/haptic_helper.dart';
+
 import '../widgets/post_card.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'messages/messages_list_screen.dart';
 import 'create_post/create_post_screen.dart';
-import 'search/search_screen.dart';
+import 'reels/reels_screen.dart';
+import 'search/search_screen.dart'; // ✅ ADD THIS
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,9 +21,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool showFab = true;
   int _currentNavIndex = 0;
 
-  // Demo posts with varying image counts
   final List<List<String>> _demoPostImages = const [
-    ["assets/test1.jpg", "assets/test2.jpg", "assets/test3.jpg", "assets/test4.jpg"],
+    [
+      "assets/test1.jpg",
+      "assets/test2.jpg",
+      "assets/test3.jpg",
+      "assets/test4.jpg",
+    ],
     ["assets/test3.jpg"],
     ["assets/test2.jpg", "assets/test4.jpg", "assets/test1.jpg"],
     ["assets/test4.jpg", "assets/test2.jpg"],
@@ -32,9 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     _scrollController.addListener(() {
-      final goingDown = _scrollController.position.userScrollDirection ==
+      final goingDown =
+          _scrollController.position.userScrollDirection ==
           ScrollDirection.reverse;
+
       if (goingDown && showFab) {
         setState(() => showFab = false);
       } else if (!goingDown && !showFab) {
@@ -58,11 +66,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: bgColor,
 
+      /// ➕ FAB (ONLY HOME)
       floatingActionButton: (_currentNavIndex == 0 && showFab)
           ? FloatingActionButton(
               backgroundColor: textColor,
               onPressed: () {
-                KnockHaptics.tap();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -79,92 +87,106 @@ class _HomeScreenState extends State<HomeScreen> {
           statusBarColor: bgColor,
           statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
           systemNavigationBarColor: bgColor,
-          systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          systemNavigationBarIconBrightness: isDark
+              ? Brightness.light
+              : Brightness.dark,
         ),
         child: SafeArea(
           child: IndexedStack(
             index: _currentNavIndex,
             children: [
-              // 0: HOME FEED
+              /// 🏠 HOME FEED
               NestedScrollView(
                 controller: _scrollController,
                 headerSliverBuilder: (context, innerBoxIsScrolled) {
                   return [
                     SliverAppBar(
-                    backgroundColor: bgColor,
-                    surfaceTintColor: bgColor,
-                    elevation: 0,
-                    floating: true,
-                    snap: true,
-                    titleSpacing: 10,
-                    systemOverlayStyle: SystemUiOverlayStyle(
-                      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-                      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-                    ),
-
-                    title: Row(
-                      children: [
-                        Image.asset(
-                          isDark ? "assets/icon(white).png" : "assets/icon(black).png",
-                          height: 26,
-                          errorBuilder: (context, error, stackTrace) => Image.asset("assets/icon(white).png", height: 26),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          "KnockPost",
-                          style: TextStyle(
-                            color: textColor,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 18,
+                      backgroundColor: bgColor,
+                      surfaceTintColor: bgColor,
+                      elevation: 0,
+                      floating: true,
+                      snap: true,
+                      titleSpacing: 10,
+                      systemOverlayStyle: SystemUiOverlayStyle(
+                        statusBarIconBrightness: isDark
+                            ? Brightness.light
+                            : Brightness.dark,
+                        statusBarBrightness: isDark
+                            ? Brightness.dark
+                            : Brightness.light,
+                      ),
+                      title: Row(
+                        children: [
+                          Image.asset(
+                            isDark
+                                ? "assets/icon(white).png"
+                                : "assets/icon(black).png",
+                            height: 26,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Image.asset(
+                                  "assets/icon(white).png",
+                                  height: 26,
+                                ),
                           ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "KnockPost",
+                            style: TextStyle(
+                              color: textColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.notifications_none,
+                            color: textColor,
+                          ),
+                          onPressed: () {},
                         ),
                       ],
                     ),
-
-                    actions: [
-                      IconButton(
-                        icon: Icon(Icons.notifications_none, color: textColor),
-                        onPressed: () { KnockHaptics.tap(); },
-                      ),
-                    ],
-                  ),
-                ];
-              },
-
-              body: ListView.separated(
-                padding: EdgeInsets.zero,
-
-                itemCount: _demoPostImages.length,
-
-                separatorBuilder: (context, index) {
-                  return Divider(
-                    thickness: 6,
-                    height: 6,
-                    color: isDark ? const Color(0xff121212) : const Color(0xfff0f0f0),
-                  );
+                  ];
                 },
-
-                itemBuilder: (context, index) {
-                  return PostCard(imagePaths: _demoPostImages[index]);
-                },
-              ),
+                body: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  controller: _scrollController,
+                  itemCount: _demoPostImages.length,
+                  separatorBuilder: (context, index) {
+                    return Divider(
+                      thickness: 6,
+                      height: 6,
+                      color: isDark
+                          ? const Color(0xff121212)
+                          : const Color(0xfff0f0f0),
+                    );
+                  },
+                  itemBuilder: (context, index) {
+                    return PostCard(imagePaths: _demoPostImages[index]);
+                  },
+                ),
               ),
 
-              // 1: SEARCH PIPELINE
-              const SearchScreen(),
+              /// 🔍 SEARCH
+              SearchScreen(),
 
-              // 2: REELS / VIDEO PIPELINE
-              const Center(child: Text("Reels")),
+              /// 🎬 REELS (FULLY CONNECTED)
+              const ReelsScreen(),
 
-              // 3: MESSAGES PIPELINE
+              /// 💬 MESSAGES
               const MessagesScreen(),
 
-              // 4: PROFILE PIPELINE
+              /// 👤 PROFILE
               const Center(child: Text("Profile")),
             ],
           ),
         ),
       ),
+
+      /// 🔻 BOTTOM NAV
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentNavIndex,
         onTap: (index) {
