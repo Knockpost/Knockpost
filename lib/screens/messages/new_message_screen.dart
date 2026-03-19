@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'chat_screen.dart';
 
 class NewMessageScreen extends StatefulWidget {
@@ -124,6 +125,7 @@ class UserTile extends StatelessWidget {
 
     return InkWell(
       onTap: () {
+        KnockHaptics.tap();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const ChatScreen()),

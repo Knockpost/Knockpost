@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import '../utils/haptic_helper.dart';
 import '../widgets/post_card.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'messages/messages_list_screen.dart';
 import 'create_post/create_post_screen.dart';
+import 'search/search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? FloatingActionButton(
               backgroundColor: textColor,
               onPressed: () {
+                KnockHaptics.tap();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -121,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     actions: [
                       IconButton(
                         icon: Icon(Icons.notifications_none, color: textColor),
-                        onPressed: () {},
+                        onPressed: () { KnockHaptics.tap(); },
                       ),
                     ],
                   ),
@@ -148,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // 1: SEARCH PIPELINE
-              const Center(child: Text("Search")),
+              const SearchScreen(),
 
               // 2: REELS / VIDEO PIPELINE
               const Center(child: Text("Reels")),

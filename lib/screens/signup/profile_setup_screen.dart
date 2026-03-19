@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'interest_selection_screen.dart';
@@ -317,7 +318,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 children: [
 
                   GestureDetector(
-                    onTap: goBack,
+                    onTap: () { KnockHaptics.tap(); goBack(); },
                     child: const Icon(
                       Icons.arrow_back,
                       size: 25,
@@ -385,7 +386,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         children: [
 
                           GestureDetector(
-                            onTap: pickImage,
+                            onTap: () { KnockHaptics.tap(); pickImage(); },
                             child: CircleAvatar(
                               radius: 55,
                               backgroundColor:
@@ -415,7 +416,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             bottom: 0,
                             right: 4,
                             child: GestureDetector(
-                              onTap: pickImage,
+                              onTap: () { KnockHaptics.tap(); pickImage(); },
                               child: Container(
                                 height: 32,
                                 width: 32,
@@ -477,7 +478,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                     // DOB
                     GestureDetector(
-                      onTap: pickDate,
+                      onTap: () { KnockHaptics.tap(); pickDate(); },
                       child: Container(
                         decoration: BoxDecoration(
                           color:
@@ -532,7 +533,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                     // NEXT
                     GestureDetector(
-                      onTap: goNext,
+                      onTap: () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width:
@@ -567,7 +568,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                     Center(
                       child: GestureDetector(
-                        onTap: goLogin,
+                        onTap: () { KnockHaptics.tap(); goLogin(); },
                         child: const Text(
                           "Already have an account? Log in",
                           style: TextStyle(

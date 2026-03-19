@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
@@ -111,7 +112,7 @@ class _SignupPasswordScreenState
                 children: [
 
                   GestureDetector(
-                    onTap: goBack,
+                    onTap: () { KnockHaptics.tap(); goBack(); },
                     child: const Icon(
                       Icons.arrow_back,
                       size: 25,
@@ -191,6 +192,7 @@ class _SignupPasswordScreenState
                               color: Colors.black54,
                             ),
                             onPressed: () {
+                              KnockHaptics.selection();
                               setState(() {
                                 isObscured = !isObscured;
                               });
@@ -203,7 +205,7 @@ class _SignupPasswordScreenState
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: goNext,
+                      onTap: () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
@@ -228,7 +230,7 @@ class _SignupPasswordScreenState
 
                     Center(
                       child: GestureDetector(
-                        onTap: goLogin,
+                        onTap: () { KnockHaptics.tap(); goLogin(); },
                         child: const Text(
                           "Already have an account? Log in",
                           style: TextStyle(
