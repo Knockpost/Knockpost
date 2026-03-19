@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'profile_setup_screen.dart';
@@ -186,7 +187,7 @@ class _SignupVerificationScreenState
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: goBackAndLogout,
+                    onTap: () { KnockHaptics.tap(); goBackAndLogout(); },
                     child: const Icon(Icons.arrow_back, size: 25, color: Colors.black),
                   ),
                   const Spacer(),
@@ -231,7 +232,7 @@ class _SignupVerificationScreenState
                             ),
                             const SizedBox(height: 40),
                             TextButton(
-                              onPressed: isLoading ? null : _createAccountAndVerify, // This now calls resend
+                              onPressed: isLoading ? null : () { KnockHaptics.tap(); _createAccountAndVerify(); }, // This now calls resend
                               child: const Text("Resend Sign-in Link", style: TextStyle(color: Colors.black)),
                             ),
                           ],
