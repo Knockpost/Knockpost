@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -188,7 +189,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: isLoading ? null : createAccount,
+                onTap: isLoading ? null : () { KnockHaptics.tap(); createAccount(); },
                 child: Container(
                   height: 58,
                   width: double.infinity,
@@ -220,7 +221,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               const SizedBox(height: 22),
               Center(
                 child: GestureDetector(
-                  onTap: goLogin,
+                  onTap: () { KnockHaptics.tap(); goLogin(); },
                   child: const Text(
                     "Already have an account? Log in",
                     style: TextStyle(
@@ -254,6 +255,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
     bool isSelected = selectedInterests.contains(label);
     return GestureDetector(
       onTap: () {
+        KnockHaptics.selection();
         setState(() {
           if (isMain) {
             if (expandedCategories.contains(label)) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
@@ -47,7 +48,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     super.dispose();
   }
 
-  // ─── GALLERY ──────────────────────────────────────────────────────────────
+  // ─── GALLERY ──────────────────────────────────────────────
   Future<void> pickMedia() async {
     final List<XFile>? files =
         await _picker.pickMultiImage(imageQuality: 80);
@@ -58,7 +59,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     }
   }
 
-  // ─── CAMERA ───────────────────────────────────────────────────────────────
+  // ─── CAMERA ───────────────────────────────────────────────
   Future<void> capturePhoto() async {
     final XFile? photo = await _picker.pickImage(
       source: ImageSource.camera,
@@ -71,7 +72,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     }
   }
 
-  // ─── VOICE RECORDING ──────────────────────────────────────────────────────
+  // ─── VOICE RECORDING ─────────────────────────────────────
   Future<void> startRecording() async {
     if (await _recorder.hasPermission()) {
       final dir = await getTemporaryDirectory();
@@ -139,7 +140,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     return '$m:$s';
   }
 
-  // ─── BUILD ────────────────────────────────────────────────────────────────
+  // ─── BUILD ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,6 +153,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
+
         title: const Text(
           "New Post",
           style: TextStyle(
@@ -161,13 +163,15 @@ class _CreatePostScreenState extends State<CreatePostScreen>
           ),
         ),
         centerTitle: true,
+
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: Center(
               child: GestureDetector(
                 onTap: () {
-                  // TODO: handle post submission
+                  KnockHaptics.tap();
+                  // TODO: handle post
                 },
                 child: const Text(
                   "Post",
@@ -190,7 +194,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              // 👤 Caption Area
+              // 🧑 Caption Area
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -222,7 +226,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                 ),
               ),
 
-              // 🎨 ACTION ICONS (below caption)
+              // 🎯 ACTION ICONS (Substack style — below caption)
               Padding(
                 padding: const EdgeInsets.only(left: 68, top: 2, bottom: 6),
                 child: Row(
@@ -243,7 +247,8 @@ class _CreatePostScreenState extends State<CreatePostScreen>
               if (isRecording) _buildRecordingBar(),
 
               // 🎵 RECORDED AUDIO CARD
-              if (!isRecording && recordingPath != null) _buildAudioCard(),
+              if (!isRecording && recordingPath != null)
+                _buildAudioCard(),
 
               // 📸 MEDIA PREVIEW
               if (mediaFiles.isNotEmpty) ...[
@@ -272,12 +277,12 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                               right: 8,
                               child: GestureDetector(
                                 onTap: () {
+                                  KnockHaptics.heavy();
                                   setState(() => mediaFiles.removeAt(i));
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    // ignore: deprecated_member_use
                                     color: Colors.black.withOpacity(0.6),
                                     shape: BoxShape.circle,
                                   ),
@@ -300,7 +305,6 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    // ignore: deprecated_member_use
                                     color: Colors.black.withOpacity(0.6),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -342,7 +346,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                 ),
                 trailing: Icon(Icons.arrow_forward_ios,
                     size: 14, color: Colors.grey.shade400),
-                onTap: () {},
+                onTap: () { KnockHaptics.tap(); },
               ),
               const Divider(height: 1, color: Color(0xFFEEEEEE)),
             ],
@@ -352,7 +356,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     );
   }
 
-  // ─── RECORDING BAR ────────────────────────────────────────────────────────
+  // ─── RECORDING BAR ────────────────────────────────────────
   Widget _buildRecordingBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -407,7 +411,6 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                   width: 3,
                   height: height,
                   decoration: BoxDecoration(
-                    // ignore: deprecated_member_use
                     color: Colors.red.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -420,7 +423,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
           // Cancel
           GestureDetector(
-            onTap: cancelRecording,
+            onTap: () { KnockHaptics.tap(); cancelRecording(); },
             child: Icon(Icons.delete_outline,
                 color: Colors.grey.shade600, size: 22),
           ),
@@ -429,7 +432,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
           // Stop
           GestureDetector(
-            onTap: stopRecording,
+            onTap: () { KnockHaptics.tap(); stopRecording(); },
             child: Container(
               width: 34,
               height: 34,
@@ -445,7 +448,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     );
   }
 
-  // ─── AUDIO ATTACHMENT CARD ────────────────────────────────────────────────
+  // ─── AUDIO ATTACHMENT CARD ────────────────────────────────
   Widget _buildAudioCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -496,11 +499,10 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
           // Delete
           GestureDetector(
-            onTap: deleteRecording,
+            onTap: () { KnockHaptics.heavy(); deleteRecording(); },
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                // ignore: deprecated_member_use
                 color: Colors.red.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
@@ -512,10 +514,10 @@ class _CreatePostScreenState extends State<CreatePostScreen>
     );
   }
 
-  // ─── ICON BUILDER ─────────────────────────────────────────────────────────
+  // ─── ICON BUILDER ─────────────────────────────────────────
   Widget _icon(IconData icon, VoidCallback? onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap != null ? () { KnockHaptics.tap(); onTap(); } : null,
       child: Icon(
         icon,
         size: 26,

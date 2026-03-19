@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
@@ -118,7 +119,7 @@ class _SignupUsernameScreenState
                 children: [
 
                   GestureDetector(
-                    onTap: goBack,
+                    onTap: () { KnockHaptics.tap(); goBack(); },
                     child: const Icon(
                       Icons.arrow_back,
                       size: 25,
@@ -196,7 +197,7 @@ class _SignupUsernameScreenState
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: isLoading ? null : goNext,
+                      onTap: isLoading ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
@@ -230,7 +231,7 @@ class _SignupUsernameScreenState
 
                     Center(
                       child: GestureDetector(
-                        onTap: goLogin,
+                        onTap: () { KnockHaptics.tap(); goLogin(); },
                         child: const Text(
                           "Already have an account? Log in",
                           style: TextStyle(
