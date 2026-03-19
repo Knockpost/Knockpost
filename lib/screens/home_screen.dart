@@ -174,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SearchScreen(),
 
               /// 🎬 REELS (FULLY CONNECTED)
-              const ReelsScreen(),
+              ReelsScreen(isVisible: _currentNavIndex == 2),
 
               /// 💬 MESSAGES
               const MessagesScreen(),

@@ -4,7 +4,8 @@ import 'reel_item.dart';
 import '../create_post/create_post_screen.dart';
 
 class ReelsScreen extends StatefulWidget {
-  const ReelsScreen({super.key});
+  final bool isVisible;
+  const ReelsScreen({super.key, required this.isVisible});
 
   @override
   State<ReelsScreen> createState() => _ReelsScreenState();
@@ -71,7 +72,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                   videoUrl: reels[index]["url"]!,
                   username: reels[index]["username"]!,
                   caption: reels[index]["caption"]!,
-                  isActive: index == currentIndex,
+                  isActive: index == currentIndex && widget.isVisible,
                 );
               },
             ),
