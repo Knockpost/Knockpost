@@ -9,6 +9,8 @@ import '../widgets/custom_bottom_nav.dart';
 import 'messages/messages_list_screen.dart';
 import 'create_post/create_post_screen.dart';
 import 'search/search_screen.dart';
+import 'reels/reels_screen.dart';
+import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -174,13 +176,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const SearchScreen(),
 
               // 2: REELS / VIDEO PIPELINE
-              const Center(child: Text("Reels")),
+              ReelsScreen(isVisible: _currentNavIndex == 2),
 
               // 3: MESSAGES PIPELINE
               const MessagesScreen(),
 
               // 4: PROFILE PIPELINE
-              const Center(child: Text("Profile")),
+              ProfileScreen(username: FirebaseAuth.instance.currentUser?.displayName ?? 'User'),
             ],
           ),
         ),
