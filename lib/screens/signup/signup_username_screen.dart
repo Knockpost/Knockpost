@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
@@ -6,10 +7,12 @@ import '../login_screen.dart';
 
 class SignupUsernameScreen extends StatefulWidget {
   final String email;
+  final String? password; // Optional: regular signup passed it after verification
   final bool isGoogleSignup;
   const SignupUsernameScreen({
     super.key,
     required this.email,
+    this.password,
     this.isGoogleSignup = false,
   });
 
@@ -59,13 +62,15 @@ class _SignupUsernameScreenState
       }
 
       if (mounted) {
+        // In the new flow (Email -> Link -> Username -> Password)
+        // We always go to SignupPasswordScreen next to set/link the password.
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => SignupPasswordScreen(
               email: widget.email,
               username: username,
-              isGoogleSignup: widget.isGoogleSignup,
+              isGoogleSignup: widget.isGoogleSignup, // if true, it handles linking or update
             ),
           ),
         );
@@ -114,7 +119,7 @@ class _SignupUsernameScreenState
                 children: [
 
                   GestureDetector(
-                    onTap: goBack,
+                    onTap: () { KnockHaptics.tap(); goBack(); },
                     child: const Icon(
                       Icons.arrow_back,
                       size: 25,
@@ -192,7 +197,7 @@ class _SignupUsernameScreenState
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: isLoading ? null : goNext,
+                      onTap: isLoading ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
@@ -226,7 +231,7 @@ class _SignupUsernameScreenState
 
                     Center(
                       child: GestureDetector(
-                        onTap: goLogin,
+                        onTap: () { KnockHaptics.tap(); goLogin(); },
                         child: const Text(
                           "Already have an account? Log in",
                           style: TextStyle(

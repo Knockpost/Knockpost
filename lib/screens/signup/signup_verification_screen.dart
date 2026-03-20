@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'profile_setup_screen.dart';
@@ -50,61 +51,36 @@ class _SignupVerificationScreenState
     });
 
     try {
-      User? user = FirebaseAuth.instance.currentUser;
+      // Configure ActionCodeSettings for passwordless link
+      final actionCodeSettings = ActionCodeSettings(
+        url: 'https://knockpost-84b21.firebaseapp.com',
+        handleCodeInApp: true,
+        androidPackageName: 'com.example.knockpost',
+        androidInstallApp: true,
+        androidMinimumVersion: '12',
+      );
 
-      // If we are not signed in OR signed in as a different user
-      if (user == null || user.email != widget.email) {
-        // Only try to create account if password was provided (Signup flow)
-        if (widget.password != null) {
-          UserCredential userCredential = await FirebaseAuth.instance
-              .createUserWithEmailAndPassword(
-                  email: widget.email, password: widget.password!);
-          user = userCredential.user;
-        } else {
-          // If no password, we expect the user to already be signed in via Login
-          // If they aren't, this is an invalid state
-          if (user == null) {
-            throw Exception("Session expired. Please log in again.");
-          }
-        }
-      }
+      await FirebaseAuth.instance.sendSignInLinkToEmail(
+        email: widget.email,
+        actionCodeSettings: actionCodeSettings,
+      );
 
-      // 2. Send verification email
-      await user?.sendEmailVerification();
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Verification link sent! Please check your email inbox.")),
+          const SnackBar(
+            content: Text("Sign-in link resent! Please check your email."),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        User? user = FirebaseAuth.instance.currentUser;
-        if (user != null && user.email == widget.email) {
-          await user.sendEmailVerification();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Account exists. Verification link resent!")),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("This email is already registered. Try logging in.")),
-            );
-          }
-        }
-      } else {
-        if (mounted) {
-          debugPrint("Firebase Verification Error: [${e.code}] - ${e.message}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Error: [${e.code}] ${e.message}"),
-              backgroundColor: Colors.redAccent,
-              duration: const Duration(seconds: 10),
-            ),
-          );
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: [${e.code}] ${e.message}"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -160,32 +136,20 @@ class _SignupVerificationScreenState
               (route) => false,
             );
           } else {
-            // No profile -> Check if we have the data passed in
-            if (widget.username != null && widget.password != null) {
-              // Coming from Signup flow, we have the data
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProfileSetupScreen(
-                    email: widget.email,
-                    username: widget.username!,
-                    password: widget.password!,
-                  ),
+            // No profile -> Pick a username
+            // We pass the password if we have it (Regular signup) 
+            // so we don't ask for it again later.
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SignupUsernameScreen(
+                  email: widget.email,
+                  password: widget.password, 
+                  isGoogleSignup: widget.password == null,
                 ),
-              );
-            } else {
-              // Coming from Login, but no profile -> Need to pick a username
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SignupUsernameScreen(
-                    email: widget.email,
-                    isGoogleSignup: true, // This flag bypasses password setup
-                  ),
-                ),
-                (route) => false,
-              );
-            }
+              ),
+              (route) => false,
+            );
           }
         }
       } else {
@@ -223,7 +187,7 @@ class _SignupVerificationScreenState
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: goBackAndLogout,
+                    onTap: () { KnockHaptics.tap(); goBackAndLogout(); },
                     child: const Icon(Icons.arrow_back, size: 25, color: Colors.black),
                   ),
                   const Spacer(),
@@ -243,16 +207,16 @@ class _SignupVerificationScreenState
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.mark_email_unread_outlined, size: 100, color: Colors.black12),
+                    const Icon(Icons.link, size: 100, color: Colors.black12),
                     const SizedBox(height: 30),
                     const Text(
-                      "Verify your email",
+                      "Check your email",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      "We've sent a verification link to\n${widget.email}.\n\nPlease click the link in that email to continue.",
+                      "We've sent a sign-in link to\n${widget.email}.\n\nClick the link in that email to verify your account and continue setting up your profile.",
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 15, color: Colors.black54, height: 1.5),
                     ),
@@ -262,24 +226,14 @@ class _SignupVerificationScreenState
                       ? const CircularProgressIndicator(color: Colors.black)
                       : Column(
                           children: [
-                            SizedBox(
-                              width: double.infinity,
-                              height: 58,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                ),
-                                onPressed: isChecking ? null : checkVerificationStatus,
-                                child: isChecking 
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
-                                  : const Text("I have verified my email", style: TextStyle(color: Colors.white, fontSize: 16)),
-                              ),
+                            const Text(
+                              "Waiting for link...",
+                              style: TextStyle(color: Colors.black45, fontStyle: FontStyle.italic),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 40),
                             TextButton(
-                              onPressed: isLoading ? null : _createAccountAndVerify,
-                              child: const Text("Resend Verification Email", style: TextStyle(color: Colors.black)),
+                              onPressed: isLoading ? null : () { KnockHaptics.tap(); _createAccountAndVerify(); }, // This now calls resend
+                              child: const Text("Resend Sign-in Link", style: TextStyle(color: Colors.black)),
                             ),
                           ],
                         ),
