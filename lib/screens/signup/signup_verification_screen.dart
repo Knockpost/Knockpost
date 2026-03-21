@@ -176,8 +176,9 @@ class _SignupVerificationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -188,13 +189,13 @@ class _SignupVerificationScreenState
                 children: [
                   GestureDetector(
                     onTap: () { KnockHaptics.tap(); goBackAndLogout(); },
-                    child: const Icon(Icons.arrow_back, size: 25, color: Colors.black),
+                    child: Icon(Icons.arrow_back, size: 25, color: isDark ? Colors.white : Colors.black),
                   ),
                   const Spacer(),
                   SizedBox(
                     height: 33,
                     width: 33,
-                    child: Image.asset("assets/icon(white).png", fit: BoxFit.contain),
+                    child: Image.asset(isDark ? "assets/icon(black).png" : "assets/icon(white).png", fit: BoxFit.contain),
                   ),
                 ],
               ),
@@ -207,7 +208,7 @@ class _SignupVerificationScreenState
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.link, size: 100, color: Colors.black12),
+                    Icon(Icons.link, size: 100, color: isDark ? Colors.white12 : Colors.black12),
                     const SizedBox(height: 30),
                     const Text(
                       "Check your email",
@@ -218,22 +219,22 @@ class _SignupVerificationScreenState
                     Text(
                       "We've sent a sign-in link to\n${widget.email}.\n\nClick the link in that email to verify your account and continue setting up your profile.",
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 15, color: Colors.black54, height: 1.5),
+                      style: TextStyle(fontSize: 15, color: isDark ? Colors.white54 : Colors.black54, height: 1.5),
                     ),
                     const SizedBox(height: 48),
                     
                     isLoading 
-                      ? const CircularProgressIndicator(color: Colors.black)
+                      ? CircularProgressIndicator(color: isDark ? Colors.white : Colors.black)
                       : Column(
                           children: [
-                            const Text(
+                            Text(
                               "Waiting for link...",
-                              style: TextStyle(color: Colors.black45, fontStyle: FontStyle.italic),
+                              style: TextStyle(color: isDark ? Colors.white54 : Colors.black45, fontStyle: FontStyle.italic),
                             ),
                             const SizedBox(height: 40),
                             TextButton(
                               onPressed: isLoading ? null : () { KnockHaptics.tap(); _createAccountAndVerify(); }, // This now calls resend
-                              child: const Text("Resend Sign-in Link", style: TextStyle(color: Colors.black)),
+                              child: Text("Resend Sign-in Link", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
                             ),
                           ],
                         ),

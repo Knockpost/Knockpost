@@ -442,6 +442,8 @@ class _CommentSheetState extends State<CommentSheet> {
     Comment? parentComment,
   }) {
     final isMe = comment.authorUsername == 'you';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -469,13 +471,13 @@ class _CommentSheetState extends State<CommentSheet> {
                   ? const AssetImage('assets/test1.jpg')
                   : null,
               backgroundColor: comment.isPostOwner
-                  ? Colors.black
+                  ? textColor
                   : Colors.grey.shade400,
               child: comment.authorUsername != 'you'
                   ? Icon(
                       Icons.person,
                       size: isReply ? 14 : 16,
-                      color: comment.isPostOwner ? Colors.white : Colors.grey.shade600,
+                      color: comment.isPostOwner ? bgColor : Colors.grey.shade600,
                     )
                   : null,
             ),

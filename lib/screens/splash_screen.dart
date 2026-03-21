@@ -160,8 +160,6 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-      backgroundColor: Colors.white,
-
       body: Center(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(15),

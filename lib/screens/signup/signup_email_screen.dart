@@ -92,8 +92,9 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -108,10 +109,10 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                   GestureDetector(
                     onTap: () { KnockHaptics.tap(); goBackToLogin(); },
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back,
                       size: 25,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
 
@@ -121,7 +122,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                     height: 33,
                     width: 33,
                     child: Image.asset(
-                      "assets/icon(white).png",
+                      isDark ? "assets/icon(black).png" : "assets/icon(white).png",
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -154,11 +155,11 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                     const SizedBox(height: 14),
 
-                    const Text(
+                    Text(
                       "Enter the email where we can reach you. This will be used to secure and access your account.",
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.black54,
+                        color: isDark ? Colors.white54 : Colors.black54,
                         height: 1.5,
                       ),
                     ),
@@ -167,16 +168,18 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F2F2),
+                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
                           hintText: "Email address",
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 20,
                           ),
@@ -192,23 +195,23 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                         height: 58,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: isDark ? Colors.white : Colors.black,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.black : Colors.white,
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   "Next",
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.black : Colors.white,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -222,11 +225,11 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                     Center(
                       child: GestureDetector(
                         onTap: () { KnockHaptics.tap(); goBackToLogin(); },
-                        child: const Text(
+                        child: Text(
                           "I already have an account",
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.black54,
+                            color: isDark ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ),
