@@ -50,9 +50,9 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
   // ─── GALLERY ──────────────────────────────────────────────
   Future<void> pickMedia() async {
-    final List<XFile>? files =
+    final List<XFile> files =
         await _picker.pickMultiImage(imageQuality: 80);
-    if (files != null && files.isNotEmpty) {
+    if (files.isNotEmpty) {
       setState(() {
         mediaFiles.addAll(files.map((e) => e.path));
       });
@@ -171,7 +171,6 @@ class _CreatePostScreenState extends State<CreatePostScreen>
               child: GestureDetector(
                 onTap: () {
                   KnockHaptics.tap();
-                  // TODO: handle post
                 },
                 child: const Text(
                   "Post",
@@ -283,7 +282,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -305,7 +304,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -411,7 +410,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                   width: 3,
                   height: height,
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.5),
+                    color: Colors.red.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 );
@@ -503,7 +502,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, color: Colors.red, size: 18),

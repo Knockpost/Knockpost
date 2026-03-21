@@ -20,7 +20,7 @@ class CustomBottomNav extends StatelessWidget {
     final selectedColor = isDark ? Colors.white : Colors.black;
     final unselectedColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
 
-    Color _getColor(int index) {
+    Color getColor(int index) {
       return currentIndex == index ? selectedColor : unselectedColor;
     }
 
@@ -50,7 +50,7 @@ class CustomBottomNav extends StatelessWidget {
                   child: Icon(
                     currentIndex == 0 ? Icons.home_filled : Icons.home_outlined,
                     size: 30,
-                    color: _getColor(0),
+                    color: getColor(0),
                   ),
                 ),
               ),
@@ -64,7 +64,7 @@ class CustomBottomNav extends StatelessWidget {
                   child: Icon(
                     Icons.search,
                     size: 30,
-                    color: _getColor(1),
+                    color: getColor(1),
                     weight: currentIndex == 1 ? 700 : 400,
                   ),
                 ),
@@ -79,7 +79,7 @@ class CustomBottomNav extends StatelessWidget {
                   child: Icon(
                     currentIndex == 2 ? Icons.movie_rounded : Icons.movie_outlined,
                     size: 30,
-                    color: _getColor(2),
+                    color: getColor(2),
                   ),
                 ),
               ),
@@ -93,7 +93,7 @@ class CustomBottomNav extends StatelessWidget {
                   child: Icon(
                     currentIndex == 3 ? Icons.chat_bubble_rounded : Icons.chat_bubble_outline_rounded,
                     size: 28,
-                    color: _getColor(3),
+                    color: getColor(3),
                   ),
                 ),
               ),
@@ -107,7 +107,7 @@ class CustomBottomNav extends StatelessWidget {
                   child: Icon(
                     currentIndex == 4 ? Icons.person : Icons.person_outline,
                     size: 30,
-                    color: _getColor(4),
+                    color: getColor(4),
                   ),
                 ),
               ),

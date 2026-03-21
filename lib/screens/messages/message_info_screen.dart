@@ -29,7 +29,7 @@ class MessageInfoScreen extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0A7CFF).withOpacity(0.3), width: 3),
+                  border: Border.all(color: const Color(0xFF0A7CFF).withValues(alpha: 0.3), width: 3),
                 ),
                 child: const CircleAvatar(
                   radius: 60,

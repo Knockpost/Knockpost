@@ -23,9 +23,9 @@ class MediaPreview extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: mediaFiles.isEmpty
-            ? Column(
+            ? const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.add_photo_alternate_outlined, size: 40),
                   SizedBox(height: 8),
                   Text(
