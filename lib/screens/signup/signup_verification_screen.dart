@@ -192,10 +192,11 @@ class _SignupVerificationScreenState
                     child: Icon(Icons.arrow_back, size: 25, color: isDark ? Colors.white : Colors.black),
                   ),
                   const Spacer(),
-                  SizedBox(
-                    height: 33,
-                    width: 33,
-                    child: Image.asset(isDark ? "assets/icon(black).png" : "assets/icon(white).png", fit: BoxFit.contain),
+                  Image.asset(
+                    isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),

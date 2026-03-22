@@ -59,9 +59,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
 
                         Image.asset(
-                          isDark ? "assets/icon(black).png" : "assets/icon(white).png",
-                          width: 70,
-                          height: 70,
+                          isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.contain,
                         ),
 
                         const SizedBox(height: 14),

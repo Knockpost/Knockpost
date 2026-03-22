@@ -246,7 +246,7 @@ class _ReactionBarState extends State<ReactionBar>
                           child: _buildSelectedWidget(_selectedEmoji!, 24),
                         )
                       : Image.asset(
-                          "assets/reaction_default.png",
+                          isDark ? "assets/reaction_default_dark.png" : "assets/reaction_default_light.png",
                           width: 24,
                         ),
                 ),

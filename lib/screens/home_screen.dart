@@ -106,7 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       elevation: 0,
                       floating: true,
                       snap: true,
-                      titleSpacing: 10,
+                      titleSpacing: 20,
+                      centerTitle: false,
                       systemOverlayStyle: SystemUiOverlayStyle(
                         statusBarIconBrightness: isDark
                             ? Brightness.light
@@ -115,29 +116,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? Brightness.dark
                             : Brightness.light,
                       ),
-                      title: Row(
-                        children: [
-                          Image.asset(
-                            isDark
-                                ? "assets/icon(white).png"
-                                : "assets/icon(black).png",
-                            height: 26,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(
-                                  "assets/icon(white).png",
-                                  height: 26,
-                                ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "KnockPost",
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
+                      title: Text(
+                        "KnockPost",
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 21,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                       actions: [
                         IconButton(
