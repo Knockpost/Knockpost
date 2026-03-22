@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:app_links/app_links.dart';
 import 'profile_setup_screen.dart';
 import 'signup_username_screen.dart';
 import '../home_screen.dart';
@@ -29,19 +31,68 @@ class _SignupVerificationScreenState
   
   bool isLoading = false;
   bool isChecking = false;
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
     super.initState();
+    _initDeepLinks();
+    
     // Check if already verified first
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null && user.emailVerified) {
-      // If already verified, immediately run the check logic to redirect
       WidgetsBinding.instance.addPostFrameCallback((_) {
         checkVerificationStatus();
       });
-    } else {
-      _createAccountAndVerify();
+    }
+    // Removed _createAccountAndVerify() call as it's redundant (sent from previous screen)
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initDeepLinks() {
+    _appLinks = AppLinks();
+
+    // Listen to incoming links while the app is open
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      debugPrint('Verification Screen Detected Link: $uri');
+      _handleIncomingLink(uri.toString());
+    });
+  }
+
+  Future<void> _handleIncomingLink(String link) async {
+    if (!FirebaseAuth.instance.isSignInWithEmailLink(link)) return;
+
+    setState(() {
+      isChecking = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailLink(
+        email: widget.email,
+        emailLink: link,
+      );
+      
+      // After signing in, refresh status
+      await checkVerificationStatus();
+    } catch (e) {
+      debugPrint("Email Link Verification Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Verification Failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isChecking = false;
+        });
+      }
     }
   }
 
@@ -51,7 +102,7 @@ class _SignupVerificationScreenState
     });
 
     try {
-      // Configure ActionCodeSettings for passwordless link
+      debugPrint("Auth Stage 2 (Resend): Configuring ActionCodeSettings");
       final actionCodeSettings = ActionCodeSettings(
         url: 'https://knockpost-84b21.firebaseapp.com',
         handleCodeInApp: true,
@@ -60,11 +111,13 @@ class _SignupVerificationScreenState
         androidMinimumVersion: '12',
       );
 
+      debugPrint("Auth Stage 3 (Resend): Sending link to ${widget.email}");
       await FirebaseAuth.instance.sendSignInLinkToEmail(
         email: widget.email,
         actionCodeSettings: actionCodeSettings,
       );
 
+      debugPrint("Auth Stage 4 (Resend): Link resent successfully");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -74,6 +127,7 @@ class _SignupVerificationScreenState
         );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint("Auth ERROR (Resend - Firebase): [${e.code}] ${e.message}");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -83,6 +137,7 @@ class _SignupVerificationScreenState
         );
       }
     } catch (e) {
+      debugPrint("Auth ERROR (Resend - Generic): $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("An error occurred: $e")),
@@ -222,8 +277,16 @@ class _SignupVerificationScreenState
                     ),
                     const SizedBox(height: 48),
                     
-                    isLoading 
-                      ? const CircularProgressIndicator(color: Colors.black)
+                    (isLoading || isChecking)
+                      ? Column(
+                          children: [
+                            const CircularProgressIndicator(color: Colors.black),
+                            if (isChecking) ...[
+                              const SizedBox(height: 16),
+                              const Text("Verifying link...", style: TextStyle(color: Colors.black54)),
+                            ]
+                          ],
+                        )
                       : Column(
                           children: [
                             const Text(
@@ -232,7 +295,7 @@ class _SignupVerificationScreenState
                             ),
                             const SizedBox(height: 40),
                             TextButton(
-                              onPressed: isLoading ? null : () { KnockHaptics.tap(); _createAccountAndVerify(); }, // This now calls resend
+                              onPressed: isLoading ? null : () { KnockHaptics.tap(); _createAccountAndVerify(); }, 
                               child: const Text("Resend Sign-in Link", style: TextStyle(color: Colors.black)),
                             ),
                           ],
