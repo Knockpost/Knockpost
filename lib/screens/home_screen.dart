@@ -21,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  late PageController _pageController;
   bool showFab = true;
   int _currentNavIndex = 0;
 
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _currentNavIndex);
 
     _scrollController.addListener(() {
       final goingDown =
@@ -56,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -95,11 +98,18 @@ class _HomeScreenState extends State<HomeScreen> {
               : Brightness.dark,
         ),
         child: SafeArea(
-          child: IndexedStack(
-            index: _currentNavIndex,
+          child: PageView(
+            controller: _pageController,
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() {
+                _currentNavIndex = index;
+              });
+            },
             children: [
               /// 🏠 HOME FEED
-              NestedScrollView(
+              _KeepAlivePage(
+                child: NestedScrollView(
                 controller: _scrollController,
                 headerSliverBuilder: (context, innerBoxIsScrolled) {
                   return [
@@ -158,35 +168,57 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
+              ),
 
               /// 🔍 SEARCH
-              const SearchScreen(),
+              const _KeepAlivePage(child: SearchScreen()),
 
               /// 🎬 REELS (FULLY CONNECTED)
-              ReelsScreen(isVisible: _currentNavIndex == 2),
+              _KeepAlivePage(child: ReelsScreen(isVisible: _currentNavIndex == 2)),
 
               /// 💬 MESSAGES
-              const MessagesScreen(),
+              const _KeepAlivePage(child: MessagesScreen()),
 
               /// 👤 PROFILE
-              ProfileScreen(
-                user: demoOwnUser,
-                posts: demoOwnPosts,
+              _KeepAlivePage(
+                child: ProfileScreen(
+                  user: demoOwnUser,
+                  posts: demoOwnPosts,
+                ),
               ),
             ],
           ),
         ),
       ),
 
-      /// 🔻 BOTTOM NAV
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentNavIndex,
         onTap: (index) {
           setState(() {
             _currentNavIndex = index;
           });
+          _pageController.jumpToPage(index);
         },
       ),
     );
+  }
+}
+
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

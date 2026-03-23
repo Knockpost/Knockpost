@@ -18,7 +18,7 @@ class CreatorRankBadge extends StatelessWidget {
       case CreatorRank.pro:
         return const Color(0xFF9B59B6);
       case CreatorRank.impact:
-        return const Color(0xFFF0A500);
+        return const Color.fromARGB(223, 244, 167, 0);
     }
   }
 
@@ -43,10 +43,7 @@ class CreatorRankBadge extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: px, vertical: py),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            color,
-            Color.lerp(color, Colors.black, 0.18)!,
-          ],
+          colors: [color, Color.lerp(color, Colors.black, 0.18)!],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -121,9 +118,7 @@ class RankInfoCard extends StatelessWidget {
                       r.$3,
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: isDark
-                            ? Colors.white70
-                            : Colors.black87,
+                        color: isDark ? Colors.white70 : Colors.black87,
                       ),
                     ),
                   ),
