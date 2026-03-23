@@ -202,6 +202,9 @@ class _ReactionBarState extends State<ReactionBar>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -233,7 +236,7 @@ class _ReactionBarState extends State<ReactionBar>
                 height: 40,
                 width: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xfff2f2f2),
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -243,7 +246,7 @@ class _ReactionBarState extends State<ReactionBar>
                           child: _buildSelectedWidget(_selectedEmoji!, 24),
                         )
                       : Image.asset(
-                          "assets/reaction_default.png",
+                          isDark ? "assets/reaction_default_dark.png" : "assets/reaction_default_light.png",
                           width: 24,
                         ),
                 ),
@@ -265,13 +268,13 @@ class _ReactionBarState extends State<ReactionBar>
                 height: 40,
                 width: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xfff2f2f2),
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chat_bubble_outline,
                   size: 20,
-                  color: Colors.black54,
+                  color: isDark ? Colors.white54 : Colors.black54,
                 ),
               ),
             ),
@@ -279,9 +282,9 @@ class _ReactionBarState extends State<ReactionBar>
             const SizedBox(width: 10),
 
             // Share button
-            const Icon(
+            Icon(
               Icons.share_outlined,
-              color: Colors.black,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ],
         ),
@@ -302,11 +305,11 @@ class _ReactionBarState extends State<ReactionBar>
                   Container(
                     height: 46,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

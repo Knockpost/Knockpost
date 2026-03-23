@@ -34,6 +34,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
   Widget build(BuildContext context) {
     if (widget.imagePaths.isEmpty) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final double screenWidth = MediaQuery.of(context).size.width;
 
     // Single image — no carousel, no indicators
@@ -129,7 +130,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
                 height: isActive ? 7 : 5.5,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isActive ? Colors.black87 : Colors.grey.shade300,
+                  color: isActive 
+                      ? (isDark ? Colors.white : Colors.black87) 
+                      : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                 ),
               );
             },

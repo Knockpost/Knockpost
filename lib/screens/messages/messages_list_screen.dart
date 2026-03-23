@@ -119,8 +119,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
             fontSize: 22,
           ),
         ),
-        actions: [
-          const _NewMessageIcon(),
+        actions: const [
+          _NewMessageIcon(),
         ],
       ),
 
@@ -283,7 +283,7 @@ class MessageTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final highlightColor = const Color(0xFF0A7CFF); // Vibrant Blue
+    const highlightColor = Color(0xFF0A7CFF); // Vibrant Blue
 
     return InkWell(
       enableFeedback: false,
@@ -346,7 +346,7 @@ class MessageTile extends StatelessWidget {
                 if (unreadCount > 0)
                   Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: highlightColor,
                       shape: BoxShape.circle,
                     ),

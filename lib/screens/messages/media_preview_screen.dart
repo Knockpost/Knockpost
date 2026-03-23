@@ -44,9 +44,9 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
         fullscreenDialog: true,
         builder: (editorContext) => ProImageEditor.memory(
           _currentBytes,
-          configs: ProImageEditorConfigs(
+          configs: const ProImageEditorConfigs(
             cropRotateEditor: CropRotateEditorConfigs(
-              style: const CropRotateEditorStyle(
+              style: CropRotateEditorStyle(
                 cropCornerColor: Colors.white,
                 cropCornerLength: 28,
                 cropCornerThickness: 3,

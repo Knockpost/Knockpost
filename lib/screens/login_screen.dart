@@ -27,14 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ));
-
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
@@ -43,10 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-
-      backgroundColor: Colors.white,
       resizeToAvoidBottomInset: false,
 
       body: SizedBox(
@@ -68,19 +59,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
 
                         Image.asset(
-                          "assets/icon(white).png",
-                          width: 70,
-                          height: 70,
+                          isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.contain,
                         ),
 
                         const SizedBox(height: 14),
 
-                        const Text(
+                        Text(
                           "Only You Matters",
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black54,
+                            color: isDark ? Colors.white54 : Colors.black54,
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -89,10 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         TextField(
                           controller: userController,
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
                           decoration: InputDecoration(
                             hintText: "Email",
+                            hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                             filled: true,
-                            fillColor: const Color(0xfff2f2f2),
+                            fillColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2),
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 18,
                               horizontal: 16,
@@ -109,11 +103,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: passwordController,
                           obscureText: obscurePassword,
-
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
                           decoration: InputDecoration(
                             hintText: "Password",
+                            hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                             filled: true,
-                            fillColor: const Color(0xfff2f2f2),
+                            fillColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2),
 
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 18,
@@ -130,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 obscurePassword
                                     ? Icons.visibility_off
                                     : Icons.visibility,
-                                color: Colors.black54,
+                                color: isDark ? Colors.white54 : Colors.black54,
                               ),
                               onPressed: () {
                                 KnockHaptics.selection();
@@ -151,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
 
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
+                              backgroundColor: isDark ? Colors.white : Colors.black,
                               elevation: 0,
                               shadowColor: Colors.transparent,
 
@@ -166,18 +161,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
 
                             child: isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     height: 20,
                                     width: 20,
                                     child: CircularProgressIndicator(
-                                      color: Colors.white,
+                                      color: isDark ? Colors.black : Colors.white,
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Text(
+                                : Text(
                                     "Log in",
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: isDark ? Colors.black : Colors.white,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -187,20 +182,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 22),
 
-                        const Row(
+                        Row(
                           children: [
 
-                            Expanded(child: Divider()),
+                            const Expanded(child: Divider()),
 
                             Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
                               child: Text(
                                 "OR",
-                                style: TextStyle(color: Colors.black54),
+                                style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                               ),
                             ),
 
-                            Expanded(child: Divider()),
+                            const Expanded(child: Divider()),
 
                           ],
                         ),
@@ -214,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: OutlinedButton(
 
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.black26),
+                              side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
 
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -237,11 +232,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                 const SizedBox(width: 10),
 
-                                const Text(
+                                Text(
                                   "Continue with Google",
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color: Colors.black,
+                                    color: isDark ? Colors.white : Colors.black,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -263,10 +258,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             );
                           },
-                          child: const Text(
+                          child: Text(
                             "Don't have an account? Sign up",
                             style: TextStyle(
-                              color: Colors.black54,
+                              color: isDark ? Colors.white54 : Colors.black54,
                               fontSize: 14,
                             ),
                           ),

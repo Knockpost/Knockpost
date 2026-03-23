@@ -35,9 +35,10 @@ class _PostHeaderState extends State<PostHeader> {
 
   void _showMoreOptions() {
     KnockHaptics.impact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -53,7 +54,7 @@ class _PostHeaderState extends State<PostHeader> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -95,22 +96,24 @@ class _PostHeaderState extends State<PostHeader> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    Color color = Colors.black87,
+    Color? color,
   }) {
+    final effectiveColor = color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87);
+
     return InkWell(
       onTap: () { KnockHaptics.selection(); onTap(); },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 24, color: color),
+            Icon(icon, size: 24, color: effectiveColor),
             const SizedBox(width: 16),
             Text(
               label,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
-                color: color,
+                color: effectiveColor,
               ),
             ),
           ],
@@ -121,22 +124,24 @@ class _PostHeaderState extends State<PostHeader> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     // Determine button colors
     Color bgColor;
     Color textColor;
 
     if (!_isKnocked) {
       // Default state
-      bgColor = const Color(0xfff2f2f2);
-      textColor = Colors.black;
+      bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
+      textColor = isDark ? Colors.white : Colors.black;
     } else if (_showBlackFlash) {
       // 1-second flash after first tap
-      bgColor = Colors.black;
-      textColor = Colors.white;
+      bgColor = isDark ? Colors.white : Colors.black;
+      textColor = isDark ? Colors.black : Colors.white;
     } else {
       // Settled "Knocked" state — reverts to original look but text stays "Knocked"
-      bgColor = const Color(0xfff2f2f2);
-      textColor = Colors.black;
+      bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
+      textColor = isDark ? Colors.white : Colors.black;
     }
 
     return Row(

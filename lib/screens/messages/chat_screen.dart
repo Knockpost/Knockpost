@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -199,6 +198,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isRecording = false);
     KnockHaptics.selection();
     if (_recordingPath != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Audio recorded (ready to send with backend)')));
     }
@@ -251,17 +251,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ]),
         ),
         const PopupMenuDivider(),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'block',
-          child: const Row(children: [
+          child: Row(children: [
             Icon(Icons.block_rounded, size: 20, color: Colors.red),
             SizedBox(width: 12),
             Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
           ]),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'report',
-          child: const Row(children: [
+          child: Row(children: [
             Icon(Icons.flag_outlined, size: 20, color: Colors.red),
             SizedBox(width: 12),
             Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -269,7 +269,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     ).then((value) {
-      if (value == null) return;
+      if (value == null || !mounted) return;
       KnockHaptics.selection();
       switch (value) {
         case 'profile':
@@ -349,7 +349,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const SizedBox(width: 12),
             Text('Edit', style: TextStyle(color: textColor, fontWeight: FontWeight.w500)),
           ])),
-        PopupMenuItem(value: 'delete', child: const Row(children: [
+        const PopupMenuItem(value: 'delete', child: Row(children: [
           Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
           SizedBox(width: 12),
           Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -357,7 +357,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ],
     );
 
-    if (value == null) return;
+    if (value == null || !mounted) return;
     KnockHaptics.selection();
     switch (value) {
       case 'reply': _setReply(message.id); break;
@@ -476,7 +476,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text("Emma Brown", style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
-            Text("Active now", style: TextStyle(
+            const Text("Active now", style: TextStyle(
               color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
         ]),
@@ -705,7 +705,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final pillBg = isDark ? const Color(0xFF2A2A2E) : const Color(0xFFF0F0F5);
     final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final divColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
-    final plusColor = isDark ? Colors.white : Colors.black;
 
     return Container(
       decoration: BoxDecoration(
@@ -801,7 +800,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: myBubbleColor,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.send_rounded,
                 color: Colors.white,
                 size: 22,
@@ -861,37 +860,6 @@ class _ChatScreenState extends State<ChatScreen> {
 // ─────────────────────────────────────────────
 // Reusable Widgets
 // ─────────────────────────────────────────────
-
-class _CircleButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final IconData icon;
-  final bool isDark;
-  final Color textColor;
-  final Color? backgroundColor;
-
-  const _CircleButton({
-    required this.onTap,
-    required this.icon,
-    required this.isDark,
-    required this.textColor,
-    this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(
-          color: backgroundColor ?? (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: textColor, size: 22),
-      ),
-    );
-  }
-}
 
 class _AttachmentOption extends StatelessWidget {
   final IconData icon;

@@ -3,7 +3,9 @@ import 'package:video_player/video_player.dart';
 import 'widgets/comment_sheet.dart';
 import 'widgets/share_sheet.dart';
 import 'widgets/more_options_sheet.dart';
-import '../profile/profile_screen.dart';
+import '../profile/other_profile_screen.dart';
+import '../../models/user_model.dart';
+import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 
 class ReelItem extends StatefulWidget {
@@ -358,8 +360,8 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            ProfileScreen(username: widget.username),
+                        builder: (context) => OtherProfileScreen(
+                            user: demoCreatorUser, posts: demoOwnPosts),
                       ),
                     );
                   },

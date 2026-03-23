@@ -245,7 +245,7 @@ class _CommentSheetState extends State<CommentSheet> {
                 ),
               ),
 
-              Divider(height: 1, color: subtleColor.withOpacity(0.3)),
+              Divider(height: 1, color: subtleColor.withValues(alpha: 0.3)),
 
               // ── Comment list ──
               Expanded(
@@ -328,7 +328,7 @@ class _CommentSheetState extends State<CommentSheet> {
                 decoration: BoxDecoration(
                   color: bgColor,
                   border: Border(
-                    top: BorderSide(color: subtleColor.withOpacity(0.15)),
+                    top: BorderSide(color: subtleColor.withValues(alpha: 0.15)),
                   ),
                 ),
                 child: Row(
@@ -357,7 +357,7 @@ class _CommentSheetState extends State<CommentSheet> {
                 decoration: BoxDecoration(
                   color: bgColor,
                   border: Border(
-                    top: BorderSide(color: subtleColor.withOpacity(0.15)),
+                    top: BorderSide(color: subtleColor.withValues(alpha: 0.15)),
                   ),
                 ),
                 child: Row(
@@ -442,6 +442,8 @@ class _CommentSheetState extends State<CommentSheet> {
     Comment? parentComment,
   }) {
     final isMe = comment.authorUsername == 'you';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -469,13 +471,13 @@ class _CommentSheetState extends State<CommentSheet> {
                   ? const AssetImage('assets/test1.jpg')
                   : null,
               backgroundColor: comment.isPostOwner
-                  ? Colors.black
+                  ? textColor
                   : Colors.grey.shade400,
               child: comment.authorUsername != 'you'
                   ? Icon(
                       Icons.person,
                       size: isReply ? 14 : 16,
-                      color: comment.isPostOwner ? Colors.white : Colors.grey.shade600,
+                      color: comment.isPostOwner ? bgColor : Colors.grey.shade600,
                     )
                   : null,
             ),
@@ -505,7 +507,7 @@ class _CommentSheetState extends State<CommentSheet> {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: textColor.withOpacity(0.08),
+                            color: textColor.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -541,7 +543,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           Icon(
                             Icons.subdirectory_arrow_right_rounded,
                             size: 12,
-                            color: subtleColor.withOpacity(0.6),
+                            color: subtleColor.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -560,7 +562,7 @@ class _CommentSheetState extends State<CommentSheet> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: subtleColor.withOpacity(0.8),
+                                color: subtleColor.withValues(alpha: 0.8),
                               ),
                             ),
                           ),
@@ -635,20 +637,20 @@ class _CommentSheetState extends State<CommentSheet> {
             )
           ),
         if (isMe)
-          PopupMenuItem(
+          const PopupMenuItem(
             value: 'delete',
             child: Row(
               children: [
-                const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                const SizedBox(width: 12),
-                const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                SizedBox(width: 12),
+                Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
               ]
             )
           ),
       ],
     );
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     if (result == 'reply') {
       KnockHaptics.selection();
@@ -674,7 +676,7 @@ class _CommentSheetState extends State<CommentSheet> {
           Icon(
             Icons.chat_bubble_outline_rounded,
             size: 56,
-            color: subtleColor.withOpacity(0.4),
+            color: subtleColor.withValues(alpha: 0.4),
           ),
           const SizedBox(height: 16),
           Text(
@@ -682,7 +684,7 @@ class _CommentSheetState extends State<CommentSheet> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: textColor.withOpacity(0.5),
+              color: textColor.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 6),

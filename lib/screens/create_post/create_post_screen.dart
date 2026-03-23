@@ -50,9 +50,9 @@ class _CreatePostScreenState extends State<CreatePostScreen>
 
   // ─── GALLERY ──────────────────────────────────────────────
   Future<void> pickMedia() async {
-    final List<XFile>? files =
+    final List<XFile> files =
         await _picker.pickMultiImage(imageQuality: 80);
-    if (files != null && files.isNotEmpty) {
+    if (files.isNotEmpty) {
       setState(() {
         mediaFiles.addAll(files.map((e) => e.path));
       });
@@ -143,21 +143,20 @@ class _CreatePostScreenState extends State<CreatePostScreen>
   // ─── BUILD ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
+          icon: Icon(Icons.close, color: isDark ? Colors.white : Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
 
-        title: const Text(
+        title: Text(
           "New Post",
           style: TextStyle(
-            color: Colors.black,
+            color: isDark ? Colors.white : Colors.black,
             fontWeight: FontWeight.w700,
             fontSize: 18,
           ),
@@ -171,7 +170,6 @@ class _CreatePostScreenState extends State<CreatePostScreen>
               child: GestureDetector(
                 onTap: () {
                   KnockHaptics.tap();
-                  // TODO: handle post
                 },
                 child: const Text(
                   "Post",
@@ -209,11 +207,12 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                     Expanded(
                       child: TextField(
                         maxLines: null,
-                        style: const TextStyle(fontSize: 15, height: 1.4),
+                        style: TextStyle(
+                            fontSize: 15, height: 1.4, color: isDark ? Colors.white : Colors.black),
                         decoration: InputDecoration(
                           hintText: "Write something...",
                           hintStyle: TextStyle(
-                            color: Colors.grey.shade400,
+                            color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
                             fontSize: 15,
                           ),
                           border: InputBorder.none,
@@ -283,7 +282,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -305,7 +304,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -328,27 +327,27 @@ class _CreatePostScreenState extends State<CreatePostScreen>
               const SizedBox(height: 16),
 
               // 🌍 AUDIENCE SELECTOR
-              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+              Divider(height: 1, color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE)),
               ListTile(
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
                 leading: Icon(Icons.lock_outline,
-                    size: 20, color: Colors.grey.shade700),
-                title: const Text(
+                    size: 20, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                title: Text(
                   "Audience",
                   style:
-                      TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black),
                 ),
                 subtitle: Text(
                   "Private",
                   style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade500),
+                      fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade500),
                 ),
                 trailing: Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.grey.shade400),
+                    size: 14, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
                 onTap: () { KnockHaptics.tap(); },
               ),
-              const Divider(height: 1, color: Color(0xFFEEEEEE)),
+              Divider(height: 1, color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE)),
             ],
           ),
         ),
@@ -411,7 +410,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
                   width: 3,
                   height: height,
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.5),
+                    color: Colors.red.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 );
@@ -503,7 +502,7 @@ class _CreatePostScreenState extends State<CreatePostScreen>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, color: Colors.red, size: 18),

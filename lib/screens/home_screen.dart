@@ -3,12 +3,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import '../models/user_model.dart';
+import '../models/post_model.dart';
 import '../widgets/post_card.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'messages/messages_list_screen.dart';
 import 'create_post/create_post_screen.dart';
 import 'reels/reels_screen.dart';
-import 'search/search_screen.dart'; // ✅ ADD THIS
+import 'search/search_screen.dart';
+import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -172,7 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       elevation: 0,
                       floating: true,
                       snap: true,
-                      titleSpacing: 10,
+                      titleSpacing: 20,
+                      centerTitle: false,
                       systemOverlayStyle: SystemUiOverlayStyle(
                         statusBarIconBrightness: isDark
                             ? Brightness.light
@@ -181,29 +185,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? Brightness.dark
                             : Brightness.light,
                       ),
-                      title: Row(
-                        children: [
-                          Image.asset(
-                            isDark
-                                ? "assets/icon(white).png"
-                                : "assets/icon(black).png",
-                            height: 26,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(
-                                  "assets/icon(white).png",
-                                  height: 26,
-                                ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "KnockPost",
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
+                      title: Text(
+                        "KnockPost",
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 21,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                       actions: [
                         IconButton(
@@ -251,9 +240,11 @@ class _HomeScreenState extends State<HomeScreen> {
               const MessagesScreen(),
 
               /// 👤 PROFILE
-              const Center(child: Text("Profile")),
-              ],
-            ),
+              ProfileScreen(
+                user: demoOwnUser,
+                posts: demoOwnPosts,
+              ),
+            ],
           ),
         ),
       ),
