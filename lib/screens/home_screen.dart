@@ -248,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    ),
 
       /// 🔻 BOTTOM NAV
       bottomNavigationBar: ValueListenableBuilder<int>(
