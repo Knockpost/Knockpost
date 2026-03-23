@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import '../models/user_model.dart';
+import '../models/post_model.dart';
 import '../widgets/post_card.dart';
 import '../widgets/custom_bottom_nav.dart';
 import 'messages/messages_list_screen.dart';
 import 'create_post/create_post_screen.dart';
 import 'reels/reels_screen.dart';
-import 'search/search_screen.dart'; // ✅ ADD THIS
+import 'search/search_screen.dart';
+import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -166,7 +169,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const MessagesScreen(),
 
               /// 👤 PROFILE
-              const Center(child: Text("Profile")),
+              ProfileScreen(
+                user: demoOwnUser,
+                posts: demoOwnPosts,
+              ),
             ],
           ),
         ),
