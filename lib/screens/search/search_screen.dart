@@ -1,23 +1,38 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-import '../../utils/haptic_helper.dart';
+import 'package:flutter/material.dart';
+import '../../models/post_model.dart';
 import '../../models/user_model.dart';
+import '../../utils/haptic_helper.dart';
 import '../profile/other_profile_screen.dart';
-// --- MOCK DATA MODEL ---
-enum ConnectionStatus { knock, knocked }
+
+enum ConnectionStatus { knock, requested, knocked }
 
 class MockUser {
   final String id;
   final String name;
   final String username;
   final String profilePic;
+  final String coverPic;
+  final String bio;
+  final int friendsCount;
+  final PrivacyType privacyType;
+  final AccountType accountType;
+  final CreatorRank rank;
+  final List<PostModel> posts;
   ConnectionStatus connectionStatus;
-  
+
   MockUser({
     required this.id,
     required this.name,
     required this.username,
     required this.profilePic,
+    required this.coverPic,
+    required this.bio,
+    required this.friendsCount,
+    required this.privacyType,
+    required this.accountType,
+    required this.rank,
+    required this.posts,
     this.connectionStatus = ConnectionStatus.knock,
   });
 }
@@ -32,11 +47,10 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
-  
-  String _searchQuery = "";
+
+  String _searchQuery = '';
   Timer? _debounce;
-  
-  // Mock Database
+
   late List<MockUser> _allUsers;
   List<MockUser> _filteredUsers = [];
 
@@ -45,32 +59,97 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     _allUsers = [
       MockUser(
-        id: "1", name: "Rahul Sharma", username: "rahul_sharma", 
-        profilePic: "assets/test1.jpg", connectionStatus: ConnectionStatus.knock, 
+        id: 'u01',
+        name: 'Rahul Sharma',
+        username: 'rahul_sharma',
+        profilePic: 'assets/test1.jpg',
+        coverPic: 'assets/test2.jpg',
+        bio: 'Street photography, old songs, and late night chai.',
+        friendsCount: 546,
+        privacyType: PrivacyType.open,
+        accountType: AccountType.normal,
+        rank: CreatorRank.echo,
+        posts: _buildDemoPosts('u01', seed: 1),
       ),
       MockUser(
-        id: "2", name: "Riya Desai", username: "riya.d", 
-        profilePic: "assets/test2.jpg", connectionStatus: ConnectionStatus.knock, 
+        id: 'u02',
+        name: 'Riya Desai',
+        username: 'riya.d',
+        profilePic: 'assets/test2.jpg',
+        coverPic: 'assets/test3.jpg',
+        bio: 'Private corner. Request first.',
+        friendsCount: 298,
+        privacyType: PrivacyType.private,
+        accountType: AccountType.normal,
+        rank: CreatorRank.echo,
+        posts: _buildDemoPosts('u02', seed: 2),
       ),
       MockUser(
-        id: "3", name: "Rishabh Pant", username: "rishab", 
-        profilePic: "assets/test3.jpg", connectionStatus: ConnectionStatus.knocked, 
+        id: 'u03',
+        name: 'Rishabh Pant',
+        username: 'rishab',
+        profilePic: 'assets/test3.jpg',
+        coverPic: 'assets/test1.jpg',
+        bio: 'Travel logs and random football takes.',
+        friendsCount: 1240,
+        privacyType: PrivacyType.open,
+        accountType: AccountType.normal,
+        rank: CreatorRank.echo,
+        posts: _buildDemoPosts('u03', seed: 3),
+        connectionStatus: ConnectionStatus.knocked,
       ),
       MockUser(
-        id: "4", name: "Akash Singh", username: "akash_s", 
-        profilePic: "assets/test4.jpg", connectionStatus: ConnectionStatus.knock, 
+        id: 'u04',
+        name: 'Akash Singh',
+        username: 'akash_s',
+        profilePic: 'assets/test4.jpg',
+        coverPic: 'assets/test2.jpg',
+        bio: 'Private profile, accepted knocks can message.',
+        friendsCount: 127,
+        privacyType: PrivacyType.private,
+        accountType: AccountType.normal,
+        rank: CreatorRank.echo,
+        posts: _buildDemoPosts('u04', seed: 4),
+        connectionStatus: ConnectionStatus.knocked,
       ),
       MockUser(
-        id: "5", name: "Anita Roy", username: "anita.r", 
-        profilePic: "assets/test1.jpg", connectionStatus: ConnectionStatus.knock, 
+        id: 'u05',
+        name: 'Anita Roy',
+        username: 'anita.r',
+        profilePic: 'assets/test1.jpg',
+        coverPic: 'assets/test4.jpg',
+        bio: 'Poetry, design, and weekend cafe reviews.',
+        friendsCount: 2210,
+        privacyType: PrivacyType.open,
+        accountType: AccountType.creator,
+        rank: CreatorRank.plus,
+        posts: _buildDemoPosts('u05', seed: 5),
       ),
       MockUser(
-        id: "6", name: "Rohan Das", username: "rohan_das", 
-        profilePic: "assets/test2.jpg", connectionStatus: ConnectionStatus.knock, 
+        id: 'u06',
+        name: 'Rohan Das',
+        username: 'rohan_das',
+        profilePic: 'assets/test2.jpg',
+        coverPic: 'assets/test1.jpg',
+        bio: 'Builder mode: coding, cycling, repeat.',
+        friendsCount: 902,
+        privacyType: PrivacyType.open,
+        accountType: AccountType.normal,
+        rank: CreatorRank.echo,
+        posts: _buildDemoPosts('u06', seed: 6),
       ),
       MockUser(
-        id: "7", name: "Priya Menon", username: "priya_m", 
-        profilePic: "assets/test3.jpg", connectionStatus: ConnectionStatus.knock, 
+        id: 'u07',
+        name: 'Priya Menon',
+        username: 'priya_m',
+        profilePic: 'assets/test3.jpg',
+        coverPic: 'assets/test4.jpg',
+        bio: 'Keeping it private and peaceful.',
+        friendsCount: 184,
+        privacyType: PrivacyType.private,
+        accountType: AccountType.normal,
+        rank: CreatorRank.echo,
+        posts: _buildDemoPosts('u07', seed: 7),
       ),
     ];
     _filteredUsers = _allUsers;
@@ -82,6 +161,49 @@ class _SearchScreenState extends State<SearchScreen> {
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  List<PostModel> _buildDemoPosts(String authorId, {required int seed}) {
+    final now = DateTime.now();
+    const pool = ['assets/test1.jpg', 'assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'];
+    final first = pool[seed % pool.length];
+    final second = pool[(seed + 1) % pool.length];
+    final third = pool[(seed + 2) % pool.length];
+
+    return [
+      PostModel(
+        id: '${authorId}_recent',
+        authorId: authorId,
+        type: PostType.media,
+        duration: PostDuration.h24,
+        imagePaths: [first, second],
+        text: 'Evening dump from today.',
+        createdAt: now.subtract(Duration(hours: 2 + seed)),
+        likes: 12 + seed * 3,
+        views: 90 + seed * 12,
+      ),
+      PostModel(
+        id: '${authorId}_showcase',
+        authorId: authorId,
+        type: PostType.media,
+        duration: PostDuration.lifetime,
+        imagePaths: [third],
+        text: 'One of my favourite captures.',
+        createdAt: now.subtract(Duration(days: 2 + seed)),
+        likes: 35 + seed * 4,
+        views: 180 + seed * 20,
+      ),
+      PostModel(
+        id: '${authorId}_text',
+        authorId: authorId,
+        type: PostType.text,
+        duration: PostDuration.lifetime,
+        text: 'Small note ${seed + 1}: keep moving, keep creating.',
+        createdAt: now.subtract(Duration(hours: 10 + seed)),
+        likes: 8 + seed,
+        views: 60 + seed * 8,
+      ),
+    ];
   }
 
   void _onSearchChanged(String query) {
@@ -98,20 +220,36 @@ class _SearchScreenState extends State<SearchScreen> {
     List<MockUser> results = _allUsers;
 
     if (_searchQuery.isNotEmpty) {
-      results = results.where((user) => 
-        user.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-        user.username.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      results = results
+          .where(
+            (user) =>
+                user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                user.username.toLowerCase().contains(_searchQuery.toLowerCase()),
+          )
+          .toList();
     }
 
     _filteredUsers = results;
   }
 
+  KnockStatus _toKnockStatus(ConnectionStatus status) {
+    switch (status) {
+      case ConnectionStatus.knock:
+        return KnockStatus.none;
+      case ConnectionStatus.requested:
+        return KnockStatus.pending;
+      case ConnectionStatus.knocked:
+        return KnockStatus.knocked;
+    }
+  }
+
   Widget _buildTrailingButton(MockUser user, bool isDark) {
-    if (user.connectionStatus == ConnectionStatus.knocked) {
+    final isKnockedState = user.connectionStatus == ConnectionStatus.requested ||
+        user.connectionStatus == ConnectionStatus.knocked;
+
+    if (isKnockedState) {
       return GestureDetector(
         onTap: () {
-          // If already knocked, tapping it can cancel it
           KnockHaptics.tap();
           setState(() {
             user.connectionStatus = ConnectionStatus.knock;
@@ -123,27 +261,43 @@ class _SearchScreenState extends State<SearchScreen> {
             color: isDark ? Colors.grey[800] : Colors.grey[300],
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text("Knocked", style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w600, fontSize: 13)),
-        ),
-      );
-    } else {
-      return GestureDetector(
-        onTap: () {
-          KnockHaptics.tap();
-          setState(() {
-            user.connectionStatus = ConnectionStatus.knocked;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white : Colors.black,
-            borderRadius: BorderRadius.circular(6),
+          child: Text(
+            'Knocked',
+            style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
-          child: Text("Knock", style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
         ),
       );
     }
+
+    return GestureDetector(
+      onTap: () {
+        KnockHaptics.tap();
+        setState(() {
+          user.connectionStatus = user.privacyType == PrivacyType.private
+              ? ConnectionStatus.requested
+              : ConnectionStatus.knocked;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white : Colors.black,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          'Knock',
+          style: TextStyle(
+            color: isDark ? Colors.black : Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -171,17 +325,26 @@ class _SearchScreenState extends State<SearchScreen> {
             onChanged: _onSearchChanged,
             style: TextStyle(color: textColor, fontSize: 15),
             decoration: InputDecoration(
-              hintText: "Search Knockpost",
-              hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600], fontSize: 15),
-              prefixIcon: Icon(Icons.search, color: isDark ? Colors.grey[500] : Colors.grey[600], size: 20),
+              hintText: 'Search Knockpost',
+              hintStyle:
+                  TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600], fontSize: 15),
+              prefixIcon: Icon(
+                Icons.search,
+                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                size: 20,
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: Icon(Icons.clear, color: isDark ? Colors.grey[500] : Colors.grey[600], size: 18),
+                      icon: Icon(
+                        Icons.clear,
+                        color: isDark ? Colors.grey[500] : Colors.grey[600],
+                        size: 18,
+                      ),
                       onPressed: () {
                         _searchController.clear();
-                        _onSearchChanged("");
+                        _onSearchChanged('');
                         _searchFocus.unfocus();
                       },
                     )
@@ -198,7 +361,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: _filteredUsers.isEmpty
                 ? Center(
                     child: Text(
-                      "No results found",
+                      'No results found',
                       style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600]),
                     ),
                   )
@@ -211,7 +374,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         visualDensity: const VisualDensity(vertical: -2),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                         leading: CircleAvatar(
-                          radius: 20, // Smaller profile picture size
+                          radius: 20,
                           backgroundImage: AssetImage(user.profilePic),
                           onBackgroundImageError: (_, __) {},
                           backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
@@ -231,20 +394,21 @@ class _SearchScreenState extends State<SearchScreen> {
                             id: user.id,
                             displayName: user.name,
                             username: user.username,
-                            bio: 'Joined KnockPost recently.',
+                            bio: user.bio,
                             avatarAsset: user.profilePic,
-                            accountType: AccountType.normal,
-                            privacyType: PrivacyType.open,
-                            knockStatus: user.connectionStatus == ConnectionStatus.knocked
-                                ? KnockStatus.knocked
-                                : KnockStatus.none,
+                            coverImageAsset: user.coverPic,
+                            friendsCount: user.friendsCount,
+                            accountType: user.accountType,
+                            privacyType: user.privacyType,
+                            rank: user.rank,
+                            knockStatus: _toKnockStatus(user.connectionStatus),
                           );
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => OtherProfileScreen(
                                 user: userModel,
-                                posts: const [],
+                                posts: user.posts,
                               ),
                             ),
                           );

@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 
-/// Knock button that mirrors Instagram's Follow / Following / Follow-back UX.
-/// States: Knock → Knocked (pending flash) → Knock Back
+/// Knock button with instant acceptance for open profiles and pending for private.
 class KnockButton extends StatefulWidget {
   final KnockStatus initialStatus;
+  final PrivacyType privacyType;
   final bool isOwnProfile;
   final ValueChanged<KnockStatus>? onStatusChanged;
 
   const KnockButton({
     super.key,
     required this.initialStatus,
+    this.privacyType = PrivacyType.open,
     this.isOwnProfile = false,
     this.onStatusChanged,
   });
@@ -23,7 +24,6 @@ class KnockButton extends StatefulWidget {
 class _KnockButtonState extends State<KnockButton>
     with SingleTickerProviderStateMixin {
   late KnockStatus _status;
-  bool _flashing = false;
   late AnimationController _scaleController;
   late Animation<double> _scaleAnim;
 
@@ -47,33 +47,33 @@ class _KnockButtonState extends State<KnockButton>
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant KnockButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialStatus != widget.initialStatus) {
+      _status = widget.initialStatus;
+    }
+  }
+
   void _onTap() {
     KnockHaptics.tap();
     _scaleController.reverse().then((_) => _scaleController.forward());
 
     setState(() {
-      if (_status == KnockStatus.none || _status == KnockStatus.knocked) {
-        // Knock or un-knock
-        _status =
-            _status == KnockStatus.none ? KnockStatus.pending : KnockStatus.none;
-        if (_status == KnockStatus.pending) {
-          _flashing = true;
-          Future.delayed(const Duration(milliseconds: 900), () {
-            if (mounted) setState(() => _flashing = false);
-          });
-        }
-      } else if (_status == KnockStatus.theyKnockedYou) {
-        // Knock back
-        _status = KnockStatus.mutualKnocked;
-        _flashing = true;
-        Future.delayed(const Duration(milliseconds: 900), () {
-          if (mounted) setState(() => _flashing = false);
-        });
-      } else if (_status == KnockStatus.pending) {
-        // Cancel knock
-        _status = KnockStatus.none;
-      } else if (_status == KnockStatus.mutualKnocked) {
-        _status = KnockStatus.none;
+      switch (_status) {
+        case KnockStatus.none:
+          _status = widget.privacyType == PrivacyType.open
+              ? KnockStatus.knocked
+              : KnockStatus.pending;
+          break;
+        case KnockStatus.pending:
+        case KnockStatus.knocked:
+        case KnockStatus.mutualKnocked:
+          _status = KnockStatus.none;
+          break;
+        case KnockStatus.theyKnockedYou:
+          _status = KnockStatus.mutualKnocked;
+          break;
       }
     });
 
@@ -98,13 +98,9 @@ class _KnockButtonState extends State<KnockButton>
         fg = isDark ? Colors.black : Colors.white;
         break;
       case KnockStatus.pending:
-        label = _flashing ? 'Knocked!' : 'Knocked';
-        bg = _flashing
-            ? (isDark ? Colors.white : Colors.black)
-            : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2));
-        fg = _flashing
-            ? (isDark ? Colors.black : Colors.white)
-            : (isDark ? Colors.white : Colors.black);
+        label = 'Knocked';
+        bg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
+        fg = isDark ? Colors.white : Colors.black;
         break;
       case KnockStatus.knocked:
         label = 'Knocked';
@@ -117,13 +113,9 @@ class _KnockButtonState extends State<KnockButton>
         fg = isDark ? Colors.black : Colors.white;
         break;
       case KnockStatus.mutualKnocked:
-        label = _flashing ? 'Knocked Back!' : 'Knocked ✓';
-        bg = _flashing
-            ? (isDark ? Colors.white : Colors.black)
-            : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2));
-        fg = _flashing
-            ? (isDark ? Colors.black : Colors.white)
-            : (isDark ? Colors.white : Colors.black);
+        label = 'Knocked';
+        bg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
+        fg = isDark ? Colors.white : Colors.black;
         break;
     }
 
