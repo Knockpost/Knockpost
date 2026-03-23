@@ -67,37 +67,12 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
         backgroundColor: bg,
         body: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverAppBar(
-              backgroundColor: bg,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              floating: true,
-              snap: true,
-              leading: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: textColor),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                _user.username,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              actions: [
-                IconButton(
-                  icon: Icon(Icons.more_horiz, color: textColor),
-                  onPressed: () {},
-                ),
-              ],
-            ),
 
             // Profile Header
             SliverToBoxAdapter(
               child: ProfileHeader(
                 user: _user,
+                showBackButton: true,
                 onMessageTap: () {
                   // Navigate to messages
                 },
