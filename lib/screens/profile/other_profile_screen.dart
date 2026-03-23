@@ -43,8 +43,11 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   }
 
   void _sendKnock() {
+    final nextStatus = _user.privacyType == PrivacyType.open
+        ? KnockStatus.knocked
+        : KnockStatus.pending;
     setState(() {
-      _user = _user.copyWith(knockStatus: KnockStatus.pending);
+      _user = _user.copyWith(knockStatus: nextStatus);
     });
   }
 
@@ -73,6 +76,11 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
               child: ProfileHeader(
                 user: _user,
                 showBackButton: true,
+                onKnockStatusChanged: (status) {
+                  setState(() {
+                    _user = _user.copyWith(knockStatus: status);
+                  });
+                },
                 onMessageTap: () {
                   // Navigate to messages
                 },

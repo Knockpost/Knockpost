@@ -12,6 +12,7 @@ class ProfileHeader extends StatefulWidget {
   final VoidCallback? onMessageTap;
   final VoidCallback? onSettingsTap;
   final VoidCallback? onBackTap;
+  final ValueChanged<KnockStatus>? onKnockStatusChanged;
   final bool showBackButton;
   final bool showSettingsButton;
 
@@ -22,6 +23,7 @@ class ProfileHeader extends StatefulWidget {
     this.onMessageTap,
     this.onSettingsTap,
     this.onBackTap,
+    this.onKnockStatusChanged,
     this.showBackButton = false,
     this.showSettingsButton = false,
   });
@@ -37,6 +39,14 @@ class _ProfileHeaderState extends State<ProfileHeader> {
   void initState() {
     super.initState();
     _knockStatus = widget.user.knockStatus;
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.knockStatus != widget.user.knockStatus) {
+      _knockStatus = widget.user.knockStatus;
+    }
   }
 
   bool get _canMessage =>
@@ -74,8 +84,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               ),
               child: Stack(
                 children: [
-                  // Subtle gradient at bottom for text popping (if we put text there, but we put it below)
-                  // So mostly just for aesthetics
+                  // Soft bottom haze to blend cover with content.
                   Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -83,9 +92,11 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withValues(alpha: 0.1),
-                            Colors.black.withValues(alpha: 0.4),
+                            Colors.transparent,
+                            bg.withValues(alpha: isDark ? 0.18 : 0.68),
+                            bg,
                           ],
+                          stops: const [0.45, 0.85, 1.0],
                         ),
                       ),
                     ),
@@ -169,39 +180,32 @@ class _ProfileHeaderState extends State<ProfileHeader> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Display Name
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      user.displayName,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: textColor,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (user.accountType == AccountType.creator) ...[
-                    const SizedBox(width: 8),
-                    CreatorRankBadge(rank: user.rank, large: true),
-                  ],
-                ],
+              Text(
+                user.displayName,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                  letterSpacing: -0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
 
-              // Username
+              // KnockPost user id
               Text(
-                '@${user.username}',
+                'KnockPost ID • @${user.username}',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: subColor,
                   fontWeight: FontWeight.w400,
                 ),
               ),
+              if (user.accountType == AccountType.creator) ...[
+                const SizedBox(height: 8),
+                CreatorRankBadge(rank: user.rank, large: true),
+              ],
               const SizedBox(height: 12),
 
               // Bio
@@ -293,7 +297,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 Row(
                   children: [
                     Expanded(
-                      flex: 6,
                       child: GestureDetector(
                         onTap: () {}, // Share action logic
                         child: AnimatedContainer(
@@ -305,7 +308,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           ),
                           alignment: Alignment.center,
                           child: const Text(
-                            'Share profile',
+                            'Share',
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w700,
@@ -317,7 +320,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      flex: 6,
                       child: GestureDetector(
                         onTap: widget.onEditTap,
                         child: AnimatedContainer(
@@ -332,7 +334,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            'Edit profile',
+                            'Edit',
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w700,
@@ -342,64 +344,51 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF262626) : const Color(0xFFF2F2F2),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : Colors.black12,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.send_rounded, size: 18, color: textColor),
-                    ),
                   ],
                 )
               else
                 Row(
                   children: [
                     Expanded(
+                      flex: _canMessage ? 5 : 1,
                       child: KnockButton(
                         initialStatus: _knockStatus,
+                        privacyType: user.privacyType,
                         isOwnProfile: false,
                         onStatusChanged: (s) {
                           setState(() => _knockStatus = s);
+                          widget.onKnockStatusChanged?.call(s);
                         },
                       ),
                     ),
                     if (_canMessage) ...[
                       const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: widget.onMessageTap,
-                        child: Container(
-                          padding: const EdgeInsets.all(11),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF262626) : const Color(0xFFF2F2F2),
-                            border: Border.all(
-                              color: isDark ? Colors.white12 : Colors.black12,
+                      Expanded(
+                        flex: 4,
+                        child: GestureDetector(
+                          onTap: widget.onMessageTap,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF262626)
+                                  : const Color(0xFFF2F2F2),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : Colors.black12,
+                              ),
+                              borderRadius: BorderRadius.circular(24),
                             ),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Icon(
-                            Icons.chat_bubble_outline_rounded,
-                            size: 18,
-                            color: textColor,
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Message',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ] else ...[
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.all(11),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF262626) : const Color(0xFFF2F2F2),
-                          border: Border.all(
-                            color: isDark ? Colors.white12 : Colors.black12,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Icon(Icons.send_rounded, size: 18, color: textColor),
                       ),
                     ],
                   ],
@@ -413,7 +402,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 
   String _formatCount(int count) {
     if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
+      final short = (count / 1000).toStringAsFixed(1);
+      return short.endsWith('.0') ? '${short.split('.').first}K' : '${short}K';
     }
     return count.toString();
   }
