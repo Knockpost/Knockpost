@@ -84,39 +84,14 @@ class _ProfileScreenState extends State<ProfileScreen>
         backgroundColor: bg,
         body: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverAppBar(
-              backgroundColor: bg,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              floating: true,
-              snap: true,
-              pinned: false,
-              automaticallyImplyLeading: false,
-              titleSpacing: 16,
-              centerTitle: false,
-              title: Text(
-                _user.username,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              actions: [
-                // Settings gear
-                IconButton(
-                  icon: Icon(Icons.settings_outlined,
-                      color: textColor, size: 24),
-                  onPressed: _openSettings,
-                ),
-              ],
-            ),
 
             // ── Profile Header ─────────────────────────────────────────────
             SliverToBoxAdapter(
               child: ProfileHeader(
                 user: _user,
                 onEditTap: _openEdit,
+                showSettingsButton: true,
+                onSettingsTap: _openSettings,
               ),
             ),
 

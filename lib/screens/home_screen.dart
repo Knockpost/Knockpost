@@ -3,15 +3,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
-import '../models/user_model.dart';
 import '../models/post_model.dart';
-import '../widgets/post_card.dart';
+import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
-import 'messages/messages_list_screen.dart';
+import '../widgets/post_card.dart';
 import 'create_post/create_post_screen.dart';
+import 'messages/messages_list_screen.dart';
+import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
 import 'search/search_screen.dart';
-import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -112,8 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
-
-      /// ➕ FAB (ONLY HOME)
       floatingActionButton: ValueListenableBuilder<int>(
         valueListenable: _navIndexNotifier,
         builder: (context, currentIndex, _) {
@@ -135,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle(
           statusBarColor: bgColor,
@@ -160,97 +157,90 @@ class _HomeScreenState extends State<HomeScreen> {
               allowImplicitScrolling: true,
               dragStartBehavior: DragStartBehavior.down,
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (index) {
-                _setCurrentNavIndex(index);
-              },
+              onPageChanged: _setCurrentNavIndex,
               children: [
-              /// 🏠 HOME FEED
-              NestedScrollView(
-                controller: _scrollController,
-                headerSliverBuilder: (context, innerBoxIsScrolled) {
-                  return [
-                    SliverAppBar(
-                      backgroundColor: bgColor,
-                      surfaceTintColor: bgColor,
-                      elevation: 0,
-                      floating: true,
-                      snap: true,
-                      titleSpacing: 20,
-                      centerTitle: false,
-                      systemOverlayStyle: SystemUiOverlayStyle(
-                        statusBarIconBrightness: isDark
-                            ? Brightness.light
-                            : Brightness.dark,
-                        statusBarBrightness: isDark
-                            ? Brightness.dark
-                            : Brightness.light,
-                      ),
-                      title: Text(
-                        "KnockPost",
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 21,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      actions: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.notifications_none,
-                            color: textColor,
+                _KeepAlivePage(
+                  child: NestedScrollView(
+                    controller: _scrollController,
+                    headerSliverBuilder: (context, innerBoxIsScrolled) {
+                      return [
+                        SliverAppBar(
+                          backgroundColor: bgColor,
+                          surfaceTintColor: bgColor,
+                          elevation: 0,
+                          floating: true,
+                          snap: true,
+                          titleSpacing: 20,
+                          centerTitle: false,
+                          systemOverlayStyle: SystemUiOverlayStyle(
+                            statusBarIconBrightness: isDark
+                                ? Brightness.light
+                                : Brightness.dark,
+                            statusBarBrightness: isDark
+                                ? Brightness.dark
+                                : Brightness.light,
                           ),
-                          onPressed: () {},
+                          title: Text(
+                            "KnockPost",
+                            style: TextStyle(
+                              color: textColor,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 21,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          actions: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.notifications_none,
+                                color: textColor,
+                              ),
+                              onPressed: () {},
+                            ),
+                          ],
                         ),
-                      ],
+                      ];
+                    },
+                    body: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      controller: _scrollController,
+                      itemCount: _demoPostImages.length,
+                      separatorBuilder: (context, index) {
+                        return Divider(
+                          thickness: 6,
+                          height: 6,
+                          color: isDark
+                              ? const Color(0xff121212)
+                              : const Color(0xfff0f0f0),
+                        );
+                      },
+                      itemBuilder: (context, index) {
+                        return PostCard(imagePaths: _demoPostImages[index]);
+                      },
                     ),
-                  ];
-                },
-                body: ListView.separated(
-                  padding: EdgeInsets.zero,
-                  controller: _scrollController,
-                  itemCount: _demoPostImages.length,
-                  separatorBuilder: (context, index) {
-                    return Divider(
-                      thickness: 6,
-                      height: 6,
-                      color: isDark
-                          ? const Color(0xff121212)
-                          : const Color(0xfff0f0f0),
+                  ),
+                ),
+                const _KeepAlivePage(child: SearchScreen()),
+                ValueListenableBuilder<int>(
+                  valueListenable: _navIndexNotifier,
+                  builder: (context, currentIndex, _) {
+                    return _KeepAlivePage(
+                      child: ReelsScreen(isVisible: currentIndex == 2),
                     );
                   },
-                  itemBuilder: (context, index) {
-                    return PostCard(imagePaths: _demoPostImages[index]);
-                  },
                 ),
-              ),
-
-              /// 🔍 SEARCH
-              const SearchScreen(),
-
-              /// 🎬 REELS (FULLY CONNECTED)
-              ValueListenableBuilder<int>(
-                valueListenable: _navIndexNotifier,
-                builder: (context, currentIndex, _) {
-                  return ReelsScreen(isVisible: currentIndex == 2);
-                },
-              ),
-
-              /// 💬 MESSAGES
-              const MessagesScreen(),
-
-              /// 👤 PROFILE
-              ProfileScreen(
-                user: demoOwnUser,
-                posts: demoOwnPosts,
-              ),
-            ],
+                const _KeepAlivePage(child: MessagesScreen()),
+                _KeepAlivePage(
+                  child: ProfileScreen(
+                    user: demoOwnUser,
+                    posts: demoOwnPosts,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-
-      /// 🔻 BOTTOM NAV
       bottomNavigationBar: ValueListenableBuilder<int>(
         valueListenable: _navIndexNotifier,
         builder: (context, currentIndex, _) {
@@ -258,12 +248,32 @@ class _HomeScreenState extends State<HomeScreen> {
             currentIndex: currentIndex,
             onTap: (index) {
               if (currentIndex == index) return;
-
               _animateToTab(index);
             },
           );
         },
       ),
     );
+  }
+}
+
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

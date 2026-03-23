@@ -23,6 +23,8 @@ class UserModel {
   final String username;
   final String bio;
   final String? avatarAsset; // null = show default avatar
+  final String? coverImageAsset; // background cover image
+  final int friendsCount;
 
   final AccountType accountType;
   final PrivacyType privacyType; // only meaningful for AccountType.normal
@@ -44,6 +46,8 @@ class UserModel {
     required this.username,
     required this.bio,
     this.avatarAsset,
+    this.coverImageAsset,
+    this.friendsCount = 0,
     this.accountType = AccountType.normal,
     this.privacyType = PrivacyType.open,
     this.rank = CreatorRank.echo,
@@ -91,6 +95,8 @@ class UserModel {
     String? username,
     String? bio,
     String? avatarAsset,
+    String? coverImageAsset,
+    int? friendsCount,
     AccountType? accountType,
     PrivacyType? privacyType,
     CreatorRank? rank,
@@ -106,6 +112,8 @@ class UserModel {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       avatarAsset: avatarAsset ?? this.avatarAsset,
+      coverImageAsset: coverImageAsset ?? this.coverImageAsset,
+      friendsCount: friendsCount ?? this.friendsCount,
       accountType: accountType ?? this.accountType,
       privacyType: privacyType ?? this.privacyType,
       rank: rank ?? this.rank,
@@ -125,7 +133,9 @@ const demoOwnUser = UserModel(
   displayName: 'Arjun Nayak',
   username: 'arjun.nayak',
   bio: 'Building things 🛠 | Coffee addict ☕ | Kolkata',
-  avatarAsset: null,
+  avatarAsset: 'assets/test1.jpg',
+  coverImageAsset: 'assets/test2.jpg',
+  friendsCount: 1200,
   accountType: AccountType.normal,
   privacyType: PrivacyType.open,
   isOwnProfile: true,
@@ -136,7 +146,9 @@ const demoCreatorUser = UserModel(
   displayName: 'Riya Chakraborty',
   username: 'riya.creates',
   bio: 'Photographer & visual storyteller 📸 | Based in Mumbai',
-  avatarAsset: null,
+  avatarAsset: 'assets/test4.jpg',
+  coverImageAsset: 'assets/test1.jpg',
+  friendsCount: 15400,
   accountType: AccountType.creator,
   rank: CreatorRank.pro,
   totalViews: 84000,
@@ -149,7 +161,9 @@ const demoPrivateUser = UserModel(
   displayName: 'Sneha Roy',
   username: 'sneha.r',
   bio: 'Keep it private 🔒',
-  avatarAsset: null,
+  avatarAsset: 'assets/test2.jpg',
+  coverImageAsset: 'assets/test3.jpg',
+  friendsCount: 142,
   accountType: AccountType.normal,
   privacyType: PrivacyType.private,
   knockStatus: KnockStatus.none,
@@ -160,7 +174,9 @@ const demoKnockedUser = UserModel(
   displayName: 'Dev Sharma',
   username: 'dev.s',
   bio: 'Music | Movies | Making memes',
-  avatarAsset: null,
+  avatarAsset: 'assets/test3.jpg',
+  coverImageAsset: 'assets/test4.jpg',
+  friendsCount: 890,
   accountType: AccountType.normal,
   privacyType: PrivacyType.private,
   knockStatus: KnockStatus.knocked,

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../utils/haptic_helper.dart';
-
+import '../../models/user_model.dart';
+import '../profile/other_profile_screen.dart';
 // --- MOCK DATA MODEL ---
 enum ConnectionStatus { knock, knocked }
 
@@ -226,7 +227,27 @@ class _SearchScreenState extends State<SearchScreen> {
                         trailing: _buildTrailingButton(user, isDark),
                         onTap: () {
                           KnockHaptics.tap();
-                          // Navigate to user profile
+                          final userModel = UserModel(
+                            id: user.id,
+                            displayName: user.name,
+                            username: user.username,
+                            bio: 'Joined KnockPost recently.',
+                            avatarAsset: user.profilePic,
+                            accountType: AccountType.normal,
+                            privacyType: PrivacyType.open,
+                            knockStatus: user.connectionStatus == ConnectionStatus.knocked
+                                ? KnockStatus.knocked
+                                : KnockStatus.none,
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OtherProfileScreen(
+                                user: userModel,
+                                posts: const [],
+                              ),
+                            ),
+                          );
                         },
                       );
                     },
