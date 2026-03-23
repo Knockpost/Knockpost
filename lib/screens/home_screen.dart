@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
@@ -18,6 +19,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  late final PageController _pageController;
+  late final ValueNotifier<int> _navIndexNotifier;
+  double _horizontalDragDistance = 0;
   bool showFab = true;
   int _currentNavIndex = 0;
 
@@ -37,6 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _currentNavIndex);
+    _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
 
     _scrollController.addListener(() {
       final goingDown =
@@ -53,8 +59,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _navIndexNotifier.dispose();
+    _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _setCurrentNavIndex(int index) {
+    if (_currentNavIndex == index) return;
+    _currentNavIndex = index;
+    _navIndexNotifier.value = index;
+  }
+
+  void _animateToTab(int index) {
+    if (index < 0 || index > 4 || _currentNavIndex == index) return;
+
+    _setCurrentNavIndex(index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _handleHorizontalSwipeEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    final hasStrongFling = velocity.abs() > 550;
+    final hasCommittedDrag = _horizontalDragDistance.abs() > 72;
+
+    if (!hasStrongFling && !hasCommittedDrag) {
+      _horizontalDragDistance = 0;
+      return;
+    }
+
+    if (velocity < 0 || _horizontalDragDistance < 0) {
+      _animateToTab(_currentNavIndex + 1);
+    } else if (velocity > 0 || _horizontalDragDistance > 0) {
+      _animateToTab(_currentNavIndex - 1);
+    }
+
+    _horizontalDragDistance = 0;
   }
 
   @override
@@ -67,20 +111,27 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: bgColor,
 
       /// ➕ FAB (ONLY HOME)
-      floatingActionButton: (_currentNavIndex == 0 && showFab)
-          ? FloatingActionButton(
-              backgroundColor: textColor,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreatePostScreen(),
-                  ),
-                );
-              },
-              child: Icon(Icons.add, color: bgColor),
-            )
-          : null,
+      floatingActionButton: ValueListenableBuilder<int>(
+        valueListenable: _navIndexNotifier,
+        builder: (context, currentIndex, _) {
+          if (currentIndex != 0 || !showFab) {
+            return const SizedBox.shrink();
+          }
+
+          return FloatingActionButton(
+            backgroundColor: textColor,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreatePostScreen(),
+                ),
+              );
+            },
+            child: Icon(Icons.add, color: bgColor),
+          );
+        },
+      ),
 
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle(
@@ -91,10 +142,25 @@ class _HomeScreenState extends State<HomeScreen> {
               ? Brightness.light
               : Brightness.dark,
         ),
-        child: SafeArea(
-          child: IndexedStack(
-            index: _currentNavIndex,
-            children: [
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragStart: (_) {
+            _horizontalDragDistance = 0;
+          },
+          onHorizontalDragUpdate: (details) {
+            _horizontalDragDistance += details.delta.dx;
+          },
+          onHorizontalDragEnd: _handleHorizontalSwipeEnd,
+          child: SafeArea(
+            child: PageView(
+              controller: _pageController,
+              allowImplicitScrolling: true,
+              dragStartBehavior: DragStartBehavior.down,
+              physics: const NeverScrollableScrollPhysics(),
+              onPageChanged: (index) {
+                _setCurrentNavIndex(index);
+              },
+              children: [
               /// 🏠 HOME FEED
               NestedScrollView(
                 controller: _scrollController,
@@ -171,28 +237,39 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               /// 🔍 SEARCH
-              SearchScreen(),
+              const SearchScreen(),
 
               /// 🎬 REELS (FULLY CONNECTED)
-              ReelsScreen(isVisible: _currentNavIndex == 2),
+              ValueListenableBuilder<int>(
+                valueListenable: _navIndexNotifier,
+                builder: (context, currentIndex, _) {
+                  return ReelsScreen(isVisible: currentIndex == 2);
+                },
+              ),
 
               /// 💬 MESSAGES
               const MessagesScreen(),
 
               /// 👤 PROFILE
               const Center(child: Text("Profile")),
-            ],
+              ],
+            ),
           ),
         ),
       ),
 
       /// 🔻 BOTTOM NAV
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentNavIndex,
-        onTap: (index) {
-          setState(() {
-            _currentNavIndex = index;
-          });
+      bottomNavigationBar: ValueListenableBuilder<int>(
+        valueListenable: _navIndexNotifier,
+        builder: (context, currentIndex, _) {
+          return CustomBottomNav(
+            currentIndex: currentIndex,
+            onTap: (index) {
+              if (currentIndex == index) return;
+
+              _animateToTab(index);
+            },
+          );
         },
       ),
     );
