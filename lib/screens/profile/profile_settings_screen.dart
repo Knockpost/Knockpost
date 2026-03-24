@@ -408,54 +408,42 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
           padding: EdgeInsets.zero,
           children: [
             _SectionHeader('Appearance', isDark: isDark),
-            _SettingsTile(
-              bg: sectionBg,
-              divColor: divColor,
-              children: [
-                ProfileSettingsRow(
-                  title: 'Use device theme',
-                  subtitle: 'Follow your phone theme settings',
-                  trailing: Radio<ThemeMode>(
-                    value: ThemeMode.system,
-                    groupValue: _themeMode,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      KnockHaptics.selection();
-                      setState(() => _themeMode = value);
-                      ThemeController.updateThemeMode(value);
-                    },
-                    activeColor: textColor,
+            RadioGroup<ThemeMode>(
+              groupValue: _themeMode,
+              onChanged: (value) {
+                if (value == null) return;
+                KnockHaptics.selection();
+                setState(() => _themeMode = value);
+                ThemeController.updateThemeMode(value);
+              },
+              child: _SettingsTile(
+                bg: sectionBg,
+                divColor: divColor,
+                children: [
+                  ProfileSettingsRow(
+                    title: 'Use device theme',
+                    subtitle: 'Follow your phone theme settings',
+                    trailing: Radio<ThemeMode>(
+                      value: ThemeMode.system,
+                      activeColor: textColor,
+                    ),
                   ),
-                ),
-                ProfileSettingsRow(
-                  title: 'Light mode',
-                  trailing: Radio<ThemeMode>(
-                    value: ThemeMode.light,
-                    groupValue: _themeMode,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      KnockHaptics.selection();
-                      setState(() => _themeMode = value);
-                      ThemeController.updateThemeMode(value);
-                    },
-                    activeColor: textColor,
+                  ProfileSettingsRow(
+                    title: 'Light mode',
+                    trailing: Radio<ThemeMode>(
+                      value: ThemeMode.light,
+                      activeColor: textColor,
+                    ),
                   ),
-                ),
-                ProfileSettingsRow(
-                  title: 'Dark mode',
-                  trailing: Radio<ThemeMode>(
-                    value: ThemeMode.dark,
-                    groupValue: _themeMode,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      KnockHaptics.selection();
-                      setState(() => _themeMode = value);
-                      ThemeController.updateThemeMode(value);
-                    },
-                    activeColor: textColor,
+                  ProfileSettingsRow(
+                    title: 'Dark mode',
+                    trailing: Radio<ThemeMode>(
+                      value: ThemeMode.dark,
+                      activeColor: textColor,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             _SectionHeader('Reading', isDark: isDark),
@@ -742,7 +730,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${_averageUsageMinutes} min / day',
+                    '$_averageUsageMinutes min / day',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
@@ -767,7 +755,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'This week total: ${_totalUsageMinutes} min',
+                    'This week total: $_totalUsageMinutes min',
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
