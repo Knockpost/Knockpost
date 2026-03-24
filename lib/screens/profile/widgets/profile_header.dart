@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../models/user_model.dart';
 import 'creator_rank_badge.dart';
@@ -74,10 +75,14 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               height: 180 + topPadding,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF222222) : const Color(0xFFE5E5E5),
+                color: isDark
+                    ? const Color(0xFF222222)
+                    : const Color(0xFFE5E5E5),
                 image: user.coverImageAsset != null
                     ? DecorationImage(
-                        image: AssetImage(user.coverImageAsset!),
+                        image: user.coverImageAsset!.startsWith('assets/')
+                            ? AssetImage(user.coverImageAsset!) as ImageProvider
+                            : FileImage(File(user.coverImageAsset!)),
                         fit: BoxFit.cover,
                       )
                     : null,
@@ -141,17 +146,23 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   color: bg,
                   border: Border.all(
                     color: user.accountType == AccountType.creator
-                        ? CreatorRankBadge.rankColor(user.rank).withValues(alpha: 0.6)
+                        ? CreatorRankBadge.rankColor(
+                            user.rank,
+                          ).withValues(alpha: 0.6)
                         : bg,
                     width: user.accountType == AccountType.creator ? 3.0 : 4.0,
                   ),
                 ),
                 child: CircleAvatar(
                   radius: 46,
-                  backgroundColor:
-                      isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+                  backgroundColor: isDark
+                      ? const Color(0xFF2A2A2A)
+                      : const Color(0xFFEEEEEE),
                   backgroundImage: user.avatarAsset != null
-                      ? AssetImage(user.avatarAsset!)
+                      ? (user.avatarAsset!.startsWith('assets/')
+                                ? AssetImage(user.avatarAsset!)
+                                : FileImage(File(user.avatarAsset!)))
+                            as ImageProvider
                       : null,
                   child: user.avatarAsset == null
                       ? Text(
@@ -211,7 +222,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               // Bio
               if (user.bio.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(right: 60), // keep away from avatar
+                  padding: const EdgeInsets.only(
+                    right: 60,
+                  ), // keep away from avatar
                   child: Text(
                     user.bio,
                     style: TextStyle(
@@ -232,10 +245,15 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     height: 28,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? const Color(0xFF222222) : const Color(0xFFF0F0F0),
+                      color: isDark
+                          ? const Color(0xFF222222)
+                          : const Color(0xFFF0F0F0),
                       image: user.avatarAsset != null
                           ? DecorationImage(
-                              image: AssetImage(user.avatarAsset!),
+                              image: user.avatarAsset!.startsWith('assets/')
+                                  ? AssetImage(user.avatarAsset!)
+                                        as ImageProvider
+                                  : FileImage(File(user.avatarAsset!)),
                               fit: BoxFit.cover,
                             )
                           : null,
@@ -303,7 +321,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 11),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF6116), // KnockPost Orange / Substack Orange
+                            color: const Color(
+                              0xFFFF6116,
+                            ), // KnockPost Orange / Substack Orange
                             borderRadius: BorderRadius.circular(24),
                           ),
                           alignment: Alignment.center,
@@ -326,7 +346,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 11),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF262626) : const Color(0xFFF2F2F2),
+                            color: isDark
+                                ? const Color(0xFF262626)
+                                : const Color(0xFFF2F2F2),
                             border: Border.all(
                               color: isDark ? Colors.white12 : Colors.black12,
                             ),

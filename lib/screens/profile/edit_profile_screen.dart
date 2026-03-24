@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import 'widgets/profile_ui_helpers.dart';
@@ -19,8 +21,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _usernameCtrl;
   late TextEditingController _bioCtrl;
   late PrivacyType _privacyType;
+  String? _avatarAsset;
+  String? _coverImageAsset;
 
   bool _hasChanges = false;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickAvatar() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _avatarAsset = image.path;
+        _hasChanges = true;
+      });
+    }
+  }
+
+  Future<void> _pickCover() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _coverImageAsset = image.path;
+        _hasChanges = true;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -29,6 +54,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _usernameCtrl = TextEditingController(text: widget.user.username);
     _bioCtrl = TextEditingController(text: widget.user.bio);
     _privacyType = widget.user.privacyType;
+    _avatarAsset = widget.user.avatarAsset;
+    _coverImageAsset = widget.user.coverImageAsset;
 
     for (final ctrl in [_nameCtrl, _usernameCtrl, _bioCtrl]) {
       ctrl.addListener(() => setState(() => _hasChanges = true));
@@ -50,6 +77,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       username: _usernameCtrl.text.trim(),
       bio: _bioCtrl.text.trim(),
       privacyType: _privacyType,
+      avatarAsset: _avatarAsset,
+      coverImageAsset: _coverImageAsset,
     );
     Navigator.pop(context, updated);
   }
@@ -60,10 +89,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subColor = isDark ? Colors.white54 : Colors.black45;
-    final fieldBg =
-        isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
-    final borderColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
+    final fieldBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
+    final borderColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -113,43 +142,118 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         body: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
-            // ── Avatar ───────────────────────────────────────────────────────
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 52,
-                    backgroundColor: fieldBg,
-                    child: Text(
-                      _nameCtrl.text.isNotEmpty
-                          ? _nameCtrl.text[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
+            // ── Cover & Avatar Stack ───────────────────────────────────────
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Cover Photo Background
+                GestureDetector(
+                  onTap: _pickCover,
+                  child: Container(
+                    height: 140,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: fieldBg,
+                      borderRadius: BorderRadius.circular(16),
+                      image: _coverImageAsset != null
+                          ? DecorationImage(
+                              image: _coverImageAsset!.startsWith('assets/')
+                                  ? AssetImage(_coverImageAsset!)
+                                        as ImageProvider
+                                  : FileImage(File(_coverImageAsset!)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
+                ),
+                // Cover Photo Camera Button
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: _pickCover,
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
-                        color: textColor,
+                        color: Colors.black.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
-                        border: Border.all(color: bg, width: 2),
                       ),
-                      child: Icon(Icons.camera_alt_rounded,
-                          size: 15, color: bg),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                // Overlapping Avatar (Bottom Right)
+                Positioned(
+                  bottom: -36,
+                  right: 16,
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: _pickAvatar,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: bg,
+                            border: Border.all(color: bg, width: 4),
+                          ),
+                          child: CircleAvatar(
+                            radius: 44,
+                            backgroundColor: fieldBg,
+                            backgroundImage: _avatarAsset != null
+                                ? (_avatarAsset!.startsWith('assets/')
+                                          ? AssetImage(_avatarAsset!)
+                                          : FileImage(File(_avatarAsset!)))
+                                      as ImageProvider
+                                : null,
+                            child: _avatarAsset == null
+                                ? Text(
+                                    _nameCtrl.text.isNotEmpty
+                                        ? _nameCtrl.text[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w700,
+                                      color: textColor,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                      // Avatar Camera Button
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickAvatar,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: textColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: bg, width: 2),
+                            ),
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              size: 14,
+                              color: bg,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 60),
 
             // ── Fields ───────────────────────────────────────────────────────
             _FieldLabel('Display Name', subColor),
@@ -169,8 +273,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               bg: fieldBg,
               borderColor: borderColor,
               textColor: textColor,
-              prefix: Text('@',
-                  style: TextStyle(color: subColor, fontSize: 15)),
+              prefixText: '@',
             ),
             const SizedBox(height: 16),
 
@@ -182,12 +285,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               borderColor: borderColor,
               textColor: textColor,
               maxLines: 4,
+              maxLength: 100,
             ),
             const SizedBox(height: 24),
 
             // ── Privacy toggle (only for Normal accounts) ─────────────────
             if (widget.user.accountType == AccountType.normal) ...[
-              Divider(color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+              Divider(
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
               const SizedBox(height: 8),
               ProfileSettingsRow(
                 title: 'Private Account',
@@ -197,8 +305,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   onChanged: (v) {
                     KnockHaptics.selection();
                     setState(() {
-                      _privacyType =
-                          v ? PrivacyType.private : PrivacyType.open;
+                      _privacyType = v ? PrivacyType.private : PrivacyType.open;
                       _hasChanges = true;
                     });
                   },
@@ -225,8 +332,11 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style:
-            TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
@@ -239,7 +349,8 @@ class _EditField extends StatelessWidget {
   final Color borderColor;
   final Color textColor;
   final int maxLines;
-  final Widget? prefix;
+  final String? prefixText;
+  final int? maxLength;
 
   const _EditField({
     required this.controller,
@@ -248,7 +359,8 @@ class _EditField extends StatelessWidget {
     required this.borderColor,
     required this.textColor,
     this.maxLines = 1,
-    this.prefix,
+    this.prefixText,
+    this.maxLength,
   });
 
   @override
@@ -262,24 +374,25 @@ class _EditField extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        maxLength: maxLength,
         style: TextStyle(fontSize: 14.5, color: textColor),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
-              color: textColor.withValues(alpha: 0.35), fontSize: 14.5),
-          prefixIcon: prefix != null
-              ? Padding(
-                  padding: const EdgeInsets.only(left: 14, top: 14),
-                  child: prefix,
-                )
-              : null,
-          prefixIconConstraints:
-              const BoxConstraints(minWidth: 0, minHeight: 0),
+            color: textColor.withValues(alpha: 0.35),
+            fontSize: 14.5,
+          ),
+          prefixText: prefixText != null ? '$prefixText ' : null,
+          prefixStyle: TextStyle(
+            color: textColor.withValues(alpha: 0.5),
+            fontSize: 14.5,
+          ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
             vertical: 12,
           ),
           border: InputBorder.none,
+          counterText: maxLength != null ? null : '',
         ),
       ),
     );

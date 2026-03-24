@@ -5,6 +5,7 @@ import '../../theme/theme_controller.dart';
 import '../../utils/haptic_helper.dart';
 import 'widgets/creator_rank_badge.dart';
 import 'widgets/profile_ui_helpers.dart';
+import 'edit_profile_screen.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
 class ProfileSettingsScreen extends StatefulWidget {
@@ -41,10 +42,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
-    final sectionBg =
-        isDark ? const Color(0xFF111111) : const Color(0xFFF8F8F8);
+    final divColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
+    final sectionBg = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
 
     final isPro = _user.accountType == AccountType.creator;
 
@@ -59,8 +62,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context, _user),
           ),
           centerTitle: true,
@@ -76,18 +82,39 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         body: ListView(
           padding: EdgeInsets.zero,
           children: [
-            // ── Account section ────────────────────────────────────────────
-            _SectionHeader('Account', isDark: isDark),
+            // ── Profile section ────────────────────────────────────────────
+            _SectionHeader('Profile', isDark: isDark),
             _SettingsTile(
               bg: sectionBg,
               divColor: divColor,
               children: [
+                ProfileSettingsRow(
+                  title: 'Edit Profile',
+                  subtitle: 'Update your name, bio, and privacy options',
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                  onTap: () async {
+                    final updated = await Navigator.push<UserModel>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditProfileScreen(user: _user),
+                      ),
+                    );
+                    if (updated != null && mounted) {
+                      setState(() => _user = updated);
+                    }
+                  },
+                ),
                 if (isPro)
                   ProfileSettingsRow(
                     title: 'Professional stats',
                     subtitle: 'Views, likes, knocks and creator rank',
-                    trailing: Icon(Icons.chevron_right_rounded,
-                        color: isDark ? Colors.white38 : Colors.black38),
+                    trailing: Icon(
+                      Icons.chevron_right_rounded,
+                      color: isDark ? Colors.white38 : Colors.black38,
+                    ),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -118,10 +145,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ],
             ),
 
-            if (isPro) ...[
-              const SizedBox(height: 4),
-              const RankInfoCard(),
-            ],
+            if (isPro) ...[const SizedBox(height: 4), const RankInfoCard()],
 
             const SizedBox(height: 20),
 
@@ -134,8 +158,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ProfileSettingsRow(
                   title: 'Display',
                   subtitle: 'Theme, text size and autoplay controls',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -146,8 +172,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ProfileSettingsRow(
                   title: 'Time management',
                   subtitle: 'Daily limits, breaks and sleep mode',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -168,15 +196,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               children: [
                 ProfileSettingsRow(
                   title: 'Blocked accounts',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () {},
                 ),
                 ProfileSettingsRow(
                   title: 'Knock requests',
                   subtitle: 'Manage pending knocks',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () {},
                 ),
               ],
@@ -192,22 +224,25 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ProfileSettingsRow(
                   title: 'Account',
                   subtitle: _accountEmail,
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => _AccountSettingsScreen(
-                        email: _accountEmail,
-                      ),
+                      builder: (_) =>
+                          _AccountSettingsScreen(email: _accountEmail),
                     ),
                   ),
                 ),
                 ProfileSettingsRow(
                   title: 'Manage interests',
                   subtitle: 'Choose topics you want to see more often',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -228,28 +263,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ProfileSettingsRow(
                   title: 'Feedback',
                   subtitle: 'Tell us what is working and what should improve',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const _FeedbackScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const _FeedbackScreen()),
                   ),
                 ),
-                const ProfileSettingsRow(
-                  title: 'KnockPost v1.0.0',
-                ),
+                const ProfileSettingsRow(title: 'KnockPost v1.0.0'),
                 ProfileSettingsRow(
                   title: 'Privacy Policy',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () {},
                 ),
                 ProfileSettingsRow(
                   title: 'Terms of Service',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () {},
                 ),
               ],
@@ -259,8 +296,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
             // ── Sign out ───────────────────────────────────────────────────
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: GestureDetector(
                 onTap: () {
                   KnockHaptics.impact();
@@ -271,7 +307,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                        color: Colors.red.withValues(alpha: 0.45)),
+                      color: Colors.red.withValues(alpha: 0.45),
+                    ),
                   ),
                   child: const Text(
                     'Sign Out',
@@ -374,10 +411,12 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
-    final sectionBg =
-        isDark ? const Color(0xFF111111) : const Color(0xFFF8F8F8);
+    final divColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
+    final sectionBg = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -390,8 +429,11 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           centerTitle: true,
@@ -494,10 +536,12 @@ class _AccountSettingsScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
-    final sectionBg =
-        isDark ? const Color(0xFF111111) : const Color(0xFFF8F8F8);
+    final divColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
+    final sectionBg = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -510,8 +554,11 @@ class _AccountSettingsScreen extends StatelessWidget {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           centerTitle: true,
@@ -535,8 +582,10 @@ class _AccountSettingsScreen extends StatelessWidget {
                 ProfileSettingsRow(
                   title: 'Google account',
                   subtitle: email,
-                  trailing: Icon(Icons.mail_outline_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.mail_outline_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                 ),
               ],
             ),
@@ -549,15 +598,19 @@ class _AccountSettingsScreen extends StatelessWidget {
                 ProfileSettingsRow(
                   title: 'Change password',
                   subtitle: 'Update your login password',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () {},
                 ),
                 ProfileSettingsRow(
                   title: 'Two-step verification',
                   subtitle: 'Add extra protection to your account',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () {},
                 ),
               ],
@@ -593,10 +646,12 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
-    final sectionBg =
-        isDark ? const Color(0xFF111111) : const Color(0xFFF8F8F8);
+    final divColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
+    final sectionBg = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -609,8 +664,11 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           centerTitle: true,
@@ -684,10 +742,12 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
-    final sectionBg =
-        isDark ? const Color(0xFF111111) : const Color(0xFFF8F8F8);
+    final divColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
+    final sectionBg = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -700,8 +760,11 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           centerTitle: true,
@@ -750,8 +813,9 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                     weeklyUsageMinutes: _weeklyUsageMinutes,
                     barColor: textColor,
                     labelColor: isDark ? Colors.white54 : Colors.black45,
-                    trackColor:
-                        isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                    trackColor: isDark
+                        ? Colors.white10
+                        : Colors.black.withValues(alpha: 0.06),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -774,16 +838,20 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                 ProfileSettingsRow(
                   title: 'Daily time limit',
                   subtitle: 'Remind me after $_dailyLimitMinutes minutes',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => _pickDailyLimit(context),
                 ),
                 ProfileSettingsRow(
                   title: 'Take break reminders',
                   subtitle:
                       'Show a reminder every $_breakReminderMinutes minutes',
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: () => _pickBreakReminder(context),
                 ),
               ],
@@ -810,29 +878,33 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                 ProfileSettingsRow(
                   title: 'Start time',
                   subtitle: _formatTime(_sleepStart),
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: _sleepModeEnabled
                       ? () => _pickTime(
-                            context: context,
-                            initialValue: _sleepStart,
-                            onSelected: (value) =>
-                                setState(() => _sleepStart = value),
-                          )
+                          context: context,
+                          initialValue: _sleepStart,
+                          onSelected: (value) =>
+                              setState(() => _sleepStart = value),
+                        )
                       : null,
                 ),
                 ProfileSettingsRow(
                   title: 'End time',
                   subtitle: _formatTime(_sleepEnd),
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: isDark ? Colors.white38 : Colors.black38),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
                   onTap: _sleepModeEnabled
                       ? () => _pickTime(
-                            context: context,
-                            initialValue: _sleepEnd,
-                            onSelected: (value) =>
-                                setState(() => _sleepEnd = value),
-                          )
+                          context: context,
+                          initialValue: _sleepEnd,
+                          onSelected: (value) =>
+                              setState(() => _sleepEnd = value),
+                        )
                       : null,
                 ),
               ],
@@ -1051,10 +1123,12 @@ class _ProfessionalStatsScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
-    final sectionBg =
-        isDark ? const Color(0xFF111111) : const Color(0xFFF8F8F8);
+    final divColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
+    final sectionBg = isDark
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -1067,8 +1141,11 @@ class _ProfessionalStatsScreen extends StatelessWidget {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           centerTitle: true,
@@ -1142,8 +1219,9 @@ class _ProfessionalStatsScreen extends StatelessWidget {
                     },
                     barColor: textColor,
                     labelColor: isDark ? Colors.white54 : Colors.black45,
-                    trackColor:
-                        isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                    trackColor: isDark
+                        ? Colors.white10
+                        : Colors.black.withValues(alpha: 0.06),
                   ),
                 ],
               ),
@@ -1174,9 +1252,9 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
   void _submit() {
     if (_feedbackController.text.trim().isEmpty) return;
     KnockHaptics.impact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Feedback submitted')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Feedback submitted')));
     Navigator.pop(context);
   }
 
@@ -1186,10 +1264,10 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final subColor = isDark ? Colors.white54 : Colors.black45;
-    final fieldBg =
-        isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
-    final borderColor =
-        isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08);
+    final fieldBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
+    final borderColor = isDark
+        ? Colors.white12
+        : Colors.black.withValues(alpha: 0.08);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -1202,8 +1280,11 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: textColor),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: textColor,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           centerTitle: true,
@@ -1220,10 +1301,7 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
               onPressed: _submit,
               child: Text(
                 'Send',
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -1242,11 +1320,7 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
             const SizedBox(height: 8),
             Text(
               'Tell us what you like, what feels off, or what you want next.',
-              style: TextStyle(
-                color: subColor,
-                fontSize: 13,
-                height: 1.4,
-              ),
+              style: TextStyle(color: subColor, fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 18),
             Container(
