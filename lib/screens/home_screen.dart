@@ -111,8 +111,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isReelsTab = _currentNavIndex == 2;
     final isProfileTab = _currentNavIndex == 4;
-    final bgColor = isReelsTab ? Colors.black : (isDark ? Colors.black : Colors.white);
-    final textColor = isReelsTab ? Colors.white : (isDark ? Colors.white : Colors.black);
+    final bgColor = isReelsTab
+        ? Colors.black
+        : (isDark ? Colors.black : Colors.white);
+    final textColor = isReelsTab
+        ? Colors.white
+        : (isDark ? Colors.white : Colors.black);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -122,147 +126,157 @@ class _HomeScreenState extends State<HomeScreen> {
         statusBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
-        statusBarBrightness:
-            (isDark || isReelsTab) ? Brightness.dark : Brightness.light,
+        statusBarBrightness: (isDark || isReelsTab)
+            ? Brightness.dark
+            : Brightness.light,
         systemNavigationBarColor: bgColor,
         systemNavigationBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
         systemNavigationBarDividerColor: bgColor,
       ),
-      child: Scaffold(
-        backgroundColor: bgColor,
-        floatingActionButton: ValueListenableBuilder<int>(
-          valueListenable: _navIndexNotifier,
-          builder: (context, currentIndex, _) {
-            if (currentIndex != 0 || !showFab) {
-              return const SizedBox.shrink();
-            }
+      child: WillPopScope(
+        onWillPop: () async {
+          if (_currentNavIndex != 0) {
+            _animateToTab(0);
+            return false;
+          }
+          return true;
+        },
+        child: Scaffold(
+          backgroundColor: bgColor,
+          floatingActionButton: ValueListenableBuilder<int>(
+            valueListenable: _navIndexNotifier,
+            builder: (context, currentIndex, _) {
+              if (currentIndex != 0 || !showFab) {
+                return const SizedBox.shrink();
+              }
 
-            return FloatingActionButton(
-              backgroundColor: textColor,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreatePostScreen(),
-                  ),
-                );
-              },
-              child: Icon(Icons.add, color: bgColor),
-            );
-          },
-        ),
-        body: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onHorizontalDragStart: (_) {
-            _horizontalDragDistance = 0;
-          },
-          onHorizontalDragUpdate: (details) {
-            _horizontalDragDistance += details.delta.dx;
-          },
-          onHorizontalDragEnd: _handleHorizontalSwipeEnd,
-          child: SafeArea(
-            top: !(isReelsTab || isProfileTab),
-            child: PageView(
-              controller: _pageController,
-              allowImplicitScrolling: true,
-              dragStartBehavior: DragStartBehavior.down,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: _setCurrentNavIndex,
-              children: [
-                _KeepAlivePage(
-                  child: NestedScrollView(
-                    controller: _scrollController,
-                    headerSliverBuilder: (context, innerBoxIsScrolled) {
-                      return [
-                        SliverAppBar(
-                          backgroundColor: bgColor,
-                          surfaceTintColor: bgColor,
-                          elevation: 0,
-                          floating: true,
-                          snap: true,
-                          titleSpacing: 20,
-                          centerTitle: false,
-                          systemOverlayStyle: SystemUiOverlayStyle(
-                            statusBarIconBrightness: isDark
-                                ? Brightness.light
-                                : Brightness.dark,
-                            statusBarBrightness: isDark
-                                ? Brightness.dark
-                                : Brightness.light,
-                          ),
-                          title: Text(
-                            "KnockPost",
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 21,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          actions: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.notifications_none,
-                                color: textColor,
-                              ),
-                              onPressed: () {},
-                            ),
-                          ],
-                        ),
-                      ];
-                    },
-                    body: ListView.separated(
-                      padding: EdgeInsets.zero,
+              return FloatingActionButton(
+                backgroundColor: textColor,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreatePostScreen(),
+                    ),
+                  );
+                },
+                child: Icon(Icons.add, color: bgColor),
+              );
+            },
+          ),
+          body: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragStart: (_) {
+              _horizontalDragDistance = 0;
+            },
+            onHorizontalDragUpdate: (details) {
+              _horizontalDragDistance += details.delta.dx;
+            },
+            onHorizontalDragEnd: _handleHorizontalSwipeEnd,
+            child: SafeArea(
+              top: !(isReelsTab || isProfileTab),
+              child: PageView(
+                controller: _pageController,
+                allowImplicitScrolling: true,
+                dragStartBehavior: DragStartBehavior.down,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: _setCurrentNavIndex,
+                children: [
+                  _KeepAlivePage(
+                    child: NestedScrollView(
                       controller: _scrollController,
-                      itemCount: _demoPostImages.length,
-                      separatorBuilder: (context, index) {
-                        return Divider(
-                          thickness: 6,
-                          height: 6,
-                          color: isDark
-                              ? const Color(0xff121212)
-                              : const Color(0xfff0f0f0),
-                        );
+                      headerSliverBuilder: (context, innerBoxIsScrolled) {
+                        return [
+                          SliverAppBar(
+                            backgroundColor: bgColor,
+                            surfaceTintColor: bgColor,
+                            elevation: 0,
+                            floating: true,
+                            snap: true,
+                            titleSpacing: 20,
+                            centerTitle: false,
+                            systemOverlayStyle: SystemUiOverlayStyle(
+                              statusBarIconBrightness: isDark
+                                  ? Brightness.light
+                                  : Brightness.dark,
+                              statusBarBrightness: isDark
+                                  ? Brightness.dark
+                                  : Brightness.light,
+                            ),
+                            title: Text(
+                              "KnockPost",
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 21,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            actions: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.notifications_none,
+                                  color: textColor,
+                                ),
+                                onPressed: () {},
+                              ),
+                            ],
+                          ),
+                        ];
                       },
-                      itemBuilder: (context, index) {
-                        return PostCard(imagePaths: _demoPostImages[index]);
-                      },
+                      body: ListView.separated(
+                        padding: EdgeInsets.zero,
+                        controller: _scrollController,
+                        itemCount: _demoPostImages.length,
+                        separatorBuilder: (context, index) {
+                          return Divider(
+                            thickness: 6,
+                            height: 6,
+                            color: isDark
+                                ? const Color(0xff121212)
+                                : const Color(0xfff0f0f0),
+                          );
+                        },
+                        itemBuilder: (context, index) {
+                          return PostCard(imagePaths: _demoPostImages[index]);
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const _KeepAlivePage(child: SearchScreen()),
-                ValueListenableBuilder<int>(
-                  valueListenable: _navIndexNotifier,
-                  builder: (context, currentIndex, _) {
-                    return _KeepAlivePage(
-                      child: ReelsScreen(isVisible: currentIndex == 2),
-                    );
-                  },
-                ),
-                const _KeepAlivePage(child: MessagesScreen()),
-                _KeepAlivePage(
-                  child: ProfileScreen(
-                    user: demoOwnUser,
-                    posts: demoOwnPosts,
+                  const _KeepAlivePage(child: SearchScreen()),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _navIndexNotifier,
+                    builder: (context, currentIndex, _) {
+                      return _KeepAlivePage(
+                        child: ReelsScreen(isVisible: currentIndex == 2),
+                      );
+                    },
                   ),
-                ),
-              ],
+                  const _KeepAlivePage(child: MessagesScreen()),
+                  _KeepAlivePage(
+                    child: ProfileScreen(
+                      user: demoOwnUser,
+                      posts: demoOwnPosts,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        bottomNavigationBar: ValueListenableBuilder<int>(
-          valueListenable: _navIndexNotifier,
-          builder: (context, currentIndex, _) {
-            return CustomBottomNav(
-              currentIndex: currentIndex,
-              onTap: (index) {
-                if (currentIndex == index) return;
-                _animateToTab(index);
-              },
-            );
-          },
+          bottomNavigationBar: ValueListenableBuilder<int>(
+            valueListenable: _navIndexNotifier,
+            builder: (context, currentIndex, _) {
+              return CustomBottomNav(
+                currentIndex: currentIndex,
+                onTap: (index) {
+                  if (currentIndex == index) return;
+                  _animateToTab(index);
+                },
+              );
+            },
+          ),
         ),
       ),
     );
