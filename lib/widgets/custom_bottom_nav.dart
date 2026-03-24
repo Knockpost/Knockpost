@@ -16,9 +16,12 @@ class CustomBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? Colors.black : Colors.white;
-    final selectedColor = isDark ? Colors.white : Colors.black;
-    final unselectedColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
+    final isReelsTab = currentIndex == 2;
+    final bgColor = isReelsTab ? Colors.black : (isDark ? Colors.black : Colors.white);
+    final selectedColor = isReelsTab ? Colors.white : (isDark ? Colors.white : Colors.black);
+    final unselectedColor = isReelsTab
+        ? Colors.white70
+        : (isDark ? Colors.grey.shade400 : Colors.grey.shade500);
 
     Color getColor(int index) {
       return currentIndex == index ? selectedColor : unselectedColor;
@@ -29,7 +32,9 @@ class CustomBottomNav extends StatelessWidget {
         color: bgColor,
         border: Border(
           top: BorderSide(
-            color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+            color: isReelsTab
+                ? Colors.black
+                : (isDark ? Colors.grey.shade900 : Colors.grey.shade200),
             width: 1.0,
           ),
         ),

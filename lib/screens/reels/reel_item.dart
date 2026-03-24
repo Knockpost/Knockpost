@@ -44,9 +44,6 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
   late AnimationController _playPauseAnimController;
   late Animation<double> _playPauseOpacity;
 
-  int likeCount = 12432;
-  int commentCount = 342;
-
   @override
   void initState() {
     super.initState();
@@ -179,15 +176,6 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
     setState(() => _doubleTapped = false);
   }
 
-  String _formatCount(int count) {
-    if (count >= 1000000) {
-      return "${(count / 1000000).toStringAsFixed(1)}M";
-    } else if (count >= 1000) {
-      return "${(count / 1000).toStringAsFixed(1)}K";
-    }
-    return count.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     Color knockBgColor;
@@ -290,16 +278,13 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (context) => Padding(
-                        padding: EdgeInsets.only(
-                          bottom: MediaQuery.of(context).viewInsets.bottom,
-                        ),
-                        child: const CommentSheet(),
+                      builder: (context) => CommentSheet(
+                        creatorUsername: widget.username,
                       ),
                     );
                   },
                   icon: Icons.mode_comment_outlined,
-                  label: _formatCount(commentCount),
+                  label: null,
                   color: Colors.white,
                 ),
 
@@ -534,7 +519,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
 class _AnimatedActionButton extends StatefulWidget {
   final VoidCallback onTap;
   final IconData icon;
-  final String label;
+  final String? label;
   final Color color;
 
   const _AnimatedActionButton({
@@ -598,15 +583,17 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
                   size: 30,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+              if (widget.label != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  widget.label!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ],
             ],
           );
         },
@@ -871,15 +858,6 @@ class _ReelReactionButtonState extends State<ReelReactionButton>
                 ),
               ),
               const SizedBox(height: 2),
-              // Default count label
-              const Text(
-                "12.4K",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ],
           ),
         ),

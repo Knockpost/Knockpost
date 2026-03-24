@@ -6,6 +6,7 @@ import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'theme/theme_controller.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -21,19 +22,24 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Knockpost',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, // Dynamically use the system theme
-      builder: (context, child) {
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: AppTheme.getSystemUiOverlayStyle(context),
-          child: child!,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Knockpost',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          builder: (context, child) {
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: AppTheme.getSystemUiOverlayStyle(context),
+              child: child!,
+            );
+          },
+          home: const SplashScreen(),
         );
       },
-      home: const SplashScreen(),
     );
   }
 }

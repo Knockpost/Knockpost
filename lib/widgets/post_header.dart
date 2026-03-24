@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/post_model.dart';
+import '../models/user_model.dart';
+import '../screens/profile/other_profile_screen.dart';
 import '../utils/haptic_helper.dart';
 
 class PostHeader extends StatefulWidget {
@@ -92,6 +95,18 @@ class _PostHeaderState extends State<PostHeader> {
     );
   }
 
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OtherProfileScreen(
+          user: demoCreatorUser,
+          posts: demoOwnPosts,
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuItem({
     required IconData icon,
     required String label,
@@ -146,19 +161,25 @@ class _PostHeaderState extends State<PostHeader> {
 
     return Row(
       children: [
-        const CircleAvatar(
-          radius: 16,
-          backgroundColor: Colors.grey,
-        ),
-
-        const SizedBox(width: 10),
-
-        const Expanded(
-          child: Text(
-            "username",
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
+        Expanded(
+          child: GestureDetector(
+            onTap: _openProfile,
+            behavior: HitTestBehavior.opaque,
+            child: const Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey,
+                ),
+                SizedBox(width: 10),
+                Text(
+                  "username",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

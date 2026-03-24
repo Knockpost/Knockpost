@@ -70,7 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _setCurrentNavIndex(int index) {
     if (_currentNavIndex == index) return;
-    _currentNavIndex = index;
+    setState(() {
+      _currentNavIndex = index;
+    });
     _navIndexNotifier.value = index;
   }
 
@@ -107,42 +109,48 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? Colors.black : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black;
+    final isReelsTab = _currentNavIndex == 2;
+    final bgColor = isReelsTab ? Colors.black : (isDark ? Colors.black : Colors.white);
+    final textColor = isReelsTab ? Colors.white : (isDark ? Colors.white : Colors.black);
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      floatingActionButton: ValueListenableBuilder<int>(
-        valueListenable: _navIndexNotifier,
-        builder: (context, currentIndex, _) {
-          if (currentIndex != 0 || !showFab) {
-            return const SizedBox.shrink();
-          }
-
-          return FloatingActionButton(
-            backgroundColor: textColor,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreatePostScreen(),
-                ),
-              );
-            },
-            child: Icon(Icons.add, color: bgColor),
-          );
-        },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: isReelsTab ? Colors.black : bgColor,
+        statusBarIconBrightness: (isDark || isReelsTab)
+            ? Brightness.light
+            : Brightness.dark,
+        statusBarBrightness:
+            (isDark || isReelsTab) ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: bgColor,
+        systemNavigationBarIconBrightness: (isDark || isReelsTab)
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarDividerColor: bgColor,
       ),
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle(
-          statusBarColor: bgColor,
-          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-          systemNavigationBarColor: bgColor,
-          systemNavigationBarIconBrightness: isDark
-              ? Brightness.light
-              : Brightness.dark,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        floatingActionButton: ValueListenableBuilder<int>(
+          valueListenable: _navIndexNotifier,
+          builder: (context, currentIndex, _) {
+            if (currentIndex != 0 || !showFab) {
+              return const SizedBox.shrink();
+            }
+
+            return FloatingActionButton(
+              backgroundColor: textColor,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreatePostScreen(),
+                  ),
+                );
+              },
+              child: Icon(Icons.add, color: bgColor),
+            );
+          },
         ),
-        child: GestureDetector(
+        body: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onHorizontalDragStart: (_) {
             _horizontalDragDistance = 0;
@@ -152,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           onHorizontalDragEnd: _handleHorizontalSwipeEnd,
           child: SafeArea(
+            top: !isReelsTab,
             child: PageView(
               controller: _pageController,
               allowImplicitScrolling: true,
@@ -240,18 +249,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: ValueListenableBuilder<int>(
-        valueListenable: _navIndexNotifier,
-        builder: (context, currentIndex, _) {
-          return CustomBottomNav(
-            currentIndex: currentIndex,
-            onTap: (index) {
-              if (currentIndex == index) return;
-              _animateToTab(index);
-            },
-          );
-        },
+        bottomNavigationBar: ValueListenableBuilder<int>(
+          valueListenable: _navIndexNotifier,
+          builder: (context, currentIndex, _) {
+            return CustomBottomNav(
+              currentIndex: currentIndex,
+              onTap: (index) {
+                if (currentIndex == index) return;
+                _animateToTab(index);
+              },
+            );
+          },
+        ),
       ),
     );
   }
