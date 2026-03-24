@@ -76,9 +76,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     final divColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: bg,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -98,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             // ── Divider ────────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.only(top: 6),
                 child: Divider(height: 1, color: divColor),
               ),
             ),

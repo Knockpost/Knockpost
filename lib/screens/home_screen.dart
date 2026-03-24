@@ -110,12 +110,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isReelsTab = _currentNavIndex == 2;
+    final isProfileTab = _currentNavIndex == 4;
     final bgColor = isReelsTab ? Colors.black : (isDark ? Colors.black : Colors.white);
     final textColor = isReelsTab ? Colors.white : (isDark ? Colors.white : Colors.black);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: isReelsTab ? Colors.black : bgColor,
+        statusBarColor: isReelsTab
+            ? Colors.black
+            : (isProfileTab ? Colors.transparent : bgColor),
         statusBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
@@ -160,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           onHorizontalDragEnd: _handleHorizontalSwipeEnd,
           child: SafeArea(
-            top: !isReelsTab,
+            top: !(isReelsTab || isProfileTab),
             child: PageView(
               controller: _pageController,
               allowImplicitScrolling: true,
