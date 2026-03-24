@@ -1,11 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../models/user_model.dart';
 import 'creator_rank_badge.dart';
 import 'knock_button.dart';
 
-/// Substack-style profile header:
-/// Cover image at top, avatar overlapping bottom right.
-/// Name, Username, Bio, Action buttons on left.
+/// Substack-inspired profile header:
+/// cover at top, soft fade, strong identity block, and context-aware actions.
 class ProfileHeader extends StatefulWidget {
   final UserModel user;
   final VoidCallback? onEditTap;
@@ -61,51 +62,43 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     final subColor = isDark ? Colors.white60 : Colors.black54;
     final topPadding = MediaQuery.of(context).padding.top;
     final user = widget.user;
+    final coverHeight = 180.0 + topPadding;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Cover Image & Avatar Stack ─────────────────────────────────────
         Stack(
           clipBehavior: Clip.none,
           children: [
-            // Cover Image Background
             Container(
-              height: 180 + topPadding,
+              height: coverHeight,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF222222) : const Color(0xFFE5E5E5),
                 image: user.coverImageAsset != null
                     ? DecorationImage(
-                        image: AssetImage(user.coverImageAsset!),
+                        image: user.coverImageAsset!.startsWith('assets/')
+                            ? AssetImage(user.coverImageAsset!) as ImageProvider
+                            : FileImage(File(user.coverImageAsset!)),
                         fit: BoxFit.cover,
                       )
                     : null,
               ),
-              child: Stack(
-                children: [
-                  // Soft bottom haze to blend cover with content.
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            bg.withValues(alpha: isDark ? 0.18 : 0.68),
-                            bg,
-                          ],
-                          stops: const [0.45, 0.85, 1.0],
-                        ),
-                      ),
-                    ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      bg.withValues(alpha: isDark ? 0.20 : 0.72),
+                      bg,
+                    ],
+                    stops: const [0.42, 0.86, 1.0],
                   ),
-                ],
+                ),
               ),
             ),
-
-            // Top Buttons (Back / Settings)
             Positioned(
               top: topPadding + 8,
               left: 8,
@@ -122,7 +115,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     const SizedBox(width: 40),
                   if (widget.showSettingsButton)
                     _BlurMenuButton(
-                      icon: Icons.settings_outlined,
+                      icon: Icons.more_vert_rounded,
                       onTap: widget.onSettingsTap,
                     )
                   else
@@ -130,88 +123,108 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 ],
               ),
             ),
-
-            // Overlapping Avatar (Bottom Right)
             Positioned(
               bottom: -40,
               right: 16,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: bg,
-                  border: Border.all(
-                    color: user.accountType == AccountType.creator
-                        ? CreatorRankBadge.rankColor(user.rank).withValues(alpha: 0.6)
-                        : bg,
-                    width: user.accountType == AccountType.creator ? 3.0 : 4.0,
-                  ),
-                ),
-                child: CircleAvatar(
-                  radius: 46,
-                  backgroundColor:
-                      isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-                  backgroundImage: user.avatarAsset != null
-                      ? AssetImage(user.avatarAsset!)
-                      : null,
-                  child: user.avatarAsset == null
-                      ? Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : Colors.black54,
-                          ),
-                        )
-                      : null,
-                ),
+              child: _buildAvatar(
+                user: user,
+                isDark: isDark,
+                bg: bg,
+                radius: 46,
               ),
             ),
           ],
         ),
-
-        // ── Info Section (Below Cover) ──────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          // ensure space for avatar overlapping
+        Transform.translate(
+          offset: const Offset(0, -18),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           constraints: const BoxConstraints(minHeight: 50),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Display Name
-              Text(
-                user.displayName,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: textColor,
-                  letterSpacing: -0.5,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-
-              // KnockPost user id
-              Text(
-                'KnockPost ID • @${user.username}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: subColor,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              if (user.accountType == AccountType.creator) ...[
-                const SizedBox(height: 8),
-                CreatorRankBadge(rank: user.rank, large: true),
-              ],
-              const SizedBox(height: 12),
-
-              // Bio
-              if (user.bio.isNotEmpty)
+              if (user.isOwnProfile)
                 Padding(
-                  padding: const EdgeInsets.only(right: 60), // keep away from avatar
+                  padding: const EdgeInsets.only(right: 110),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.displayName,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          letterSpacing: -0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '@${user.username}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: subColor,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (user.accountType == AccountType.creator) ...[
+                            const SizedBox(width: 8),
+                            CreatorRankBadge(rank: user.rank, large: true),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                Text(
+                  user.displayName,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                    letterSpacing: -0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '@${user.username}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: subColor,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (user.accountType == AccountType.creator) ...[
+                      const SizedBox(width: 8),
+                      CreatorRankBadge(rank: user.rank, large: true),
+                    ],
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
+              if (user.bio.isNotEmpty)
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 0.75,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: user.isOwnProfile ? 0 : 60),
                   child: Text(
                     user.bio,
                     style: TextStyle(
@@ -219,55 +232,44 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       color: textColor.withValues(alpha: 0.9),
                       height: 1.4,
                     ),
+                    ),
                   ),
                 ),
-
-              const SizedBox(height: 12),
-
-              // Subscribers/Friends Count + Privacy Badge
-              Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDark ? const Color(0xFF222222) : const Color(0xFFF0F0F0),
-                      image: user.avatarAsset != null
-                          ? DecorationImage(
-                              image: AssetImage(user.avatarAsset!),
-                              fit: BoxFit.cover,
-                            )
+              const SizedBox(height: 8),
+              if (user.isOwnProfile)
+                _buildOwnFriendsRow(textColor, isDark)
+              else
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? const Color(0xFF222222) : const Color(0xFFF0F0F0),
+                        image: user.avatarAsset != null
+                            ? DecorationImage(
+                                image: user.avatarAsset!.startsWith('assets/')
+                                    ? AssetImage(user.avatarAsset!) as ImageProvider
+                                    : FileImage(File(user.avatarAsset!)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: user.avatarAsset == null
+                          ? Icon(Icons.person, size: 16, color: subColor)
                           : null,
                     ),
-                    child: user.avatarAsset == null
-                        ? Icon(Icons.person, size: 16, color: subColor)
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_formatCount(user.friendsCount)} friends',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (user.isOwnProfile) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Text(
-                      '• See Friends',
+                      '${_formatCount(user.friendsCount)} friends',
                       style: TextStyle(
-                        fontSize: 13,
-                        color: subColor,
-                        decoration: TextDecoration.underline,
-                        decorationThickness: 0.5,
+                        fontSize: 14,
+                        color: textColor,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ],
-                  const Spacer(),
-                  // Privacy Badge
-                  if (!user.isOwnProfile)
+                    const Spacer(),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -287,32 +289,32 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         ),
                       ],
                     ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Buttons ────────────────────────────────────────────────────
+                  ],
+                ),
+              const SizedBox(height: 12),
               if (user.isOwnProfile)
                 Row(
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {}, // Share action logic
+                        onTap: () {},
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF6116), // KnockPost Orange / Substack Orange
-                            borderRadius: BorderRadius.circular(24),
+                            color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5),
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : Colors.black12,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           alignment: Alignment.center,
-                          child: const Text(
+                          child: Text(
                             'Share',
                             style: TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                              color: textColor,
                             ),
                           ),
                         ),
@@ -324,19 +326,19 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         onTap: widget.onEditTap,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF262626) : const Color(0xFFF2F2F2),
+                            color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5),
                             border: Border.all(
                               color: isDark ? Colors.white12 : Colors.black12,
                             ),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             'Edit',
                             style: TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: textColor,
                             ),
@@ -395,8 +397,102 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 ),
             ],
           ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildOwnFriendsRow(Color textColor, bool isDark) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 58,
+          height: 26,
+          child: Stack(
+            children: [
+              _friendPreviewAvatar('assets/test2.jpg', 0, isDark),
+              _friendPreviewAvatar('assets/test3.jpg', 16, isDark),
+              _friendPreviewAvatar('assets/test4.jpg', 32, isDark),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'See Friends',
+          style: TextStyle(
+            fontSize: 14.5,
+            color: textColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _friendPreviewAvatar(String asset, double left, bool isDark) {
+    return Positioned(
+      left: left,
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isDark ? const Color(0xFF111111) : Colors.white,
+            width: 1.6,
+          ),
+          image: DecorationImage(
+            image: asset.startsWith('assets/')
+                ? AssetImage(asset) as ImageProvider
+                : FileImage(File(asset)),
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar({
+    required UserModel user,
+    required bool isDark,
+    required Color bg,
+    required double radius,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: bg,
+        border: Border.all(
+          color: user.accountType == AccountType.creator
+              ? CreatorRankBadge.rankColor(user.rank).withValues(alpha: 0.6)
+              : bg,
+          width: user.accountType == AccountType.creator ? 3.0 : 4.0,
+        ),
+      ),
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor:
+            isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+        backgroundImage: user.avatarAsset != null
+            ? (user.avatarAsset!.startsWith('assets/')
+                ? AssetImage(user.avatarAsset!) as ImageProvider
+                : FileImage(File(user.avatarAsset!)))
+            : null,
+        child: user.avatarAsset == null
+            ? Text(
+                user.displayName.isNotEmpty
+                    ? user.displayName[0].toUpperCase()
+                    : '?',
+                style: TextStyle(
+                  fontSize: radius * 0.74,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              )
+            : null,
+      ),
     );
   }
 

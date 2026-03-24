@@ -28,6 +28,7 @@ dependencies:
   path_provider: ^2.1.5
   pro_image_editor: ^12.0.7
   flutter_native_splash: ^2.4.7
+  image_cropper: ^12.0.0
 
 dev_dependencies:
   flutter_test:
