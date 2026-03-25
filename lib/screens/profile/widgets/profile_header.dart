@@ -215,11 +215,11 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     ),
                   ),
                   const SizedBox(height: 11),
-                  if (user.bio.isNotEmpty)
+                  if (user.bio != null && user.bio!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(right: 106),
                       child: Text(
-                        user.bio,
+                        user.bio!,
                         style: TextStyle(
                           fontSize: 14.5,
                           color: textColor.withValues(alpha: 0.9),
