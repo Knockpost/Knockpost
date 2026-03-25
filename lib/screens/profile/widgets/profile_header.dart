@@ -219,14 +219,14 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 ),
               ],
               const SizedBox(height: 10),
-              if (user.bio.isNotEmpty)
+              if (user.bio != null && user.bio!.isNotEmpty)
                 FractionallySizedBox(
                   alignment: Alignment.centerLeft,
                   widthFactor: 0.75,
                   child: Padding(
                     padding: EdgeInsets.only(right: user.isOwnProfile ? 0 : 60),
                   child: Text(
-                    user.bio,
+                    user.bio!,
                     style: TextStyle(
                       fontSize: 14.5,
                       color: textColor.withValues(alpha: 0.9),

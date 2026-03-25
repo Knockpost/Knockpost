@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
+import '../widgets/people_suggestion_strip.dart';
 import '../widgets/post_card.dart';
 import 'create_post/create_post_screen.dart';
 import 'messages/messages_list_screen.dart';
@@ -226,25 +227,40 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ];
                       },
-                      body: ListView.separated(
-                        padding: EdgeInsets.zero,
-                        controller: _scrollController,
-                        itemCount: _demoPostImages.length,
-                        separatorBuilder: (context, index) {
-                          return Divider(
-                            thickness: 6,
-                            height: 6,
-                            color: isDark
-                                ? const Color(0xff121212)
-                                : const Color(0xfff0f0f0),
-                          );
-                        },
-                        itemBuilder: (context, index) {
-                          return PostCard(imagePaths: _demoPostImages[index]);
-                        },
-                      ),
+                      body: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      // +1 for the suggestion strip inserted after 2nd post
+                      itemCount: _demoPostImages.length + 1,
+                      itemBuilder: (context, index) {
+                        // Strip appears at index 2 (after 2 posts)
+                        const stripIndex = 2;
+
+                        if (index == stripIndex) {
+                          return const PeopleSuggestionStrip();
+                        }
+
+                        // Adjust post index for the injected strip
+                        final postIndex = index < stripIndex ? index : index - 1;
+                        final isLast = postIndex == _demoPostImages.length - 1;
+
+                        return Column(
+                          children: [
+                            PostCard(imagePaths: _demoPostImages[postIndex]),
+                            // No divider after the last post OR before the strip
+                            if (!isLast && index != stripIndex - 1)
+                              Divider(
+                                thickness: 6,
+                                height: 6,
+                                color: isDark
+                                    ? const Color(0xff121212)
+                                    : const Color(0xfff0f0f0),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   ),
+                ),
                   const _KeepAlivePage(child: SearchScreen()),
                   ValueListenableBuilder<int>(
                     valueListenable: _navIndexNotifier,

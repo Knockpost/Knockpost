@@ -26,8 +26,14 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> startApp() async {
-    final appLinks = AppLinks();
-    final link = await appLinks.getInitialLink();
+    // Run initialization concurrently to slash wait times
+    final futures = await Future.wait([
+      AppLinks().getInitialLink(),
+      SharedPreferences.getInstance(),
+    ]);
+
+    final link = futures[0] as Uri?;
+    final prefs = futures[1] as SharedPreferences;
 
     if (link != null) {
       final linkString = link.toString();
@@ -46,19 +52,45 @@ class _SplashScreenState extends State<SplashScreen> {
         return;
       }
 
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      // ⚡ ULTRA-FAST BYPASS: If we already confirmed they're registered before, skip Firestore!
+      final isRegistered = prefs.getBool('is_registered') ?? false;
+      if (isRegistered) {
+        _navigate(const HomeScreen());
+        return;
+      }
+
+      // If not marked registered locally, check Firestore (prefer cache)
+      DocumentSnapshot? userDoc;
+      try {
+        userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get(const GetOptions(source: Source.cache));
+
+        if (!userDoc.exists) {
+          userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+        }
+      } catch (_) {
+        userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+      }
 
       if (mounted) {
         if (userDoc.exists) {
+          await prefs.setBool(
+            'is_registered',
+            true,
+          ); // Save for next ultra-fast launch
           _navigate(const HomeScreen());
         } else {
-          _navigate(SignupUsernameScreen(
-            email: user.email ?? "",
-            isGoogleSignup: true,
-          ));
+          _navigate(
+            SignupUsernameScreen(email: user.email ?? "", isGoogleSignup: true),
+          );
         }
       }
     } else {
@@ -87,9 +119,9 @@ class _SplashScreenState extends State<SplashScreen> {
     } catch (e) {
       debugPrint("Email Link Sign-In Error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Link Verification Failed: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Link Verification Failed: $e")));
         _navigate(const LoginScreen());
       }
     }

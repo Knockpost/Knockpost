@@ -21,7 +21,7 @@ class UserModel {
   final String id;
   final String displayName;
   final String username;
-  final String bio;
+  final String? bio;
   final String? avatarAsset; // null = show default avatar
   final String? coverImageAsset; // background cover image
   final int friendsCount;
@@ -40,11 +40,15 @@ class UserModel {
 
   final bool isOwnProfile;
 
+  // Mutual connections count
+  final int mutualFriendsCount;
+  final List<String> mutualFriendsAvatars;
+
   const UserModel({
     required this.id,
     required this.displayName,
     required this.username,
-    required this.bio,
+    this.bio,
     this.avatarAsset,
     this.coverImageAsset,
     this.friendsCount = 0,
@@ -56,6 +60,8 @@ class UserModel {
     this.totalKnocksReceived = 0,
     this.knockStatus = KnockStatus.none,
     this.isOwnProfile = false,
+    this.mutualFriendsCount = 0,
+    this.mutualFriendsAvatars = const [],
   });
 
   /// Whether this profile's content is visible to the current viewer
@@ -105,6 +111,8 @@ class UserModel {
     int? totalKnocksReceived,
     KnockStatus? knockStatus,
     bool? isOwnProfile,
+    int? mutualFriendsCount,
+    List<String>? mutualFriendsAvatars,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -122,6 +130,8 @@ class UserModel {
       totalKnocksReceived: totalKnocksReceived ?? this.totalKnocksReceived,
       knockStatus: knockStatus ?? this.knockStatus,
       isOwnProfile: isOwnProfile ?? this.isOwnProfile,
+      mutualFriendsCount: mutualFriendsCount ?? this.mutualFriendsCount,
+      mutualFriendsAvatars: mutualFriendsAvatars ?? this.mutualFriendsAvatars,
     );
   }
 }
