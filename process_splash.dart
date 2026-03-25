@@ -23,11 +23,7 @@ void main() {
     );
     final sharpened = img.convolution(
       upscaled,
-      filter: [
-        0, -1, 0,
-        -1, 5, -1,
-        0, -1, 0,
-      ],
+      filter: [0, -1, 0, -1, 5, -1, 0, -1, 0],
     );
     final resized = img.copyResize(
       sharpened,
@@ -36,9 +32,14 @@ void main() {
       interpolation: img.Interpolation.cubic,
     );
 
-    final canvas = img.Image(width: canvasSize, height: canvasSize, numChannels: 4);
+    final canvas = img.Image(
+      width: canvasSize,
+      height: canvasSize,
+      numChannels: 4,
+    );
     img.fill(canvas, color: img.ColorRgba8(0, 0, 0, 0));
 
+    // ignore: prefer_const_declarations
     final offset = (canvasSize - iconSize) ~/ 2;
     img.compositeImage(canvas, resized, dstX: offset, dstY: offset);
 

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Override uCrop Colors to match minimal Dark UI -->
+    <!-- Makes the background of the bottom slider completely solid black -->
+    <color name="ucrop_color_widget_background">#000000</color>
+    <!-- Unselected text and scale tick marks completely white -->
+    <color name="ucrop_color_widget">#FFFFFF</color>
+    <!-- Text color for the bottom options (unselected) -->
+    <color name="ucrop_color_widget_text">#FFFFFF</color>
+</resources>
