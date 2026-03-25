@@ -202,23 +202,6 @@ class _SuggestionCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // Transparent link to profile on upper body
-          Positioned.fill(
-            bottom: 40,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ProfileScreen(
-                      user: user,
-                      posts: const [],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
           Column(
             children: [
               // Main content (Profile Info)
@@ -328,6 +311,24 @@ class _SuggestionCard extends StatelessWidget {
             ],
           ),
           
+          // Transparent link to profile on upper body
+          Positioned.fill(
+            bottom: 40,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProfileScreen(
+                      user: user,
+                      posts: const [],
+                    ),
+                  ),
+                );
+              },
+              behavior: HitTestBehavior.translucent,
+            ),
+          ),
           // Close button (X)
           Positioned(
             top: 4,
