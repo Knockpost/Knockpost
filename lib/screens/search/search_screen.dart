@@ -5,7 +5,7 @@ import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../profile/other_profile_screen.dart';
 
-enum ConnectionStatus { knock, requested, knocked }
+enum ConnectionStatus { knock, requested, knocked, knockBack }
 
 class MockUser {
   final String id;
@@ -19,6 +19,7 @@ class MockUser {
   final AccountType accountType;
   final CreatorRank rank;
   final List<PostModel> posts;
+  final List<String> mutualFriendsWhoKnocked;
   ConnectionStatus connectionStatus;
 
   MockUser({
@@ -33,6 +34,7 @@ class MockUser {
     required this.accountType,
     required this.rank,
     required this.posts,
+    this.mutualFriendsWhoKnocked = const [],
     this.connectionStatus = ConnectionStatus.knock,
   });
 }
@@ -70,6 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
         accountType: AccountType.normal,
         rank: CreatorRank.echo,
         posts: _buildDemoPosts('u01', seed: 1),
+        mutualFriendsWhoKnocked: const ['assets/test2.jpg', 'assets/test4.jpg'],
       ),
       MockUser(
         id: 'u02',
@@ -96,6 +99,11 @@ class _SearchScreenState extends State<SearchScreen> {
         accountType: AccountType.normal,
         rank: CreatorRank.echo,
         posts: _buildDemoPosts('u03', seed: 3),
+        mutualFriendsWhoKnocked: const [
+          'assets/test1.jpg',
+          'assets/test2.jpg',
+          'assets/test4.jpg',
+        ],
         connectionStatus: ConnectionStatus.knocked,
       ),
       MockUser(
@@ -120,10 +128,11 @@ class _SearchScreenState extends State<SearchScreen> {
         coverPic: 'assets/test4.jpg',
         bio: 'Poetry, design, and weekend cafe reviews.',
         friendsCount: 2210,
-        privacyType: PrivacyType.open,
+        privacyType: PrivacyType.private,
         accountType: AccountType.creator,
         rank: CreatorRank.plus,
         posts: _buildDemoPosts('u05', seed: 5),
+        mutualFriendsWhoKnocked: const ['assets/test3.jpg', 'assets/test4.jpg'],
       ),
       MockUser(
         id: 'u06',
@@ -137,6 +146,7 @@ class _SearchScreenState extends State<SearchScreen> {
         accountType: AccountType.normal,
         rank: CreatorRank.echo,
         posts: _buildDemoPosts('u06', seed: 6),
+        connectionStatus: ConnectionStatus.knockBack,
       ),
       MockUser(
         id: 'u07',
@@ -165,7 +175,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<PostModel> _buildDemoPosts(String authorId, {required int seed}) {
     final now = DateTime.now();
-    const pool = ['assets/test1.jpg', 'assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'];
+    const pool = [
+      'assets/test1.jpg',
+      'assets/test2.jpg',
+      'assets/test3.jpg',
+      'assets/test4.jpg',
+    ];
     final first = pool[seed % pool.length];
     final second = pool[(seed + 1) % pool.length];
     final third = pool[(seed + 2) % pool.length];
@@ -224,7 +239,9 @@ class _SearchScreenState extends State<SearchScreen> {
           .where(
             (user) =>
                 user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                user.username.toLowerCase().contains(_searchQuery.toLowerCase()),
+                user.username.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
           )
           .toList();
     }
@@ -240,58 +257,92 @@ class _SearchScreenState extends State<SearchScreen> {
         return KnockStatus.pending;
       case ConnectionStatus.knocked:
         return KnockStatus.knocked;
+      case ConnectionStatus.knockBack:
+        return KnockStatus.theyKnockedYou;
     }
   }
 
-  Widget _buildTrailingButton(MockUser user, bool isDark) {
-    final isKnockedState = user.connectionStatus == ConnectionStatus.requested ||
-        user.connectionStatus == ConnectionStatus.knocked;
+  ConnectionStatus _toConnectionStatus(KnockStatus status) {
+    switch (status) {
+      case KnockStatus.none:
+        return ConnectionStatus.knock;
+      case KnockStatus.pending:
+        return ConnectionStatus.requested;
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+        return ConnectionStatus.knocked;
+      case KnockStatus.theyKnockedYou:
+        return ConnectionStatus.knockBack;
+    }
+  }
 
-    if (isKnockedState) {
-      return GestureDetector(
-        onTap: () {
-          KnockHaptics.tap();
-          setState(() {
-            user.connectionStatus = ConnectionStatus.knock;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.grey[800] : Colors.grey[300],
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            'Knocked',
-            style: TextStyle(
-              color: isDark ? Colors.white70 : Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      );
+  bool _isEffectivelyOpen(MockUser user) =>
+      user.accountType == AccountType.creator ||
+      user.privacyType == PrivacyType.open;
+
+  Widget _buildTrailingButton(MockUser user, bool isDark) {
+    final greyBg = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5);
+    final greyFg = isDark ? Colors.white : Colors.black87;
+    final primaryBg = isDark ? Colors.white : Colors.black;
+    final primaryFg = isDark ? Colors.black : Colors.white;
+
+    late final String label;
+    late final Color bg;
+    late final Color fg;
+
+    switch (user.connectionStatus) {
+      case ConnectionStatus.knock:
+        label = 'Knock';
+        bg = primaryBg;
+        fg = primaryFg;
+        break;
+      case ConnectionStatus.requested:
+        label = 'Pending';
+        bg = greyBg;
+        fg = greyFg;
+        break;
+      case ConnectionStatus.knocked:
+        label = 'Knocked';
+        bg = greyBg;
+        fg = greyFg;
+        break;
+      case ConnectionStatus.knockBack:
+        label = 'Knock Back';
+        bg = primaryBg;
+        fg = primaryFg;
+        break;
     }
 
     return GestureDetector(
       onTap: () {
         KnockHaptics.tap();
         setState(() {
-          user.connectionStatus = user.privacyType == PrivacyType.private
-              ? ConnectionStatus.requested
-              : ConnectionStatus.knocked;
+          switch (user.connectionStatus) {
+            case ConnectionStatus.knock:
+              user.connectionStatus = _isEffectivelyOpen(user)
+                  ? ConnectionStatus.knocked
+                  : ConnectionStatus.requested;
+              break;
+            case ConnectionStatus.requested:
+            case ConnectionStatus.knocked:
+              user.connectionStatus = ConnectionStatus.knock;
+              break;
+            case ConnectionStatus.knockBack:
+              user.connectionStatus = ConnectionStatus.knocked;
+              break;
+          }
         });
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: isDark ? Colors.white : Colors.black,
+          color: bg,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
-          'Knock',
+          label,
           style: TextStyle(
-            color: isDark ? Colors.black : Colors.white,
+            color: fg,
             fontWeight: FontWeight.w600,
             fontSize: 13,
           ),
@@ -326,8 +377,10 @@ class _SearchScreenState extends State<SearchScreen> {
             style: TextStyle(color: textColor, fontSize: 15),
             decoration: InputDecoration(
               hintText: 'Search Knockpost',
-              hintStyle:
-                  TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600], fontSize: 15),
+              hintStyle: TextStyle(
+                color: isDark ? Colors.grey[500] : Colors.grey[600],
+                fontSize: 15,
+              ),
               prefixIcon: Icon(
                 Icons.search,
                 color: isDark ? Colors.grey[500] : Colors.grey[600],
@@ -362,7 +415,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? Center(
                     child: Text(
                       'No results found',
-                      style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600]),
+                      style: TextStyle(
+                        color: isDark ? Colors.grey[500] : Colors.grey[600],
+                      ),
                     ),
                   )
                 : ListView.builder(
@@ -372,20 +427,32 @@ class _SearchScreenState extends State<SearchScreen> {
                       return ListTile(
                         dense: true,
                         visualDensity: const VisualDensity(vertical: -2),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 2,
+                        ),
                         leading: CircleAvatar(
                           radius: 20,
                           backgroundImage: AssetImage(user.profilePic),
                           onBackgroundImageError: (_, __) {},
-                          backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
+                          backgroundColor: isDark
+                              ? Colors.grey[800]
+                              : Colors.grey[300],
                         ),
                         title: Text(
                           user.username,
-                          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
+                          style: TextStyle(
+                            color: textColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                         subtitle: Text(
                           user.name,
-                          style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600], fontSize: 13),
+                          style: TextStyle(
+                            color: isDark ? Colors.grey[500] : Colors.grey[600],
+                            fontSize: 13,
+                          ),
                         ),
                         trailing: _buildTrailingButton(user, isDark),
                         onTap: () {
@@ -401,6 +468,8 @@ class _SearchScreenState extends State<SearchScreen> {
                             accountType: user.accountType,
                             privacyType: user.privacyType,
                             rank: user.rank,
+                            mutualFriendsWhoKnocked:
+                                user.mutualFriendsWhoKnocked,
                             knockStatus: _toKnockStatus(user.connectionStatus),
                           );
                           Navigator.push(
@@ -409,6 +478,13 @@ class _SearchScreenState extends State<SearchScreen> {
                               builder: (_) => OtherProfileScreen(
                                 user: userModel,
                                 posts: user.posts,
+                                onKnockStatusChanged: (status) {
+                                  setState(() {
+                                    user.connectionStatus = _toConnectionStatus(
+                                      status,
+                                    );
+                                  });
+                                },
                               ),
                             ),
                           );

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import 'widgets/profile_ui_helpers.dart';
@@ -27,24 +28,188 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _hasChanges = false;
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickAvatar() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+  int get _bioWordCount => _bioCtrl.text
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((e) => e.isNotEmpty)
+      .length;
+
+  bool get _canSave {
+    if (!_hasChanges) return false;
+    if (_bioWordCount > 40) return false;
+    return true;
+  }
+
+  Future<void> _pickAvatar(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
-      setState(() {
-        _avatarAsset = image.path;
-        _hasChanges = true;
-      });
+      final CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Profile Photo',
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: Colors.white,
+            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+            cropFrameColor: Colors.white,
+            cropGridColor: Colors.white24,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop Profile Photo',
+            aspectRatioLockEnabled: true,
+            resetButtonHidden: true,
+          ),
+        ],
+      );
+      if (croppedFile != null) {
+        setState(() {
+          _avatarAsset = croppedFile.path;
+          _hasChanges = true;
+        });
+      }
     }
   }
 
-  Future<void> _pickCover() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickCover(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
-      setState(() {
-        _coverImageAsset = image.path;
-        _hasChanges = true;
-      });
+      final CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 2, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Cover Photo',
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: Colors.white,
+            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+            cropFrameColor: Colors.white,
+            cropGridColor: Colors.white24,
+            initAspectRatio: CropAspectRatioPreset.ratio3x2,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop Cover Photo',
+            aspectRatioLockEnabled: true,
+            resetButtonHidden: true,
+          ),
+        ],
+      );
+      if (croppedFile != null) {
+        setState(() {
+          _coverImageAsset = croppedFile.path;
+          _hasChanges = true;
+        });
+      }
     }
+  }
+
+  void _showImageSourceBottomSheet({required bool isAvatar}) {
+    KnockHaptics.selection();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1C1C1C) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subColor = isDark ? Colors.white54 : Colors.black54;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: subColor.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.photo_library_outlined, color: textColor),
+                  title: Text(
+                    'Choose from library',
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (isAvatar) {
+                      _pickAvatar(ImageSource.gallery);
+                    } else {
+                      _pickCover(ImageSource.gallery);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.camera_alt_outlined, color: textColor),
+                  title: Text(
+                    'Take photo',
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (isAvatar) {
+                      _pickAvatar(ImageSource.camera);
+                    } else {
+                      _pickCover(ImageSource.camera);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text(
+                    'Remove current picture',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (isAvatar) {
+                      setState(() {
+                        _avatarAsset = null;
+                        _hasChanges = true;
+                      });
+                    } else {
+                      setState(() {
+                        _coverImageAsset = null;
+                        _hasChanges = true;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -78,7 +243,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       bio: _bioCtrl.text.trim(),
       privacyType: _privacyType,
       avatarAsset: _avatarAsset,
+      clearAvatar: _avatarAsset == null,
       coverImageAsset: _coverImageAsset,
+      clearCover: _coverImageAsset == null,
     );
     Navigator.pop(context, updated);
   }
@@ -127,11 +294,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: _hasChanges ? _save : null,
+              onPressed: _canSave ? _save : null,
               child: Text(
                 'Save',
                 style: TextStyle(
-                  color: _hasChanges ? textColor : subColor,
+                  color: _canSave ? textColor : subColor,
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
@@ -143,16 +310,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
             // ── Cover & Avatar Stack ───────────────────────────────────────
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Cover Photo Background
-                GestureDetector(
-                  onTap: _pickCover,
-                  child: Container(
-                    height: 140,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
+            SizedBox(
+              height: 176,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Cover Photo Background
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: GestureDetector(
+                      onTap: () => _showImageSourceBottomSheet(isAvatar: false),
+                      child: Container(
+                        height: 140,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
                       color: fieldBg,
                       borderRadius: BorderRadius.circular(16),
                       image: _coverImageAsset != null
@@ -167,12 +338,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   ),
                 ),
+                ),
                 // Cover Photo Camera Button
                 Positioned(
                   top: 12,
                   right: 12,
                   child: GestureDetector(
-                    onTap: _pickCover,
+                    onTap: () => _showImageSourceBottomSheet(isAvatar: false),
                     child: Container(
                       width: 32,
                       height: 32,
@@ -190,12 +362,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 // Overlapping Avatar (Bottom Right)
                 Positioned(
-                  bottom: -36,
+                  bottom: 0,
                   right: 16,
                   child: Stack(
                     children: [
                       GestureDetector(
-                        onTap: _pickAvatar,
+                        onTap: () =>
+                            _showImageSourceBottomSheet(isAvatar: true),
                         child: Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
@@ -212,15 +385,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       as ImageProvider
                                 : null,
                             child: _avatarAsset == null
-                                ? Text(
-                                    _nameCtrl.text.isNotEmpty
-                                        ? _nameCtrl.text[0].toUpperCase()
-                                        : '?',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w700,
-                                      color: textColor,
-                                    ),
+                                ? Icon(
+                                    Icons.person_rounded,
+                                    size: 56,
+                                    color: isDark ? Colors.white54 : Colors.black45,
                                   )
                                 : null,
                           ),
@@ -231,7 +399,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: _pickAvatar,
+                          onTap: () =>
+                              _showImageSourceBottomSheet(isAvatar: true),
                           child: Container(
                             width: 28,
                             height: 28,
@@ -253,7 +422,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 60),
+            ),
+            const SizedBox(height: 24),
 
             // ── Fields ───────────────────────────────────────────────────────
             _FieldLabel('Display Name', subColor),
@@ -278,14 +448,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 16),
 
             _FieldLabel('Bio', subColor),
-            _EditField(
-              controller: _bioCtrl,
-              hint: 'A little something about you...',
-              bg: fieldBg,
-              borderColor: borderColor,
-              textColor: textColor,
-              maxLines: 4,
-              maxLength: 100,
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _bioCtrl,
+              builder: (context, value, child) {
+                final wordCount = value.text
+                    .trim()
+                    .split(RegExp(r'\s+'))
+                    .where((e) => e.isNotEmpty)
+                    .length;
+                final isOver = wordCount > 40;
+                return Stack(
+                  children: [
+                    _EditField(
+                      controller: _bioCtrl,
+                      hint: 'A little something about you...',
+                      bg: fieldBg,
+                      borderColor: isOver
+                          ? Colors.red.withValues(alpha: 0.5)
+                          : borderColor,
+                      textColor: textColor,
+                      maxLines: 4,
+                      contentPadding: const EdgeInsets.only(
+                        left: 14,
+                        right: 14,
+                        top: 12,
+                        bottom: 30, // Extra space at bottom to avoid overlap
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 12,
+                      child: Text(
+                        '$wordCount/40',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isOver ? Colors.red : subColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -350,7 +554,7 @@ class _EditField extends StatelessWidget {
   final Color textColor;
   final int maxLines;
   final String? prefixText;
-  final int? maxLength;
+  final EdgeInsetsGeometry? contentPadding;
 
   const _EditField({
     required this.controller,
@@ -360,7 +564,7 @@ class _EditField extends StatelessWidget {
     required this.textColor,
     this.maxLines = 1,
     this.prefixText,
-    this.maxLength,
+    this.contentPadding,
   });
 
   @override
@@ -374,7 +578,6 @@ class _EditField extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        maxLength: maxLength,
         style: TextStyle(fontSize: 14.5, color: textColor),
         decoration: InputDecoration(
           hintText: hint,
@@ -387,12 +590,11 @@ class _EditField extends StatelessWidget {
             color: textColor.withValues(alpha: 0.5),
             fontSize: 14.5,
           ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
+          contentPadding:
+              contentPadding ??
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: InputBorder.none,
-          counterText: maxLength != null ? null : '',
+          counterText: '',
         ),
       ),
     );

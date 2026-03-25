@@ -136,13 +136,13 @@ class _HomeScreenState extends State<HomeScreen> {
             : Brightness.dark,
         systemNavigationBarDividerColor: bgColor,
       ),
-      child: WillPopScope(
-        onWillPop: () async {
+      child: PopScope(
+        canPop: _currentNavIndex == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
           if (_currentNavIndex != 0) {
             _animateToTab(0);
-            return false;
           }
-          return true;
         },
         child: Scaffold(
           backgroundColor: bgColor,
