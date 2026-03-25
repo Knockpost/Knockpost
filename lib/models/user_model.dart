@@ -25,6 +25,8 @@ class UserModel {
   final String? avatarAsset; // null = show default avatar
   final String? coverImageAsset; // background cover image
   final int friendsCount;
+  // Avatar assets of viewer's friends who knocked this profile.
+  final List<String> mutualFriendsWhoKnocked;
 
   final AccountType accountType;
   final PrivacyType privacyType; // only meaningful for AccountType.normal
@@ -48,6 +50,7 @@ class UserModel {
     this.avatarAsset,
     this.coverImageAsset,
     this.friendsCount = 0,
+    this.mutualFriendsWhoKnocked = const [],
     this.accountType = AccountType.normal,
     this.privacyType = PrivacyType.open,
     this.rank = CreatorRank.echo,
@@ -58,11 +61,14 @@ class UserModel {
     this.isOwnProfile = false,
   });
 
+  /// Creator/professional profiles behave as open accounts.
+  bool get isEffectivelyOpen =>
+      accountType == AccountType.creator || privacyType == PrivacyType.open;
+
   /// Whether this profile's content is visible to the current viewer
   bool get isContentVisible {
     if (isOwnProfile) return true;
-    if (accountType == AccountType.creator) return true;
-    if (privacyType == PrivacyType.open) return true;
+    if (isEffectivelyOpen) return true;
     // Private: only visible after knock accepted
     return knockStatus == KnockStatus.knocked ||
         knockStatus == KnockStatus.mutualKnocked;
@@ -99,6 +105,7 @@ class UserModel {
     String? coverImageAsset,
     bool clearCover = false,
     int? friendsCount,
+    List<String>? mutualFriendsWhoKnocked,
     AccountType? accountType,
     PrivacyType? privacyType,
     CreatorRank? rank,
@@ -114,8 +121,12 @@ class UserModel {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       avatarAsset: clearAvatar ? null : (avatarAsset ?? this.avatarAsset),
-      coverImageAsset: clearCover ? null : (coverImageAsset ?? this.coverImageAsset),
+      coverImageAsset: clearCover
+          ? null
+          : (coverImageAsset ?? this.coverImageAsset),
       friendsCount: friendsCount ?? this.friendsCount,
+      mutualFriendsWhoKnocked:
+          mutualFriendsWhoKnocked ?? this.mutualFriendsWhoKnocked,
       accountType: accountType ?? this.accountType,
       privacyType: privacyType ?? this.privacyType,
       rank: rank ?? this.rank,
@@ -151,6 +162,11 @@ const demoCreatorUser = UserModel(
   avatarAsset: 'assets/test4.jpg',
   coverImageAsset: 'assets/test1.jpg',
   friendsCount: 15400,
+  mutualFriendsWhoKnocked: [
+    'assets/test1.jpg',
+    'assets/test2.jpg',
+    'assets/test3.jpg',
+  ],
   accountType: AccountType.creator,
   rank: CreatorRank.pro,
   totalViews: 84000,
@@ -166,6 +182,7 @@ const demoPrivateUser = UserModel(
   avatarAsset: 'assets/test2.jpg',
   coverImageAsset: 'assets/test3.jpg',
   friendsCount: 142,
+  mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
   accountType: AccountType.normal,
   privacyType: PrivacyType.private,
   knockStatus: KnockStatus.none,
@@ -182,4 +199,18 @@ const demoKnockedUser = UserModel(
   accountType: AccountType.normal,
   privacyType: PrivacyType.private,
   knockStatus: KnockStatus.knocked,
+);
+
+/// Demo user who knocked the current viewer first (for Knock Back scenario)
+const demoTheyKnockedUser = UserModel(
+  id: 'theyknocked01',
+  displayName: 'Priya Mukherjee',
+  username: 'priya.m',
+  bio: 'Designer & dreamer ✨',
+  avatarAsset: 'assets/test1.jpg',
+  coverImageAsset: 'assets/test2.jpg',
+  friendsCount: 320,
+  accountType: AccountType.normal,
+  privacyType: PrivacyType.open,
+  knockStatus: KnockStatus.theyKnockedYou,
 );

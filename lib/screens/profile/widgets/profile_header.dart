@@ -55,6 +55,11 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       _knockStatus == KnockStatus.knocked ||
       _knockStatus == KnockStatus.mutualKnocked;
 
+  bool get _showMessageButton =>
+      _knockStatus == KnockStatus.pending ||
+      _knockStatus == KnockStatus.knocked ||
+      _knockStatus == KnockStatus.mutualKnocked;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -129,7 +134,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   children: [
                     if (widget.showBackButton)
                       _BlurMenuButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
+                        icon: Icons.arrow_back_rounded,
+                        iconSize: 22,
                         onTap: widget.onBackTap ?? () => Navigator.pop(context),
                         hasCover: hasCover,
                         isDark: isDark,
@@ -208,7 +214,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 11),
                   if (user.bio.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(right: 106),
@@ -221,67 +227,14 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 9),
                   if (user.isOwnProfile)
                     _buildOwnFriendsRow(textColor, isDark)
-                  else
-                    Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark
-                                ? const Color(0xFF222222)
-                                : const Color(0xFFF0F0F0),
-                            image: user.avatarAsset != null
-                                ? DecorationImage(
-                                    image:
-                                        user.avatarAsset!.startsWith('assets/')
-                                        ? AssetImage(user.avatarAsset!)
-                                              as ImageProvider
-                                        : FileImage(File(user.avatarAsset!)),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                          ),
-                          child: user.avatarAsset == null
-                              ? Icon(Icons.person, size: 16, color: subColor)
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_formatCount(user.friendsCount)} friends',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: textColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Spacer(),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              user.privacyType == PrivacyType.private
-                                  ? Icons.lock_outline_rounded
-                                  : Icons.public_rounded,
-                              size: 13,
-                              color: subColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              user.privacyType == PrivacyType.private
-                                  ? 'Private'
-                                  : 'Open',
-                              style: TextStyle(fontSize: 12, color: subColor),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 12),
+                  else if (user.mutualFriendsWhoKnocked.isNotEmpty)
+                    _buildFriendsKnockedRow(user, textColor, isDark),
+                  if (user.isOwnProfile ||
+                      user.mutualFriendsWhoKnocked.isNotEmpty)
+                    const SizedBox(height: 13),
                   if (user.isOwnProfile)
                     Row(
                       children: [
@@ -350,10 +303,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                     Row(
                       children: [
                         Expanded(
-                          flex: _canMessage ? 5 : 1,
                           child: KnockButton(
                             initialStatus: _knockStatus,
                             privacyType: user.privacyType,
+                            accountType: user.accountType,
                             isOwnProfile: false,
                             onStatusChanged: (s) {
                               setState(() => _knockStatus = s);
@@ -361,40 +314,44 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                             },
                           ),
                         ),
-                        if (_canMessage) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 4,
-                            child: GestureDetector(
-                              onTap: widget.onMessageTap,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 11,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? const Color(0xFF262626)
-                                      : const Color(0xFFF2F2F2),
-                                  border: Border.all(
-                                    color: isDark
-                                        ? Colors.white12
-                                        : Colors.black12,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _showMessageButton
+                              ? GestureDetector(
+                                  onTap: _canMessage
+                                      ? widget.onMessageTap
+                                      : null,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF2C2C2C)
+                                          : const Color(0xFFE5E5E5),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.white12
+                                            : Colors.black12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Message',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: _canMessage
+                                            ? textColor
+                                            : textColor.withValues(alpha: 0.45),
+                                      ),
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  'Message',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                                )
+                              : const SizedBox.shrink(),
+                        ),
                       ],
                     ),
                 ],
@@ -403,6 +360,38 @@ class _ProfileHeaderState extends State<ProfileHeader> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFriendsKnockedRow(UserModel user, Color textColor, bool isDark) {
+    final avatars = user.mutualFriendsWhoKnocked;
+    // Show up to 3 stacked avatars
+    final shown = avatars.length > 3 ? avatars.sublist(0, 3) : avatars;
+    final stackWidth = 16.0 * (shown.length - 1) + 26;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: stackWidth,
+          height: 26,
+          child: Stack(
+            children: [
+              for (int i = 0; i < shown.length; i++)
+                _friendPreviewAvatar(shown[i], i * 16.0, isDark),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Some friends knocked',
+          style: TextStyle(
+            fontSize: 14.5,
+            color: textColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
+        ),
+      ],
     );
   }
 
@@ -499,14 +488,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       ),
     );
   }
-
-  String _formatCount(int count) {
-    if (count >= 1000) {
-      final short = (count / 1000).toStringAsFixed(1);
-      return short.endsWith('.0') ? '${short.split('.').first}K' : '${short}K';
-    }
-    return count.toString();
-  }
 }
 
 class _BlurMenuButton extends StatelessWidget {
@@ -514,12 +495,14 @@ class _BlurMenuButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool hasCover;
   final bool isDark;
+  final double iconSize;
 
   const _BlurMenuButton({
     required this.icon,
     this.onTap,
     this.hasCover = true,
     this.isDark = true,
+    this.iconSize = 28,
   });
 
   @override
@@ -532,7 +515,7 @@ class _BlurMenuButton extends StatelessWidget {
         alignment: Alignment.center,
         child: Icon(
           icon,
-          size: 28,
+          size: iconSize,
           color: hasCover
               ? Colors.white
               : (isDark ? Colors.white : Colors.black87),

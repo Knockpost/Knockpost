@@ -3,9 +3,11 @@ import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 
 /// Knock button with instant acceptance for open profiles and pending for private.
+/// Designed to be used inside an Expanded widget, matching Edit button sizing.
 class KnockButton extends StatefulWidget {
   final KnockStatus initialStatus;
   final PrivacyType privacyType;
+  final AccountType accountType;
   final bool isOwnProfile;
   final ValueChanged<KnockStatus>? onStatusChanged;
 
@@ -13,6 +15,7 @@ class KnockButton extends StatefulWidget {
     super.key,
     required this.initialStatus,
     this.privacyType = PrivacyType.open,
+    this.accountType = AccountType.normal,
     this.isOwnProfile = false,
     this.onStatusChanged,
   });
@@ -55,6 +58,11 @@ class _KnockButtonState extends State<KnockButton>
     }
   }
 
+  /// Whether the profile is effectively open (open privacy OR creator/professional account)
+  bool get _isEffectivelyOpen =>
+      widget.accountType == AccountType.creator ||
+      widget.privacyType == PrivacyType.open;
+
   void _onTap() {
     KnockHaptics.tap();
     _scaleController.reverse().then((_) => _scaleController.forward());
@@ -62,7 +70,7 @@ class _KnockButtonState extends State<KnockButton>
     setState(() {
       switch (_status) {
         case KnockStatus.none:
-          _status = widget.privacyType == PrivacyType.open
+          _status = _isEffectivelyOpen
               ? KnockStatus.knocked
               : KnockStatus.pending;
           break;
@@ -90,60 +98,72 @@ class _KnockButtonState extends State<KnockButton>
     String label;
     Color bg;
     Color fg;
+    Color borderColor;
+
+    // Grey style (matches Edit button)
+    final greyBg = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5);
+    final greyBorder = isDark ? Colors.white12 : Colors.black12;
+    final greyFg = isDark ? Colors.white : Colors.black;
+
+    // Primary style (full black / white)
+    final primaryBg = isDark ? Colors.white : Colors.black;
+    final primaryFg = isDark ? Colors.black : Colors.white;
 
     switch (_status) {
       case KnockStatus.none:
         label = 'Knock';
-        bg = isDark ? Colors.white : Colors.black;
-        fg = isDark ? Colors.black : Colors.white;
+        bg = primaryBg;
+        fg = primaryFg;
+        borderColor = greyBorder;
         break;
       case KnockStatus.pending:
-        label = 'Knocked';
-        bg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
-        fg = isDark ? Colors.white : Colors.black;
+        label = 'Pending';
+        bg = greyBg;
+        fg = greyFg;
+        borderColor = greyBorder;
         break;
       case KnockStatus.knocked:
         label = 'Knocked';
-        bg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
-        fg = isDark ? Colors.white : Colors.black;
+        bg = greyBg;
+        fg = greyFg;
+        borderColor = greyBorder;
         break;
       case KnockStatus.theyKnockedYou:
         label = 'Knock Back';
-        bg = isDark ? Colors.white : Colors.black;
-        fg = isDark ? Colors.black : Colors.white;
+        bg = primaryBg;
+        fg = primaryFg;
+        borderColor = greyBorder;
         break;
       case KnockStatus.mutualKnocked:
         label = 'Knocked';
-        bg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
-        fg = isDark ? Colors.white : Colors.black;
+        bg = greyBg;
+        fg = greyFg;
+        borderColor = greyBorder;
         break;
     }
 
-    return ScaleTransition(
-      scale: _scaleAnim,
-      child: GestureDetector(
-        onTap: _onTap,
+    return GestureDetector(
+      onTap: _onTap,
+      child: ScaleTransition(
+        scale: _scaleAnim,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isDark ? Colors.white24 : Colors.black12,
-              width: 1,
+              color: borderColor,
             ),
           ),
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
+          alignment: Alignment.center,
+          child: Text(
+            label,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: fg,
-              letterSpacing: 0.2,
             ),
-            child: Text(label),
           ),
         ),
       ),

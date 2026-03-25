@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/user_model.dart';
 
-/// Overlay shown when viewing a private profile that hasn't accepted a knock.
+/// Overlay shown when a profile is locked until a knock is accepted.
 class PrivateLockOverlay extends StatelessWidget {
   final KnockStatus knockStatus;
   final VoidCallback onKnock;
@@ -41,16 +41,12 @@ class PrivateLockOverlay extends StatelessWidget {
               color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.lock_outline_rounded,
-              size: 30,
-              color: textColor,
-            ),
+            child: Icon(Icons.lock_outline_rounded, size: 30, color: textColor),
           ),
           const SizedBox(height: 18),
 
           Text(
-            'Private Profile',
+            'Profile Locked',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -62,13 +58,9 @@ class PrivateLockOverlay extends StatelessWidget {
           Text(
             hasPendingKnock
                 ? 'Your knock is pending.\nWaiting for them to accept.'
-                : 'Send a Knock to see this profile.',
+                : 'Send a Knock to unlock this profile.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: subColor,
-              height: 1.45,
-            ),
+            style: TextStyle(fontSize: 13.5, color: subColor, height: 1.45),
           ),
           const SizedBox(height: 24),
 
@@ -98,11 +90,7 @@ class PrivateLockOverlay extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.access_time_rounded,
-                  size: 16,
-                  color: subColor,
-                ),
+                Icon(Icons.access_time_rounded, size: 16, color: subColor),
                 const SizedBox(width: 6),
                 Text(
                   'Knock sent',
