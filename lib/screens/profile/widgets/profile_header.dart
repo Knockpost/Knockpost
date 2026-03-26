@@ -81,7 +81,11 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 : (isDark
                       ? SystemUiOverlayStyle.light
                       : SystemUiOverlayStyle.dark))
-            .copyWith(statusBarColor: Colors.transparent);
+            .copyWith(
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: bg,
+              systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,

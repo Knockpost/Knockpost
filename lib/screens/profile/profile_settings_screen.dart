@@ -55,6 +55,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -422,6 +424,8 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -547,6 +551,8 @@ class _AccountSettingsScreen extends StatelessWidget {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -657,6 +663,8 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -753,6 +761,8 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -1134,6 +1144,8 @@ class _ProfessionalStatsScreen extends StatelessWidget {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -1273,6 +1285,8 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
