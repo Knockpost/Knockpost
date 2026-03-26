@@ -106,7 +106,7 @@ class MoreOptionsSheet extends StatelessWidget {
                 ),
                 _OptionTile(
                   icon: Icons.flag_outlined,
-                  label: "Report this reel",
+                  label: "Report this glimpse",
                   isDestructive: true,
                   onTap: () {
                     Navigator.pop(context);

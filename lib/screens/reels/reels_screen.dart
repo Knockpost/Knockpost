@@ -83,6 +83,10 @@ class _ReelsScreenState extends State<ReelsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // CustomBottomNav is 50px tall. ReelItem adds 20px internally.
+    // 30.0 + 20.0 = 50.0. This makes the text flush with the top of the nav bar, eliminating the gap.
+    final bottomNavHeight = 30.0 + MediaQuery.paddingOf(context).bottom;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: _reelsOverlayStyle,
       child: Scaffold(
@@ -112,6 +116,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                   username: reels[index]["username"]!,
                   caption: reels[index]["caption"]!,
                   isActive: index == currentIndex && widget.isVisible,
+                  bottomPadding: bottomNavHeight,
                 );
               },
             ),
@@ -141,13 +146,16 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Reels",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: const Text(
+                        "Glimpse",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                     GestureDetector(

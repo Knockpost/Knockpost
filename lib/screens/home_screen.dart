@@ -63,6 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentNavIndex == index) return;
     setState(() {
       _currentNavIndex = index;
+      // Always show bars when switching tabs — only vertical scroll should hide them
+      _showBars = true;
+      _scrollDelta = 0;
     });
     _navIndexNotifier.value = index;
   }
@@ -100,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Handle scroll notifications from the feed (Twitter/X behavior)
   /// Hides bars after scrolling down ~50px, shows immediately on scroll up.
   bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+
     if (notification is ScrollUpdateNotification) {
       final dy = notification.scrollDelta ?? 0;
       if (dy > 0) {

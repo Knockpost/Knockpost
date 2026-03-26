@@ -13,6 +13,7 @@ class ReelItem extends StatefulWidget {
   final String username;
   final String caption;
   final bool isActive;
+  final double bottomPadding;
 
   const ReelItem({
     super.key,
@@ -20,6 +21,7 @@ class ReelItem extends StatefulWidget {
     required this.username,
     required this.caption,
     required this.isActive,
+    this.bottomPadding = 0,
   });
 
   @override
@@ -260,7 +262,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
           /// ❤️ RIGHT ACTIONS
           Positioned(
             right: 12,
-            bottom: 100,
+            bottom: 100 + widget.bottomPadding,
             child: Column(
               children: [
                 /// ❤️ EMOJI REACTION (Replaces simple Like)
@@ -334,7 +336,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
           /// 👤 BOTTOM INFO
           Positioned(
             left: 14,
-            bottom: 20,
+            bottom: 20 + widget.bottomPadding,
             right: 80,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,7 +468,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
           /// 💿 SPINNING ALBUM DISC (unique KnockPost touch)
           Positioned(
             right: 14,
-            bottom: 24,
+            bottom: 24 + widget.bottomPadding,
             child: _SpinningDisc(isPlaying: isPlaying),
           ),
 
