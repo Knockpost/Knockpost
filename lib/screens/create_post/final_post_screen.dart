@@ -51,7 +51,8 @@ class _FinalPostScreenState extends State<FinalPostScreen>
   Future<void> startRecording() async {
     if (await _recorder.hasPermission()) {
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
       await _recorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
@@ -122,7 +123,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : Colors.black,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -141,7 +145,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               child: GestureDetector(
                 onTap: () {
                   KnockHaptics.tap();
-                  // TODO: Implement actual posting logic (Firebase)
+                  //Implement actual posting logic (Firebase)
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 child: const Text(
@@ -166,7 +170,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               // 📸 MEDIA PREVIEW ROW
               if (widget.files.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -192,7 +199,9 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                           decoration: InputDecoration(
                             hintText: "Write a caption...",
                             hintStyle: TextStyle(
-                              color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                              color: isDark
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade400,
                               fontSize: 15,
                             ),
                             border: InputBorder.none,
@@ -206,74 +215,131 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                 ),
 
               const SizedBox(height: 12),
-              Divider(height: 1, color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE)),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
+              ),
 
               // 🎵 MUSIC / AUDIO OPTION
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                leading: Icon(Icons.music_note_outlined,
-                    size: 24, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
+                leading: Icon(
+                  Icons.music_note_outlined,
+                  size: 24,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                ),
                 title: Text(
                   "Add Music",
                   style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
-                trailing: Icon(Icons.arrow_forward_ios,
-                    size: 14, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                ),
                 onTap: () {
                   KnockHaptics.tap();
-                  // TODO: Open music picker or local file picker
+                  //Open music picker or local file picker
                 },
               ),
 
-              Divider(height: 1, color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE)),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
+              ),
 
               // 🎙️ VOICE RECORDING OPTION
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                leading: Icon(Icons.mic_none_outlined,
-                    size: 24, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
-                title: Text(
-                  recordingPath != null ? "Voice Note Recorded" : "Record Voice Note",
-                  style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
                 ),
-                trailing: recordingPath != null 
-                    ? null 
-                    : Icon(Icons.arrow_forward_ios, size: 14, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-                onTap: isRecording || recordingPath != null ? null : () {
-                  KnockHaptics.tap();
-                  startRecording();
-                },
+                leading: Icon(
+                  Icons.mic_none_outlined,
+                  size: 24,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                ),
+                title: Text(
+                  recordingPath != null
+                      ? "Voice Note Recorded"
+                      : "Record Voice Note",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                trailing: recordingPath != null
+                    ? null
+                    : Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: isDark
+                            ? Colors.grey.shade600
+                            : Colors.grey.shade400,
+                      ),
+                onTap: isRecording || recordingPath != null
+                    ? null
+                    : () {
+                        KnockHaptics.tap();
+                        startRecording();
+                      },
               ),
-              
+
               if (isRecording) _buildRecordingBar(),
               if (!isRecording && recordingPath != null) _buildAudioCard(),
 
-              Divider(height: 1, color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE)),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
+              ),
 
               // 🌍 AUDIENCE SELECTOR
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                leading: Icon(Icons.lock_outline,
-                    size: 22, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
+                leading: Icon(
+                  Icons.lock_outline,
+                  size: 22,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                ),
                 title: Text(
                   "Audience",
                   style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
                 subtitle: Text(
                   "Private",
                   style: TextStyle(
-                      fontSize: 13, color: isDark ? Colors.grey.shade400 : Colors.grey.shade500),
+                    fontSize: 13,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                  ),
                 ),
-                trailing: Icon(Icons.arrow_forward_ios,
-                    size: 14, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                ),
                 onTap: () {
                   KnockHaptics.tap();
                 },
               ),
-              Divider(height: 1, color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE)),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
+              ),
             ],
           ),
         ),
@@ -319,7 +385,11 @@ class _FinalPostScreenState extends State<FinalPostScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(18, (i) {
-                final height = 6.0 + (isRecording ? (((i * 7 + recordingSeconds * 3) % 11) * 1.8) : 0.0);
+                final height =
+                    6.0 +
+                    (isRecording
+                        ? (((i * 7 + recordingSeconds * 3) % 11) * 1.8)
+                        : 0.0);
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(horizontal: 1.5),
@@ -335,16 +405,29 @@ class _FinalPostScreenState extends State<FinalPostScreen>
           ),
           const SizedBox(width: 10),
           GestureDetector(
-            onTap: () { KnockHaptics.tap(); cancelRecording(); },
-            child: Icon(Icons.delete_outline, color: Colors.grey.shade600, size: 22),
+            onTap: () {
+              KnockHaptics.tap();
+              cancelRecording();
+            },
+            child: Icon(
+              Icons.delete_outline,
+              color: Colors.grey.shade600,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           GestureDetector(
-            onTap: () { KnockHaptics.tap(); stopRecording(); },
+            onTap: () {
+              KnockHaptics.tap();
+              stopRecording();
+            },
             child: Container(
               width: 34,
               height: 34,
-              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
               child: const Icon(Icons.stop, color: Colors.white, size: 18),
             ),
           ),
@@ -392,7 +475,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
             ),
           ),
           GestureDetector(
-            onTap: () { KnockHaptics.heavy(); deleteRecording(); },
+            onTap: () {
+              KnockHaptics.heavy();
+              deleteRecording();
+            },
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(

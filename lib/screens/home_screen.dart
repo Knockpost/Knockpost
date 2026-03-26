@@ -31,17 +31,40 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showBars = true;
   int _currentNavIndex = 0;
 
-  final List<List<String>> _demoPostImages = const [
-    [
-      "assets/test1.jpg",
-      "assets/test2.jpg",
-      "assets/test3.jpg",
-      "assets/test4.jpg",
-    ],
-    ["assets/test3.jpg"],
-    ["assets/test2.jpg", "assets/test4.jpg", "assets/test1.jpg"],
-    ["assets/test4.jpg", "assets/test2.jpg"],
-    ["assets/test1.jpg"],
+  /// Each feed post: the user who posted, their images, and a caption.
+  final List<({UserModel user, List<String> images, String caption})>
+      _demoFeedPosts = const [
+    (
+      user: demoZaynMalik,
+      images: [
+        'assets/test1.jpg',
+        'assets/test2.jpg',
+        'assets/test3.jpg',
+        'assets/test4.jpg',
+      ],
+      caption:
+          'Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body.',
+    ),
+    (
+      user: demoSaptarshiNayak,
+      images: ['assets/test3.jpg'],
+      caption: 'Morning run hits different 🏃',
+    ),
+    (
+      user: demoAryaLayek,
+      images: ['assets/test2.jpg', 'assets/test4.jpg', 'assets/test1.jpg'],
+      caption: 'A weekend well spent ✨',
+    ),
+    (
+      user: demoJustinBieber,
+      images: ['assets/test4.jpg', 'assets/test2.jpg'],
+      caption: 'Golden hour was different today 🌅',
+    ),
+    (
+      user: demoLeonardoDiCaprio,
+      images: ['assets/test1.jpg'],
+      caption: 'This view though 😮',
+    ),
   ];
 
   @override
@@ -261,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                             body: ListView.builder(
                               padding: const EdgeInsets.only(bottom: 90),
-                              itemCount: _demoPostImages.length + 1,
+                              itemCount: _demoFeedPosts.length + 1,
                               itemBuilder: (context, index) {
                                 const stripIndex = 2;
 
@@ -273,12 +296,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ? index
                                     : index - 1;
                                 final isLast =
-                                    postIndex == _demoPostImages.length - 1;
+                                    postIndex == _demoFeedPosts.length - 1;
+                                final post = _demoFeedPosts[postIndex];
 
                                 return Column(
                                   children: [
                                     PostCard(
-                                      imagePaths: _demoPostImages[postIndex],
+                                      imagePaths: post.images,
+                                      user: post.user,
+                                      caption: post.caption,
                                     ),
                                     if (!isLast && index != stripIndex - 1)
                                       Divider(

@@ -14,15 +14,14 @@ class ReelsScreen extends StatefulWidget {
 class _ReelsScreenState extends State<ReelsScreen> {
   final PageController _pageController = PageController();
   int currentIndex = 0;
-  static const SystemUiOverlayStyle _reelsOverlayStyle =
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.black,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.black,
-        systemNavigationBarIconBrightness: Brightness.light,
-        systemNavigationBarDividerColor: Colors.black,
-      );
+  static const SystemUiOverlayStyle _reelsOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.black,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: Colors.black,
+  );
 
   final List<Map<String, String>> reels = [
     {
@@ -71,10 +70,12 @@ class _ReelsScreenState extends State<ReelsScreen> {
           .copyWith(
             statusBarColor: Colors.transparent,
             systemNavigationBarColor: isDark ? Colors.black : Colors.white,
-            systemNavigationBarIconBrightness:
-                isDark ? Brightness.light : Brightness.dark,
-            systemNavigationBarDividerColor:
-                isDark ? Colors.black : Colors.white,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+            systemNavigationBarDividerColor: isDark
+                ? Colors.black
+                : Colors.white,
           ),
     );
     _pageController.dispose();
@@ -146,6 +147,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // ignore: prefer_const_constructors
                     Padding(
                       padding: const EdgeInsets.only(left: 8.0),
                       child: const Text(
@@ -200,11 +202,8 @@ class _FastReelsPagePhysics extends PageScrollPhysics {
   }
 
   @override
-  SpringDescription get spring => const SpringDescription(
-        mass: 0.7,
-        stiffness: 220.0,
-        damping: 26.0,
-      );
+  SpringDescription get spring =>
+      const SpringDescription(mass: 0.7, stiffness: 220.0, damping: 26.0);
 
   @override
   double get minFlingVelocity => 260.0;

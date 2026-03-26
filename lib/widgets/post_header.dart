@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
+import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
 
 class PostHeader extends StatefulWidget {
-  const PostHeader({super.key});
+  final UserModel user;
+
+  const PostHeader({super.key, required this.user});
 
   @override
   State<PostHeader> createState() => _PostHeaderState();
@@ -100,7 +103,7 @@ class _PostHeaderState extends State<PostHeader> {
       context,
       MaterialPageRoute(
         builder: (context) => OtherProfileScreen(
-          user: demoAryaLayek,
+          user: widget.user,
           posts: demoOwnPosts,
         ),
       ),
@@ -159,24 +162,48 @@ class _PostHeaderState extends State<PostHeader> {
       textColor = isDark ? Colors.white : Colors.black;
     }
 
+    final user = widget.user;
+    final bool isCreator = user.accountType == AccountType.creator;
+
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
             onTap: _openProfile,
             behavior: HitTestBehavior.opaque,
-            child: const Row(
+            child: Row(
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: Colors.grey,
+                  backgroundColor: Colors.grey.shade300,
+                  backgroundImage: user.avatarAsset != null
+                      ? AssetImage(user.avatarAsset!)
+                      : null,
+                  child: user.avatarAsset == null
+                      ? Icon(Icons.person, size: 18, color: Colors.grey.shade600)
+                      : null,
                 ),
-                SizedBox(width: 10),
-                Text(
-                  "username",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          user.username,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15.75,
+                          ),
+                        ),
+                      ),
+                      if (isCreator) ...[
+                        const SizedBox(width: 5),
+                        CreatorRankBadge(rank: user.rank, mini: true),
+                      ],
+                    ],
                   ),
                 ),
               ],
