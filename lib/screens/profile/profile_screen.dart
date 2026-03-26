@@ -8,6 +8,7 @@ import 'widgets/showcase_grid.dart';
 import 'widgets/text_posts_section.dart';
 import 'edit_profile_screen.dart';
 import 'profile_settings_screen.dart';
+import 'widgets/profile_ui_helpers.dart';
 
 /// Own profile screen — shown when tapping the Profile tab in bottom nav.
 class ProfileScreen extends StatefulWidget {
@@ -73,13 +74,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -96,42 +98,20 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
 
-            // ── Divider ────────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Divider(height: 1, color: divColor),
-              ),
-            ),
-
-            // ── Tab bar ────────────────────────────────────────────────────
+            // ── Tab bar ───────────────────────────────────────────────────
             SliverPersistentHeader(
               pinned: true,
-              delegate: _StickyTabBarDelegate(
-                TabBar(
+              delegate: ProfileStickyTabBarDelegate(
+                ProfileAnimatedTabBar(
                   controller: _tabController,
-                  labelColor: textColor,
-                  unselectedLabelColor:
-                      isDark ? Colors.white38 : Colors.black38,
-                  indicatorColor: textColor,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  indicatorWeight: 2,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                  tabs: const [
-                    Tab(text: 'Recents'),
-                    Tab(text: 'Showcase'),
-                    Tab(text: 'Text'),
-                  ],
+                  labels: const ['Recents', 'Showcase', 'Thoughts'],
+                  activeColor: textColor,
+                  inactiveColor: isDark
+                      ? Colors.white54
+                      : Colors.black45,
+                  backgroundColor: bg,
                 ),
                 bg: bg,
-                divColor: divColor,
               ),
             ),
           ],
@@ -159,39 +139,4 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
-}
-
-/// Pinned tab bar delegate for SliverPersistentHeader
-class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-  final Color bg;
-  final Color divColor;
-
-  const _StickyTabBarDelegate(this.tabBar,
-      {required this.bg, required this.divColor});
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: bg,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          tabBar,
-          Divider(height: 1, color: divColor),
-        ],
-      ),
-    );
-  }
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height + 1;
-
-  @override
-  double get minExtent => tabBar.preferredSize.height + 1;
-
-  @override
-  bool shouldRebuild(_StickyTabBarDelegate old) =>
-      old.tabBar != tabBar || old.bg != bg;
 }

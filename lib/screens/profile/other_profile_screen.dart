@@ -198,7 +198,6 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final divColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE);
 
     final isLocked = !_user.isContentVisible;
 
@@ -206,6 +205,8 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -224,42 +225,20 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
               ),
             ),
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Divider(height: 1, color: divColor),
-              ),
-            ),
-
             if (!isLocked)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: ProfileStickyTabBarDelegate(
-                  TabBar(
+                  ProfileAnimatedTabBar(
                     controller: _tabController,
-                    labelColor: textColor,
-                    unselectedLabelColor: isDark
-                        ? Colors.white38
-                        : Colors.black38,
-                    indicatorColor: textColor,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    indicatorWeight: 2,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                    tabs: const [
-                      Tab(text: 'Recents'),
-                      Tab(text: 'Showcase'),
-                      Tab(text: 'Text'),
-                    ],
+                    labels: const ['Recents', 'Showcase', 'Thoughts'],
+                    activeColor: textColor,
+                    inactiveColor: isDark
+                        ? Colors.white54
+                        : Colors.black45,
+                    backgroundColor: bg,
                   ),
                   bg: bg,
-                  divColor: divColor,
                 ),
               ),
           ],

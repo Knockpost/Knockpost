@@ -265,6 +265,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
