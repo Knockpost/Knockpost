@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../models/user_model.dart';
+import '../../widgets/people_suggestion_strip.dart';
+import '../profile/other_profile_screen.dart';
 
 class MessageInfoScreen extends StatelessWidget {
-  const MessageInfoScreen({super.key});
+  final String userName;
+  final String userAvatar;
+  final String userUsername;
+
+  const MessageInfoScreen({
+    super.key,
+    required this.userName,
+    required this.userAvatar,
+    required this.userUsername,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,38 +36,72 @@ class MessageInfoScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 30),
 
-            /// USER PROFILE
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0A7CFF).withValues(alpha: 0.3), width: 3),
-                ),
-                child: const CircleAvatar(
-                  radius: 60,
-                  backgroundImage: AssetImage("assets/test1.jpg"),
-                ),
-              ),
-            ),
+            /// USER PROFILE — tappable to open full profile
+            GestureDetector(
+              onTap: () {
+                // Look up from the same demoSuggestedUsers used by "People you may know"
+                UserModel? found;
+                int seedIndex = 1;
+                for (int i = 0; i < demoSuggestedUsers.length; i++) {
+                  if (demoSuggestedUsers[i].username == userUsername) {
+                    found = demoSuggestedUsers[i];
+                    seedIndex = i + 1;
+                    break;
+                  }
+                }
+                // Fallback to findDemoUserByUsername if not in suggestions
+                final userModel = found ??
+                    findDemoUserByUsername(userUsername) ??
+                    UserModel(
+                      id: userUsername,
+                      displayName: userName,
+                      username: userUsername,
+                      avatarAsset: userAvatar,
+                    );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OtherProfileScreen(
+                      user: userModel,
+                      posts: buildSuggestionPosts(userModel.id, seed: seedIndex),
+                    ),
+                  ),
+                );
+              },
+              child: Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF0A7CFF).withValues(alpha: 0.3), width: 3),
+                    ),
+                    child: CircleAvatar(
+                      radius: 60,
+                      backgroundImage: AssetImage(userAvatar),
+                    ),
+                  ),
 
-            const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-            Text(
-              "Emma Brown",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            
-            const SizedBox(height: 6),
-            
-            Text(
-              "@emma_b",
-              style: TextStyle(
-                fontSize: 16,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  Text(
+                    userName,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 6),
+                  
+                  Text(
+                    "@$userUsername",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             ),
 

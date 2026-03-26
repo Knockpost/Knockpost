@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+// ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
@@ -263,12 +264,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                   return const PeopleSuggestionStrip();
                                 }
 
-                                final postIndex = index < stripIndex ? index : index - 1;
-                                final isLast = postIndex == _demoPostImages.length - 1;
+                                final postIndex = index < stripIndex
+                                    ? index
+                                    : index - 1;
+                                final isLast =
+                                    postIndex == _demoPostImages.length - 1;
 
                                 return Column(
                                   children: [
-                                    PostCard(imagePaths: _demoPostImages[postIndex]),
+                                    PostCard(
+                                      imagePaths: _demoPostImages[postIndex],
+                                    ),
                                     if (!isLast && index != stripIndex - 1)
                                       Divider(
                                         thickness: 6,

@@ -164,18 +164,79 @@ const demoOwnUser = UserModel(
   isOwnProfile: true,
 );
 
-const demoCreatorUser = UserModel(
-  id: 'creator01',
-  displayName: 'Riya Chakraborty',
-  username: 'riya.creates',
-  bio: 'Photographer & visual storyteller 📸 | Based in Mumbai',
-  avatarAsset: 'assets/test4.jpg',
-  coverImageAsset: 'assets/test1.jpg',
-  friendsCount: 15400,
+const demoZaynMalik = UserModel(
+  id: 'zayn01',
+  displayName: 'Zayn Malik',
+  username: 'zayn.malik',
+  bio: 'Singer & songwriter 🎤 | Former 1D | Night Thoughts',
+  avatarAsset: 'assets/test1.jpg',
+  coverImageAsset: 'assets/test2.jpg',
+  friendsCount: 52400,
   mutualFriendsWhoKnocked: [
-    'assets/test1.jpg',
     'assets/test2.jpg',
     'assets/test3.jpg',
+    'assets/test4.jpg',
+  ],
+  accountType: AccountType.creator,
+  rank: CreatorRank.impact,
+  totalViews: 520000,
+  totalLikes: 98000,
+  totalKnocksReceived: 12400,
+);
+
+const demoJustinBieber = UserModel(
+  id: 'justin01',
+  displayName: 'Justin Bieber',
+  username: 'justin.bieber',
+  avatarAsset: 'assets/test2.jpg',
+  friendsCount: 84200,
+  mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test4.jpg'],
+  accountType: AccountType.creator,
+  rank: CreatorRank.plus,
+  totalViews: 340000,
+  totalLikes: 72000,
+  totalKnocksReceived: 8900,
+);
+
+const demoSumanPatra = UserModel(
+  id: 'suman01',
+  displayName: 'Suman Patra',
+  username: 'suman.patra',
+  bio: 'Keep it private 🔒',
+  avatarAsset: 'assets/test3.jpg',
+  coverImageAsset: 'assets/test4.jpg',
+  friendsCount: 142,
+  mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
+  accountType: AccountType.normal,
+  privacyType: PrivacyType.private,
+  knockStatus: KnockStatus.none,
+);
+
+const demoSaptarshiNayak = UserModel(
+  id: 'saptarshi01',
+  displayName: 'Saptarshi Nayak',
+  username: 'saptarshi.nayak',
+  bio: 'Open book 📖 | Exploring life one day at a time',
+  avatarAsset: 'assets/test4.jpg',
+  coverImageAsset: 'assets/test1.jpg',
+  friendsCount: 890,
+  accountType: AccountType.normal,
+  privacyType: PrivacyType.open,
+  knockStatus: KnockStatus.knocked,
+);
+
+const demoAryaLayek = UserModel(
+  id: 'arya01',
+  displayName: 'Arya Layek',
+  username: 'arya.layek',
+  bio: 'Creator & storyteller ✨ | Pro vibes',
+  avatarAsset: 'assets/test1.jpg',
+  coverImageAsset: 'assets/test3.jpg',
+  friendsCount: 15400,
+  mutualFriendsWhoKnocked: [
+    'assets/test2.jpg',
+    'assets/test3.jpg',
+    'assets/test4.jpg',
   ],
   accountType: AccountType.creator,
   rank: CreatorRank.pro,
@@ -184,43 +245,33 @@ const demoCreatorUser = UserModel(
   totalKnocksReceived: 940,
 );
 
-const demoPrivateUser = UserModel(
-  id: 'private01',
-  displayName: 'Sneha Roy',
-  username: 'sneha.r',
-  bio: 'Keep it private 🔒',
+const demoLeonardoDiCaprio = UserModel(
+  id: 'leo01',
+  displayName: 'Leonardo DiCaprio',
+  username: 'leo.dicaprio',
+  bio: 'Actor & environmentalist 🌍 | Oscar winner',
   avatarAsset: 'assets/test2.jpg',
-  coverImageAsset: 'assets/test3.jpg',
-  friendsCount: 142,
-  mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
-  accountType: AccountType.normal,
-  privacyType: PrivacyType.private,
-  knockStatus: KnockStatus.none,
-);
-
-const demoKnockedUser = UserModel(
-  id: 'knocked01',
-  displayName: 'Dev Sharma',
-  username: 'dev.s',
-  bio: 'Music | Movies | Making memes',
-  avatarAsset: 'assets/test3.jpg',
   coverImageAsset: 'assets/test4.jpg',
-  friendsCount: 890,
-  accountType: AccountType.normal,
-  privacyType: PrivacyType.private,
-  knockStatus: KnockStatus.knocked,
-);
-
-/// Demo user who knocked the current viewer first (for Knock Back scenario)
-const demoTheyKnockedUser = UserModel(
-  id: 'theyknocked01',
-  displayName: 'Priya Mukherjee',
-  username: 'priya.m',
-  bio: 'Designer & dreamer ✨',
-  avatarAsset: 'assets/test1.jpg',
-  coverImageAsset: 'assets/test2.jpg',
   friendsCount: 320,
   accountType: AccountType.normal,
   privacyType: PrivacyType.open,
   knockStatus: KnockStatus.theyKnockedYou,
 );
+
+/// All demo users for easy lookup
+const List<UserModel> allDemoUsers = [
+  demoZaynMalik,
+  demoJustinBieber,
+  demoSumanPatra,
+  demoSaptarshiNayak,
+  demoAryaLayek,
+  demoLeonardoDiCaprio,
+];
+
+/// Find a full demo UserModel by username. Returns null if not found.
+UserModel? findDemoUserByUsername(String username) {
+  for (final u in allDemoUsers) {
+    if (u.username == username) return u;
+  }
+  return null;
+}

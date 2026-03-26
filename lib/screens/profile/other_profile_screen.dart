@@ -61,7 +61,13 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   void _openChat() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ChatScreen()),
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          userName: _user.displayName,
+          userAvatar: _user.avatarAsset ?? 'assets/test1.jpg',
+          userUsername: _user.username,
+        ),
+      ),
     );
   }
 

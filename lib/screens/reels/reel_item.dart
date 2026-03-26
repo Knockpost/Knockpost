@@ -346,7 +346,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                       context,
                       MaterialPageRoute(
                         builder: (context) => OtherProfileScreen(
-                            user: demoCreatorUser, posts: demoOwnPosts),
+                            user: demoAryaLayek, posts: demoOwnPosts),
                       ),
                     );
                   },

@@ -100,7 +100,7 @@ class _PostHeaderState extends State<PostHeader> {
       context,
       MaterialPageRoute(
         builder: (context) => OtherProfileScreen(
-          user: demoCreatorUser,
+          user: demoAryaLayek,
           posts: demoOwnPosts,
         ),
       ),

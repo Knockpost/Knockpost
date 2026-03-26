@@ -52,7 +52,16 @@ class _ChatMessage {
 // ─────────────────────────────────────────────
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String userName;
+  final String userAvatar;
+  final String userUsername;
+
+  const ChatScreen({
+    super.key,
+    required this.userName,
+    required this.userAvatar,
+    required this.userUsername,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -274,7 +283,11 @@ class _ChatScreenState extends State<ChatScreen> {
       switch (value) {
         case 'profile':
           Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const MessageInfoScreen()));
+              builder: (_) => MessageInfoScreen(
+                userName: widget.userName,
+                userAvatar: widget.userAvatar,
+                userUsername: widget.userUsername,
+              )));
           break;
         case 'search':
           setState(() { _isSearching = true; });
@@ -292,7 +305,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showBlockDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Block Emma Brown?'),
+      title: Text('Block ${widget.userName}?'),
       content: const Text('They won\'t be able to message you anymore.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -307,7 +320,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showReportDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Report Emma Brown?'),
+      title: Text('Report ${widget.userName}?'),
       content: const Text('Your report will be reviewed. Thank you for keeping Knockpost safe.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -469,12 +482,16 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       title: GestureDetector(
         onTap: () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const MessageInfoScreen())),
+            MaterialPageRoute(builder: (_) => MessageInfoScreen(
+              userName: widget.userName,
+              userAvatar: widget.userAvatar,
+              userUsername: widget.userUsername,
+            ))),
         child: Row(children: [
-          const CircleAvatar(radius: 18, backgroundImage: AssetImage("assets/test1.jpg")),
+          CircleAvatar(radius: 18, backgroundImage: AssetImage(widget.userAvatar)),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Emma Brown", style: TextStyle(
+            Text(widget.userName, style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
             const Text("Active now", style: TextStyle(
               color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),

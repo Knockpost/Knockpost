@@ -5,6 +5,8 @@ import 'new_message_screen.dart';
 
 class _ConversationData {
   final String name;
+  final String username;
+  final String avatarAsset;
   final String message;
   final String time;
   final int unreadCount;
@@ -12,6 +14,8 @@ class _ConversationData {
 
   const _ConversationData({
     required this.name,
+    required this.username,
+    required this.avatarAsset,
     required this.message,
     required this.time,
     this.unreadCount = 0,
@@ -32,37 +36,49 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   static const List<_ConversationData> _conversations = [
     _ConversationData(
-      name: "John Doe",
-      message: "Just finished work, what's up?",
+      name: "Zayn Malik",
+      username: "zayn.malik",
+      avatarAsset: "assets/test1.jpg",
+      message: "Just finished recording, what's up?",
       time: "2m",
       unreadCount: 2,
     ),
     _ConversationData(
-      name: "Jane Doe",
+      name: "Justin Bieber",
+      username: "justin.bieber",
+      avatarAsset: "assets/test2.jpg",
       message: "That sounds awesome! 😂",
       time: "10m",
       unreadCount: 1,
     ),
     _ConversationData(
-      name: "Alex Smith",
+      name: "Suman Patra",
+      username: "suman.patra",
+      avatarAsset: "assets/test3.jpg",
       message: "Are we still on for tomorrow?",
       time: "30m",
       read: true,
     ),
     _ConversationData(
-      name: "Emily Brown",
+      name: "Saptarshi Nayak",
+      username: "saptarshi.nayak",
+      avatarAsset: "assets/test4.jpg",
       message: "Sure, I'll send it over to you!",
       time: "45m",
       read: true,
     ),
     _ConversationData(
-      name: "Daniel Lee",
+      name: "Arya Layek",
+      username: "arya.layek",
+      avatarAsset: "assets/test1.jpg",
       message: "Can you call me when you're free?",
       time: "1h",
       read: true,
     ),
     _ConversationData(
-      name: "Sarah Wilson",
+      name: "Leonardo DiCaprio",
+      username: "leo.dicaprio",
+      avatarAsset: "assets/test2.jpg",
       message: "Haha that's so funny!",
       time: "2h",
       read: true,
@@ -187,6 +203,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       final c = filtered[index];
                       return MessageTile(
                         name: c.name,
+                        username: c.username,
+                        avatarAsset: c.avatarAsset,
                         message: c.message,
                         time: c.time,
                         unreadCount: c.unreadCount,
@@ -245,6 +263,8 @@ class _NewMessageIconState extends State<_NewMessageIcon> {
 
 class MessageTile extends StatelessWidget {
   final String name;
+  final String username;
+  final String avatarAsset;
   final String message;
   final String time;
   final int unreadCount;
@@ -254,6 +274,8 @@ class MessageTile extends StatelessWidget {
   const MessageTile({
     super.key,
     required this.name,
+    required this.username,
+    required this.avatarAsset,
     required this.message,
     required this.time,
     this.unreadCount = 0,
@@ -291,16 +313,22 @@ class MessageTile extends StatelessWidget {
         KnockHaptics.selection();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ChatScreen()),
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              userName: name,
+              userAvatar: avatarAsset,
+              userUsername: username,
+            ),
+          ),
         );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 26,
-              backgroundImage: AssetImage("assets/test1.jpg"),
+              backgroundImage: AssetImage(avatarAsset),
             ),
 
             const SizedBox(width: 14),
@@ -367,4 +395,3 @@ class MessageTile extends StatelessWidget {
     );
   }
 }
-

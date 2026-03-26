@@ -1,77 +1,145 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../models/post_model.dart';
+import '../utils/haptic_helper.dart';
 import '../screens/profile/widgets/knock_button.dart';
-import '../screens/profile/profile_screen.dart';
+import '../screens/profile/other_profile_screen.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
 final List<UserModel> demoSuggestedUsers = [
   const UserModel(
     id: 'sug01',
-    displayName: 'Ananya Sen',
-    username: 'ananya.sen',
-    bio: 'Art & design enthusiast 🎨',
+    displayName: 'Zayn Malik',
+    username: 'zayn.malik',
+    bio: 'Singer & songwriter 🎤 | Former 1D',
+    avatarAsset: 'assets/test1.jpg',
+    coverImageAsset: 'assets/test2.jpg',
+    friendsCount: 52400,
+    accountType: AccountType.creator,
+    rank: CreatorRank.impact,
+    knockStatus: KnockStatus.none,
+    mutualFriendsCount: 24,
+    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
+    mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
+  ),
+  const UserModel(
+    id: 'sug02',
+    displayName: 'Justin Bieber',
+    username: 'justin.bieber',
+    avatarAsset: 'assets/test2.jpg',
+    friendsCount: 84200,
+    accountType: AccountType.creator,
+    rank: CreatorRank.plus,
+    knockStatus: KnockStatus.none,
+    mutualFriendsCount: 15,
+    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test4.jpg'],
+    mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test4.jpg'],
+  ),
+  const UserModel(
+    id: 'sug03',
+    displayName: 'Suman Patra',
+    username: 'suman.patra',
+    bio: 'Keep it private 🔒',
+    avatarAsset: 'assets/test3.jpg',
+    coverImageAsset: 'assets/test4.jpg',
+    friendsCount: 142,
+    accountType: AccountType.normal,
+    privacyType: PrivacyType.private,
+    knockStatus: KnockStatus.none,
+    mutualFriendsCount: 3,
+    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test3.jpg'],
+    mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
+  ),
+  const UserModel(
+    id: 'sug04',
+    displayName: 'Saptarshi Nayak',
+    username: 'saptarshi.nayak',
+    bio: 'Open book 📖 | Exploring life',
     avatarAsset: 'assets/test4.jpg',
+    coverImageAsset: 'assets/test1.jpg',
+    friendsCount: 890,
+    accountType: AccountType.normal,
+    privacyType: PrivacyType.open,
+    knockStatus: KnockStatus.none,
+    mutualFriendsCount: 8,
+    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg'],
+  ),
+  const UserModel(
+    id: 'sug05',
+    displayName: 'Arya Layek',
+    username: 'arya.layek',
+    bio: 'Creator & storyteller ✨ | Pro vibes',
+    avatarAsset: 'assets/test1.jpg',
+    coverImageAsset: 'assets/test3.jpg',
+    friendsCount: 15400,
+    accountType: AccountType.creator,
+    rank: CreatorRank.pro,
+    knockStatus: KnockStatus.theyKnockedYou,
+    mutualFriendsCount: 31,
+    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
+    mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
+  ),
+  const UserModel(
+    id: 'sug06',
+    displayName: 'Leonardo DiCaprio',
+    username: 'leo.dicaprio',
+    bio: 'Actor & environmentalist 🌍',
+    avatarAsset: 'assets/test2.jpg',
+    coverImageAsset: 'assets/test4.jpg',
     friendsCount: 320,
     accountType: AccountType.normal,
     privacyType: PrivacyType.open,
     knockStatus: KnockStatus.none,
-    mutualFriendsCount: 12,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test2.jpg', 'assets/test3.jpg'],
-  ),
-  const UserModel(
-    id: 'sug02',
-    displayName: 'Rohan Das',
-    username: 'rohan.das',
-    bio: 'Coder by day 💻 Gamer by night 🎮',
-    avatarAsset: 'assets/test3.jpg',
-    friendsCount: 512,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.open,
-    knockStatus: KnockStatus.none,
     mutualFriendsCount: 5,
-    mutualFriendsAvatars: ['assets/test4.jpg', 'assets/test1.jpg'],
-  ),
-  const UserModel(
-    id: 'sug03',
-    displayName: 'Priya Ghosh',
-    username: 'priya.g',
-    bio: 'Travel | Food | Life 🌍',
-    avatarAsset: 'assets/test2.jpg',
-    friendsCount: 145,
-    accountType: AccountType.creator,
-    rank: CreatorRank.echo,
-    knockStatus: KnockStatus.theyKnockedYou,
-    mutualFriendsCount: 0,
-    mutualFriendsAvatars: [],
-  ),
-  const UserModel(
-    id: 'sug04',
-    displayName: 'Arjit Bose',
-    username: 'arjit.b',
-    bio: 'Music producer 🎹',
-    avatarAsset: 'assets/test1.jpg',
-    friendsCount: 2100,
-    accountType: AccountType.creator,
-    rank: CreatorRank.plus,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 31,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'sug05',
-    displayName: 'Mehak Jain',
-    username: 'mehak.j',
-    bio: 'Fashion & lifestyle ✨',
-    avatarAsset: 'assets/test4.jpg',
-    friendsCount: 890,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.private,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 8,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test3.jpg'],
+    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test4.jpg'],
   ),
 ];
+
+/// Build demo posts for suggestion card users.
+List<PostModel> buildSuggestionPosts(String authorId, {required int seed}) {
+  final now = DateTime.now();
+  const pool = [
+    'assets/test1.jpg',
+    'assets/test2.jpg',
+    'assets/test3.jpg',
+    'assets/test4.jpg',
+  ];
+  return [
+    PostModel(
+      id: '${authorId}_recent',
+      authorId: authorId,
+      type: PostType.media,
+      duration: PostDuration.h24,
+      imagePaths: [pool[seed % pool.length], pool[(seed + 1) % pool.length]],
+      text: 'Evening dump from today.',
+      createdAt: now.subtract(Duration(hours: 2 + seed)),
+      likes: 12 + seed * 3,
+      views: 90 + seed * 12,
+    ),
+    PostModel(
+      id: '${authorId}_showcase',
+      authorId: authorId,
+      type: PostType.media,
+      duration: PostDuration.lifetime,
+      imagePaths: [pool[(seed + 2) % pool.length]],
+      text: 'One of my favourite captures.',
+      createdAt: now.subtract(Duration(days: 2 + seed)),
+      likes: 35 + seed * 4,
+      views: 180 + seed * 20,
+    ),
+    PostModel(
+      id: '${authorId}_text',
+      authorId: authorId,
+      type: PostType.text,
+      duration: PostDuration.lifetime,
+      text: 'Small note ${seed + 1}: keep moving, keep creating.',
+      createdAt: now.subtract(Duration(hours: 10 + seed)),
+      likes: 8 + seed,
+      views: 60 + seed * 8,
+    ),
+  ];
+}
 
 // ─── Widget ──────────────────────────────────────────────────────────────────
 
@@ -85,6 +153,7 @@ class PeopleSuggestionStrip extends StatefulWidget {
 class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
   late List<UserModel> _users;
   late final Map<String, KnockStatus> _statuses;
+  final Map<String, GlobalKey<_AnimatedDismissCardState>> _cardKeys = {};
 
   @override
   void initState() {
@@ -93,6 +162,9 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
     _statuses = {
       for (final u in _users) u.id: u.knockStatus,
     };
+    for (final u in _users) {
+      _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
+    }
   }
 
   @override
@@ -112,17 +184,17 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
               Text(
                 'People you may know',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                   color: isDark ? Colors.white : Colors.black,
-                  letterSpacing: -0.2,
+                  letterSpacing: -0.3,
                 ),
               ),
               const Spacer(),
               Text(
                 'See all',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   color: isDark ? Colors.white54 : Colors.black45,
                   fontWeight: FontWeight.w500,
                 ),
@@ -134,24 +206,43 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
         // ── Horizontal scroll ────────────────────────────────────────────────
         SizedBox(
           height: 220,
-          child: ListView.separated(
+          child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: _users.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               final user = _users[index];
-              return _SuggestionCard(
-                user: user,
-                knockStatus: _statuses[user.id]!,
-                onKnockChanged: (status) {
-                  setState(() => _statuses[user.id] = status);
-                },
-                onRemove: () {
-                  setState(() {
-                    _users.remove(user);
-                  });
-                },
+              final cardKey = _cardKeys[user.id]!;
+              return _AnimatedDismissCard(
+                key: cardKey,
+                child: Padding(
+                  padding: EdgeInsets.only(right: index < _users.length - 1 ? 10 : 0),
+                  child: _SuggestionCard(
+                    user: user,
+                    knockStatus: _statuses[user.id]!,
+                    onKnockChanged: (status) {
+                      setState(() => _statuses[user.id] = status);
+                    },
+                    onDismiss: () {
+                      cardKey.currentState?.dismiss(() {
+                        if (mounted) {
+                          setState(() {
+                            _users.remove(user);
+                          });
+                        }
+                      });
+                    },
+                    onRemove: () {
+                      cardKey.currentState?.dismiss(() {
+                        if (mounted) {
+                          setState(() {
+                            _users.remove(user);
+                          });
+                        }
+                      });
+                    },
+                  ),
+                ),
               );
             },
           ),
@@ -169,6 +260,64 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
   }
 }
 
+// ─── Animated Dismiss Wrapper ────────────────────────────────────────────────
+
+class _AnimatedDismissCard extends StatefulWidget {
+  final Widget child;
+
+  const _AnimatedDismissCard({super.key, required this.child});
+
+  @override
+  State<_AnimatedDismissCard> createState() => _AnimatedDismissCardState();
+}
+
+class _AnimatedDismissCardState extends State<_AnimatedDismissCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _shrinkAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _shrinkAnim = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInCubic),
+    );
+    _fadeAnim = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  /// Trigger dismiss animation, then call [onComplete] to remove from list.
+  void dismiss(VoidCallback onComplete) {
+    _ctrl.forward().then((_) {
+      if (mounted) onComplete();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizeTransition(
+      axis: Axis.horizontal,
+      sizeFactor: _shrinkAnim,
+      child: FadeTransition(
+        opacity: _fadeAnim,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 // ─── Single card ─────────────────────────────────────────────────────────────
 
 class _SuggestionCard extends StatelessWidget {
@@ -176,12 +325,14 @@ class _SuggestionCard extends StatelessWidget {
   final KnockStatus knockStatus;
   final ValueChanged<KnockStatus> onKnockChanged;
   final VoidCallback onRemove;
+  final VoidCallback onDismiss;
 
   const _SuggestionCard({
     required this.user,
     required this.knockStatus,
     required this.onKnockChanged,
     required this.onRemove,
+    required this.onDismiss,
   });
 
   @override
@@ -307,6 +458,7 @@ class _SuggestionCard extends StatelessWidget {
                 status: knockStatus,
                 privacyType: user.privacyType,
                 onChanged: onKnockChanged,
+                onDismiss: onDismiss,
               ),
             ],
           ),
@@ -316,12 +468,13 @@ class _SuggestionCard extends StatelessWidget {
             bottom: 40,
             child: GestureDetector(
               onTap: () {
+                final index = demoSuggestedUsers.indexOf(user);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ProfileScreen(
+                    builder: (_) => OtherProfileScreen(
                       user: user,
-                      posts: const [],
+                      posts: buildSuggestionPosts(user.id, seed: index >= 0 ? index + 1 : 1),
                     ),
                   ),
                 );
@@ -358,11 +511,13 @@ class _SuggestionAction extends StatefulWidget {
   final KnockStatus status;
   final PrivacyType privacyType;
   final ValueChanged<KnockStatus> onChanged;
+  final VoidCallback onDismiss;
 
   const _SuggestionAction({
     required this.status,
     required this.privacyType,
     required this.onChanged,
+    required this.onDismiss,
   });
 
   @override
@@ -401,21 +556,30 @@ class _SuggestionActionState extends State<_SuggestionAction>
 
   void _tap() {
     _ctrl.reverse().then((_) => _ctrl.forward());
-    setState(() {
-      switch (_status) {
-        case KnockStatus.none:
-          _status = widget.privacyType == PrivacyType.open
-              ? KnockStatus.knocked
-              : KnockStatus.pending;
-          break;
-        case KnockStatus.theyKnockedYou:
-          _status = KnockStatus.mutualKnocked;
-          break;
-        default:
-          _status = KnockStatus.none;
-      }
-    });
-    widget.onChanged(_status);
+    KnockHaptics.impact();
+    final KnockStatus newStatus;
+    switch (_status) {
+      case KnockStatus.none:
+        newStatus = widget.privacyType == PrivacyType.open
+            ? KnockStatus.knocked
+            : KnockStatus.pending;
+        break;
+      case KnockStatus.theyKnockedYou:
+        newStatus = KnockStatus.mutualKnocked;
+        break;
+      default:
+        newStatus = KnockStatus.none;
+    }
+    setState(() => _status = newStatus);
+    widget.onChanged(newStatus);
+    // If knocked, dismiss the card after a brief delay
+    if (newStatus == KnockStatus.knocked ||
+        newStatus == KnockStatus.pending ||
+        newStatus == KnockStatus.mutualKnocked) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) widget.onDismiss();
+      });
+    }
   }
 
   @override
