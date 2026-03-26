@@ -35,9 +35,9 @@ class CreatorRankBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = rankColor(rank);
     final label = rank.name.toUpperCase();
-    final fs = large ? 11.0 : 9.0;
-    final px = large ? 9.0 : 7.0;
-    final py = large ? 4.0 : 2.5;
+    final fs = large ? 10.0 : 8.0;
+    final px = large ? 8.0 : 6.3;
+    final py = large ? 3.6 : 2.25;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: px, vertical: py),

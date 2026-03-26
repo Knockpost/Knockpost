@@ -499,6 +499,9 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
   Size? _avatarSize;
   bool _isClosing = false;
   Timer? _pressTimer;
+  double _userScale = 1.0;
+  Offset _userOffset = Offset.zero;
+  double _baseScale = 1.0;
 
   @override
   void initState() {
@@ -508,7 +511,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
       duration: const Duration(milliseconds: 350),
       reverseDuration: const Duration(milliseconds: 250),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 3.2).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 2.72).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOutCubic,
@@ -553,6 +556,9 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
     );
 
     _isClosing = false;
+    _userScale = 1.0;
+    _userOffset = Offset.zero;
+    _baseScale = 1.0;
     _overlayEntry = OverlayEntry(builder: _buildOverlay);
     Overlay.of(context).insert(_overlayEntry!);
     _controller.forward(from: 0.0);
@@ -581,17 +587,36 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
     final screenCenter = screenSize.center(Offset.zero);
     final scale = _scaleAnimation.value;
     final fade = _fadeAnimation.value;
-    final progress = ((scale - 1.0) / 2.2).clamp(0.0, 1.0);
+    // Use correct divisor so progress reaches 1.0 at max animation scale
+    final progress = ((scale - 1.0) / 1.72).clamp(0.0, 1.0);
 
     final dx =
         _avatarCenter!.dx + (screenCenter.dx - _avatarCenter!.dx) * progress;
     final dy =
         _avatarCenter!.dy + (screenCenter.dy - _avatarCenter!.dy) * progress;
 
+    final totalScale = scale * _userScale;
+
     return Material(
       type: MaterialType.transparency,
       child: GestureDetector(
         onTap: _dismissZoom,
+        onScaleStart: (details) {
+          _baseScale = _userScale;
+        },
+        onScaleUpdate: (details) {
+          _userScale = (_baseScale * details.scale).clamp(0.8, 2.0);
+          if (details.pointerCount >= 2) {
+            _userOffset += details.focalPointDelta;
+          }
+          _overlayEntry?.markNeedsBuild();
+        },
+        onScaleEnd: (_) {
+          // Always snap back to original size/position on release
+          _userScale = 1.0;
+          _userOffset = Offset.zero;
+          _overlayEntry?.markNeedsBuild();
+        },
         behavior: HitTestBehavior.opaque,
         child: Stack(
           children: [
@@ -610,12 +635,12 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
             ),
             // Zoomed avatar centered on screen
             Positioned(
-              left: dx - _avatarSize!.width / 2,
-              top: dy - _avatarSize!.height / 2,
+              left: dx - _avatarSize!.width / 2 + _userOffset.dx,
+              top: dy - _avatarSize!.height / 2 + _userOffset.dy,
               width: _avatarSize!.width,
               height: _avatarSize!.height,
               child: Transform.scale(
-                scale: scale,
+                scale: totalScale,
                 child: _buildAvatarContent(),
               ),
             ),
@@ -635,9 +660,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
         shape: BoxShape.circle,
         color: widget.bg,
         border: Border.all(
-          color: isCreator
-              ? CreatorRankBadge.rankColor(user.rank).withValues(alpha: 0.6)
-              : widget.bg,
+          color: widget.bg,
           width: borderWidth,
         ),
       ),
