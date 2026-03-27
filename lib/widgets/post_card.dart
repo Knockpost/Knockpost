@@ -45,7 +45,7 @@ class _PostCardState extends State<PostCard> {
           child: PostHeader(user: widget.user),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
 
         if (widget.caption.isNotEmpty)
           Padding(
@@ -59,7 +59,7 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
 
         // Double-tap on image triggers 👍 reaction
         GestureDetector(
