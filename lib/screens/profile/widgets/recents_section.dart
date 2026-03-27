@@ -43,29 +43,40 @@ class RecentsSection extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
+    final dividerColor = isDark
+        ? const Color(0xFF2A2A2A)
+        : const Color(0xFFE8E8E8);
+    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+    return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       padding: const EdgeInsets.only(bottom: 20),
       itemCount: recentPosts.length,
-      separatorBuilder: (_, __) => Divider(
-        thickness: 6,
-        height: 6,
-        color: isDark ? const Color(0xFF121212) : const Color(0xFFF0F0F0),
-      ),
       itemBuilder: (context, i) {
         final post = recentPosts[i];
+        final isLast = i == recentPosts.length - 1;
+
+        Widget content;
         if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
-          return PostCard(
+          content = PostCard(
             imagePaths: post.imagePaths,
             user: user,
             caption: post.text,
           );
+        } else {
+          content = ThoughtCard(
+            user: user,
+            text: post.text,
+          );
         }
-        // Text-only post — render as a ThoughtCard
-        return ThoughtCard(
-          user: user,
-          text: post.text,
+
+        return Column(
+          children: [
+            divider,
+            content,
+            if (isLast) divider,
+          ],
         );
       },
     );

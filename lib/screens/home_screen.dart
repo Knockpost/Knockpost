@@ -289,39 +289,45 @@ class _HomeScreenState extends State<HomeScreen> {
                               itemCount: _demoFeedPosts.length + 1,
                               itemBuilder: (context, index) {
                                 const stripIndex = 2;
+                                final totalItems = _demoFeedPosts.length + 1;
+                                final isLast = index == totalItems - 1;
+                                final dividerColor = isDark
+                                    ? const Color(0xFF2A2A2A)
+                                    : const Color(0xFFE8E8E8);
+                                final divider = Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: dividerColor,
+                                );
 
+                                Widget content;
                                 if (index == stripIndex) {
-                                  return const PeopleSuggestionStrip();
-                                }
+                                  content = const PeopleSuggestionStrip();
+                                } else {
+                                  final postIndex = index < stripIndex
+                                      ? index
+                                      : index - 1;
+                                  final post = _demoFeedPosts[postIndex];
 
-                                final postIndex = index < stripIndex
-                                    ? index
-                                    : index - 1;
-                                final isLast =
-                                    postIndex == _demoFeedPosts.length - 1;
-                                final post = _demoFeedPosts[postIndex];
+                                  if (post.images.isEmpty) {
+                                    content = ThoughtCard(
+                                      user: post.user,
+                                      text: post.caption,
+                                    );
+                                  } else {
+                                    content = PostCard(
+                                      imagePaths: post.images,
+                                      user: post.user,
+                                      caption: post.caption,
+                                    );
+                                  }
+                                }
 
                                 return Column(
                                   children: [
-                                    if (post.images.isEmpty)
-                                      ThoughtCard(
-                                        user: post.user,
-                                        text: post.caption,
-                                      )
-                                    else
-                                      PostCard(
-                                        imagePaths: post.images,
-                                        user: post.user,
-                                        caption: post.caption,
-                                      ),
-                                    if (!isLast)
-                                      Divider(
-                                        thickness: 6,
-                                        height: 6,
-                                        color: isDark
-                                            ? const Color(0xff121212)
-                                            : const Color(0xfff0f0f0),
-                                      ),
+                                    divider,
+                                    content,
+                                    if (isLast) divider,
                                   ],
                                 );
                               },

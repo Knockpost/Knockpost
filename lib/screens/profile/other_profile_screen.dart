@@ -277,7 +277,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                         ),
                         SingleChildScrollView(
                           physics: const NeverScrollableScrollPhysics(),
-                          child: TextPostsSection(posts: widget.posts, tabController: _tabController, isOwnProfile: false),
+                          child: TextPostsSection(posts: widget.posts, user: _user, tabController: _tabController, isOwnProfile: false),
                         ),
                       ],
                     ),

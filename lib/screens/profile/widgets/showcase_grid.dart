@@ -25,7 +25,7 @@ class ShowcaseGrid extends StatelessWidget {
 
   List<PostModel> get _showcasePosts =>
       posts
-          .where((p) => p.isInShowcase)
+          .where((p) => p.isInShowcase && p.type == PostType.media && p.imagePaths.isNotEmpty)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -226,29 +226,34 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 ),
               ),
             ),
-            body: ListView.separated(
+            body: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.only(bottom: 40),
               itemCount: widget.posts.length,
-              separatorBuilder: (_, __) => Divider(
-                thickness: 6,
-                height: 6,
-                color: isDark ? const Color(0xFF121212) : const Color(0xFFF0F0F0),
-              ),
               itemBuilder: (context, i) {
                 final post = widget.posts[i];
-                return Container(
+                final isLast = i == widget.posts.length - 1;
+                final dividerColor = isDark
+                    ? const Color(0xFF2A2A2A)
+                    : const Color(0xFFE8E8E8);
+                final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+                return Column(
                   key: _itemKeys[i],
-                  child: post.imagePaths.isEmpty
-                      ? ThoughtCard(
-                          user: widget.user,
-                          text: post.text,
-                        )
-                      : PostCard(
-                          imagePaths: post.imagePaths,
-                          user: widget.user,
-                          caption: post.text,
-                        ),
+                  children: [
+                    divider,
+                    post.imagePaths.isEmpty
+                        ? ThoughtCard(
+                            user: widget.user,
+                            text: post.text,
+                          )
+                        : PostCard(
+                            imagePaths: post.imagePaths,
+                            user: widget.user,
+                            caption: post.text,
+                          ),
+                    if (isLast) divider,
+                  ],
                 );
               },
             ),

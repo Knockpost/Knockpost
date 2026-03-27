@@ -131,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               // Text
               SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
-                child: TextPostsSection(posts: _posts, tabController: _tabController),
+                child: TextPostsSection(posts: _posts, user: _user, tabController: _tabController),
               ),
             ],
           ),

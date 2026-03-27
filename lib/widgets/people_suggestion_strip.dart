@@ -207,13 +207,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           ),
         ),
 
-        // ── Bottom divider ───────────────────────────────────────────────────
         const SizedBox(height: 8),
-        Divider(
-          thickness: 6,
-          height: 6,
-          color: isDark ? const Color(0xff121212) : const Color(0xfff0f0f0),
-        ),
       ],
     );
   }
