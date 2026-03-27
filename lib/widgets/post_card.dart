@@ -67,7 +67,7 @@ class _PostCardState extends State<PostCard> {
           child: MediaCarousel(imagePaths: widget.imagePaths),
         ),
 
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),

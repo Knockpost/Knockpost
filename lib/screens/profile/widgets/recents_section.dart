@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../widgets/post_card.dart';
+import '../../../widgets/thought_card.dart';
 import 'profile_ui_helpers.dart';
 
 /// Shows posts that are within their 3-day active window.
@@ -61,126 +62,12 @@ class RecentsSection extends StatelessWidget {
             caption: post.text,
           );
         }
-        // Text-only post — render as a styled text card
-        return _TextOnlyRecentCard(post: post, user: user, isDark: isDark);
+        // Text-only post — render as a ThoughtCard
+        return ThoughtCard(
+          user: user,
+          text: post.text,
+        );
       },
-    );
-  }
-}
-
-/// A home-feed-style card for text-only posts in the Recents section.
-class _TextOnlyRecentCard extends StatelessWidget {
-  final PostModel post;
-  final UserModel user;
-  final bool isDark;
-
-  const _TextOnlyRecentCard({
-    required this.post,
-    required this.user,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : Colors.black;
-    final subColor = isDark ? Colors.white54 : Colors.black45;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Caption / text
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text(
-              post.text,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.5,
-                color: textColor,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Meta row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Text(
-                  post.relativeTime,
-                  style: TextStyle(fontSize: 11.5, color: subColor),
-                ),
-                const SizedBox(width: 12),
-                Icon(Icons.favorite_border_rounded,
-                    size: 13, color: subColor),
-                const SizedBox(width: 3),
-                Text('${post.likes}',
-                    style: TextStyle(fontSize: 11.5, color: subColor)),
-                const SizedBox(width: 10),
-                Icon(Icons.visibility_outlined,
-                    size: 13, color: subColor),
-                const SizedBox(width: 3),
-                Text('${post.views}',
-                    style: TextStyle(fontSize: 11.5, color: subColor)),
-                const Spacer(),
-                _DurationChip(duration: post.duration, isDark: isDark),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Small coloured chip showing post duration type.
-class _DurationChip extends StatelessWidget {
-  final PostDuration duration;
-  final bool isDark;
-
-  const _DurationChip({required this.duration, required this.isDark});
-
-  String get label {
-    switch (duration) {
-      case PostDuration.h24:
-        return '24h';
-      case PostDuration.h36:
-        return '36h';
-      case PostDuration.lifetime:
-        return '∞';
-    }
-  }
-
-  Color get color {
-    switch (duration) {
-      case PostDuration.h24:
-        return const Color(0xFFFF6B6B);
-      case PostDuration.h36:
-        return const Color(0xFFFF9F43);
-      case PostDuration.lifetime:
-        return const Color(0xFF2B8EFF);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
     );
   }
 }

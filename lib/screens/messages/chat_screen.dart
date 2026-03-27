@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../utils/haptic_helper.dart';
+import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
 import 'media_preview_screen.dart';
 
@@ -417,47 +418,52 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
-      child: Scaffold(
-        resizeToAvoidBottomInset: true,
-        backgroundColor: bgColor,
-        appBar: _isSearching
-            ? _buildSearchBar(isDark, textColor)
-            : _buildAppBar(isDark, textColor),
-        body: Column(
-          children: [
-            // ── Message List ──
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                reverse: true,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                itemCount: _filteredMessages.length,
-                itemBuilder: (context, index) {
-                  final msg = _filteredMessages[index];
-                  _ChatMessage? parentMsg;
-                  if (msg.replyToId != null) {
-                    try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
-                    catch (_) {}
-                  }
-                  return _buildMessageRow(
-                    msg, parentMsg,
-                    isDark, myBubbleColor, otherBubbleColor,
-                    textColor, subtleColor,
-                  );
-                },
-              ),
+      child: Stack(
+        children: [
+          Scaffold(
+            resizeToAvoidBottomInset: true,
+            backgroundColor: bgColor,
+            appBar: _isSearching
+                ? _buildSearchBar(isDark, textColor)
+                : _buildAppBar(isDark, textColor),
+            body: Column(
+              children: [
+                // ── Message List ──
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: _filteredMessages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _filteredMessages[index];
+                      _ChatMessage? parentMsg;
+                      if (msg.replyToId != null) {
+                        try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
+                        catch (_) {}
+                      }
+                      return _buildMessageRow(
+                        msg, parentMsg,
+                        isDark, myBubbleColor, otherBubbleColor,
+                        textColor, subtleColor,
+                      );
+                    },
+                  ),
+                ),
+
+                // ── Docks (only show when actively replying/editing) ──
+                if (_replyingToId != null)
+                  _buildDock(isDark, subtleColor, Icons.reply, 'Replying to message...', _cancelReply),
+                if (_editingMessageId != null)
+                  _buildDock(isDark, subtleColor, Icons.edit, 'Editing message', _cancelEdit),
+
+                // ── Input ──
+                _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
+              ],
             ),
-
-            // ── Docks (only show when actively replying/editing) ──
-            if (_replyingToId != null)
-              _buildDock(isDark, subtleColor, Icons.reply, 'Replying to message...', _cancelReply),
-            if (_editingMessageId != null)
-              _buildDock(isDark, subtleColor, Icons.edit, 'Editing message', _cancelEdit),
-
-            // ── Input ──
-            _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
-          ],
-        ),
+          ),
+          SystemNavBarFill(color: bgColor),
+        ],
       ),
     );
   }

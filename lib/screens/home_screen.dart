@@ -9,11 +9,13 @@ import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import '../widgets/post_card.dart';
+import '../widgets/thought_card.dart';
 import 'create_post/create_post_screen.dart';
 import 'messages/messages_list_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
 import 'search/search_screen.dart';
+import '../widgets/system_nav_bar_fill.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,6 +46,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
       caption:
           'Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body.',
+    ),
+    (
+      user: demoSaptarshiNayak,
+      images: [],
+      caption: 'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
     ),
     (
       user: demoSaptarshiNayak,
@@ -169,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
         systemNavigationBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
-        systemNavigationBarDividerColor: isReelsTab ? Colors.black : bgColor,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: PopScope(
         canPop: _currentNavIndex == 0,
@@ -296,11 +303,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 return Column(
                                   children: [
-                                    PostCard(
-                                      imagePaths: post.images,
-                                      user: post.user,
-                                      caption: post.caption,
-                                    ),
+                                    if (post.images.isEmpty)
+                                      ThoughtCard(
+                                        user: post.user,
+                                        text: post.caption,
+                                      )
+                                    else
+                                      PostCard(
+                                        imagePaths: post.images,
+                                        user: post.user,
+                                        caption: post.caption,
+                                      ),
                                     if (!isLast)
                                       Divider(
                                         thickness: 6,
@@ -366,17 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // ── SOLID BAR BEHIND SYSTEM NAVIGATION BAR ──────────────────
             // On Android 15+ the system nav bar is always transparent.
             // This draws a solid color behind it so it looks opaque.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                child: Container(
-                  height: MediaQuery.of(context).viewPadding.bottom,
-                  color: bgColor,
-                ),
-              ),
-            ),
+            SystemNavBarFill(color: bgColor),
           ],
         ),
       ),

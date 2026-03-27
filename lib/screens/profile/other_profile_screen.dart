@@ -11,6 +11,7 @@ import 'widgets/recents_section.dart';
 import 'widgets/showcase_grid.dart';
 import 'widgets/text_posts_section.dart';
 import 'widgets/profile_ui_helpers.dart';
+import '../../widgets/system_nav_bar_fill.dart';
 
 /// Viewing someone ELSE's profile.
 class OtherProfileScreen extends StatefulWidget {
@@ -272,7 +273,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                         ),
                         SingleChildScrollView(
                           physics: const NeverScrollableScrollPhysics(),
-                          child: ShowcaseGrid(posts: widget.posts, tabController: _tabController, isOwnProfile: false),
+                          child: ShowcaseGrid(posts: widget.posts, user: _user, tabController: _tabController, isOwnProfile: false),
                         ),
                         SingleChildScrollView(
                           physics: const NeverScrollableScrollPhysics(),
@@ -286,17 +287,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
           // ── SOLID BAR BEHIND SYSTEM NAVIGATION BAR ──────────────────
           // On Android 15+ the system nav bar is always transparent.
           // This draws a solid color behind it so it looks opaque.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: MediaQuery.of(context).viewPadding.bottom,
-                color: bg,
-              ),
-            ),
-          ),
+          SystemNavBarFill(color: bg),
         ],
       ),
     );

@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../models/post_model.dart';
+import '../../../models/user_model.dart';
+import '../../../widgets/system_nav_bar_fill.dart';
+import '../../../widgets/post_card.dart';
+import '../../../widgets/thought_card.dart';
 import 'profile_ui_helpers.dart';
 
 /// Grid view of lifetime posts (Showcase tab).
 /// Tapping a post opens it in a full-screen scroll detail view.
 class ShowcaseGrid extends StatelessWidget {
   final List<PostModel> posts;
+  final UserModel user;
   final TabController? tabController;
   final bool isOwnProfile;
 
   const ShowcaseGrid({
     super.key,
     required this.posts,
+    required this.user,
     this.tabController,
     this.isOwnProfile = true,
   });
@@ -66,8 +73,11 @@ class ShowcaseGrid extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            _ShowcaseDetailScreen(posts: posts, startIndex: startIndex),
+        builder: (_) => _ShowcaseDetailScreen(
+          posts: posts,
+          user: user,
+          startIndex: startIndex,
+        ),
       ),
     );
   }
@@ -97,9 +107,9 @@ class _GridTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: const Icon(
-                  Icons.copy_rounded,
+                  Icons.collections_rounded,
                   color: Colors.white,
-                  size: 12,
+                  size: 14,
                 ),
               ),
             ),
@@ -126,30 +136,58 @@ class _GridTile extends StatelessWidget {
   }
 }
 
-/// Full-screen scrollable detail view opened from the showcase grid
+// ─────────────────────────────────────────────────────────────────────────────
+// Full-screen scrollable detail view — Instagram-style PostCard list
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ShowcaseDetailScreen extends StatefulWidget {
   final List<PostModel> posts;
+  final UserModel user;
   final int startIndex;
 
-  const _ShowcaseDetailScreen(
-      {required this.posts, required this.startIndex});
+  const _ShowcaseDetailScreen({
+    required this.posts,
+    required this.user,
+    required this.startIndex,
+  });
 
   @override
   State<_ShowcaseDetailScreen> createState() => _ShowcaseDetailScreenState();
 }
 
 class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
-  late final PageController _pageController;
+  final ScrollController _scrollController = ScrollController();
+
+  // Keys attached to each post item so we can scroll to the tapped one
+  late final List<GlobalKey> _itemKeys;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: widget.startIndex);
+    _itemKeys = List.generate(widget.posts.length, (_) => GlobalKey());
+
+    // After the first frame, scroll to the tapped post
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToStartIndex();
+    });
+  }
+
+  void _scrollToStartIndex() {
+    if (widget.startIndex == 0) return;
+    final key = _itemKeys[widget.startIndex];
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: Duration.zero,
+        alignment: 0.0, // top of viewport
+      );
+    }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -158,97 +196,64 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? Colors.black : Colors.white;
 
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: bg,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              size: 20, color: isDark ? Colors.white : Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Showcase',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : Colors.black,
-          ),
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: bg,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness:
+            isDark ? Brightness.light : Brightness.dark,
       ),
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: widget.posts.length,
-        itemBuilder: (context, i) {
-          final post = widget.posts[i];
-          return _ShowcasePostView(post: post, isDark: isDark);
-        },
-      ),
-    );
-  }
-}
-
-class _ShowcasePostView extends StatelessWidget {
-  final PostModel post;
-  final bool isDark;
-
-  const _ShowcasePostView({required this.post, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : Colors.black;
-    final subColor = isDark ? Colors.white60 : Colors.black45;
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          if (post.type == PostType.media && post.imagePaths.isNotEmpty)
-            ...post.imagePaths.map(
-              (img) => Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Image.asset(img,
-                    fit: BoxFit.cover, width: double.infinity),
+          Scaffold(
+            backgroundColor: bg,
+            appBar: AppBar(
+              backgroundColor: bg,
+              surfaceTintColor: bg,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                    size: 20, color: isDark ? Colors.white : Colors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text(
+                'Posts',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (post.text.isNotEmpty)
-                  Text(
-                    post.text,
-                    style: TextStyle(
-                        fontSize: 15, color: textColor, height: 1.5),
-                  ),
-                const SizedBox(height: 10),
-                Text(
-                  post.relativeTime,
-                  style: TextStyle(fontSize: 11.5, color: subColor),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(Icons.favorite_border_rounded,
-                        size: 18, color: subColor),
-                    const SizedBox(width: 4),
-                    Text('${post.likes}',
-                        style: TextStyle(fontSize: 13, color: subColor)),
-                    const SizedBox(width: 14),
-                    Icon(Icons.visibility_outlined,
-                        size: 18, color: subColor),
-                    const SizedBox(width: 4),
-                    Text('${post.views}',
-                        style: TextStyle(fontSize: 13, color: subColor)),
-                  ],
-                ),
-                const SizedBox(height: 32),
-              ],
+            body: ListView.separated(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(bottom: 40),
+              itemCount: widget.posts.length,
+              separatorBuilder: (_, __) => Divider(
+                thickness: 6,
+                height: 6,
+                color: isDark ? const Color(0xFF121212) : const Color(0xFFF0F0F0),
+              ),
+              itemBuilder: (context, i) {
+                final post = widget.posts[i];
+                return Container(
+                  key: _itemKeys[i],
+                  child: post.imagePaths.isEmpty
+                      ? ThoughtCard(
+                          user: widget.user,
+                          text: post.text,
+                        )
+                      : PostCard(
+                          imagePaths: post.imagePaths,
+                          user: widget.user,
+                          caption: post.text,
+                        ),
+                );
+              },
             ),
           ),
+          SystemNavBarFill(color: bg),
         ],
       ),
     );

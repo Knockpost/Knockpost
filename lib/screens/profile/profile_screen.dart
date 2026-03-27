@@ -126,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               // Showcase
               SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
-                child: ShowcaseGrid(posts: _posts, tabController: _tabController),
+                child: ShowcaseGrid(posts: _posts, user: _user, tabController: _tabController),
               ),
               // Text
               SingleChildScrollView(

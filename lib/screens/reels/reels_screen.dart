@@ -20,7 +20,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
     statusBarBrightness: Brightness.dark,
     systemNavigationBarColor: Colors.black,
     systemNavigationBarIconBrightness: Brightness.light,
-    systemNavigationBarDividerColor: Colors.black,
+    systemNavigationBarDividerColor: Colors.transparent,
   );
 
   final List<Map<String, String>> reels = [
@@ -73,9 +73,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
             systemNavigationBarIconBrightness: isDark
                 ? Brightness.light
                 : Brightness.dark,
-            systemNavigationBarDividerColor: isDark
-                ? Colors.black
-                : Colors.white,
+            systemNavigationBarDividerColor: Colors.transparent,
           ),
     );
     _pageController.dispose();

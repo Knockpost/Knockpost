@@ -97,20 +97,88 @@ final List<PostModel> demoOwnPosts = [
     views: 210,
     isLikedByMe: false,
   ),
-  // Recents — 36h media post
+    // Recents — 36h media post
+    PostModel(
+      id: 'p2',
+      authorId: 'me',
+      type: PostType.media,
+      duration: PostDuration.h36,
+      imagePaths: ['assets/test3.jpg'],
+      text: 'Morning run hits different 🏃',
+      createdAt: now.subtract(const Duration(hours: 10)),
+      likes: 18,
+      views: 95,
+      isLikedByMe: true,
+    ),
+    // Recents — 24h text-only post (Thought)
+    PostModel(
+      id: 'p3',
+      authorId: 'me',
+      type: PostType.text,
+      duration: PostDuration.h24,
+      imagePaths: const [],
+      text: 'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
+      createdAt: now.subtract(const Duration(hours: 15)),
+      likes: 56,
+      views: 120,
+    ),
+  // ── Showcase (lifetime) posts ────────────────────────────────────────────
   PostModel(
-    id: 'p2',
+    id: 'p_show1',
     authorId: 'me',
     type: PostType.media,
-    duration: PostDuration.h36,
-    imagePaths: ['assets/test3.jpg'],
-    text: 'Morning run hits different 🏃',
-    createdAt: now.subtract(const Duration(hours: 10)),
-    likes: 18,
-    views: 95,
-    isLikedByMe: true,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test4.jpg', 'assets/test1.jpg'],
+    text: 'This one stays forever 🖤',
+    createdAt: now.subtract(const Duration(days: 14)),
+    likes: 320,
+    views: 1800,
   ),
-];
+  PostModel(
+    id: 'p_show2',
+    authorId: 'me',
+    type: PostType.media,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test2.jpg'],
+    text: 'Core memory unlocked ✨',
+    createdAt: now.subtract(const Duration(days: 30)),
+    likes: 185,
+    views: 920,
+  ),
+  PostModel(
+    id: 'p_show3',
+    authorId: 'me',
+    type: PostType.media,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test3.jpg', 'assets/test4.jpg', 'assets/test2.jpg'],
+    text: 'Kolkata diaries 🌇',
+    createdAt: now.subtract(const Duration(days: 60)),
+    likes: 540,
+    views: 3200,
+  ),
+    PostModel(
+      id: 'p_show4',
+      authorId: 'me',
+      type: PostType.media,
+      duration: PostDuration.lifetime,
+      imagePaths: ['assets/test1.jpg'],
+      text: 'First post on KnockPost 🚀',
+      createdAt: now.subtract(const Duration(days: 120)),
+      likes: 870,
+      views: 5100,
+    ),
+    PostModel(
+      id: 'p_show5',
+      authorId: 'me',
+      type: PostType.text,
+      duration: PostDuration.lifetime,
+      imagePaths: const [],
+      text: 'Dreaming big since day one. 💭',
+      createdAt: now.subtract(const Duration(days: 150)),
+      likes: 310,
+      views: 1400,
+    ),
+  ];
 
 List<PostModel> getDemoPostsForUser(String userId) {
   if (userId == 'leo01') return const [];
@@ -135,8 +203,10 @@ List<PostModel> getDemoPostsForUser(String userId) {
   ];
   final first = pool[seed % pool.length];
   final second = pool[(seed + 1) % pool.length];
+  final third = pool[(seed + 2) % pool.length];
 
   return [
+    // Recent post
     PostModel(
       id: '${userId}_recent',
       authorId: userId,
@@ -147,6 +217,40 @@ List<PostModel> getDemoPostsForUser(String userId) {
       createdAt: now.subtract(Duration(hours: 2 + seed)),
       likes: 12 + seed * 3,
       views: 90 + seed * 12,
+    ),
+    // Showcase (lifetime) posts
+    PostModel(
+      id: '${userId}_show1',
+      authorId: userId,
+      type: PostType.media,
+      duration: PostDuration.lifetime,
+      imagePaths: [second, third],
+      text: 'A moment worth keeping 💫',
+      createdAt: now.subtract(Duration(days: 10 + seed * 3)),
+      likes: 60 + seed * 15,
+      views: 400 + seed * 50,
+    ),
+    PostModel(
+      id: '${userId}_show2',
+      authorId: userId,
+      type: PostType.media,
+      duration: PostDuration.lifetime,
+      imagePaths: [third],
+      text: 'Timeless vibes ✨',
+      createdAt: now.subtract(Duration(days: 25 + seed * 5)),
+      likes: 120 + seed * 20,
+      views: 800 + seed * 80,
+    ),
+    PostModel(
+      id: '${userId}_show3',
+      authorId: userId,
+      type: PostType.media,
+      duration: PostDuration.lifetime,
+      imagePaths: [first, third, second],
+      text: 'This one hits different 🎯',
+      createdAt: now.subtract(Duration(days: 45 + seed * 7)),
+      likes: 200 + seed * 30,
+      views: 1200 + seed * 100,
     ),
   ];
 }
