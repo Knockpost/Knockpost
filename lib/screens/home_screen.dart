@@ -60,11 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
       images: ['assets/test4.jpg', 'assets/test2.jpg'],
       caption: 'Golden hour was different today 🌅',
     ),
-    (
-      user: demoLeonardoDiCaprio,
-      images: ['assets/test1.jpg'],
-      caption: 'This view though 😮',
-    ),
   ];
 
   @override
@@ -193,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
               extendBody: true,
 
               // ── FAB (X/Twitter-style fade + scale) ──────────────────
-              floatingActionButton: _currentNavIndex == 0
+              floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
                   ? AnimatedOpacity(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeOut,
@@ -306,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       user: post.user,
                                       caption: post.caption,
                                     ),
-                                    if (!isLast && index != stripIndex - 1)
+                                    if (!isLast)
                                       Divider(
                                         thickness: 6,
                                         height: 6,
@@ -332,9 +327,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const _KeepAlivePage(child: MessagesScreen()),
                       _KeepAlivePage(
-                        child: ProfileScreen(
-                          user: demoOwnUser,
-                          posts: demoOwnPosts,
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: _onScrollNotification,
+                          child: ProfileScreen(
+                            user: demoOwnUser,
+                            posts: demoOwnPosts,
+                          ),
                         ),
                       ),
                     ],

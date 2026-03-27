@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../utils/global_knock_state.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../utils/haptic_helper.dart';
@@ -9,7 +11,7 @@ import '../screens/profile/other_profile_screen.dart';
 
 final List<UserModel> demoSuggestedUsers = [
   const UserModel(
-    id: 'sug01',
+    id: 'zayn01',
     displayName: 'Zayn Malik',
     username: 'zayn.malik',
     bio: 'Singer & songwriter 🎤 | Former 1D',
@@ -24,7 +26,7 @@ final List<UserModel> demoSuggestedUsers = [
     mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
   ),
   const UserModel(
-    id: 'sug02',
+    id: 'justin01',
     displayName: 'Justin Bieber',
     username: 'justin.bieber',
     avatarAsset: 'assets/test2.jpg',
@@ -37,7 +39,7 @@ final List<UserModel> demoSuggestedUsers = [
     mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test4.jpg'],
   ),
   const UserModel(
-    id: 'sug03',
+    id: 'suman01',
     displayName: 'Suman Patra',
     username: 'suman.patra',
     bio: 'Keep it private 🔒',
@@ -52,7 +54,7 @@ final List<UserModel> demoSuggestedUsers = [
     mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
   ),
   const UserModel(
-    id: 'sug04',
+    id: 'saptarshi01',
     displayName: 'Saptarshi Nayak',
     username: 'saptarshi.nayak',
     bio: 'Open book 📖 | Exploring life',
@@ -66,7 +68,7 @@ final List<UserModel> demoSuggestedUsers = [
     mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg'],
   ),
   const UserModel(
-    id: 'sug05',
+    id: 'arya01',
     displayName: 'Arya Layek',
     username: 'arya.layek',
     bio: 'Creator & storyteller ✨ | Pro vibes',
@@ -81,7 +83,7 @@ final List<UserModel> demoSuggestedUsers = [
     mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
   ),
   const UserModel(
-    id: 'sug06',
+    id: 'leo01',
     displayName: 'Leonardo DiCaprio',
     username: 'leo.dicaprio',
     bio: 'Actor & environmentalist 🌍',
@@ -96,50 +98,7 @@ final List<UserModel> demoSuggestedUsers = [
   ),
 ];
 
-/// Build demo posts for suggestion card users.
-List<PostModel> buildSuggestionPosts(String authorId, {required int seed}) {
-  final now = DateTime.now();
-  const pool = [
-    'assets/test1.jpg',
-    'assets/test2.jpg',
-    'assets/test3.jpg',
-    'assets/test4.jpg',
-  ];
-  return [
-    PostModel(
-      id: '${authorId}_recent',
-      authorId: authorId,
-      type: PostType.media,
-      duration: PostDuration.h24,
-      imagePaths: [pool[seed % pool.length], pool[(seed + 1) % pool.length]],
-      text: 'Evening dump from today.',
-      createdAt: now.subtract(Duration(hours: 2 + seed)),
-      likes: 12 + seed * 3,
-      views: 90 + seed * 12,
-    ),
-    PostModel(
-      id: '${authorId}_showcase',
-      authorId: authorId,
-      type: PostType.media,
-      duration: PostDuration.lifetime,
-      imagePaths: [pool[(seed + 2) % pool.length]],
-      text: 'One of my favourite captures.',
-      createdAt: now.subtract(Duration(days: 2 + seed)),
-      likes: 35 + seed * 4,
-      views: 180 + seed * 20,
-    ),
-    PostModel(
-      id: '${authorId}_text',
-      authorId: authorId,
-      type: PostType.text,
-      duration: PostDuration.lifetime,
-      text: 'Small note ${seed + 1}: keep moving, keep creating.',
-      createdAt: now.subtract(Duration(hours: 10 + seed)),
-      likes: 8 + seed,
-      views: 60 + seed * 8,
-    ),
-  ];
-}
+
 
 // ─── Widget ──────────────────────────────────────────────────────────────────
 
@@ -365,7 +324,9 @@ class _SuggestionCard extends StatelessWidget {
                     CircleAvatar(
                       radius: 30,
                       backgroundImage: user.avatarAsset != null
-                          ? AssetImage(user.avatarAsset!)
+                          ? (user.avatarAsset!.startsWith('assets/')
+                              ? AssetImage(user.avatarAsset!) as ImageProvider
+                              : FileImage(File(user.avatarAsset!)))
                           : null,
                       backgroundColor: isDark
                           ? const Color(0xFF2A2A2A)
@@ -455,6 +416,7 @@ class _SuggestionCard extends StatelessWidget {
 
               // Bottom Action Button (Text-only)
               _SuggestionAction(
+                userId: user.id,
                 status: knockStatus,
                 privacyType: user.privacyType,
                 onChanged: onKnockChanged,
@@ -468,13 +430,13 @@ class _SuggestionCard extends StatelessWidget {
             bottom: 40,
             child: GestureDetector(
               onTap: () {
-                final index = demoSuggestedUsers.indexOf(user);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => OtherProfileScreen(
-                      user: user,
-                      posts: buildSuggestionPosts(user.id, seed: index >= 0 ? index + 1 : 1),
+                      user: user.copyWith(knockStatus: knockStatus),
+                      posts: getDemoPostsForUser(user.id),
+                      onKnockStatusChanged: onKnockChanged,
                     ),
                   ),
                 );
@@ -508,12 +470,14 @@ class _SuggestionCard extends StatelessWidget {
 // ─── Text Action Button (Bottom of card) ─────────────────────────────────────
 
 class _SuggestionAction extends StatefulWidget {
+  final String userId;
   final KnockStatus status;
   final PrivacyType privacyType;
   final ValueChanged<KnockStatus> onChanged;
   final VoidCallback onDismiss;
 
   const _SuggestionAction({
+    required this.userId,
     required this.status,
     required this.privacyType,
     required this.onChanged,
@@ -526,13 +490,17 @@ class _SuggestionAction extends StatefulWidget {
 
 class _SuggestionActionState extends State<_SuggestionAction>
     with SingleTickerProviderStateMixin {
+  late ValueNotifier<KnockStatus> _globalNotifier;
   late KnockStatus _status;
   late AnimationController _ctrl;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
+    _globalNotifier = GlobalKnockState.getNotifier(widget.userId, widget.status);
+    _status = _globalNotifier.value;
+    _globalNotifier.addListener(_onGlobalChange);
+    
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 110),
@@ -542,14 +510,26 @@ class _SuggestionActionState extends State<_SuggestionAction>
     );
   }
 
+  void _onGlobalChange() {
+    if (mounted && _status != _globalNotifier.value) {
+      setState(() => _status = _globalNotifier.value);
+    }
+  }
+
   @override
   void didUpdateWidget(covariant _SuggestionAction old) {
     super.didUpdateWidget(old);
-    if (old.status != widget.status) _status = widget.status;
+    if (old.userId != widget.userId) {
+      _globalNotifier.removeListener(_onGlobalChange);
+      _globalNotifier = GlobalKnockState.getNotifier(widget.userId, widget.status);
+      _status = _globalNotifier.value;
+      _globalNotifier.addListener(_onGlobalChange);
+    }
   }
 
   @override
   void dispose() {
+    _globalNotifier.removeListener(_onGlobalChange);
     _ctrl.dispose();
     super.dispose();
   }
@@ -571,6 +551,8 @@ class _SuggestionActionState extends State<_SuggestionAction>
         newStatus = KnockStatus.none;
     }
     setState(() => _status = newStatus);
+    _globalNotifier.value = newStatus;
+    
     widget.onChanged(newStatus);
     // If knocked, dismiss the card after a brief delay
     if (newStatus == KnockStatus.knocked ||

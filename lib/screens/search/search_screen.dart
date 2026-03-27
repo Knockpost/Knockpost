@@ -61,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     _allUsers = [
       MockUser(
-        id: 'u01',
+        id: 'zayn01',
         name: 'Zayn Malik',
         username: 'zayn.malik',
         profilePic: 'assets/test1.jpg',
@@ -71,11 +71,11 @@ class _SearchScreenState extends State<SearchScreen> {
         privacyType: PrivacyType.open,
         accountType: AccountType.creator,
         rank: CreatorRank.impact,
-        posts: _buildDemoPosts('u01', seed: 1),
+        posts: getDemoPostsForUser('zayn01'),
         mutualFriendsWhoKnocked: const ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
       ),
       MockUser(
-        id: 'u02',
+        id: 'justin01',
         name: 'Justin Bieber',
         username: 'justin.bieber',
         profilePic: 'assets/test2.jpg',
@@ -85,11 +85,11 @@ class _SearchScreenState extends State<SearchScreen> {
         privacyType: PrivacyType.open,
         accountType: AccountType.creator,
         rank: CreatorRank.plus,
-        posts: _buildDemoPosts('u02', seed: 2),
+        posts: getDemoPostsForUser('justin01'),
         mutualFriendsWhoKnocked: const ['assets/test1.jpg', 'assets/test4.jpg'],
       ),
       MockUser(
-        id: 'u03',
+        id: 'suman01',
         name: 'Suman Patra',
         username: 'suman.patra',
         profilePic: 'assets/test3.jpg',
@@ -99,10 +99,10 @@ class _SearchScreenState extends State<SearchScreen> {
         privacyType: PrivacyType.private,
         accountType: AccountType.normal,
         rank: CreatorRank.echo,
-        posts: _buildDemoPosts('u03', seed: 3),
+        posts: getDemoPostsForUser('suman01'),
       ),
       MockUser(
-        id: 'u04',
+        id: 'saptarshi01',
         name: 'Saptarshi Nayak',
         username: 'saptarshi.nayak',
         profilePic: 'assets/test4.jpg',
@@ -112,11 +112,11 @@ class _SearchScreenState extends State<SearchScreen> {
         privacyType: PrivacyType.open,
         accountType: AccountType.normal,
         rank: CreatorRank.echo,
-        posts: _buildDemoPosts('u04', seed: 4),
+        posts: getDemoPostsForUser('saptarshi01'),
         connectionStatus: ConnectionStatus.knocked,
       ),
       MockUser(
-        id: 'u05',
+        id: 'arya01',
         name: 'Arya Layek',
         username: 'arya.layek',
         profilePic: 'assets/test1.jpg',
@@ -126,11 +126,11 @@ class _SearchScreenState extends State<SearchScreen> {
         privacyType: PrivacyType.open,
         accountType: AccountType.creator,
         rank: CreatorRank.pro,
-        posts: _buildDemoPosts('u05', seed: 5),
+        posts: getDemoPostsForUser('arya01'),
         mutualFriendsWhoKnocked: const ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
       ),
       MockUser(
-        id: 'u06',
+        id: 'leo01',
         name: 'Leonardo DiCaprio',
         username: 'leo.dicaprio',
         profilePic: 'assets/test2.jpg',
@@ -140,7 +140,7 @@ class _SearchScreenState extends State<SearchScreen> {
         privacyType: PrivacyType.open,
         accountType: AccountType.normal,
         rank: CreatorRank.echo,
-        posts: _buildDemoPosts('u06', seed: 6),
+        posts: getDemoPostsForUser('leo01'),
         connectionStatus: ConnectionStatus.knockBack,
       ),
     ];
@@ -155,53 +155,7 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  List<PostModel> _buildDemoPosts(String authorId, {required int seed}) {
-    final now = DateTime.now();
-    const pool = [
-      'assets/test1.jpg',
-      'assets/test2.jpg',
-      'assets/test3.jpg',
-      'assets/test4.jpg',
-    ];
-    final first = pool[seed % pool.length];
-    final second = pool[(seed + 1) % pool.length];
-    final third = pool[(seed + 2) % pool.length];
 
-    return [
-      PostModel(
-        id: '${authorId}_recent',
-        authorId: authorId,
-        type: PostType.media,
-        duration: PostDuration.h24,
-        imagePaths: [first, second],
-        text: 'Evening dump from today.',
-        createdAt: now.subtract(Duration(hours: 2 + seed)),
-        likes: 12 + seed * 3,
-        views: 90 + seed * 12,
-      ),
-      PostModel(
-        id: '${authorId}_showcase',
-        authorId: authorId,
-        type: PostType.media,
-        duration: PostDuration.lifetime,
-        imagePaths: [third],
-        text: 'One of my favourite captures.',
-        createdAt: now.subtract(Duration(days: 2 + seed)),
-        likes: 35 + seed * 4,
-        views: 180 + seed * 20,
-      ),
-      PostModel(
-        id: '${authorId}_text',
-        authorId: authorId,
-        type: PostType.text,
-        duration: PostDuration.lifetime,
-        text: 'Small note ${seed + 1}: keep moving, keep creating.',
-        createdAt: now.subtract(Duration(hours: 10 + seed)),
-        likes: 8 + seed,
-        views: 60 + seed * 8,
-      ),
-    ];
-  }
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();

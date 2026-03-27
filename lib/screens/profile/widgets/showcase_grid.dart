@@ -6,13 +6,19 @@ import 'profile_ui_helpers.dart';
 /// Tapping a post opens it in a full-screen scroll detail view.
 class ShowcaseGrid extends StatelessWidget {
   final List<PostModel> posts;
+  final TabController? tabController;
+  final bool isOwnProfile;
 
-  const ShowcaseGrid({super.key, required this.posts});
+  const ShowcaseGrid({
+    super.key,
+    required this.posts,
+    this.tabController,
+    this.isOwnProfile = true,
+  });
 
   List<PostModel> get _showcasePosts =>
       posts
-          .where(
-              (p) => p.isInShowcase || p.duration == PostDuration.lifetime)
+          .where((p) => p.isInShowcase)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -22,10 +28,15 @@ class ShowcaseGrid extends StatelessWidget {
     final showcasePosts = _showcasePosts;
 
     if (showcasePosts.isEmpty) {
-      return const ProfileEmptySection(
+      return ProfileEmptySection(
         icon: Icons.grid_view_rounded,
-        message:
-            'No Showcase posts yet.\nLifetime posts land here after 24h.',
+        message: 'Showcase is empty',
+        subtitle: isOwnProfile
+            ? 'Pin your best moments'
+            : 'No highlights added yet',
+        gradientColors: const [Color(0xFF5B9BFF), Color(0xFF2B8EFF)],
+        tabController: tabController,
+        tabIndex: 1,
       );
     }
 

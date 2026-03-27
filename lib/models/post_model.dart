@@ -1,9 +1,9 @@
 // KnockPost — Post Model
 
 enum PostDuration {
-  h24, // 24-hour post — stays in Recents for 24 hrs then disappears
-  h36, // 36-hour post — stays in Recents for 36 hrs then disappears
-  lifetime, // Lifetime post — stays in Recents for 24 hrs then moves to Showcase
+  h24, // 24-hour post — stays in Recents for 3 days then disappears
+  h36, // 36-hour post — stays in Recents for 3 days then disappears
+  lifetime, // Lifetime post — stays in Recents for 3 days AND always in Showcase
 }
 
 enum PostType {
@@ -39,27 +39,17 @@ class PostModel {
     this.isLikedByMe = false,
   });
 
-  /// Whether this post is currently in the "Recents" window
+  /// Whether this post is currently in the "Recents" window.
+  /// All post types stay in Recents for 3 days (72 hours).
   bool get isInRecentsWindow {
     final age = DateTime.now().difference(createdAt);
-    switch (duration) {
-      case PostDuration.h24:
-        return age.inHours < 24;
-      case PostDuration.h36:
-        return age.inHours < 36;
-      case PostDuration.lifetime:
-        // Lifetime posts show in Recents for their first 24 hours
-        return age.inHours < 24;
-    }
+    return age.inHours < 72; // 3-day window for all post types
   }
 
-  /// Whether this post belongs in the Showcase section
-  bool get isInShowcase {
-    if (duration != PostDuration.lifetime) return false;
-    final age = DateTime.now().difference(createdAt);
-    // After 24 hours it graduates from Recents to Showcase
-    return age.inHours >= 24;
-  }
+  /// Whether this post belongs in the Showcase section.
+  /// Only lifetime posts belong in Showcase — they appear here permanently.
+  /// Dynamic-time posts (24h / 36h) never go to Showcase.
+  bool get isInShowcase => duration == PostDuration.lifetime;
 
   /// Friendly relative time label
   String get relativeTime {
@@ -120,78 +110,43 @@ final List<PostModel> demoOwnPosts = [
     views: 95,
     isLikedByMe: true,
   ),
-  // Showcase — lifetime post (older than 24h)
-  PostModel(
-    id: 'p3',
-    authorId: 'me',
-    type: PostType.media,
-    duration: PostDuration.lifetime,
-    imagePaths: ['assets/test4.jpg'],
-    text: 'From the archives 🗂',
-    createdAt: now.subtract(const Duration(days: 5)),
-    likes: 134,
-    views: 820,
-    isLikedByMe: false,
-  ),
-  PostModel(
-    id: 'p4',
-    authorId: 'me',
-    type: PostType.media,
-    duration: PostDuration.lifetime,
-    imagePaths: ['assets/test2.jpg', 'assets/test3.jpg'],
-    text: 'A weekend well spent',
-    createdAt: now.subtract(const Duration(days: 12)),
-    likes: 96,
-    views: 430,
-    isLikedByMe: true,
-  ),
-  PostModel(
-    id: 'p5',
-    authorId: 'me',
-    type: PostType.media,
-    duration: PostDuration.lifetime,
-    imagePaths: ['assets/test1.jpg'],
-    text: 'This view though 😮',
-    createdAt: now.subtract(const Duration(days: 20)),
-    likes: 211,
-    views: 1100,
-    isLikedByMe: false,
-  ),
-  // Text posts
-  PostModel(
-    id: 't1',
-    authorId: 'me',
-    type: PostType.text,
-    duration: PostDuration.lifetime,
-    text:
-        'Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body and never came back.',
-    createdAt: now.subtract(const Duration(days: 2)),
-    likes: 67,
-    views: 320,
-    isLikedByMe: false,
-  ),
-  PostModel(
-    id: 't2',
-    authorId: 'me',
-    type: PostType.text,
-    duration: PostDuration.lifetime,
-    text:
-        'Hot take: The best productivity hack is just making the thing you want to do feel impossible to procrastinate on.',
-    createdAt: now.subtract(const Duration(days: 8)),
-    likes: 88,
-    views: 540,
-    isLikedByMe: true,
-  ),
-  PostModel(
-    id: 't3',
-    authorId: 'me',
-    type: PostType.text,
-    duration: PostDuration.h24,
-    text:
-        'Today was weirdly good. The kind of day you want to save somewhere safe.',
-    createdAt: now.subtract(const Duration(hours: 5)),
-    likes: 14,
-    views: 72,
-    isLikedByMe: false,
-  ),
 ];
+
+List<PostModel> getDemoPostsForUser(String userId) {
+  if (userId == 'leo01') return const [];
+  if (userId == 'me') return demoOwnPosts;
+  
+  int seed;
+  switch (userId) {
+    case 'zayn01': seed = 1; break;
+    case 'justin01': seed = 2; break;
+    case 'suman01': seed = 3; break;
+    case 'saptarshi01': seed = 4; break;
+    case 'arya01': seed = 5; break;
+    default: seed = userId.hashCode.abs() % 10 + 1; break;
+  }
+  
+  final now = DateTime.now();
+  const pool = [
+    'assets/test1.jpg',
+    'assets/test2.jpg',
+    'assets/test3.jpg',
+    'assets/test4.jpg',
+  ];
+  final first = pool[seed % pool.length];
+  final second = pool[(seed + 1) % pool.length];
+
+  return [
+    PostModel(
+      id: '${userId}_recent',
+      authorId: userId,
+      type: PostType.media,
+      duration: PostDuration.h24,
+      imagePaths: [first, second],
+      text: 'Evening dump from today.',
+      createdAt: now.subtract(Duration(hours: 2 + seed)),
+      likes: 12 + seed * 3,
+      views: 90 + seed * 12,
+    ),
+  ];
+}

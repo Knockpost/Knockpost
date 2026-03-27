@@ -100,7 +100,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
             // ── Tab bar ───────────────────────────────────────────────────
             SliverPersistentHeader(
-              pinned: true,
+              pinned: false,
               delegate: ProfileStickyTabBarDelegate(
                 ProfileAnimatedTabBar(
                   controller: _tabController,
@@ -121,17 +121,17 @@ class _ProfileScreenState extends State<ProfileScreen>
               // Recents
               SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
-                child: RecentsSection(posts: _posts),
+                child: RecentsSection(posts: _posts, user: _user, tabController: _tabController),
               ),
               // Showcase
               SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
-                child: ShowcaseGrid(posts: _posts),
+                child: ShowcaseGrid(posts: _posts, tabController: _tabController),
               ),
               // Text
               SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
-                child: TextPostsSection(posts: _posts),
+                child: TextPostsSection(posts: _posts, tabController: _tabController),
               ),
             ],
           ),

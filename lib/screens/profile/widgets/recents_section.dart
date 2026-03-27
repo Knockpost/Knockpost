@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
+import '../../../models/user_model.dart';
+import '../../../widgets/post_card.dart';
+import 'profile_ui_helpers.dart';
 
-/// Shows posts that are within their active time window (24h / 36h / lifetime's first 24h).
+/// Shows posts that are within their 3-day active window.
+/// Renders each post using the same PostCard widget as the home feed.
 class RecentsSection extends StatelessWidget {
   final List<PostModel> posts;
+  final UserModel user;
+  final TabController? tabController;
+  final bool isOwnProfile;
 
-  const RecentsSection({super.key, required this.posts});
+  const RecentsSection({
+    super.key,
+    required this.posts,
+    required this.user,
+    this.tabController,
+    this.isOwnProfile = true,
+  });
 
   List<PostModel> get _recentPosts =>
       posts.where((p) => p.isInRecentsWindow).toList()
@@ -17,49 +30,131 @@ class RecentsSection extends StatelessWidget {
     final recentPosts = _recentPosts;
 
     if (recentPosts.isEmpty) {
-      return _EmptySection(
+      return ProfileEmptySection(
         icon: Icons.history_rounded,
-        message: 'Nothing recent.\nPost something — it shows up here.',
-        isDark: isDark,
+        message: 'Nothing recent',
+        subtitle: isOwnProfile
+            ? 'Share a recent moment'
+            : 'No recent moments yet',
+        gradientColors: const [Color(0xFFFF9F43), Color(0xFFFF6B6B)],
+        tabController: tabController,
+        tabIndex: 0,
       );
     }
 
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      padding: const EdgeInsets.only(top: 4, bottom: 20),
+      padding: const EdgeInsets.only(bottom: 20),
       itemCount: recentPosts.length,
       separatorBuilder: (_, __) => Divider(
-        height: 1,
-        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+        thickness: 6,
+        height: 6,
+        color: isDark ? const Color(0xFF121212) : const Color(0xFFF0F0F0),
       ),
-      itemBuilder: (context, i) => _RecentPostTile(
-        post: recentPosts[i],
-        isDark: isDark,
+      itemBuilder: (context, i) {
+        final post = recentPosts[i];
+        if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
+          return PostCard(
+            imagePaths: post.imagePaths,
+            user: user,
+            caption: post.text,
+          );
+        }
+        // Text-only post — render as a styled text card
+        return _TextOnlyRecentCard(post: post, user: user, isDark: isDark);
+      },
+    );
+  }
+}
+
+/// A home-feed-style card for text-only posts in the Recents section.
+class _TextOnlyRecentCard extends StatelessWidget {
+  final PostModel post;
+  final UserModel user;
+  final bool isDark;
+
+  const _TextOnlyRecentCard({
+    required this.post,
+    required this.user,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subColor = isDark ? Colors.white54 : Colors.black45;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Caption / text
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              post.text,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: textColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Meta row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                Text(
+                  post.relativeTime,
+                  style: TextStyle(fontSize: 11.5, color: subColor),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.favorite_border_rounded,
+                    size: 13, color: subColor),
+                const SizedBox(width: 3),
+                Text('${post.likes}',
+                    style: TextStyle(fontSize: 11.5, color: subColor)),
+                const SizedBox(width: 10),
+                Icon(Icons.visibility_outlined,
+                    size: 13, color: subColor),
+                const SizedBox(width: 3),
+                Text('${post.views}',
+                    style: TextStyle(fontSize: 11.5, color: subColor)),
+                const Spacer(),
+                _DurationChip(duration: post.duration, isDark: isDark),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _RecentPostTile extends StatelessWidget {
-  final PostModel post;
+/// Small coloured chip showing post duration type.
+class _DurationChip extends StatelessWidget {
+  final PostDuration duration;
   final bool isDark;
 
-  const _RecentPostTile({required this.post, required this.isDark});
+  const _DurationChip({required this.duration, required this.isDark});
 
-  String get _durationLabel {
-    switch (post.duration) {
+  String get label {
+    switch (duration) {
       case PostDuration.h24:
         return '24h';
       case PostDuration.h36:
         return '36h';
       case PostDuration.lifetime:
-        return 'Lifetime';
+        return '∞';
     }
   }
 
-  Color get _durationColor {
-    switch (post.duration) {
+  Color get color {
+    switch (duration) {
       case PostDuration.h24:
         return const Color(0xFFFF6B6B);
       case PostDuration.h36:
@@ -71,141 +166,20 @@ class _RecentPostTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : Colors.black;
-    final subColor = isDark ? Colors.white54 : Colors.black45;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Thumbnail or text preview
-          if (post.type == PostType.media && post.imagePaths.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                post.imagePaths.first,
-                width: 72,
-                height: 72,
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF0F0F0),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.text_fields_rounded,
-                  color: subColor,
-                  size: 28,
-                ),
-              ),
-            ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Duration badge + time
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: _durationColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: _durationColor.withValues(alpha: 0.35), width: 1),
-                      ),
-                      child: Text(
-                        _durationLabel,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: _durationColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      post.relativeTime,
-                      style: TextStyle(fontSize: 11.5, color: subColor),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  post.text.isEmpty ? '📷 Photo post' : post.text,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: textColor,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.favorite_border_rounded,
-                        size: 13, color: subColor),
-                    const SizedBox(width: 3),
-                    Text('${post.likes}',
-                        style: TextStyle(fontSize: 11.5, color: subColor)),
-                    const SizedBox(width: 10),
-                    Icon(Icons.visibility_outlined,
-                        size: 13, color: subColor),
-                    const SizedBox(width: 3),
-                    Text('${post.views}',
-                        style: TextStyle(fontSize: 11.5, color: subColor)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
       ),
-    );
-  }
-}
-
-/// Empty-state placeholder for sections with no content.
-class _EmptySection extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  final bool isDark;
-
-  const _EmptySection(
-      {required this.icon, required this.message, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon,
-              size: 38, color: isDark ? Colors.white30 : Colors.black26),
-          const SizedBox(height: 14),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: isDark ? Colors.white38 : Colors.black38,
-              height: 1.5,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }

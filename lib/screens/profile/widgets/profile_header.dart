@@ -313,7 +313,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           children: [
                             Expanded(
                               child: KnockButton(
-                                initialStatus: _knockStatus,
+                                userId: user.id,
+                                initialStatus: user.knockStatus,
                                 privacyType: user.privacyType,
                                 accountType: user.accountType,
                                 isOwnProfile: false,

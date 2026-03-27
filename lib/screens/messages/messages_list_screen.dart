@@ -3,19 +3,17 @@ import '../../utils/haptic_helper.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
 
+import '../../models/user_model.dart';
+
 class _ConversationData {
-  final String name;
-  final String username;
-  final String avatarAsset;
+  final UserModel user;
   final String message;
   final String time;
   final int unreadCount;
   final bool read;
 
   const _ConversationData({
-    required this.name,
-    required this.username,
-    required this.avatarAsset,
+    required this.user,
     required this.message,
     required this.time,
     this.unreadCount = 0,
@@ -36,49 +34,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   static const List<_ConversationData> _conversations = [
     _ConversationData(
-      name: "Zayn Malik",
-      username: "zayn.malik",
-      avatarAsset: "assets/test1.jpg",
+      user: demoZaynMalik,
       message: "Just finished recording, what's up?",
       time: "2m",
       unreadCount: 2,
     ),
     _ConversationData(
-      name: "Justin Bieber",
-      username: "justin.bieber",
-      avatarAsset: "assets/test2.jpg",
+      user: demoJustinBieber,
       message: "That sounds awesome! 😂",
       time: "10m",
       unreadCount: 1,
     ),
     _ConversationData(
-      name: "Suman Patra",
-      username: "suman.patra",
-      avatarAsset: "assets/test3.jpg",
+      user: demoSumanPatra,
       message: "Are we still on for tomorrow?",
       time: "30m",
       read: true,
     ),
     _ConversationData(
-      name: "Saptarshi Nayak",
-      username: "saptarshi.nayak",
-      avatarAsset: "assets/test4.jpg",
+      user: demoSaptarshiNayak,
       message: "Sure, I'll send it over to you!",
       time: "45m",
       read: true,
     ),
     _ConversationData(
-      name: "Arya Layek",
-      username: "arya.layek",
-      avatarAsset: "assets/test1.jpg",
+      user: demoAryaLayek,
       message: "Can you call me when you're free?",
       time: "1h",
       read: true,
     ),
     _ConversationData(
-      name: "Leonardo DiCaprio",
-      username: "leo.dicaprio",
-      avatarAsset: "assets/test2.jpg",
+      user: demoLeonardoDiCaprio,
       message: "Haha that's so funny!",
       time: "2h",
       read: true,
@@ -89,7 +75,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (_searchQuery.isEmpty) return _conversations;
     final query = _searchQuery.toLowerCase();
     return _conversations.where((c) {
-      return c.name.toLowerCase().contains(query) ||
+      return c.user.displayName.toLowerCase().contains(query) ||
           c.message.toLowerCase().contains(query);
     }).toList();
   }
@@ -202,9 +188,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     itemBuilder: (context, index) {
                       final c = filtered[index];
                       return MessageTile(
-                        name: c.name,
-                        username: c.username,
-                        avatarAsset: c.avatarAsset,
+                        name: c.user.displayName,
+                        username: c.user.username,
+                        avatarAsset: c.user.avatarAsset ?? '',
                         message: c.message,
                         time: c.time,
                         unreadCount: c.unreadCount,

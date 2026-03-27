@@ -1,18 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import 'chat_screen.dart';
-
-class _UserEntry {
-  final String name;
-  final String username;
-  final String avatarAsset;
-
-  const _UserEntry({
-    required this.name,
-    required this.username,
-    required this.avatarAsset,
-  });
-}
 
 class NewMessageScreen extends StatefulWidget {
   const NewMessageScreen({super.key});
@@ -25,20 +14,20 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const List<_UserEntry> _allUsers = [
-    _UserEntry(name: "Arya Layek", username: "arya.layek", avatarAsset: "assets/test1.jpg"),
-    _UserEntry(name: "Justin Bieber", username: "justin.bieber", avatarAsset: "assets/test2.jpg"),
-    _UserEntry(name: "Leonardo DiCaprio", username: "leo.dicaprio", avatarAsset: "assets/test2.jpg"),
-    _UserEntry(name: "Saptarshi Nayak", username: "saptarshi.nayak", avatarAsset: "assets/test4.jpg"),
-    _UserEntry(name: "Suman Patra", username: "suman.patra", avatarAsset: "assets/test3.jpg"),
-    _UserEntry(name: "Zayn Malik", username: "zayn.malik", avatarAsset: "assets/test1.jpg"),
+  static const List<UserModel> _allUsers = [
+    demoAryaLayek,
+    demoJustinBieber,
+    demoLeonardoDiCaprio,
+    demoSaptarshiNayak,
+    demoSumanPatra,
+    demoZaynMalik,
   ];
 
-  List<_UserEntry> get _filteredUsers {
+  List<UserModel> get _filteredUsers {
     if (_searchQuery.isEmpty) return _allUsers;
     final query = _searchQuery.toLowerCase();
     return _allUsers.where((u) =>
-        u.name.toLowerCase().contains(query) ||
+        u.displayName.toLowerCase().contains(query) ||
         u.username.toLowerCase().contains(query)).toList();
   }
 
@@ -146,9 +135,9 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
                     itemBuilder: (context, index) {
                       final user = filtered[index];
                       return _UserTile(
-                        name: user.name,
+                        name: user.displayName,
                         username: user.username,
-                        avatarAsset: user.avatarAsset,
+                        avatarAsset: user.avatarAsset ?? '',
                       );
                     },
                   ),

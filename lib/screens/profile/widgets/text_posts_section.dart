@@ -5,8 +5,15 @@ import 'profile_ui_helpers.dart';
 /// Scrollable list of text-only posts (Text tab on profile).
 class TextPostsSection extends StatelessWidget {
   final List<PostModel> posts;
+  final TabController? tabController;
+  final bool isOwnProfile;
 
-  const TextPostsSection({super.key, required this.posts});
+  const TextPostsSection({
+    super.key,
+    required this.posts,
+    this.tabController,
+    this.isOwnProfile = true,
+  });
 
   List<PostModel> get _textPosts =>
       posts.where((p) => p.type == PostType.text).toList()
@@ -18,9 +25,15 @@ class TextPostsSection extends StatelessWidget {
     final textPosts = _textPosts;
 
     if (textPosts.isEmpty) {
-      return const ProfileEmptySection(
-        icon: Icons.edit_note_rounded,
-        message: 'No text posts yet.\nWrite something worth saying.',
+      return ProfileEmptySection(
+        icon: Icons.format_quote_rounded,
+        message: 'No thoughts yet',
+        subtitle: isOwnProfile 
+            ? 'Share what you feel' 
+            : 'No thoughts shared yet',
+        gradientColors: const [Color(0xFFB388FF), Color(0xFF7C4DFF)],
+        tabController: tabController,
+        tabIndex: 2,
       );
     }
 
