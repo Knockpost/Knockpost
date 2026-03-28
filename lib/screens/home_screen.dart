@@ -14,7 +14,7 @@ import '../widgets/people_suggestion_strip.dart';
 import '../widgets/post_card.dart';
 import '../widgets/thought_card.dart';
 import 'create_post/create_post_screen.dart';
-import 'messages/messages_list_screen.dart';
+
 import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
 import 'search/search_screen.dart';
