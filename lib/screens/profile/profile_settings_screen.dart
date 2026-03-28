@@ -6,6 +6,9 @@ import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'widgets/creator_rank_badge.dart';
 import 'widgets/profile_ui_helpers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../login_screen.dart';
 import 'edit_profile_screen.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
@@ -303,8 +306,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: GestureDetector(
-                onTap: () {
+                onTap: () async {
                   KnockHaptics.impact();
+                  await FirebaseAuth.instance.signOut();
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('is_registered', false);
+                  
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 },
                 child: Container(
                   alignment: Alignment.center,

@@ -19,6 +19,7 @@ import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
 import 'search/search_screen.dart';
 import 'messages/messages_screen.dart';
+import 'notifications/notifications_screen.dart';
 import '../widgets/system_nav_bar_fill.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -293,7 +294,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Icons.notifications_none,
                                         color: textColor,
                                       ),
-                                      onPressed: () {},
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),

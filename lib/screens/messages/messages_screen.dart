@@ -7,23 +7,28 @@ class MessagesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.black : const Color(0xfff5f7fb);
+    final textColor = isDark ? Colors.white : Colors.black;
+    final searchBgColor = isDark ? const Color(0xff1c1c1e) : Colors.white;
+
     return Scaffold(
-      backgroundColor: const Color(0xfff5f7fb),
+      backgroundColor: bgColor,
 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           "Messages",
           style: TextStyle(
-            color: Colors.black,
+            color: textColor,
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: Colors.black),
+            icon: Icon(Icons.edit, color: textColor),
             onPressed: () {
               Navigator.push(
                 context,
@@ -44,13 +49,15 @@ class MessagesScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: searchBgColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const TextField(
+              child: TextField(
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
-                  icon: Icon(Icons.search),
+                  icon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.black54),
                   hintText: "Search",
+                  hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                   border: InputBorder.none,
                 ),
               ),
@@ -117,6 +124,13 @@ class MessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tileGradient = isDark 
+        ? const LinearGradient(colors: [Color(0xff1e2638), Color(0xff30241b)])
+        : const LinearGradient(colors: [Color(0xffe8f0ff), Color(0xfffff3e8)]);
+    final textColor = isDark ? Colors.white : Colors.black;
+    final hintColor = isDark ? Colors.white54 : Colors.black54;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -134,9 +148,7 @@ class MessageTile extends StatelessWidget {
         padding: const EdgeInsets.all(12),
 
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xffe8f0ff), Color(0xfffff3e8)],
-          ),
+          gradient: tileGradient,
           borderRadius: BorderRadius.circular(16),
         ),
 
@@ -155,13 +167,14 @@ class MessageTile extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(message, style: const TextStyle(color: Colors.black54)),
+                  Text(message, style: TextStyle(color: hintColor)),
                 ],
               ),
             ),
