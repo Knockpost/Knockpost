@@ -121,7 +121,11 @@ class MessageTile extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ChatScreen()),
+          MaterialPageRoute(builder: (context) => ChatScreen(
+            userName: name,
+            userAvatar: "assets/test1.jpg",
+            userUsername: "@${name.replaceAll(' ', '').toLowerCase()}",
+          )),
         );
       },
 

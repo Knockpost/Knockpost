@@ -6,9 +6,9 @@
 ## Architecture & Key Files
 
 ### Current Structure
-- **[lib/main.dart](../../lib/main.dart)**: Single entry point containing all UI logic - `MyApp` (root widget), `HomeScreen` (main feed screen)
-- **[pubspec.yaml](../../pubspec.yaml)**: Minimal dependencies; no state management, backend, or data persistence yet
-- **[analysis_options.yaml](../../analysis_options.yaml)**: Uses `flutter_lints` with default recommended rules
+- **[lib/main.dart](../lib/main.dart)**: Single entry point containing all UI logic - `MyApp` (root widget), `HomeScreen` (main feed screen)
+- **[pubspec.yaml](../pubspec.yaml)**: Minimal dependencies; no state management, backend, or data persistence yet
+- **[analysis_options.yaml](../analysis_options.yaml)**: Uses `flutter_lints` with default recommended rules
 
 ### Data Organization (Current Pattern)
 Data is currently hardcoded as static lists in widgets:
@@ -65,7 +65,7 @@ flutter build apk       # Build Android release
 - **Color scheme**: Blue-based with soft shadows; maintain consistency
 
 ## Testing
-- **Widget tests** use standard Flutter test patterns in [test/widget_test.dart](../../test/widget_test.dart)
+- **Widget tests** use standard Flutter test patterns in [test/widget_test.dart](../test/widget_test.dart)
 - **New tests**: Add to `test/` directory following existing test structure
 
 ## Next Likely Steps

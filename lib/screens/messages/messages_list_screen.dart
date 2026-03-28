@@ -3,15 +3,17 @@ import '../../utils/haptic_helper.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
 
+import '../../models/user_model.dart';
+
 class _ConversationData {
-  final String name;
+  final UserModel user;
   final String message;
   final String time;
   final int unreadCount;
   final bool read;
 
   const _ConversationData({
-    required this.name,
+    required this.user,
     required this.message,
     required this.time,
     this.unreadCount = 0,
@@ -32,37 +34,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   static const List<_ConversationData> _conversations = [
     _ConversationData(
-      name: "John Doe",
-      message: "Just finished work, what's up?",
+      user: demoZaynMalik,
+      message: "Just finished recording, what's up?",
       time: "2m",
       unreadCount: 2,
     ),
     _ConversationData(
-      name: "Jane Doe",
+      user: demoJustinBieber,
       message: "That sounds awesome! 😂",
       time: "10m",
       unreadCount: 1,
     ),
     _ConversationData(
-      name: "Alex Smith",
+      user: demoSumanPatra,
       message: "Are we still on for tomorrow?",
       time: "30m",
       read: true,
     ),
     _ConversationData(
-      name: "Emily Brown",
+      user: demoSaptarshiNayak,
       message: "Sure, I'll send it over to you!",
       time: "45m",
       read: true,
     ),
     _ConversationData(
-      name: "Daniel Lee",
+      user: demoAryaLayek,
       message: "Can you call me when you're free?",
       time: "1h",
       read: true,
     ),
     _ConversationData(
-      name: "Sarah Wilson",
+      user: demoLeonardoDiCaprio,
       message: "Haha that's so funny!",
       time: "2h",
       read: true,
@@ -73,7 +75,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (_searchQuery.isEmpty) return _conversations;
     final query = _searchQuery.toLowerCase();
     return _conversations.where((c) {
-      return c.name.toLowerCase().contains(query) ||
+      return c.user.displayName.toLowerCase().contains(query) ||
           c.message.toLowerCase().contains(query);
     }).toList();
   }
@@ -119,8 +121,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
             fontSize: 22,
           ),
         ),
-        actions: [
-          const _NewMessageIcon(),
+        actions: const [
+          _NewMessageIcon(),
         ],
       ),
 
@@ -186,7 +188,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     itemBuilder: (context, index) {
                       final c = filtered[index];
                       return MessageTile(
-                        name: c.name,
+                        name: c.user.displayName,
+                        username: c.user.username,
+                        avatarAsset: c.user.avatarAsset ?? '',
                         message: c.message,
                         time: c.time,
                         unreadCount: c.unreadCount,
@@ -245,6 +249,8 @@ class _NewMessageIconState extends State<_NewMessageIcon> {
 
 class MessageTile extends StatelessWidget {
   final String name;
+  final String username;
+  final String avatarAsset;
   final String message;
   final String time;
   final int unreadCount;
@@ -254,6 +260,8 @@ class MessageTile extends StatelessWidget {
   const MessageTile({
     super.key,
     required this.name,
+    required this.username,
+    required this.avatarAsset,
     required this.message,
     required this.time,
     this.unreadCount = 0,
@@ -283,7 +291,7 @@ class MessageTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final highlightColor = const Color(0xFF0A7CFF); // Vibrant Blue
+    const highlightColor = Color(0xFF0A7CFF); // Vibrant Blue
 
     return InkWell(
       enableFeedback: false,
@@ -291,16 +299,22 @@ class MessageTile extends StatelessWidget {
         KnockHaptics.selection();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ChatScreen()),
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              userName: name,
+              userAvatar: avatarAsset,
+              userUsername: username,
+            ),
+          ),
         );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 26,
-              backgroundImage: AssetImage("assets/test1.jpg"),
+              backgroundImage: AssetImage(avatarAsset),
             ),
 
             const SizedBox(width: 14),
@@ -346,7 +360,7 @@ class MessageTile extends StatelessWidget {
                 if (unreadCount > 0)
                   Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: highlightColor,
                       shape: BoxShape.circle,
                     ),
@@ -367,4 +381,3 @@ class MessageTile extends StatelessWidget {
     );
   }
 }
-

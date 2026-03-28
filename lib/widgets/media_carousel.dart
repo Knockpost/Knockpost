@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class MediaCarousel extends StatefulWidget {
@@ -15,15 +17,35 @@ class MediaCarousel extends StatefulWidget {
 class _MediaCarouselState extends State<MediaCarousel> {
   int _currentPage = 0;
   late final PageController _pageController;
+  Timer? _hideTimer;
+  bool _showIndicator = true;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    _startHideTimer();
+  }
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _showIndicator = false);
+      }
+    });
+  }
+
+  void _onScroll() {
+    if (!_showIndicator && mounted) {
+      setState(() => _showIndicator = true);
+    }
+    _startHideTimer();
   }
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -34,6 +56,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
   Widget build(BuildContext context) {
     if (widget.imagePaths.isEmpty) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final double screenWidth = MediaQuery.of(context).size.width;
 
     // Single image — no carousel, no indicators
@@ -66,43 +89,66 @@ class _MediaCarouselState extends State<MediaCarousel> {
               child: Stack(
                 children: [
                   // Swipeable pages
-                  PageView.builder(
-                    controller: _pageController,
-                    itemCount: widget.imagePaths.length,
-                    onPageChanged: (index) {
-                      setState(() => _currentPage = index);
+                  NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification is ScrollUpdateNotification) {
+                        _onScroll();
+                      }
+                      return false;
                     },
-                    itemBuilder: (context, index) {
-                      return Image.asset(
-                        widget.imagePaths[index],
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        filterQuality: FilterQuality.high,
-                      );
-                    },
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: widget.imagePaths.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentPage = index);
+                        _onScroll(); // ensure timer resets on page snap
+                      },
+                      itemBuilder: (context, index) {
+                        return Image.asset(
+                          widget.imagePaths[index],
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.high,
+                        );
+                      },
+                    ),
                   ),
 
-                  // "1/N" counter chip — top right
+                  // Glassmorphic premium chip — top right with fade
                   Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color.fromRGBO(0, 0, 0, 0.7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        "${_currentPage + 1}/${widget.imagePaths.length}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
+                    top: 14,
+                    right: 14,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 300),
+                      opacity: _showIndicator ? 1.0 : 0.0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                width: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              "${_currentPage + 1} of ${widget.imagePaths.length}",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -129,7 +175,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
                 height: isActive ? 7 : 5.5,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isActive ? Colors.black87 : Colors.grey.shade300,
+                  color: isActive 
+                      ? (isDark ? Colors.white : Colors.black87) 
+                      : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
                 ),
               );
             },

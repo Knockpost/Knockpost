@@ -153,7 +153,7 @@ class ShareSheet extends StatelessWidget {
                   onTap: () {
                     Navigator.pop(context);
                     Share.share(
-                      'Check out this reel by @$username on KnockPost!\n\n"$caption"\n\n$videoUrl',
+                      'Check out this glimpse by @$username on KnockPost!\n\n"$caption"\n\n$videoUrl',
                     );
                   },
                 ),
@@ -170,7 +170,7 @@ class ShareSheet extends StatelessWidget {
                           children: [
                             Icon(Icons.bookmark_added, color: Colors.white, size: 18),
                             SizedBox(width: 8),
-                            Text("Reel saved"),
+                            Text("Glimpse saved"),
                           ],
                         ),
                         backgroundColor: const Color(0xFF2D2D2D),

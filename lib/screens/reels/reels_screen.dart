@@ -14,6 +14,14 @@ class ReelsScreen extends StatefulWidget {
 class _ReelsScreenState extends State<ReelsScreen> {
   final PageController _pageController = PageController();
   int currentIndex = 0;
+  static const SystemUiOverlayStyle _reelsOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.black,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: Colors.transparent,
+  );
 
   final List<Map<String, String>> reels = [
     {
@@ -37,18 +45,49 @@ class _ReelsScreenState extends State<ReelsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _syncSystemUi();
+  }
+
+  @override
+  void didUpdateWidget(covariant ReelsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSystemUi();
+  }
+
+  void _syncSystemUi() {
+    if (widget.isVisible) {
+      SystemChrome.setSystemUIOverlayStyle(_reelsOverlayStyle);
+    }
+  }
+
+  @override
   void dispose() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(
+      (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+          .copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+            systemNavigationBarDividerColor: Colors.transparent,
+          ),
+    );
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // CustomBottomNav is 50px tall. ReelItem adds 20px internally.
+    // 30.0 + 20.0 = 50.0. This makes the text flush with the top of the nav bar, eliminating the gap.
+    final bottomNavHeight = 30.0 + MediaQuery.paddingOf(context).bottom;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-      ),
+      value: _reelsOverlayStyle,
       child: Scaffold(
         backgroundColor: Colors.black,
         extendBodyBehindAppBar: true,
@@ -59,8 +98,11 @@ class _ReelsScreenState extends State<ReelsScreen> {
               controller: _pageController,
               scrollDirection: Axis.vertical,
               itemCount: reels.length,
-              physics: const BouncingScrollPhysics(
-                decelerationRate: ScrollDecelerationRate.fast,
+              pageSnapping: true,
+              physics: const _FastReelsPagePhysics(
+                parent: BouncingScrollPhysics(
+                  decelerationRate: ScrollDecelerationRate.fast,
+                ),
               ),
               onPageChanged: (index) {
                 setState(() {
@@ -73,6 +115,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                   username: reels[index]["username"]!,
                   caption: reels[index]["caption"]!,
                   isActive: index == currentIndex && widget.isVisible,
+                  bottomPadding: bottomNavHeight,
                 );
               },
             ),
@@ -102,13 +145,17 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Reels",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                    // ignore: prefer_const_constructors
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: const Text(
+                        "Glimpse",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                     GestureDetector(
@@ -142,4 +189,23 @@ class _ReelsScreenState extends State<ReelsScreen> {
       ),
     );
   }
+}
+
+class _FastReelsPagePhysics extends PageScrollPhysics {
+  const _FastReelsPagePhysics({super.parent});
+
+  @override
+  _FastReelsPagePhysics applyTo(ScrollPhysics? ancestor) {
+    return _FastReelsPagePhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  SpringDescription get spring =>
+      const SpringDescription(mass: 0.7, stiffness: 220.0, damping: 26.0);
+
+  @override
+  double get minFlingVelocity => 260.0;
+
+  @override
+  double get maxFlingVelocity => 9000.0;
 }

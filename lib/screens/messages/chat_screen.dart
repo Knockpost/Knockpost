@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../utils/haptic_helper.dart';
+import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
 import 'media_preview_screen.dart';
 
@@ -53,7 +53,16 @@ class _ChatMessage {
 // ─────────────────────────────────────────────
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String userName;
+  final String userAvatar;
+  final String userUsername;
+
+  const ChatScreen({
+    super.key,
+    required this.userName,
+    required this.userAvatar,
+    required this.userUsername,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -199,6 +208,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isRecording = false);
     KnockHaptics.selection();
     if (_recordingPath != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Audio recorded (ready to send with backend)')));
     }
@@ -251,17 +261,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ]),
         ),
         const PopupMenuDivider(),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'block',
-          child: const Row(children: [
+          child: Row(children: [
             Icon(Icons.block_rounded, size: 20, color: Colors.red),
             SizedBox(width: 12),
             Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
           ]),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'report',
-          child: const Row(children: [
+          child: Row(children: [
             Icon(Icons.flag_outlined, size: 20, color: Colors.red),
             SizedBox(width: 12),
             Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -269,12 +279,16 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     ).then((value) {
-      if (value == null) return;
+      if (value == null || !mounted) return;
       KnockHaptics.selection();
       switch (value) {
         case 'profile':
           Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const MessageInfoScreen()));
+              builder: (_) => MessageInfoScreen(
+                userName: widget.userName,
+                userAvatar: widget.userAvatar,
+                userUsername: widget.userUsername,
+              )));
           break;
         case 'search':
           setState(() { _isSearching = true; });
@@ -292,7 +306,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showBlockDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Block Emma Brown?'),
+      title: Text('Block ${widget.userName}?'),
       content: const Text('They won\'t be able to message you anymore.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -307,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showReportDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Report Emma Brown?'),
+      title: Text('Report ${widget.userName}?'),
       content: const Text('Your report will be reviewed. Thank you for keeping Knockpost safe.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -349,7 +363,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const SizedBox(width: 12),
             Text('Edit', style: TextStyle(color: textColor, fontWeight: FontWeight.w500)),
           ])),
-        PopupMenuItem(value: 'delete', child: const Row(children: [
+        const PopupMenuItem(value: 'delete', child: Row(children: [
           Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
           SizedBox(width: 12),
           Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -357,7 +371,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ],
     );
 
-    if (value == null) return;
+    if (value == null || !mounted) return;
     KnockHaptics.selection();
     switch (value) {
       case 'reply': _setReply(message.id); break;
@@ -404,47 +418,52 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
-      child: Scaffold(
-        resizeToAvoidBottomInset: true,
-        backgroundColor: bgColor,
-        appBar: _isSearching
-            ? _buildSearchBar(isDark, textColor)
-            : _buildAppBar(isDark, textColor),
-        body: Column(
-          children: [
-            // ── Message List ──
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                reverse: true,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                itemCount: _filteredMessages.length,
-                itemBuilder: (context, index) {
-                  final msg = _filteredMessages[index];
-                  _ChatMessage? parentMsg;
-                  if (msg.replyToId != null) {
-                    try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
-                    catch (_) {}
-                  }
-                  return _buildMessageRow(
-                    msg, parentMsg,
-                    isDark, myBubbleColor, otherBubbleColor,
-                    textColor, subtleColor,
-                  );
-                },
-              ),
+      child: Stack(
+        children: [
+          Scaffold(
+            resizeToAvoidBottomInset: true,
+            backgroundColor: bgColor,
+            appBar: _isSearching
+                ? _buildSearchBar(isDark, textColor)
+                : _buildAppBar(isDark, textColor),
+            body: Column(
+              children: [
+                // ── Message List ──
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: _filteredMessages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _filteredMessages[index];
+                      _ChatMessage? parentMsg;
+                      if (msg.replyToId != null) {
+                        try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
+                        catch (_) {}
+                      }
+                      return _buildMessageRow(
+                        msg, parentMsg,
+                        isDark, myBubbleColor, otherBubbleColor,
+                        textColor, subtleColor,
+                      );
+                    },
+                  ),
+                ),
+
+                // ── Docks (only show when actively replying/editing) ──
+                if (_replyingToId != null)
+                  _buildDock(isDark, subtleColor, Icons.reply, 'Replying to message...', _cancelReply),
+                if (_editingMessageId != null)
+                  _buildDock(isDark, subtleColor, Icons.edit, 'Editing message', _cancelEdit),
+
+                // ── Input ──
+                _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
+              ],
             ),
-
-            // ── Docks (only show when actively replying/editing) ──
-            if (_replyingToId != null)
-              _buildDock(isDark, subtleColor, Icons.reply, 'Replying to message...', _cancelReply),
-            if (_editingMessageId != null)
-              _buildDock(isDark, subtleColor, Icons.edit, 'Editing message', _cancelEdit),
-
-            // ── Input ──
-            _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
-          ],
-        ),
+          ),
+          SystemNavBarFill(color: bgColor),
+        ],
       ),
     );
   }
@@ -469,14 +488,18 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       title: GestureDetector(
         onTap: () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const MessageInfoScreen())),
+            MaterialPageRoute(builder: (_) => MessageInfoScreen(
+              userName: widget.userName,
+              userAvatar: widget.userAvatar,
+              userUsername: widget.userUsername,
+            ))),
         child: Row(children: [
-          const CircleAvatar(radius: 18, backgroundImage: AssetImage("assets/test1.jpg")),
+          CircleAvatar(radius: 18, backgroundImage: AssetImage(widget.userAvatar)),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Emma Brown", style: TextStyle(
+            Text(widget.userName, style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
-            Text("Active now", style: TextStyle(
+            const Text("Active now", style: TextStyle(
               color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
         ]),
@@ -705,7 +728,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final pillBg = isDark ? const Color(0xFF2A2A2E) : const Color(0xFFF0F0F5);
     final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final divColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
-    final plusColor = isDark ? Colors.white : Colors.black;
 
     return Container(
       decoration: BoxDecoration(
@@ -801,7 +823,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: myBubbleColor,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.send_rounded,
                 color: Colors.white,
                 size: 22,
@@ -861,37 +883,6 @@ class _ChatScreenState extends State<ChatScreen> {
 // ─────────────────────────────────────────────
 // Reusable Widgets
 // ─────────────────────────────────────────────
-
-class _CircleButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final IconData icon;
-  final bool isDark;
-  final Color textColor;
-  final Color? backgroundColor;
-
-  const _CircleButton({
-    required this.onTap,
-    required this.icon,
-    required this.isDark,
-    required this.textColor,
-    this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(
-          color: backgroundColor ?? (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: textColor, size: 22),
-      ),
-    );
-  }
-}
 
 class _AttachmentOption extends StatelessWidget {
   final IconData icon;

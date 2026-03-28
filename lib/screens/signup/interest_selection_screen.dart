@@ -152,8 +152,9 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
@@ -170,11 +171,11 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Select topics to personalize your experience.",
                 style: TextStyle(
                   fontSize: 15,
-                  color: Colors.black54,
+                  color: isDark ? Colors.white54 : Colors.black54,
                 ),
               ),
               const SizedBox(height: 30),
@@ -194,23 +195,23 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                   height: 58,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: isDark ? Colors.white : Colors.black,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Center(
                     child: isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: isDark ? Colors.black : Colors.white,
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             "Continue",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: isDark ? Colors.black : Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
                             ),
@@ -222,11 +223,11 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               Center(
                 child: GestureDetector(
                   onTap: () { KnockHaptics.tap(); goLogin(); },
-                  child: const Text(
+                  child: Text(
                     "Already have an account? Log in",
                     style: TextStyle(
                       fontSize: 15,
-                      color: Colors.black54,
+                      color: isDark ? Colors.white54 : Colors.black54,
                     ),
                   ),
                 ),
@@ -252,6 +253,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
   }
 
   Widget buildChip(String label, {required bool isMain}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isSelected = selectedInterests.contains(label);
     return GestureDetector(
       onTap: () {
@@ -279,8 +281,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
         ),
         decoration: BoxDecoration(
           color: isSelected || expandedCategories.contains(label)
-              ? Colors.black
-              : const Color(0xFFF2F2F2),
+              ? (isDark ? Colors.white : Colors.black)
+              : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2)),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Text(
@@ -288,8 +290,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
           style: TextStyle(
             fontSize: 14,
             color: isSelected || expandedCategories.contains(label)
-                ? Colors.white
-                : Colors.black,
+                ? (isDark ? Colors.black : Colors.white)
+                : (isDark ? Colors.white : Colors.black),
             fontWeight: FontWeight.w500,
           ),
         ),
