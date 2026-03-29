@@ -1,15 +1,22 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 // ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-
+import 'package:image_picker/image_picker.dart';
+import '../utils/haptic_helper.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import '../widgets/post_card.dart';
 import 'create_post/create_post_screen.dart';
+import 'create_post/media_editor_screen.dart';
+import 'create_post/final_post_screen.dart';
+import 'create_post/post_settings_sheet.dart';
+import 'create_post/glimpse_editor_screen.dart';
+import 'create_post/glimpse_camera_screen.dart';
 import 'messages/messages_list_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
@@ -124,6 +131,299 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
+  final ImagePicker _imagePicker = ImagePicker();
+
+  void _showCreateMenu(
+    BuildContext context,
+    bool isDark,
+    Color bgColor,
+    Color textColor,
+  ) {
+    final sheetBg = isDark ? const Color(0xFF111111) : const Color(0xFFFAFAFA);
+    final labelColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final subColor = isDark ? const Color(0xFF888888) : const Color(0xFF999999);
+    final captionController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final screenHeight = MediaQuery.of(context).size.height;
+        return Container(
+          height: screenHeight * 0.6,
+          decoration: BoxDecoration(
+            color: sheetBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 14),
+                Container(
+                  width: 32,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Text compose area ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: isDark
+                            ? const Color(0xFF2A2A2A)
+                            : const Color(0xFFEEEEEE),
+                        child: Icon(
+                          Icons.person_outline_rounded,
+                          size: 22,
+                          color: isDark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: TextField(
+                          controller: captionController,
+                          maxLines: 3,
+                          minLines: 1,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: labelColor,
+                            height: 1.5,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "What's on your mind?",
+                            hintStyle: TextStyle(
+                              fontSize: 16,
+                              color: subColor,
+                              fontWeight: FontWeight.w300,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Send button row
+                Padding(
+                  padding: const EdgeInsets.only(right: 20, top: 4),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SizedBox(
+                      height: 34,
+                      child: TextButton(
+                        onPressed: () async {
+                          final text = captionController.text.trim();
+                          if (text.isEmpty) return;
+                          KnockHaptics.tap();
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          final settings = await showPostSettingsSheet(
+                            context,
+                            isGlimpse: false,
+                          );
+                          if (settings == null || !mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FinalPostScreen(
+                                files: const [],
+                                initialCaption: text,
+                                isGlimpse: false,
+                                selectedDuration: settings.duration,
+                                selectedAudience: settings.audience,
+                              ),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor: isDark
+                              ? Colors.white
+                              : const Color(0xFF1A1A1A),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: Text(
+                          "Send",
+                          style: TextStyle(
+                            color: isDark ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // ── Action list ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      _createMenuItem(
+                        icon: Icons.camera_alt_rounded,
+                        label: "Camera",
+                        subtitle: "Capture a moment",
+                        isDark: isDark,
+                        onTap: () async {
+                          KnockHaptics.tap();
+                          Navigator.pop(ctx);
+                          final XFile? photo = await _imagePicker.pickImage(
+                            source: ImageSource.camera,
+                            imageQuality: 85,
+                          );
+                          if (photo != null && mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MediaEditorScreen(
+                                  files: [File(photo.path)],
+                                  initialCaption: captionController.text.trim(),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _createMenuItem(
+                        icon: Icons.collections_rounded,
+                        label: "Photo / Media",
+                        subtitle: "Choose from gallery",
+                        isDark: isDark,
+                        onTap: () async {
+                          KnockHaptics.tap();
+                          Navigator.pop(ctx);
+                          final List<XFile> files =
+                              await _imagePicker.pickMultiImage(imageQuality: 80);
+                          if (files.isNotEmpty && mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MediaEditorScreen(
+                                  files: files.map((e) => File(e.path)).toList(),
+                                  initialCaption: captionController.text.trim(),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _createMenuItem(
+                        icon: Icons.auto_awesome_rounded,
+                        label: "Glimpse",
+                        subtitle: "Share moments with music",
+                        isDark: isDark,
+                        onTap: () async {
+                          KnockHaptics.tap();
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const GlimpseCameraScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _createMenuItem({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    final iconBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0);
+    final iconColor = isDark ? Colors.grey.shade300 : const Color(0xFF555555);
+    final titleColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final subtitleColor = isDark
+        ? const Color(0xFF666666)
+        : const Color(0xFF999999);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 22, color: iconColor),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: titleColor,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: subtitleColor),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -182,11 +482,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: FloatingActionButton(
                           backgroundColor: textColor,
                           onPressed: () {
-                            Navigator.push(
+                            KnockHaptics.tap();
+                            _showCreateMenu(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => const CreatePostScreen(),
-                              ),
+                              isDark,
+                              bgColor,
+                              textColor,
                             );
                           },
                           child: Icon(Icons.add, color: bgColor),
