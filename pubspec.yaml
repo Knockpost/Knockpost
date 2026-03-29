@@ -29,6 +29,9 @@ dependencies:
   pro_image_editor: ^12.0.7
   flutter_native_splash: ^2.4.7
   image_cropper: ^12.0.0
+  camera: ^0.12.0+1
+  photo_manager: ^3.9.0
+  just_audio: ^0.10.5
 
 dev_dependencies:
   flutter_test:

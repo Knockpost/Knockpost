@@ -7,8 +7,9 @@ enum PostDuration {
 }
 
 enum PostType {
-  media, // Image(s) / video
+  media, // Image(s)
   text, // Text-only
+  glimpse, // Video up to 2m30s
 }
 
 class PostModel {
