@@ -6,8 +6,9 @@ import '../../../models/user_model.dart';
 class CreatorRankBadge extends StatelessWidget {
   final CreatorRank rank;
   final bool large;
+  final bool mini;
 
-  const CreatorRankBadge({super.key, required this.rank, this.large = false});
+  const CreatorRankBadge({super.key, required this.rank, this.large = false, this.mini = false});
 
   static Color rankColor(CreatorRank rank) {
     switch (rank) {
@@ -35,9 +36,15 @@ class CreatorRankBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = rankColor(rank);
     final label = rank.name.toUpperCase();
-    final fs = large ? 10.0 : 8.0;
-    final px = large ? 8.0 : 6.3;
-    final py = large ? 3.6 : 2.25;
+
+    late final double fs, px, py;
+    if (large) {
+      fs = 10.0; px = 8.0; py = 3.6;
+    } else if (mini) {
+      fs = 8.5; px = 5.8; py = 2.0;
+    } else {
+      fs = 8.0; px = 6.3; py = 2.25;
+    }
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: px, vertical: py),
@@ -50,8 +57,8 @@ class CreatorRankBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.35),
-            blurRadius: 6,
+            color: color.withValues(alpha: mini ? 0.2 : 0.35),
+            blurRadius: mini ? 3 : 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -62,7 +69,7 @@ class CreatorRankBadge extends StatelessWidget {
           fontSize: fs,
           fontWeight: FontWeight.w800,
           color: Colors.white,
-          letterSpacing: 0.8,
+          letterSpacing: mini ? 0.6 : 0.8,
         ),
       ),
     );

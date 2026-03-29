@@ -11,6 +11,7 @@ import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import '../widgets/post_card.dart';
+import '../widgets/thought_card.dart';
 import 'create_post/create_post_screen.dart';
 import 'create_post/media_editor_screen.dart';
 import 'create_post/final_post_screen.dart';
@@ -21,6 +22,7 @@ import 'messages/messages_list_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
 import 'search/search_screen.dart';
+import '../widgets/system_nav_bar_fill.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,17 +40,40 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showBars = true;
   int _currentNavIndex = 0;
 
-  final List<List<String>> _demoPostImages = const [
-    [
-      "assets/test1.jpg",
-      "assets/test2.jpg",
-      "assets/test3.jpg",
-      "assets/test4.jpg",
-    ],
-    ["assets/test3.jpg"],
-    ["assets/test2.jpg", "assets/test4.jpg", "assets/test1.jpg"],
-    ["assets/test4.jpg", "assets/test2.jpg"],
-    ["assets/test1.jpg"],
+  /// Each feed post: the user who posted, their images, and a caption.
+  final List<({UserModel user, List<String> images, String caption})>
+      _demoFeedPosts = const [
+    (
+      user: demoZaynMalik,
+      images: [
+        'assets/test1.jpg',
+        'assets/test2.jpg',
+        'assets/test3.jpg',
+        'assets/test4.jpg',
+      ],
+      caption:
+          'Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body.',
+    ),
+    (
+      user: demoSaptarshiNayak,
+      images: [],
+      caption: 'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
+    ),
+    (
+      user: demoSaptarshiNayak,
+      images: ['assets/test3.jpg'],
+      caption: 'Morning run hits different 🏃',
+    ),
+    (
+      user: demoAryaLayek,
+      images: ['assets/test2.jpg', 'assets/test4.jpg', 'assets/test1.jpg'],
+      caption: 'A weekend well spent ✨',
+    ),
+    (
+      user: demoJustinBieber,
+      images: ['assets/test4.jpg', 'assets/test2.jpg'],
+      caption: 'Golden hour was different today 🌅',
+    ),
   ];
 
   @override
@@ -451,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
         systemNavigationBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
-        systemNavigationBarDividerColor: isReelsTab ? Colors.black : bgColor,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: PopScope(
         canPop: _currentNavIndex == 0,
@@ -470,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
               extendBody: true,
 
               // ── FAB (X/Twitter-style fade + scale) ──────────────────
-              floatingActionButton: _currentNavIndex == 0
+              floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
                   ? AnimatedOpacity(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeOut,
@@ -562,33 +587,48 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                             body: ListView.builder(
                               padding: const EdgeInsets.only(bottom: 90),
-                              itemCount: _demoPostImages.length + 1,
+                              itemCount: _demoFeedPosts.length + 1,
                               itemBuilder: (context, index) {
                                 const stripIndex = 2;
+                                final totalItems = _demoFeedPosts.length + 1;
+                                final isLast = index == totalItems - 1;
+                                final dividerColor = isDark
+                                    ? const Color(0xFF2A2A2A)
+                                    : const Color(0xFFE8E8E8);
+                                final divider = Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: dividerColor,
+                                );
 
+                                Widget content;
                                 if (index == stripIndex) {
-                                  return const PeopleSuggestionStrip();
-                                }
+                                  content = const PeopleSuggestionStrip();
+                                } else {
+                                  final postIndex = index < stripIndex
+                                      ? index
+                                      : index - 1;
+                                  final post = _demoFeedPosts[postIndex];
 
-                                final postIndex = index < stripIndex
-                                    ? index
-                                    : index - 1;
-                                final isLast =
-                                    postIndex == _demoPostImages.length - 1;
+                                  if (post.images.isEmpty) {
+                                    content = ThoughtCard(
+                                      user: post.user,
+                                      text: post.caption,
+                                    );
+                                  } else {
+                                    content = PostCard(
+                                      imagePaths: post.images,
+                                      user: post.user,
+                                      caption: post.caption,
+                                    );
+                                  }
+                                }
 
                                 return Column(
                                   children: [
-                                    PostCard(
-                                      imagePaths: _demoPostImages[postIndex],
-                                    ),
-                                    if (!isLast && index != stripIndex - 1)
-                                      Divider(
-                                        thickness: 6,
-                                        height: 6,
-                                        color: isDark
-                                            ? const Color(0xff121212)
-                                            : const Color(0xfff0f0f0),
-                                      ),
+                                    divider,
+                                    content,
+                                    if (isLast) divider,
                                   ],
                                 );
                               },
@@ -607,9 +647,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const _KeepAlivePage(child: MessagesScreen()),
                       _KeepAlivePage(
-                        child: ProfileScreen(
-                          user: demoOwnUser,
-                          posts: demoOwnPosts,
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: _onScrollNotification,
+                          child: ProfileScreen(
+                            user: demoOwnUser,
+                            posts: demoOwnPosts,
+                          ),
                         ),
                       ),
                     ],
@@ -643,17 +686,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // ── SOLID BAR BEHIND SYSTEM NAVIGATION BAR ──────────────────
             // On Android 15+ the system nav bar is always transparent.
             // This draws a solid color behind it so it looks opaque.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                child: Container(
-                  height: MediaQuery.of(context).viewPadding.bottom,
-                  color: bgColor,
-                ),
-              ),
-            ),
+            SystemNavBarFill(color: bgColor),
           ],
         ),
       ),

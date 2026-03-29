@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../theme/theme_controller.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/system_nav_bar_fill.dart';
 import 'widgets/creator_rank_badge.dart';
 import 'widgets/profile_ui_helpers.dart';
 import 'edit_profile_screen.dart';
@@ -58,7 +59,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -328,6 +331,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ],
         ),
       ),
+          SystemNavBarFill(color: bg),
+        ],
+      ),
     );
   }
 }
@@ -427,7 +433,9 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -526,6 +534,9 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
           ],
         ),
       ),
+          SystemNavBarFill(color: bg),
+        ],
+      ),
     );
   }
 }
@@ -554,7 +565,9 @@ class _AccountSettingsScreen extends StatelessWidget {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -624,6 +637,9 @@ class _AccountSettingsScreen extends StatelessWidget {
           ],
         ),
       ),
+          SystemNavBarFill(color: bg),
+        ],
+      ),
     );
   }
 }
@@ -666,7 +682,9 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -718,6 +736,9 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
           ],
         ),
       ),
+          SystemNavBarFill(color: bg),
+        ],
+      ),
     );
   }
 }
@@ -764,7 +785,9 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -921,6 +944,9 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
             ),
           ],
         ),
+      ),
+          SystemNavBarFill(color: bg),
+        ],
       ),
     );
   }
@@ -1147,7 +1173,9 @@ class _ProfessionalStatsScreen extends StatelessWidget {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -1241,6 +1269,9 @@ class _ProfessionalStatsScreen extends StatelessWidget {
           ],
         ),
       ),
+          SystemNavBarFill(color: bg),
+        ],
+      ),
     );
   }
 }
@@ -1288,7 +1319,9 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -1360,6 +1393,9 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
             ),
           ],
         ),
+      ),
+          SystemNavBarFill(color: bg),
+        ],
       ),
     );
   }

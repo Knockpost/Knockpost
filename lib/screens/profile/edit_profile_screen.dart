@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/system_nav_bar_fill.dart';
 import 'widgets/profile_ui_helpers.dart';
 
 /// Edit Profile — edit name, username, bio, avatar, Open/Private toggle
@@ -268,7 +269,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           backgroundColor: bg,
@@ -521,6 +524,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ],
         ),
+      ),
+          SystemNavBarFill(color: bg),
+        ],
       ),
     );
   }

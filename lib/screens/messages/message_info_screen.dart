@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
+import '../../models/post_model.dart';
 import '../../widgets/people_suggestion_strip.dart';
 import '../profile/other_profile_screen.dart';
 
@@ -41,11 +42,9 @@ class MessageInfoScreen extends StatelessWidget {
               onTap: () {
                 // Look up from the same demoSuggestedUsers used by "People you may know"
                 UserModel? found;
-                int seedIndex = 1;
                 for (int i = 0; i < demoSuggestedUsers.length; i++) {
                   if (demoSuggestedUsers[i].username == userUsername) {
                     found = demoSuggestedUsers[i];
-                    seedIndex = i + 1;
                     break;
                   }
                 }
@@ -63,7 +62,7 @@ class MessageInfoScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (_) => OtherProfileScreen(
                       user: userModel,
-                      posts: buildSuggestionPosts(userModel.id, seed: seedIndex),
+                      posts: getDemoPostsForUser(userModel.id),
                     ),
                   ),
                 );

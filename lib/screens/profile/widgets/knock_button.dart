@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../../utils/global_knock_state.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 
 /// Knock button with instant acceptance for open profiles and pending for private.
 /// Designed to be used inside an Expanded widget, matching Edit button sizing.
 class KnockButton extends StatefulWidget {
+  final String userId;
   final KnockStatus initialStatus;
   final PrivacyType privacyType;
   final AccountType accountType;
@@ -13,6 +15,7 @@ class KnockButton extends StatefulWidget {
 
   const KnockButton({
     super.key,
+    required this.userId,
     required this.initialStatus,
     this.privacyType = PrivacyType.open,
     this.accountType = AccountType.normal,
@@ -26,6 +29,7 @@ class KnockButton extends StatefulWidget {
 
 class _KnockButtonState extends State<KnockButton>
     with SingleTickerProviderStateMixin {
+  late ValueNotifier<KnockStatus> _globalNotifier;
   late KnockStatus _status;
   late AnimationController _scaleController;
   late Animation<double> _scaleAnim;
@@ -33,7 +37,10 @@ class _KnockButtonState extends State<KnockButton>
   @override
   void initState() {
     super.initState();
-    _status = widget.initialStatus;
+    _globalNotifier = GlobalKnockState.getNotifier(widget.userId, widget.initialStatus);
+    _status = _globalNotifier.value;
+    _globalNotifier.addListener(_onGlobalChange);
+
     _scaleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 120),
@@ -44,8 +51,15 @@ class _KnockButtonState extends State<KnockButton>
     _scaleAnim = _scaleController;
   }
 
+  void _onGlobalChange() {
+    if (mounted && _status != _globalNotifier.value) {
+      setState(() => _status = _globalNotifier.value);
+    }
+  }
+
   @override
   void dispose() {
+    _globalNotifier.removeListener(_onGlobalChange);
     _scaleController.dispose();
     super.dispose();
   }
@@ -53,8 +67,11 @@ class _KnockButtonState extends State<KnockButton>
   @override
   void didUpdateWidget(covariant KnockButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialStatus != widget.initialStatus) {
-      _status = widget.initialStatus;
+    if (oldWidget.userId != widget.userId) {
+      _globalNotifier.removeListener(_onGlobalChange);
+      _globalNotifier = GlobalKnockState.getNotifier(widget.userId, widget.initialStatus);
+      _status = _globalNotifier.value;
+      _globalNotifier.addListener(_onGlobalChange);
     }
   }
 
@@ -67,23 +84,25 @@ class _KnockButtonState extends State<KnockButton>
     KnockHaptics.tap();
     _scaleController.reverse().then((_) => _scaleController.forward());
 
-    setState(() {
-      switch (_status) {
-        case KnockStatus.none:
-          _status = _isEffectivelyOpen
-              ? KnockStatus.knocked
-              : KnockStatus.pending;
-          break;
-        case KnockStatus.pending:
-        case KnockStatus.knocked:
-        case KnockStatus.mutualKnocked:
-          _status = KnockStatus.none;
-          break;
-        case KnockStatus.theyKnockedYou:
-          _status = KnockStatus.mutualKnocked;
-          break;
-      }
-    });
+    KnockStatus nextStatus = _status;
+    switch (_status) {
+      case KnockStatus.none:
+        nextStatus = _isEffectivelyOpen
+            ? KnockStatus.knocked
+            : KnockStatus.pending;
+        break;
+      case KnockStatus.pending:
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+        nextStatus = KnockStatus.none;
+        break;
+      case KnockStatus.theyKnockedYou:
+        nextStatus = KnockStatus.mutualKnocked;
+        break;
+    }
+
+    setState(() => _status = nextStatus);
+    _globalNotifier.value = nextStatus;
 
     widget.onStatusChanged?.call(_status);
   }

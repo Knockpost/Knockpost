@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
+import '../../../models/user_model.dart';
+import '../../../widgets/thought_card.dart';
 import 'profile_ui_helpers.dart';
 
-/// Scrollable list of text-only posts (Text tab on profile).
+/// Scrollable list of text-only posts (Thoughts tab on profile).
+/// Uses the same ThoughtCard widget as the home feed.
 class TextPostsSection extends StatelessWidget {
   final List<PostModel> posts;
+  final UserModel? user;
+  final TabController? tabController;
+  final bool isOwnProfile;
 
-  const TextPostsSection({super.key, required this.posts});
+  const TextPostsSection({
+    super.key,
+    required this.posts,
+    this.user,
+    this.tabController,
+    this.isOwnProfile = true,
+  });
 
   List<PostModel> get _textPosts =>
       posts.where((p) => p.type == PostType.text).toList()
@@ -18,171 +30,51 @@ class TextPostsSection extends StatelessWidget {
     final textPosts = _textPosts;
 
     if (textPosts.isEmpty) {
-      return const ProfileEmptySection(
-        icon: Icons.edit_note_rounded,
-        message: 'No text posts yet.\nWrite something worth saying.',
+      return ProfileEmptySection(
+        icon: Icons.format_quote_rounded,
+        message: 'No thoughts yet',
+        subtitle: isOwnProfile
+            ? 'Share what you feel'
+            : 'No thoughts shared yet',
+        gradientColors: const [Color(0xFFB388FF), Color(0xFF7C4DFF)],
+        tabController: tabController,
+        tabIndex: 2,
       );
     }
 
-    return ListView.separated(
+    final dividerColor = isDark
+        ? const Color(0xFF2A2A2A)
+        : const Color(0xFFE8E8E8);
+
+    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+    return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      padding: const EdgeInsets.only(top: 4, bottom: 20),
+      padding: const EdgeInsets.only(bottom: 20),
       itemCount: textPosts.length,
-      separatorBuilder: (_, __) => Divider(
-        height: 1,
-        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-      ),
-      itemBuilder: (context, i) => _TextPostTile(
-        post: textPosts[i],
-        isDark: isDark,
-      ),
-    );
-  }
-}
+      itemBuilder: (context, i) {
+        final post = textPosts[i];
+        final isLast = i == textPosts.length - 1;
 
-class _TextPostTile extends StatefulWidget {
-  final PostModel post;
-  final bool isDark;
-
-  const _TextPostTile({required this.post, required this.isDark});
-
-  @override
-  State<_TextPostTile> createState() => _TextPostTileState();
-}
-
-class _TextPostTileState extends State<_TextPostTile> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = widget.isDark ? Colors.white : Colors.black;
-    final subColor = widget.isDark ? Colors.white54 : Colors.black45;
-    final accentColor = widget.isDark ? Colors.white60 : Colors.black45;
-
-    return GestureDetector(
-      onTap: () => setState(() => _expanded = !_expanded),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Column(
           children: [
-            AnimatedCrossFade(
-              firstChild: Text(
-                widget.post.text,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: textColor,
-                  height: 1.5,
-                  fontWeight: FontWeight.w400,
-                ),
+            divider,
+            ThoughtCard(
+              user: user ?? const UserModel(
+                id: 'unknown',
+                displayName: 'User',
+                username: 'user',
+                friendsCount: 0,
+                accountType: AccountType.normal,
+                knockStatus: KnockStatus.none,
               ),
-              secondChild: Text(
-                widget.post.text,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: textColor,
-                  height: 1.5,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              crossFadeState: _expanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 220),
+              text: post.text,
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  widget.post.relativeTime,
-                  style: TextStyle(fontSize: 11, color: subColor),
-                ),
-                const SizedBox(width: 12),
-                Icon(Icons.favorite_border_rounded,
-                    size: 12, color: subColor),
-                const SizedBox(width: 3),
-                Text(
-                  '${widget.post.likes}',
-                  style: TextStyle(fontSize: 11, color: subColor),
-                ),
-                const SizedBox(width: 10),
-                Icon(Icons.visibility_outlined, size: 12, color: subColor),
-                const SizedBox(width: 3),
-                Text(
-                  '${widget.post.views}',
-                  style: TextStyle(fontSize: 11, color: subColor),
-                ),
-                const Spacer(),
-                _DurationChip(duration: widget.post.duration),
-              ],
-            ),
-            if (!_expanded && widget.post.text.length > 100)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'Tap to read more',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: accentColor,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
+            if (isLast) divider,
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DurationChip extends StatelessWidget {
-  final PostDuration duration;
-
-  const _DurationChip({required this.duration});
-
-  String get label {
-    switch (duration) {
-      case PostDuration.h24:
-        return '24h';
-      case PostDuration.h36:
-        return '36h';
-      case PostDuration.lifetime:
-        return '∞';
-    }
-  }
-
-  Color get color {
-    switch (duration) {
-      case PostDuration.h24:
-        return const Color(0xFFFF6B6B);
-      case PostDuration.h36:
-        return const Color(0xFFFF9F43);
-      case PostDuration.lifetime:
-        return const Color(0xFF2B8EFF);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
+        );
+      },
     );
   }
 }
