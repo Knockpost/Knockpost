@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'signup_verification_screen.dart';
@@ -29,25 +30,26 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
     });
 
     try {
-      // 1. Store email locally for verification later
+      debugPrint("Auth Stage 1: Storing email $email for link");
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('email_for_link', email);
 
-      // 2. Configure ActionCodeSettings for passwordless link
+      debugPrint("Auth Stage 2: Configuring ActionCodeSettings");
       final actionCodeSettings = ActionCodeSettings(
-        url: 'https://knockpost-84b21.firebaseapp.com', // Must be an authorized domain
+        url: 'https://knockpost-84b21.firebaseapp.com', 
         handleCodeInApp: true,
         androidPackageName: 'com.example.knockpost',
         androidInstallApp: true,
         androidMinimumVersion: '12',
       );
 
-      // 3. Send the link
+      debugPrint("Auth Stage 3: Sending link to $email");
       await FirebaseAuth.instance.sendSignInLinkToEmail(
         email: email,
         actionCodeSettings: actionCodeSettings,
       );
 
+      debugPrint("Auth Stage 4: Link sent successfully");
       if (mounted) {
         Navigator.push(
           context,
@@ -59,6 +61,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint("Auth ERROR (Firebase): [${e.code}] ${e.message}");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -68,6 +71,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
         );
       }
     } catch (e) {
+      debugPrint("Auth ERROR (Generic): $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e")),
@@ -91,8 +95,9 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -106,23 +111,21 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                 children: [
 
                   GestureDetector(
-                    onTap: goBackToLogin,
-                    child: const Icon(
+                    onTap: () { KnockHaptics.tap(); goBackToLogin(); },
+                    child: Icon(
                       Icons.arrow_back,
                       size: 25,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
 
                   const Spacer(),
 
-                  SizedBox(
-                    height: 33,
-                    width: 33,
-                    child: Image.asset(
-                      "assets/icon(white).png",
-                      fit: BoxFit.contain,
-                    ),
+                  Image.asset(
+                    isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.contain,
                   ),
 
                 ],
@@ -153,11 +156,11 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                     const SizedBox(height: 14),
 
-                    const Text(
+                    Text(
                       "Enter the email where we can reach you. This will be used to secure and access your account.",
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.black54,
+                        color: isDark ? Colors.white54 : Colors.black54,
                         height: 1.5,
                       ),
                     ),
@@ -166,16 +169,18 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F2F2),
+                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
                           hintText: "Email address",
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 20,
                           ),
@@ -186,28 +191,28 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: isLoading ? null : goNext,
+                      onTap: isLoading ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: isDark ? Colors.white : Colors.black,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.black : Colors.white,
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   "Next",
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.black : Colors.white,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -220,12 +225,12 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
                     Center(
                       child: GestureDetector(
-                        onTap: goBackToLogin,
-                        child: const Text(
+                        onTap: () { KnockHaptics.tap(); goBackToLogin(); },
+                        child: Text(
                           "I already have an account",
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.black54,
+                            color: isDark ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ),

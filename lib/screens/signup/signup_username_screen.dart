@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
@@ -103,8 +104,9 @@ class _SignupUsernameScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -118,23 +120,21 @@ class _SignupUsernameScreenState
                 children: [
 
                   GestureDetector(
-                    onTap: goBack,
-                    child: const Icon(
+                    onTap: () { KnockHaptics.tap(); goBack(); },
+                    child: Icon(
                       Icons.arrow_back,
                       size: 25,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
 
                   const Spacer(),
 
-                  SizedBox(
-                    height: 33,
-                    width: 33,
-                    child: Image.asset(
-                      "assets/icon(white).png",
-                      fit: BoxFit.contain,
-                    ),
+                  Image.asset(
+                    isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.contain,
                   ),
 
                 ],
@@ -164,11 +164,11 @@ class _SignupUsernameScreenState
 
                     const SizedBox(height: 14),
 
-                    const Text(
+                    Text(
                       "This will be your unique identity on KnockPost.",
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.black54,
+                        color: isDark ? Colors.white54 : Colors.black54,
                         height: 1.5,
                       ),
                     ),
@@ -177,15 +177,17 @@ class _SignupUsernameScreenState
 
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F2F2),
+                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextField(
                         controller: usernameController,
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
                           hintText: "Username",
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 20,
                           ),
@@ -196,28 +198,28 @@ class _SignupUsernameScreenState
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: isLoading ? null : goNext,
+                      onTap: isLoading ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: isDark ? Colors.white : Colors.black,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.black : Colors.white,
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   "Next",
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.black : Colors.white,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -230,12 +232,12 @@ class _SignupUsernameScreenState
 
                     Center(
                       child: GestureDetector(
-                        onTap: goLogin,
-                        child: const Text(
+                        onTap: () { KnockHaptics.tap(); goLogin(); },
+                        child: Text(
                           "Already have an account? Log in",
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.black54,
+                            color: isDark ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ),

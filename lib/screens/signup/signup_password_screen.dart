@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
@@ -96,8 +97,9 @@ class _SignupPasswordScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -111,23 +113,21 @@ class _SignupPasswordScreenState
                 children: [
 
                   GestureDetector(
-                    onTap: goBack,
-                    child: const Icon(
+                    onTap: () { KnockHaptics.tap(); goBack(); },
+                    child: Icon(
                       Icons.arrow_back,
                       size: 25,
-                      color: Colors.black,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
 
                   const Spacer(),
 
-                  SizedBox(
-                    height: 33,
-                    width: 33,
-                    child: Image.asset(
-                      "assets/icon(white).png",
-                      fit: BoxFit.contain,
-                    ),
+                  Image.asset(
+                    isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.contain,
                   ),
 
                 ],
@@ -157,11 +157,11 @@ class _SignupPasswordScreenState
 
                     const SizedBox(height: 14),
 
-                    const Text(
+                    Text(
                       "Make sure it's strong and secure.",
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.black54,
+                        color: isDark ? Colors.white54 : Colors.black54,
                         height: 1.5,
                       ),
                     ),
@@ -170,14 +170,16 @@ class _SignupPasswordScreenState
 
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF2F2F2),
+                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextField(
                         controller: passwordController,
                         obscureText: isObscured,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
                         decoration: InputDecoration(
                           hintText: "Password",
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -188,9 +190,10 @@ class _SignupPasswordScreenState
                               isObscured
                                   ? Icons.visibility_off
                                   : Icons.visibility,
-                              color: Colors.black54,
+                              color: isDark ? Colors.white54 : Colors.black54,
                             ),
                             onPressed: () {
+                              KnockHaptics.selection();
                               setState(() {
                                 isObscured = !isObscured;
                               });
@@ -203,19 +206,19 @@ class _SignupPasswordScreenState
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: goNext,
+                      onTap: () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: isDark ? Colors.white : Colors.black,
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             "Next",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: isDark ? Colors.black : Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
                             ),
@@ -228,12 +231,12 @@ class _SignupPasswordScreenState
 
                     Center(
                       child: GestureDetector(
-                        onTap: goLogin,
-                        child: const Text(
+                        onTap: () { KnockHaptics.tap(); goLogin(); },
+                        child: Text(
                           "Already have an account? Log in",
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.black54,
+                            color: isDark ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ),

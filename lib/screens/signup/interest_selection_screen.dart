@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -151,8 +152,9 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
@@ -169,11 +171,11 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Select topics to personalize your experience.",
                 style: TextStyle(
                   fontSize: 15,
-                  color: Colors.black54,
+                  color: isDark ? Colors.white54 : Colors.black54,
                 ),
               ),
               const SizedBox(height: 30),
@@ -188,28 +190,28 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: isLoading ? null : createAccount,
+                onTap: isLoading ? null : () { KnockHaptics.tap(); createAccount(); },
                 child: Container(
                   height: 58,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: isDark ? Colors.white : Colors.black,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Center(
                     child: isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: isDark ? Colors.black : Colors.white,
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             "Continue",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: isDark ? Colors.black : Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
                             ),
@@ -220,12 +222,12 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               const SizedBox(height: 22),
               Center(
                 child: GestureDetector(
-                  onTap: goLogin,
-                  child: const Text(
+                  onTap: () { KnockHaptics.tap(); goLogin(); },
+                  child: Text(
                     "Already have an account? Log in",
                     style: TextStyle(
                       fontSize: 15,
-                      color: Colors.black54,
+                      color: isDark ? Colors.white54 : Colors.black54,
                     ),
                   ),
                 ),
@@ -251,9 +253,11 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
   }
 
   Widget buildChip(String label, {required bool isMain}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isSelected = selectedInterests.contains(label);
     return GestureDetector(
       onTap: () {
+        KnockHaptics.selection();
         setState(() {
           if (isMain) {
             if (expandedCategories.contains(label)) {
@@ -277,8 +281,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
         ),
         decoration: BoxDecoration(
           color: isSelected || expandedCategories.contains(label)
-              ? Colors.black
-              : const Color(0xFFF2F2F2),
+              ? (isDark ? Colors.white : Colors.black)
+              : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2)),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Text(
@@ -286,8 +290,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
           style: TextStyle(
             fontSize: 14,
             color: isSelected || expandedCategories.contains(label)
-                ? Colors.white
-                : Colors.black,
+                ? (isDark ? Colors.black : Colors.white)
+                : (isDark ? Colors.white : Colors.black),
             fontWeight: FontWeight.w500,
           ),
         ),
