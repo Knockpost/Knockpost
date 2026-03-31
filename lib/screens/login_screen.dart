@@ -455,15 +455,39 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       debugPrint("Firebase Login Error: ${e.code} - ${e.message}");
       if (mounted) {
+        String errorMsg = "Authentication failed";
+        if (e.code == 'invalid-credential') {
+          errorMsg = "Invalid Google credentials. Please try signing in again.";
+        } else if (e.code == 'account-exists-with-different-credential') {
+          errorMsg = "Account already exists with a different sign-in method.";
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? "Authentication failed")),
+          SnackBar(content: Text("${e.message} (Code: ${e.code})")),
         );
       }
     } catch (e) {
-      debugPrint("Google Sign-In Error: $e");
+      debugPrint("Google Sign-In Detailed Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google Sign-In failed: $e")),
+          SnackBar(
+            content: Text("Google Sign-In failed. Error: $e"),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: "Details",
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Sign-In Error Details"),
+                    content: SingleChildScrollView(child: Text(e.toString())),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         );
       }
     } finally {
