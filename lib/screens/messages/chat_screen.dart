@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../utils/haptic_helper.dart';
+import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
 import 'media_preview_screen.dart';
 
@@ -53,7 +53,16 @@ class _ChatMessage {
 // ─────────────────────────────────────────────
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String userName;
+  final String userAvatar;
+  final String userUsername;
+
+  const ChatScreen({
+    super.key,
+    required this.userName,
+    required this.userAvatar,
+    required this.userUsername,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -70,6 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _hasText = false;
   bool _isRecording = false;
   String? _recordingPath;
+  bool _isAttachmentDrawerOpen = false;
 
   // Search state
   bool _isSearching = false;
@@ -97,6 +107,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final hasText = _messageController.text.trim().isNotEmpty;
       if (hasText != _hasText) setState(() => _hasText = hasText);
     });
+
+    // No longer auto-close attachment drawer when keyboard appears
+    // so the drawer can sit between the input bar and keyboard.
   }
 
   @override
@@ -199,6 +212,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isRecording = false);
     KnockHaptics.selection();
     if (_recordingPath != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Audio recorded (ready to send with backend)')));
     }
@@ -251,17 +265,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ]),
         ),
         const PopupMenuDivider(),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'block',
-          child: const Row(children: [
+          child: Row(children: [
             Icon(Icons.block_rounded, size: 20, color: Colors.red),
             SizedBox(width: 12),
             Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
           ]),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'report',
-          child: const Row(children: [
+          child: Row(children: [
             Icon(Icons.flag_outlined, size: 20, color: Colors.red),
             SizedBox(width: 12),
             Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -269,12 +283,16 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
     ).then((value) {
-      if (value == null) return;
+      if (value == null || !mounted) return;
       KnockHaptics.selection();
       switch (value) {
         case 'profile':
           Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const MessageInfoScreen()));
+              builder: (_) => MessageInfoScreen(
+                userName: widget.userName,
+                userAvatar: widget.userAvatar,
+                userUsername: widget.userUsername,
+              )));
           break;
         case 'search':
           setState(() { _isSearching = true; });
@@ -292,7 +310,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showBlockDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Block Emma Brown?'),
+      title: Text('Block ${widget.userName}?'),
       content: const Text('They won\'t be able to message you anymore.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -307,7 +325,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showReportDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Report Emma Brown?'),
+      title: Text('Report ${widget.userName}?'),
       content: const Text('Your report will be reviewed. Thank you for keeping Knockpost safe.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -349,7 +367,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const SizedBox(width: 12),
             Text('Edit', style: TextStyle(color: textColor, fontWeight: FontWeight.w500)),
           ])),
-        PopupMenuItem(value: 'delete', child: const Row(children: [
+        const PopupMenuItem(value: 'delete', child: Row(children: [
           Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
           SizedBox(width: 12),
           Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -357,7 +375,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ],
     );
 
-    if (value == null) return;
+    if (value == null || !mounted) return;
     KnockHaptics.selection();
     switch (value) {
       case 'reply': _setReply(message.id); break;
@@ -404,47 +422,56 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
-      child: Scaffold(
-        resizeToAvoidBottomInset: true,
-        backgroundColor: bgColor,
-        appBar: _isSearching
-            ? _buildSearchBar(isDark, textColor)
-            : _buildAppBar(isDark, textColor),
-        body: Column(
-          children: [
-            // ── Message List ──
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                reverse: true,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                itemCount: _filteredMessages.length,
-                itemBuilder: (context, index) {
-                  final msg = _filteredMessages[index];
-                  _ChatMessage? parentMsg;
-                  if (msg.replyToId != null) {
-                    try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
-                    catch (_) {}
-                  }
-                  return _buildMessageRow(
-                    msg, parentMsg,
-                    isDark, myBubbleColor, otherBubbleColor,
-                    textColor, subtleColor,
-                  );
-                },
-              ),
+      child: Stack(
+        children: [
+          Scaffold(
+            resizeToAvoidBottomInset: true,
+            backgroundColor: bgColor,
+            appBar: _isSearching
+                ? _buildSearchBar(isDark, textColor)
+                : _buildAppBar(isDark, textColor),
+            body: Column(
+              children: [
+                // ── Message List ──
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: _filteredMessages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _filteredMessages[index];
+                      _ChatMessage? parentMsg;
+                      if (msg.replyToId != null) {
+                        try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
+                        catch (_) {}
+                      }
+                      return _buildMessageRow(
+                        msg, parentMsg,
+                        isDark, myBubbleColor, otherBubbleColor,
+                        textColor, subtleColor,
+                      );
+                    },
+                  ),
+                ),
+
+                // ── Docks (only show when actively replying/editing) ──
+                if (_replyingToId != null)
+                  _buildDock(isDark, subtleColor, Icons.reply, 'Replying to message...', _cancelReply),
+                if (_editingMessageId != null)
+                  _buildDock(isDark, subtleColor, Icons.edit, 'Editing message', _cancelEdit),
+
+                // ── Input ──
+                _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
+
+                // ── Inline Attachment Drawer ──
+                if (_isAttachmentDrawerOpen)
+                  _buildInlineAttachmentDrawer(isDark),
+              ],
             ),
-
-            // ── Docks (only show when actively replying/editing) ──
-            if (_replyingToId != null)
-              _buildDock(isDark, subtleColor, Icons.reply, 'Replying to message...', _cancelReply),
-            if (_editingMessageId != null)
-              _buildDock(isDark, subtleColor, Icons.edit, 'Editing message', _cancelEdit),
-
-            // ── Input ──
-            _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
-          ],
-        ),
+          ),
+          SystemNavBarFill(color: bgColor),
+        ],
       ),
     );
   }
@@ -469,14 +496,18 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       title: GestureDetector(
         onTap: () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const MessageInfoScreen())),
+            MaterialPageRoute(builder: (_) => MessageInfoScreen(
+              userName: widget.userName,
+              userAvatar: widget.userAvatar,
+              userUsername: widget.userUsername,
+            ))),
         child: Row(children: [
-          const CircleAvatar(radius: 18, backgroundImage: AssetImage("assets/test1.jpg")),
+          CircleAvatar(radius: 18, backgroundImage: AssetImage(widget.userAvatar)),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Emma Brown", style: TextStyle(
+            Text(widget.userName, style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
-            Text("Active now", style: TextStyle(
+            const Text("Active now", style: TextStyle(
               color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
         ]),
@@ -705,7 +736,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final pillBg = isDark ? const Color(0xFF2A2A2E) : const Color(0xFFF0F0F5);
     final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
     final divColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
-    final plusColor = isDark ? Colors.white : Colors.black;
 
     return Container(
       decoration: BoxDecoration(
@@ -729,7 +759,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   // '+' attachment button INSIDE pill (left edge)
                   GestureDetector(
-                    onTap: () { KnockHaptics.tap(); _showAttachmentSheet(); },
+                    onTap: () {
+                      KnockHaptics.tap();
+                      _toggleAttachmentDrawer();
+                    },
                     child: Padding(
                       padding: const EdgeInsets.only(left: 10, right: 2, bottom: 10, top: 10),
                       child: Icon(Icons.add_circle_outline_rounded,
@@ -767,22 +800,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     onLongPressStart: (_) => _startRecording(),
                     onLongPressEnd: (_) => _stopRecording(),
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 10, top: 10),
+                      padding: const EdgeInsets.only(left: 8, right: 12, bottom: 10, top: 10),
                       child: Icon(
                         _isRecording ? Icons.stop_circle_outlined : Icons.mic_none_rounded,
                         color: _isRecording ? Colors.red : iconColor,
                         size: 26,
                       ),
-                    ),
-                  ),
-
-                  // Gallery / Media picker — inside pill right side
-                  GestureDetector(
-                    onTap: () => _openMediaPicker(ImageSource.gallery),
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, right: 12, bottom: 10, top: 10),
-                      child: Icon(Icons.photo_outlined,
-                          color: iconColor, size: 26),
                     ),
                   ),
                 ],
@@ -801,7 +824,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: myBubbleColor,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.send_rounded,
                 color: Colors.white,
                 size: 22,
@@ -815,9 +838,79 @@ class _ChatScreenState extends State<ChatScreen> {
 
 
   // ─────────────────────────────────────────────
-  // Attachment Sheet
+  // Attachment Drawer (inline)
   // ─────────────────────────────────────────────
 
+  void _toggleAttachmentDrawer() {
+    setState(() => _isAttachmentDrawerOpen = !_isAttachmentDrawerOpen);
+  }
+
+  Widget _buildInlineAttachmentDrawer(bool isDark) {
+    final drawerBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final keyboardUp = MediaQuery.of(context).viewInsets.bottom > 0;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
+    final bottomPad = keyboardUp ? 8.0 : safeBottom + 16;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, bottomPad),
+      decoration: BoxDecoration(
+        color: drawerBg,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _AttachmentOption(
+            icon: Icons.camera_alt_rounded,
+            label: 'Camera',
+            color: Colors.purple,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              _openMediaPicker(ImageSource.camera);
+            },
+          ),
+          _AttachmentOption(
+            icon: Icons.photo_library_rounded,
+            label: 'Gallery',
+            color: Colors.blue,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              _openMediaPicker(ImageSource.gallery);
+            },
+          ),
+          _AttachmentOption(
+            icon: Icons.videocam_rounded,
+            label: 'Video',
+            color: Colors.red,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Video picker coming soon')),
+              );
+            },
+          ),
+          _AttachmentOption(
+            icon: Icons.location_on_rounded,
+            label: 'Location',
+            color: Colors.green,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Location sharing coming soon')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Keep modal version as fallback (unused but preserved)
   void _showAttachmentSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -862,37 +955,6 @@ class _ChatScreenState extends State<ChatScreen> {
 // Reusable Widgets
 // ─────────────────────────────────────────────
 
-class _CircleButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final IconData icon;
-  final bool isDark;
-  final Color textColor;
-  final Color? backgroundColor;
-
-  const _CircleButton({
-    required this.onTap,
-    required this.icon,
-    required this.isDark,
-    required this.textColor,
-    this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(
-          color: backgroundColor ?? (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: textColor, size: 22),
-      ),
-    );
-  }
-}
-
 class _AttachmentOption extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -912,7 +974,7 @@ class _AttachmentOption extends StatelessWidget {
         Container(
           width: 56, height: 56,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 26),

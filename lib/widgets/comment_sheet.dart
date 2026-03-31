@@ -222,30 +222,79 @@ class _CommentSheetState extends State<CommentSheet> {
 
               // ── Header ──
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Text(
-                      'Convos',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
+                    Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Private comments',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () {
-                        KnockHaptics.tap();
-                        Navigator.pop(context);
-                      },
-                      child: Icon(Icons.close, size: 22, color: subtleColor),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () {
+                          KnockHaptics.tap();
+                          Navigator.pop(context);
+                        },
+                        child: Icon(Icons.close, size: 22, color: subtleColor),
+                      ),
                     ),
                   ],
                 ),
               ),
 
               Divider(height: 1, color: subtleColor.withOpacity(0.3)),
+
+              // ── Private Notice ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: subtleColor.withOpacity(0.2)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Only you and the creator can see what you write here. No one else can view these comments.',
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.8),
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: inputBg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Your comments stay visible only to you and this creator.',
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
               // ── Comment list ──
               Expanded(
@@ -324,7 +373,7 @@ class _CommentSheetState extends State<CommentSheet> {
 
               // ── Emoji quick-reactions row ──
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: bgColor,
                   border: Border(
@@ -333,14 +382,18 @@ class _CommentSheetState extends State<CommentSheet> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: _quickEmojis.map((emoji) {
+                  children: _quickEmojis.take(6).map((emoji) {
                     return GestureDetector(
                       onTap: () => _sendQuickEmoji(emoji),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF0F0F0),
+                          shape: BoxShape.circle,
+                        ),
                         child: Text(
                           emoji,
-                          style: const TextStyle(fontSize: 24),
+                          style: const TextStyle(fontSize: 22),
                         ),
                       ),
                     );
@@ -356,16 +409,21 @@ class _CommentSheetState extends State<CommentSheet> {
                 ),
                 decoration: BoxDecoration(
                   color: bgColor,
-                  border: Border(
-                    top: BorderSide(color: subtleColor.withOpacity(0.15)),
-                  ),
                 ),
                 child: Row(
                   children: [
                     // Avatar
                     const CircleAvatar(
-                      radius: 16,
-                      backgroundImage: AssetImage('assets/test1.jpg'),
+                      radius: 17,
+                      backgroundColor: Color(0xFF2B8EFF),
+                      child: Text(
+                        'Y',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
 
                     const SizedBox(width: 10),
@@ -382,7 +440,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           focusNode: _focusNode,
                           style: TextStyle(fontSize: 14, color: textColor),
                           decoration: InputDecoration(
-                            hintText: 'Message...',
+                            hintText: 'Send a private comment...',
                             hintStyle: TextStyle(
                               fontSize: 14,
                               color: subtleColor,
@@ -410,16 +468,14 @@ class _CommentSheetState extends State<CommentSheet> {
                         height: 36,
                         decoration: BoxDecoration(
                           color: _hasText
-                              ? textColor
+                              ? const Color(0xFF2B8EFF)
                               : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.arrow_upward_rounded,
                           size: 20,
-                          color: _hasText
-                              ? bgColor
-                              : subtleColor,
+                          color: _hasText ? Colors.white : subtleColor,
                         ),
                       ),
                     ),
@@ -442,6 +498,8 @@ class _CommentSheetState extends State<CommentSheet> {
     Comment? parentComment,
   }) {
     final isMe = comment.authorUsername == 'you';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -469,13 +527,13 @@ class _CommentSheetState extends State<CommentSheet> {
                   ? const AssetImage('assets/test1.jpg')
                   : null,
               backgroundColor: comment.isPostOwner
-                  ? Colors.black
+                  ? textColor
                   : Colors.grey.shade400,
               child: comment.authorUsername != 'you'
                   ? Icon(
                       Icons.person,
                       size: isReply ? 14 : 16,
-                      color: comment.isPostOwner ? Colors.white : Colors.grey.shade600,
+                      color: comment.isPostOwner ? bgColor : Colors.grey.shade600,
                     )
                   : null,
             ),
@@ -635,20 +693,20 @@ class _CommentSheetState extends State<CommentSheet> {
             )
           ),
         if (isMe)
-          PopupMenuItem(
+          const PopupMenuItem(
             value: 'delete',
             child: Row(
               children: [
-                const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                const SizedBox(width: 12),
-                const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                SizedBox(width: 12),
+                Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
               ]
             )
           ),
       ],
     );
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     if (result == 'reply') {
       KnockHaptics.selection();

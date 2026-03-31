@@ -14,41 +14,92 @@ class ReelsScreen extends StatefulWidget {
 class _ReelsScreenState extends State<ReelsScreen> {
   final PageController _pageController = PageController();
   int currentIndex = 0;
+  static const SystemUiOverlayStyle _reelsOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.black,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: Colors.transparent,
+  );
 
   final List<Map<String, String>> reels = [
     {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "id": "kp_official",
+      "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
       "username": "knockpost_official",
       "caption": "Building KnockPost — the future of social 🚀",
     },
     {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "id": "zayn01",
+      "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+      "username": "zayn.malik",
+      "caption": "Vibing to the new beats 🎤✨ #zayn #music #life",
+    },
+    {
+      "id": "saptarshi01",
+      "url": "https://www.w3schools.com/tags/mov_bbb.mp4",
+      "username": "saptarshi.nayak",
+      "caption": "Finding peace in the heart of nature 🌿🌊 #vibes #naturelover",
+    },
+    {
+      "id": "design_daily",
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
       "username": "design_daily",
       "caption": "Clean UI is everything ✨ #design #flutter",
     },
     {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "id": "dev_comm",
+      "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
       "username": "dev_community",
       "caption": "Drop a 🔥 if you love Flutter!",
     },
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _syncSystemUi();
+  }
+
+  @override
+  void didUpdateWidget(covariant ReelsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSystemUi();
+  }
+
+  void _syncSystemUi() {
+    if (widget.isVisible) {
+      SystemChrome.setSystemUIOverlayStyle(_reelsOverlayStyle);
+    }
+  }
+
+  @override
   void dispose() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(
+      (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+          .copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+            systemNavigationBarDividerColor: Colors.transparent,
+          ),
+    );
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Bottom nav total height = 50px (icons) + system nav bar padding
+    // ReelItem adds 20px internally for content spacing, so subtract that
+    final bottomNavHeight = 40.0 + MediaQuery.of(context).viewPadding.bottom;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-      ),
+      value: _reelsOverlayStyle,
       child: Scaffold(
         backgroundColor: Colors.black,
         extendBodyBehindAppBar: true,
@@ -59,8 +110,11 @@ class _ReelsScreenState extends State<ReelsScreen> {
               controller: _pageController,
               scrollDirection: Axis.vertical,
               itemCount: reels.length,
-              physics: const BouncingScrollPhysics(
-                decelerationRate: ScrollDecelerationRate.fast,
+              pageSnapping: true,
+              physics: const _FastReelsPagePhysics(
+                parent: BouncingScrollPhysics(
+                  decelerationRate: ScrollDecelerationRate.fast,
+                ),
               ),
               onPageChanged: (index) {
                 setState(() {
@@ -69,10 +123,12 @@ class _ReelsScreenState extends State<ReelsScreen> {
               },
               itemBuilder: (context, index) {
                 return ReelItem(
+                  userId: reels[index]["id"]!,
                   videoUrl: reels[index]["url"]!,
                   username: reels[index]["username"]!,
                   caption: reels[index]["caption"]!,
                   isActive: index == currentIndex && widget.isVisible,
+                  bottomPadding: bottomNavHeight,
                 );
               },
             ),
@@ -92,7 +148,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withValues(alpha: 0.6),
+                      Colors.black.withOpacity(0.6),
                       Colors.transparent,
                     ],
                     begin: Alignment.topCenter,
@@ -102,37 +158,20 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Reels",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CreatePostScreen(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_outlined,
+                    // ignore: prefer_const_constructors
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: const Text(
+                        "Glimpse",
+                        style: TextStyle(
                           color: Colors.white,
-                          size: 22,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
+                    const Spacer(),
                   ],
                 ),
               ),
@@ -142,4 +181,23 @@ class _ReelsScreenState extends State<ReelsScreen> {
       ),
     );
   }
+}
+
+class _FastReelsPagePhysics extends PageScrollPhysics {
+  const _FastReelsPagePhysics({super.parent});
+
+  @override
+  _FastReelsPagePhysics applyTo(ScrollPhysics? ancestor) {
+    return _FastReelsPagePhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  SpringDescription get spring =>
+      const SpringDescription(mass: 0.7, stiffness: 220.0, damping: 26.0);
+
+  @override
+  double get minFlingVelocity => 260.0;
+
+  @override
+  double get maxFlingVelocity => 9000.0;
 }

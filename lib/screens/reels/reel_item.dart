@@ -3,21 +3,27 @@ import 'package:video_player/video_player.dart';
 import 'widgets/comment_sheet.dart';
 import 'widgets/share_sheet.dart';
 import 'widgets/more_options_sheet.dart';
-import '../profile/profile_screen.dart';
+import '../profile/other_profile_screen.dart';
+import '../../models/user_model.dart';
+import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 
 class ReelItem extends StatefulWidget {
+  final String userId;
   final String videoUrl;
   final String username;
   final String caption;
   final bool isActive;
+  final double bottomPadding;
 
   const ReelItem({
     super.key,
+    required this.userId,
     required this.videoUrl,
     required this.username,
     required this.caption,
     required this.isActive,
+    this.bottomPadding = 0,
   });
 
   @override
@@ -30,8 +36,10 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
   bool isPlaying = true;
   bool showHeart = false;
   bool _doubleTapped = false;
+  bool _isLiked = false;
   bool _isKnocked = false;
   bool _showBlackFlash = false;
+  bool _hasError = false;
 
   /// Like animation
   late AnimationController _heartAnimController;
@@ -41,9 +49,6 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
   /// Play/pause icon animation
   late AnimationController _playPauseAnimController;
   late Animation<double> _playPauseOpacity;
-
-  int likeCount = 12432;
-  int commentCount = 342;
 
   @override
   void initState() {
@@ -85,24 +90,39 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
       ),
     );
 
-    /// Video
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {});
-        _controller.setLooping(true);
-        if (widget.isActive) {
-          _controller.play();
-        } else {
-          _controller.pause();
-        }
-      }).catchError((e) {
-        debugPrint("Video initialization error: $e");
-      });
+    _initializeVideo();
+  }
+
+  void _initializeVideo() {
+    setState(() {
+      _hasError = false;
+    });
+
+    try {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
+        ..initialize().then((_) {
+          if (!mounted) return;
+          setState(() {});
+          _controller.setLooping(true);
+          if (widget.isActive) {
+            _controller.play();
+          } else {
+            _controller.pause();
+          }
+        }).catchError((e) {
+          debugPrint("Video initialization error: $e");
+          if (mounted) {
+            setState(() => _hasError = true);
+          }
+        });
+    } catch (e) {
+      debugPrint("Video controller creation error: $e");
+      setState(() => _hasError = true);
+    }
   }
 
   @override
-  void didUpdateWidget(covariant ReelItem oldWidget) {
+  void didUpdateWidget(ReelItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_controller.value.isInitialized) return;
 
@@ -162,6 +182,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
   void handleDoubleTap() {
     KnockHaptics.impact();
     setState(() {
+      _isLiked = true;
       _doubleTapped = true;
       showHeart = true;
     });
@@ -177,14 +198,6 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
     setState(() => _doubleTapped = false);
   }
 
-  String _formatCount(int count) {
-    if (count >= 1000000) {
-      return "${(count / 1000000).toStringAsFixed(1)}M";
-    } else if (count >= 1000) {
-      return "${(count / 1000).toStringAsFixed(1)}K";
-    }
-    return count.toString();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -220,11 +233,30 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                 )
               : Container(
                   color: Colors.black,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
+                  child: Center(
+                    child: _hasError
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.error_outline,
+                                  color: Colors.white60, size: 40),
+                              const SizedBox(height: 12),
+                              const Text(
+                                "Video unavailable",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              const SizedBox(height: 16),
+                              TextButton(
+                                onPressed: _initializeVideo,
+                                child: const Text("Retry",
+                                    style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          )
+                        : const CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 1.5,
+                          ),
                   ),
                 ),
 
@@ -233,11 +265,11 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.black.withValues(alpha: 0.3),
+                  Colors.black.withOpacity(0.3),
                   Colors.transparent,
                   Colors.transparent,
-                  Colors.black.withValues(alpha: 0.6),
-                  Colors.black.withValues(alpha: 0.85),
+                  Colors.black.withOpacity(0.6),
+                  Colors.black.withOpacity(0.85),
                 ],
                 stops: const [0.0, 0.15, 0.5, 0.85, 1.0],
                 begin: Alignment.topCenter,
@@ -270,10 +302,10 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
           /// ❤️ RIGHT ACTIONS
           Positioned(
             right: 12,
-            bottom: 100,
+            bottom: 100 + widget.bottomPadding,
             child: Column(
               children: [
-                /// ❤️ EMOJI REACTION (Replaces simple Like)
+                /// ❤️ EMOJI REACTION (Back to emoji with custom default icon)
                 ReelReactionButton(
                   doubleTapped: _doubleTapped,
                   onDoubleTapHandled: _onDoubleTapHandled,
@@ -288,16 +320,13 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (context) => Padding(
-                        padding: EdgeInsets.only(
-                          bottom: MediaQuery.of(context).viewInsets.bottom,
-                        ),
-                        child: const CommentSheet(),
+                      builder: (context) => CommentSheet(
+                        creatorUsername: widget.username,
                       ),
                     );
                   },
                   icon: Icons.mode_comment_outlined,
-                  label: _formatCount(commentCount),
+                  label: null,
                   color: Colors.white,
                 ),
 
@@ -311,13 +340,13 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (context) => ShareSheet(
-                        videoUrl: widget.videoUrl,
+                        url: widget.videoUrl,
                         username: widget.username,
                         caption: widget.caption,
                       ),
                     );
                   },
-                  icon: Icons.send_outlined,
+                  icon: Icons.share_outlined,
                   label: "Share",
                   color: Colors.white,
                 ),
@@ -332,6 +361,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (context) => MoreOptionsSheet(
+                        userId: widget.userId,
                         username: widget.username,
                       ),
                     );
@@ -347,7 +377,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
           /// 👤 BOTTOM INFO
           Positioned(
             left: 14,
-            bottom: 20,
+            bottom: 20 + widget.bottomPadding,
             right: 80,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,8 +388,8 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            ProfileScreen(username: widget.username),
+                        builder: (context) => OtherProfileScreen(
+                            user: demoAryaLayek, posts: demoOwnPosts),
                       ),
                     );
                   },
@@ -368,22 +398,15 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                       /// Avatar with gradient ring
                       Container(
                         padding: const EdgeInsets.all(1.5),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.purple.shade400,
-                              Colors.orange.shade400,
-                            ],
-                          ),
+                          color: Colors.black,
                         ),
                         child: CircleAvatar(
                           radius: 16,
                           backgroundColor: Colors.grey.shade900,
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 16,
+                          backgroundImage: AssetImage(
+                            findDemoUserByUsername(widget.username)?.avatarAsset ?? 'assets/test1.jpg',
                           ),
                         ),
                       ),
@@ -441,7 +464,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                 Text(
                   widget.caption,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -479,7 +502,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
           /// 💿 SPINNING ALBUM DISC (unique KnockPost touch)
           Positioned(
             right: 14,
-            bottom: 24,
+            bottom: 24 + widget.bottomPadding,
             child: _SpinningDisc(isPlaying: isPlaying),
           ),
 
@@ -490,7 +513,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: Colors.black.withOpacity(0.3),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -516,8 +539,8 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                   padding: EdgeInsets.zero,
                   colors: VideoProgressColors(
                     playedColor: Colors.white,
-                    bufferedColor: Colors.white.withValues(alpha: 0.3),
-                    backgroundColor: Colors.white.withValues(alpha: 0.1),
+                    bufferedColor: Colors.white.withOpacity(0.3),
+                    backgroundColor: Colors.white.withOpacity(0.1),
                   ),
                 ),
               ),
@@ -532,7 +555,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
 class _AnimatedActionButton extends StatefulWidget {
   final VoidCallback onTap;
   final IconData icon;
-  final String label;
+  final String? label;
   final Color color;
 
   const _AnimatedActionButton({
@@ -596,15 +619,17 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
                   size: 30,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+              if (widget.label != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  widget.label!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ],
             ],
           );
         },
@@ -861,23 +886,13 @@ class _ReelReactionButtonState extends State<ReelReactionButton>
                           scale: _heartScale,
                           child: _buildSelectedWidget(_selectedEmoji!, 30),
                         )
-                      : const Icon(
-                          Icons.favorite_border,
-                          color: Colors.white,
-                          size: 32,
+                      : Image.asset(
+                          "assets/reaction_default_dark.png",
+                          width: 28,
                         ),
                 ),
               ),
               const SizedBox(height: 2),
-              // Default count label
-              const Text(
-                "12.4K",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ],
           ),
         ),
@@ -900,7 +915,7 @@ class _ReelReactionButtonState extends State<ReelReactionButton>
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
+                          color: Colors.black.withOpacity(0.12),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

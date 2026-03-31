@@ -11,11 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
+
   video_player: ^2.8.0
   share_plus: ^10.1.4
 
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.5.4
+  shared_preferences: ^2.3.2
   image_picker: ^1.0.7
   google_sign_in: ^6.2.1
   firebase_core: ^3.11.0
@@ -26,6 +27,8 @@ dependencies:
   record: ^6.2.0
   path_provider: ^2.1.5
   pro_image_editor: ^12.0.7
+  flutter_native_splash: ^2.4.7
+  image_cropper: ^12.0.0
 
 dev_dependencies:
   flutter_test:
@@ -33,17 +36,20 @@ dev_dependencies:
 
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^3.0.0
+  image: ^4.8.0
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/icon.png
-    - assets/icon(white).png
-    - assets/icon2.png
-    - assets/icon4.png
     - assets/google.png
-    - assets/reaction_default.png
+    - assets/splash_icon_light.png
+    - assets/splash_icon_dark.png
+    - assets/reaction_default_light.png
+    - assets/reaction_default_dark.png
+    - assets/icon(light backgroud).png
+    - assets/icon(drak background).png
     - assets/test1.jpg
     - assets/test2.jpg
     - assets/test3.jpg

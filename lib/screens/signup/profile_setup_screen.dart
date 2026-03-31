@@ -47,10 +47,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // 🔥 CUSTOM DATE PICKER (SHORT MONTH VERSION)
   void pickDate() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
@@ -80,11 +80,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     GestureDetector(
                       onTap: () =>
                           Navigator.pop(context),
-                      child: const Text(
+                      child: Text(
                         "Cancel",
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.black54,
+                          color: isDark ? Colors.white54 : Colors.black54,
                         ),
                       ),
                     ),
@@ -300,9 +300,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -319,21 +319,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                   GestureDetector(
                     onTap: () { KnockHaptics.tap(); goBack(); },
-                    child: const Icon(
+                    child: Icon(
                       Icons.arrow_back,
                       size: 25,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
 
                   const Spacer(),
 
-                  SizedBox(
-                    height: 33,
-                    width: 33,
-                    child: Image.asset(
-                      "assets/icon(white).png",
-                      fit: BoxFit.contain,
-                    ),
+                  Image.asset(
+                    isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.contain,
                   ),
 
                 ],
@@ -368,11 +367,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                     const SizedBox(height: 14),
 
-                    const Text(
+                    Text(
                       "Add a photo and your details.",
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.black54,
+                        color: isDark ? Colors.white54 : Colors.black54,
                       ),
                     ),
 
@@ -389,9 +388,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             onTap: () { KnockHaptics.tap(); pickImage(); },
                             child: CircleAvatar(
                               radius: 55,
-                              backgroundColor:
-                                  const Color(
-                                      0xFFF2F2F2),
+                              backgroundColor: isDark 
+                                  ? const Color(0xFF2A2A2A)
+                                  : const Color(0xFFF2F2F2),
                               backgroundImage:
                                   selectedImage !=
                                           null
@@ -401,12 +400,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                               child:
                                   selectedImage ==
                                           null
-                                      ? const Icon(
+                                      ? Icon(
                                           Icons
                                               .person,
                                           size: 50,
-                                          color: Colors
-                                              .black54,
+                                          color: isDark ? Colors.white54 : Colors.black54,
                                         )
                                       : null,
                             ),
@@ -422,18 +420,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                 width: 32,
                                 decoration:
                                     BoxDecoration(
-                                  color:
-                                      Colors.black,
+                                  color: isDark ? Colors.white : Colors.black,
                                   borderRadius:
                                       BorderRadius
                                           .circular(
                                               20),
                                 ),
-                                child:
-                                    const Icon(
+                                child: Icon(
                                   Icons.add,
-                                  color:
-                                      Colors.white,
+                                  color: isDark ? Colors.black : Colors.white,
                                   size: 20,
                                 ),
                               ),
@@ -449,8 +444,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     // NAME
                     Container(
                       decoration: BoxDecoration(
-                        color:
-                            const Color(0xFFF2F2F2),
+                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                         borderRadius:
                             BorderRadius.circular(
                                 16),
@@ -458,14 +452,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       child: TextField(
                         controller:
                             nameController,
-                        decoration:
-                            const InputDecoration(
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
                           hintText:
                               "Full name",
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border:
                               InputBorder.none,
                           contentPadding:
-                              EdgeInsets
+                              const EdgeInsets
                                   .symmetric(
                             horizontal: 20,
                             vertical: 20,
@@ -481,9 +476,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       onTap: () { KnockHaptics.tap(); pickDate(); },
                       child: Container(
                         decoration: BoxDecoration(
-                          color:
-                              const Color(
-                                  0xFFF2F2F2),
+                          color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                           borderRadius:
                               BorderRadius
                                   .circular(16),
@@ -509,19 +502,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                                 color:
                                     selectedDate ==
                                             null
-                                        ? Colors
-                                            .black45
-                                        : Colors
-                                            .black,
+                                        ? (isDark ? Colors.white54 : Colors.black45)
+                                        : (isDark ? Colors.white : Colors.black),
                               ),
                             ),
 
-                            const Icon(
+                            Icon(
                               Icons
                                   .calendar_today,
                               size: 18,
-                              color: Colors
-                                  .black54,
+                              color: isDark ? Colors.white54 : Colors.black54,
                             ),
 
                           ],
@@ -540,20 +530,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             double.infinity,
                         decoration:
                             BoxDecoration(
-                          color:
-                              Colors.black,
+                          color: isDark ? Colors.white : Colors.black,
                           borderRadius:
                               BorderRadius
                                   .circular(30),
                         ),
-                        child:
-                            const Center(
+                        child: Center(
                           child: Text(
                             "Next",
                             style:
                                 TextStyle(
-                              color: Colors
-                                  .white,
+                              color: isDark ? Colors.black : Colors.white,
                               fontSize: 17,
                               fontWeight:
                                   FontWeight
@@ -569,11 +556,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     Center(
                       child: GestureDetector(
                         onTap: () { KnockHaptics.tap(); goLogin(); },
-                        child: const Text(
+                        child: Text(
                           "Already have an account? Log in",
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.black54,
+                            color: isDark ? Colors.white54 : Colors.black54,
                           ),
                         ),
                       ),

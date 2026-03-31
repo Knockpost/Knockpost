@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/user_model.dart';
 import '../utils/haptic_helper.dart';
 import 'post_header.dart';
 import 'media_carousel.dart';
@@ -6,10 +7,20 @@ import 'reaction_bar.dart';
 
 class PostCard extends StatefulWidget {
   final List<String> imagePaths;
+  final UserModel user;
+  final String caption;
+  final int likes;
+  final int views;
+  final String? postId;
 
   const PostCard({
     super.key,
     required this.imagePaths,
+    required this.user,
+    this.caption = '',
+    this.likes = 0,
+    this.views = 0,
+    this.postId,
   });
 
   @override
@@ -35,25 +46,29 @@ class _PostCardState extends State<PostCard> {
       children: [
         const SizedBox(height: 12),
 
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14),
-          child: PostHeader(),
-        ),
-
-        const SizedBox(height: 8),
-
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14),
-          child: Text(
-            "Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body.",
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.4,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: PostHeader(
+            user: widget.user,
+            postId: widget.postId,
           ),
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
+
+        if (widget.caption.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              widget.caption,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 14),
 
         // Double-tap on image triggers 👍 reaction
         GestureDetector(
@@ -61,15 +76,19 @@ class _PostCardState extends State<PostCard> {
           child: MediaCarousel(imagePaths: widget.imagePaths),
         ),
 
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: ReactionBar(
             doubleTapped: _doubleTapped,
             onDoubleTapHandled: _onDoubleTapHandled,
-            postId: 'demo_post_${widget.imagePaths.length}',
-            isPostOwner: false, // Viewer perspective for demo
+            postId: widget.postId ?? 'demo_post_${widget.imagePaths.hashCode}',
+            isPostOwner: widget.user.isOwnProfile,
+            initialLikes: widget.likes,
+            initialViews: widget.views,
+            shareUsername: widget.user.username,
+            shareCaption: widget.caption,
           ),
         ),
 
