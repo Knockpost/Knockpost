@@ -90,7 +90,7 @@ class _CommentSheetState extends State<CommentSheet> {
         _comments.add(Comment(
           id: 'c${DateTime.now().millisecondsSinceEpoch}',
           text: commentText,
-          authorUsername: widget.isPostOwner ? 'poster_user' : 'you',
+          authorUsername: 'you',
           isPostOwner: widget.isPostOwner,
           replyToId: _replyingToId,
         ));

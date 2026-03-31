@@ -866,6 +866,9 @@ class _ReelReactionButtonState extends State<ReelReactionButton>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final popupColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -911,7 +914,7 @@ class _ReelReactionButtonState extends State<ReelReactionButton>
                   Container(
                     height: 46,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: popupColor,
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
