@@ -25,6 +25,24 @@ void main() async {
   runApp(const MyApp());
 }
 
+class _AppScrollBehavior extends ScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    // ClampingScrollPhysics keeps posts still while scrolling — no bounce
+    return const ClampingScrollPhysics();
+  }
+
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    // Remove Android glow indicator globally
+    return child;
+  }
+}
+
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -39,6 +57,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          scrollBehavior: const _AppScrollBehavior(),
           builder: (context, child) {
             return AnnotatedRegion<SystemUiOverlayStyle>(
               value: AppTheme.getSystemUiOverlayStyle(context),

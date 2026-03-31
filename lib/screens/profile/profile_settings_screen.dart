@@ -48,7 +48,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -326,7 +326,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: Colors.red.withValues(alpha: 0.45),
+                      color: Colors.red.withOpacity(0.45),
                     ),
                   ),
                   child: const Text(
@@ -435,7 +435,7 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -567,7 +567,7 @@ class _AccountSettingsScreen extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -684,7 +684,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -787,7 +787,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -862,7 +862,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                     labelColor: isDark ? Colors.white54 : Colors.black45,
                     trackColor: isDark
                         ? Colors.white10
-                        : Colors.black.withValues(alpha: 0.06),
+                        : Colors.black.withOpacity(0.06),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -1175,7 +1175,7 @@ class _ProfessionalStatsScreen extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -1275,7 +1275,7 @@ class _ProfessionalStatsScreen extends StatelessWidget {
                     labelColor: isDark ? Colors.white54 : Colors.black45,
                     trackColor: isDark
                         ? Colors.white10
-                        : Colors.black.withValues(alpha: 0.06),
+                        : Colors.black.withOpacity(0.06),
                   ),
                 ],
               ),
@@ -1324,7 +1324,7 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
     final fieldBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
     final borderColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -1397,7 +1397,7 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
                 decoration: InputDecoration(
                   hintText: 'Write your feedback...',
                   hintStyle: TextStyle(
-                    color: textColor.withValues(alpha: 0.35),
+                    color: textColor.withOpacity(0.35),
                     fontSize: 14.5,
                   ),
                   contentPadding: const EdgeInsets.all(14),

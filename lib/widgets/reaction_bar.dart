@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '../utils/haptic_helper.dart';
 import 'comment_sheet.dart';
-
+import 'package:share_plus/share_plus.dart';
+import '../screens/reels/widgets/share_sheet.dart';
+import 'reactors_sheet.dart';
 /// Emoji data for the reaction popup
 class ReactionEmoji {
   final String emoji;
@@ -27,6 +29,10 @@ class ReactionBar extends StatefulWidget {
   final VoidCallback? onDoubleTapHandled;
   final String postId;
   final bool isPostOwner;
+  final int initialLikes;
+  final int initialViews;
+  final String? shareUsername;
+  final String? shareCaption;
 
   const ReactionBar({
     super.key,
@@ -34,6 +40,10 @@ class ReactionBar extends StatefulWidget {
     this.onDoubleTapHandled,
     this.postId = 'demo_post',
     this.isPostOwner = false,
+    this.initialLikes = 0,
+    this.initialViews = 0,
+    this.shareUsername,
+    this.shareCaption,
   });
 
   @override
@@ -47,6 +57,7 @@ class _ReactionBarState extends State<ReactionBar>
   // ── Popup state ──
   bool _showPopup = false;
   int _hoveredIndex = -1;
+  late int _likesCount;
   final List<GlobalKey> _emojiKeys = List.generate(
     _reactions.length,
     (_) => GlobalKey(),
@@ -62,6 +73,7 @@ class _ReactionBarState extends State<ReactionBar>
   @override
   void initState() {
     super.initState();
+    _likesCount = widget.initialLikes;
 
     // Popup open/close animation
     _popupController = AnimationController(
@@ -109,9 +121,13 @@ class _ReactionBarState extends State<ReactionBar>
     KnockHaptics.tap();
     if (_selectedEmoji != null) {
       // Already reacted → un-react
-      setState(() => _selectedEmoji = null);
+      setState(() {
+        _selectedEmoji = null;
+        _likesCount--;
+      });
     } else {
       _selectWithAnimation('❤');
+      setState(() => _likesCount++);
     }
   }
 
@@ -188,7 +204,11 @@ class _ReactionBarState extends State<ReactionBar>
 
   void _onLongPressEnd(LongPressEndDetails details) {
     if (_hoveredIndex >= 0 && _hoveredIndex < _reactions.length) {
+      final hadReaction = _selectedEmoji != null;
       _selectWithAnimation(_reactions[_hoveredIndex].emoji);
+      if (!hadReaction) {
+        setState(() => _likesCount++);
+      }
     }
     setState(() {
       _showPopup = false;
@@ -209,98 +229,130 @@ class _ReactionBarState extends State<ReactionBar>
         Padding(
           padding: const EdgeInsets.only(right: 5),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Reaction button — tap or long press using RawGestureDetector due to older Flutter SDKs
-              RawGestureDetector(
-                gestures: {
-                  LongPressGestureRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                        LongPressGestureRecognizer
-                      >(
-                        () => LongPressGestureRecognizer(
-                          duration: const Duration(milliseconds: 150),
-                        ),
-                        (LongPressGestureRecognizer instance) {
-                          instance
-                            ..onLongPressStart = _onLongPressStart
-                            ..onLongPressMoveUpdate = _onLongPressMoveUpdate
-                            ..onLongPressEnd = _onLongPressEnd;
-                        },
-                      ),
-                  TapGestureRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                        TapGestureRecognizer
-                      >(() => TapGestureRecognizer(), (
-                        TapGestureRecognizer instance,
-                      ) {
-                        instance.onTap = _onTapReaction;
-                      }),
-                },
-                child: Container(
-                  height: 40,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: _selectedEmoji != null
-                        ? ScaleTransition(
-                            scale: _heartScale,
-                            child: _buildSelectedWidget(_selectedEmoji!, 28),
-                          )
-                        : Image.asset(
-                            isDark
-                                ? "assets/reaction_default_dark.png"
-                                : "assets/reaction_default_light.png",
-                            width: 24,
+              // ── Left: Reaction Summary (Owner Only) ──
+              if (widget.isPostOwner)
+                _ReactionSummary(
+                  likes: _likesCount,
+                  views: widget.initialViews,
+                  postId: widget.postId,
+                  isDark: isDark,
+                )
+              else
+                const SizedBox.shrink(),
+
+              // ── Right: Action Buttons ──
+              Row(
+                children: [
+                  // Reaction button
+                  RawGestureDetector(
+                    gestures: {
+                      LongPressGestureRecognizer:
+                          GestureRecognizerFactoryWithHandlers<
+                            LongPressGestureRecognizer
+                          >(
+                            () => LongPressGestureRecognizer(
+                              duration: const Duration(milliseconds: 150),
+                            ),
+                            (LongPressGestureRecognizer instance) {
+                              instance
+                                ..onLongPressStart = _onLongPressStart
+                                ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+                                ..onLongPressEnd = _onLongPressEnd;
+                            },
                           ),
+                      TapGestureRecognizer:
+                          GestureRecognizerFactoryWithHandlers<
+                            TapGestureRecognizer
+                          >(() => TapGestureRecognizer(), (
+                            TapGestureRecognizer instance,
+                          ) {
+                            instance.onTap = _onTapReaction;
+                          }),
+                    },
+                    child: Container(
+                      height: 40,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: _selectedEmoji != null
+                            ? ScaleTransition(
+                                scale: _heartScale,
+                                child: _buildSelectedWidget(_selectedEmoji!, 28),
+                              )
+                            : Image.asset(
+                                isDark
+                                    ? "assets/reaction_default_dark.png"
+                                    : "assets/reaction_default_light.png",
+                                width: 24,
+                              ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
 
-              const SizedBox(width: 12),
+                  const SizedBox(width: 12),
 
-              // Comment button
-              GestureDetector(
-                onTap: () {
-                  CommentSheet.show(
-                    context,
-                    postId: widget.postId,
-                    isPostOwner: widget.isPostOwner,
-                  );
-                },
-                child: Container(
-                  height: 40,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(12),
+                  // Comment button
+                  GestureDetector(
+                    onTap: () {
+                      CommentSheet.show(
+                        context,
+                        postId: widget.postId,
+                        isPostOwner: widget.isPostOwner,
+                      );
+                    },
+                    child: Container(
+                      height: 40,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        size: 20,
+                        color: isDark ? Colors.white.withOpacity(0.8) : Colors.black.withOpacity(0.75),
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    Icons.chat_bubble_outline,
-                    size: 20,
-                    color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.75),
+
+                  const SizedBox(width: 14),
+
+                  // Share button
+                  GestureDetector(
+                    onTap: () {
+                      KnockHaptics.tap();
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => ShareSheet(
+                          url: 'https://knockpost.app/post/${widget.postId}',
+                          username: widget.shareUsername ?? 'someone',
+                          caption: widget.shareCaption ?? '',
+                          contentType: 'post',
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 40,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.share_outlined,
+                        size: 20,
+                        color: isDark ? Colors.white.withOpacity(0.8) : Colors.black.withOpacity(0.75),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-
-              const SizedBox(width: 14),
-
-              // Share button
-              Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.share_outlined,
-                  size: 20,
-                  color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.75),
-                ),
+                ],
               ),
             ],
           ),
@@ -326,7 +378,7 @@ class _ReactionBarState extends State<ReactionBar>
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
+                          color: Colors.black.withOpacity(0.12),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -389,6 +441,80 @@ class _ReactionBarState extends State<ReactionBar>
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ReactionSummary extends StatelessWidget {
+  final int likes;
+  final int views;
+  final String postId;
+  final bool isDark;
+
+  const _ReactionSummary({
+    required this.likes,
+    required this.views,
+    required this.postId,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (likes <= 0) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () {
+        KnockHaptics.selection();
+        ReactorsSheet.show(context, postId: postId);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Overlapping reaction icons
+            SizedBox(
+              width: 56,
+              height: 28,
+              child: Stack(
+                children: [
+                  _miniEmoji('👍', 0),
+                  _miniEmoji('❤️', 16),
+                  _miniEmoji('🔥', 32),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              likes.toString(),
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.black87,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniEmoji(String emoji, double left) {
+    return Positioned(
+      left: left,
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isDark ? Colors.black : Colors.white,
+            width: 1.5,
+          ),
+        ),
+        child: Text(emoji, style: const TextStyle(fontSize: 14)),
+      ),
     );
   }
 }

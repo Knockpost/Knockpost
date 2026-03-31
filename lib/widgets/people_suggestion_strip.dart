@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/global_knock_state.dart';
+import '../utils/global_dismiss_state.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../utils/haptic_helper.dart';
 import '../screens/profile/widgets/knock_button.dart';
 import '../screens/profile/other_profile_screen.dart';
+import '../screens/discover/discover_people_screen.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
@@ -117,13 +119,47 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
   @override
   void initState() {
     super.initState();
-    _users = List.of(demoSuggestedUsers);
+    // Filter out already dismissed users for this session
+    _users = demoSuggestedUsers.where((u) => !GlobalDismissState.isDismissed(u.id)).toList();
+    
     _statuses = {
       for (final u in _users) u.id: u.knockStatus,
     };
     for (final u in _users) {
       _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
     }
+    
+    // Listen for global dismissals (e.g., from profile screen)
+    GlobalDismissState.dismissedUserIds.addListener(_onGlobalDismissalChanged);
+  }
+
+  void _onGlobalDismissalChanged() {
+    final dismissed = GlobalDismissState.dismissedUserIds.value;
+    for (final userId in dismissed) {
+      if (_users.any((u) => u.id == userId)) {
+        final cardKey = _cardKeys[userId];
+        if (cardKey?.currentState != null) {
+          cardKey!.currentState!.dismiss(() {
+            if (mounted) {
+              setState(() {
+                _users.removeWhere((u) => u.id == userId);
+              });
+            }
+          });
+        } else if (mounted) {
+          // If not currently in building state or off-screen, just remove
+          setState(() {
+            _users.removeWhere((u) => u.id == userId);
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    GlobalDismissState.dismissedUserIds.removeListener(_onGlobalDismissalChanged);
+    super.dispose();
   }
 
   @override
@@ -150,12 +186,21 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
                 ),
               ),
               const Spacer(),
-              Text(
-                'See all',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? Colors.white54 : Colors.black45,
-                  fontWeight: FontWeight.w500,
+              GestureDetector(
+                onTap: () {
+                  KnockHaptics.impact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
+                  );
+                },
+                child: Text(
+                  'See all',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -183,22 +228,11 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
                       setState(() => _statuses[user.id] = status);
                     },
                     onDismiss: () {
-                      cardKey.currentState?.dismiss(() {
-                        if (mounted) {
-                          setState(() {
-                            _users.remove(user);
-                          });
-                        }
-                      });
+                      // Already called GlobalDismissState.dismiss in _SuggestionAction
                     },
                     onRemove: () {
-                      cardKey.currentState?.dismiss(() {
-                        if (mounted) {
-                          setState(() {
-                            _users.remove(user);
-                          });
-                        }
-                      });
+                      KnockHaptics.impact();
+                      GlobalDismissState.dismiss(user.id);
                     },
                   ),
                 ),
@@ -405,7 +439,7 @@ class _SuggestionCard extends StatelessWidget {
               Divider(
                 height: 1, 
                 thickness: 0.5,
-                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
               ),
 
               // Bottom Action Button (Text-only)
@@ -553,7 +587,7 @@ class _SuggestionActionState extends State<_SuggestionAction>
         newStatus == KnockStatus.pending ||
         newStatus == KnockStatus.mutualKnocked) {
       Future.delayed(const Duration(milliseconds: 150), () {
-        if (mounted) widget.onDismiss();
+        if (mounted) GlobalDismissState.dismiss(widget.userId);
       });
     }
   }

@@ -79,6 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _hasText = false;
   bool _isRecording = false;
   String? _recordingPath;
+  bool _isAttachmentDrawerOpen = false;
 
   // Search state
   bool _isSearching = false;
@@ -106,6 +107,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final hasText = _messageController.text.trim().isNotEmpty;
       if (hasText != _hasText) setState(() => _hasText = hasText);
     });
+
+    // No longer auto-close attachment drawer when keyboard appears
+    // so the drawer can sit between the input bar and keyboard.
   }
 
   @override
@@ -459,6 +463,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // ── Input ──
                 _buildInputBar(isDark, textColor, subtleColor, myBubbleColor),
+
+                // ── Inline Attachment Drawer ──
+                if (_isAttachmentDrawerOpen)
+                  _buildInlineAttachmentDrawer(isDark),
               ],
             ),
           ),
@@ -751,7 +759,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   // '+' attachment button INSIDE pill (left edge)
                   GestureDetector(
-                    onTap: () { KnockHaptics.tap(); _showAttachmentSheet(); },
+                    onTap: () {
+                      KnockHaptics.tap();
+                      _toggleAttachmentDrawer();
+                    },
                     child: Padding(
                       padding: const EdgeInsets.only(left: 10, right: 2, bottom: 10, top: 10),
                       child: Icon(Icons.add_circle_outline_rounded,
@@ -789,22 +800,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     onLongPressStart: (_) => _startRecording(),
                     onLongPressEnd: (_) => _stopRecording(),
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 10, top: 10),
+                      padding: const EdgeInsets.only(left: 8, right: 12, bottom: 10, top: 10),
                       child: Icon(
                         _isRecording ? Icons.stop_circle_outlined : Icons.mic_none_rounded,
                         color: _isRecording ? Colors.red : iconColor,
                         size: 26,
                       ),
-                    ),
-                  ),
-
-                  // Gallery / Media picker — inside pill right side
-                  GestureDetector(
-                    onTap: () => _openMediaPicker(ImageSource.gallery),
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, right: 12, bottom: 10, top: 10),
-                      child: Icon(Icons.photo_outlined,
-                          color: iconColor, size: 26),
                     ),
                   ),
                 ],
@@ -837,9 +838,79 @@ class _ChatScreenState extends State<ChatScreen> {
 
 
   // ─────────────────────────────────────────────
-  // Attachment Sheet
+  // Attachment Drawer (inline)
   // ─────────────────────────────────────────────
 
+  void _toggleAttachmentDrawer() {
+    setState(() => _isAttachmentDrawerOpen = !_isAttachmentDrawerOpen);
+  }
+
+  Widget _buildInlineAttachmentDrawer(bool isDark) {
+    final drawerBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final keyboardUp = MediaQuery.of(context).viewInsets.bottom > 0;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
+    final bottomPad = keyboardUp ? 8.0 : safeBottom + 16;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, bottomPad),
+      decoration: BoxDecoration(
+        color: drawerBg,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _AttachmentOption(
+            icon: Icons.camera_alt_rounded,
+            label: 'Camera',
+            color: Colors.purple,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              _openMediaPicker(ImageSource.camera);
+            },
+          ),
+          _AttachmentOption(
+            icon: Icons.photo_library_rounded,
+            label: 'Gallery',
+            color: Colors.blue,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              _openMediaPicker(ImageSource.gallery);
+            },
+          ),
+          _AttachmentOption(
+            icon: Icons.videocam_rounded,
+            label: 'Video',
+            color: Colors.red,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Video picker coming soon')),
+              );
+            },
+          ),
+          _AttachmentOption(
+            icon: Icons.location_on_rounded,
+            label: 'Location',
+            color: Colors.green,
+            onTap: () {
+              setState(() => _isAttachmentDrawerOpen = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Location sharing coming soon')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Keep modal version as fallback (unused but preserved)
   void _showAttachmentSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -903,7 +974,7 @@ class _AttachmentOption extends StatelessWidget {
         Container(
           width: 56, height: 56,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 26),

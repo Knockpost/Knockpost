@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/notification_model.dart';
-
+import '../../models/post_model.dart';
+import '../../models/user_model.dart';
+import '../profile/other_profile_screen.dart';
+import '../single_post_screen.dart';
+import '../../utils/haptic_helper.dart';
+import '../../utils/global_knock_state.dart';
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -8,333 +13,334 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final List<NotificationModel> _notifications = dummyNotifications;
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final List<NotificationModel> _all = dummyNotifications;
 
-  @override
-  void initState() {
-    super.initState();
-    // 3 Tabs: All, Mentions, Authors (Substack style)
-    _tabController = TabController(length: 3, vsync: this);
-  }
+  // Split into "This week" (< 7 days) and "Earlier" (>= 7 days)
+  List<NotificationModel> get _thisWeek => _all
+      .where((n) => DateTime.now().difference(n.timestamp).inDays < 7)
+      .toList();
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  List<NotificationModel> get _earlier => _all
+      .where((n) => DateTime.now().difference(n.timestamp).inDays >= 7)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? Colors.black : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final secondaryTextColor = isDark ? Colors.white54 : Colors.black54;
+    final bg     = isDark ? Colors.black : Colors.white;
+    final text   = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: bg,
         elevation: 0,
-        iconTheme: IconThemeData(color: textColor),
+        surfaceTintColor: Colors.transparent,
+        iconTheme: IconThemeData(color: text),
         title: Text(
-          "Notifications",
+          'Notifications',
           style: TextStyle(
-            color: textColor,
+            color: text,
             fontWeight: FontWeight.bold,
+            fontSize: 20,
             letterSpacing: -0.5,
           ),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: textColor,
-          labelColor: textColor,
-          unselectedLabelColor: secondaryTextColor,
-          dividerColor: Colors.transparent,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          tabs: const [
-            Tab(text: "All Activity"),
-            Tab(text: "Mentions"),
-            Tab(text: "Creators"),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: ListView(
+        physics: const BouncingScrollPhysics(),
         children: [
-          // "All Activity" Tab
-          _buildNotificationList(_notifications, isDark),
-          
-          // "Mentions" Tab
-          _buildNotificationList(
-            _notifications.where((n) => n.type == NotificationType.mention).toList(),
-            isDark,
-            emptyMessage: "No recent mentions",
-          ),
-          
-          // "Creators" Tab (Substack updates)
-          _buildNotificationList(
-            _notifications.where((n) => n.type == NotificationType.newPost).toList(),
-            isDark,
-            emptyMessage: "No new posts from creators you've knocked",
-          ),
+          if (_thisWeek.isNotEmpty) ...[
+            _SectionHeader(label: 'This Week', isDark: isDark),
+            ..._thisWeek.map((n) => _NotifTile(notif: n, isDark: isDark)),
+          ],
+          if (_earlier.isNotEmpty) ...[
+            _SectionHeader(label: 'Earlier', isDark: isDark),
+            ..._earlier.map((n) => _NotifTile(notif: n, isDark: isDark)),
+          ],
+          if (_all.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 80),
+              child: Center(
+                child: Text(
+                  'No notifications yet',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
+}
 
-  Widget _buildNotificationList(List<NotificationModel> list, bool isDark, {String emptyMessage = "No notifications yet"}) {
-    if (list.isEmpty) {
-      return Center(
-        child: Text(
-          emptyMessage,
-          style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final bool isDark;
+
+  const _SectionHeader({required this.label, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
         ),
-      );
-    }
-    return ListView.builder(
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        return NotificationTile(
-          notification: list[index],
-          isDark: isDark,
-        );
-      },
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────
-// Notification Tile Widget
-// ─────────────────────────────────────────────
+// ─── Notification Tile ────────────────────────────────────────────────────────
 
-class NotificationTile extends StatelessWidget {
-  final NotificationModel notification;
+class _NotifTile extends StatelessWidget {
+  final NotificationModel notif;
   final bool isDark;
 
-  const NotificationTile({
-    super.key,
-    required this.notification,
-    required this.isDark,
-  });
+  const _NotifTile({required this.notif, required this.isDark});
 
-  String _getTimeAgo(DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inMinutes < 60) return "${diff.inMinutes}m";
-    if (diff.inHours < 24) return "${diff.inHours}h";
-    return "${diff.inDays}d";
+  String _timeAgo(DateTime t) {
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 60)  return '${d.inMinutes}m';
+    if (d.inHours   < 24)  return '${d.inHours}h';
+    if (d.inDays    < 7)   return '${d.inDays}d';
+    return '${(d.inDays / 7).floor()}w';
+  }
+
+  // Icon badge shown on top-right of avatar
+
+
+
+  // Rich text in the middle
+  Widget _body(Color textColor, Color subColor) {
+    final name    = notif.triggerUser.displayName;
+    final timeStr = _timeAgo(notif.timestamp);
+
+    String action;
+    switch (notif.type) {
+      case NotificationType.like:
+        action = ' liked your post.';
+        break;
+      case NotificationType.comment:
+        action = ' commented on your post.';
+        break;
+      case NotificationType.knock:
+        action = ' sent you a knock.';
+        break;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: TextStyle(color: textColor, fontSize: 14.5, height: 1.4),
+            children: [
+              TextSpan(
+                text: name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextSpan(text: action),
+              TextSpan(
+                text: ' $timeStr',
+                style: TextStyle(color: subColor, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        if (notif.commentSnippet != null) ...[
+          const SizedBox(height: 3),
+          Text(
+            notif.commentSnippet!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: subColor, fontSize: 13.5),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Right side: thumbnail or "Knock Back" button
+  Widget _right() {
+    if (notif.type == NotificationType.knock) {
+      return _KnockBackButton(isDark: isDark, user: notif.triggerUser);
+    }
+
+    if (notif.postThumbnail != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          notif.postThumbnail!,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   @override
   Widget build(BuildContext context) {
     final textColor = isDark ? Colors.white : Colors.black;
-    final secondaryColor = isDark ? Colors.white54 : Colors.black54;
-
-    // A subtle unread indicator background
-    final bgColor = !notification.isRead
-        ? (isDark ? Colors.white.withOpacity(0.05) : Colors.blue.withOpacity(0.05))
+    final subColor  = isDark ? Colors.white54 : Colors.black45;
+    final unreadBg  = !notif.isRead
+        ? (isDark
+            ? Colors.white.withOpacity(0.06)
+            : const Color(0xFFE8F4FD))
         : Colors.transparent;
 
-    return Container(
-      color: bgColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () {
+        KnockHaptics.selection();
+        
+        if (notif.type == NotificationType.knock) {
+          // Go to user profile
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OtherProfileScreen(
+                user: notif.triggerUser,
+                posts: getDemoPostsForUser(notif.triggerUser.id),
+              ),
+            ),
+          );
+        } else {
+          // Go to single post view
+          final isComment = notif.type == NotificationType.comment;
+          
+          // Generate a realistic dummy post for the tapped notification
+          final dummyPost = PostModel(
+            id: 'post_${notif.id}',
+            authorId: 'me',
+            type: PostType.media,
+            duration: PostDuration.h24,
+            imagePaths: [notif.postThumbnail ?? 'assets/test1.jpg'],
+            text: isComment ? 'Always an amazing perspective. 🌆' : 'Captured at the perfect moment ✨',
+            createdAt: notif.timestamp.subtract(const Duration(hours: 4)), // post is older than notif
+            likes: 215,
+            views: 1200,
+          );
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SinglePostScreen(
+                post: dummyPost,
+                author: demoSumanPatra, // As if it was my post
+                autoOpenComments: isComment,
+              ),
+            ),
+          );
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        color: unreadBg,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Universal: User Avatar
-          CircleAvatar(
-            radius: 22,
-            backgroundImage: AssetImage(notification.triggerUser.avatarAsset ?? "assets/test1.jpg"),
+          // ── Avatar ────────────────────────────────────────────────────────
+          SizedBox(
+            width: 50,
+            height: 50,
+            child: CircleAvatar(
+              radius: 25,
+              backgroundImage:
+                  AssetImage(notif.triggerUser.avatarAsset ?? 'assets/test1.jpg'),
+            ),
           ),
           const SizedBox(width: 14),
-          
-          // Dynamic Middle Content
-          Expanded(
-            child: _buildMiddleContent(textColor, secondaryColor),
-          ),
-          
+
+          // ── Text body ───────────────────────────────────────────────────
+          Expanded(child: _body(textColor, subColor)),
+
           const SizedBox(width: 12),
-          
-          // Dynamic Right Action/Thumbnail
-          _buildRightContent(isDark),
+
+          // ── Right action ────────────────────────────────────────────────
+          _right(),
         ],
       ),
+    ),
     );
   }
+}
 
-  Widget _buildMiddleContent(Color textColor, Color secondaryColor) {
-    final name = notification.triggerUser.displayName;
-    final timeStr = _getTimeAgo(notification.timestamp);
-    
-    switch (notification.type) {
-      case NotificationType.like:
-        return RichText(
-          text: TextSpan(
-            style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
-            children: [
-              TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              const TextSpan(text: " liked your knock. "),
-              TextSpan(text: timeStr, style: TextStyle(color: secondaryColor, fontSize: 13)),
-            ],
-          ),
-        );
-      case NotificationType.comment:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
-                children: [
-                  TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const TextSpan(text: " commented on your knock. "),
-                  TextSpan(text: timeStr, style: TextStyle(color: secondaryColor, fontSize: 13)),
-                ],
+class _KnockBackButton extends StatelessWidget {
+  final bool isDark;
+  final UserModel user;
+
+  const _KnockBackButton({required this.isDark, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final notifier = GlobalKnockState.getNotifier(user.id, user.knockStatus);
+
+    return ValueListenableBuilder<KnockStatus>(
+      valueListenable: notifier,
+      builder: (context, status, _) {
+        final isKnockedBack = status == KnockStatus.mutualKnocked || 
+                              status == KnockStatus.knocked || 
+                              status == KnockStatus.pending;
+
+        if (isKnockedBack) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.transparent,
+              border: Border.all(
+                color: isDark ? Colors.white24 : Colors.black26,
+                width: 1,
               ),
+              borderRadius: BorderRadius.circular(22),
             ),
-            const SizedBox(height: 4),
-            Text(
-              notification.contentSnippet ?? "",
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: secondaryColor, fontSize: 14),
-            )
-          ],
-        );
-      case NotificationType.follow:
-        return RichText(
-          text: TextSpan(
-            style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
-            children: [
-              TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              const TextSpan(text: " knocked on your profile. "),
-              TextSpan(text: timeStr, style: TextStyle(color: secondaryColor, fontSize: 13)),
-            ],
-          ),
-        );
-      case NotificationType.mention:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
-                children: [
-                  TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const TextSpan(text: " mentioned you on a knock. "),
-                  TextSpan(text: timeStr, style: TextStyle(color: secondaryColor, fontSize: 13)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              notification.contentSnippet ?? "",
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: secondaryColor, fontSize: 14),
-            )
-          ],
-        );
-      case NotificationType.newPost:
-      // Substack style presentation
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                Text(
-                  " shared a new thought • $timeStr",
-                  style: TextStyle(color: secondaryColor, fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              notification.postTitle ?? "New Thought",
+            child: Text(
+              'Knocked',
               style: TextStyle(
-                color: textColor,
-                fontSize: 16,
+                color: isDark ? Colors.white54 : Colors.black54,
                 fontWeight: FontWeight.bold,
-                letterSpacing: -0.3,
+                fontSize: 13,
               ),
             ),
-            if (notification.contentSnippet != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                notification.contentSnippet!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: secondaryColor,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
+          );
+        }
+
+        return GestureDetector(
+          onTap: () {
+            KnockHaptics.selection();
+            notifier.value = user.isEffectivelyOpen
+                ? KnockStatus.knocked
+                : KnockStatus.pending;
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white : Colors.black,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Text(
+              'Knock Back',
+              style: TextStyle(
+                color: isDark ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
               ),
-            ]
-          ],
-        );
-    }
-  }
-
-  Widget _buildRightContent(bool isDark) {
-    if (notification.type == NotificationType.like || notification.type == NotificationType.comment) {
-      if (notification.postThumbnail != null) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: Image.asset(
-            notification.postThumbnail!,
-            width: 44,
-            height: 44,
-            fit: BoxFit.cover,
+            ),
           ),
         );
-      }
-    }
-    
-    if (notification.type == NotificationType.follow) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white : Colors.black,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          "Knock Back",
-          style: TextStyle(
-            color: isDark ? Colors.black : Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-        ),
-      );
-    }
-
-    if (notification.type == NotificationType.newPost) {
-      return Container(
-        margin: const EdgeInsets.only(top: 24),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: isDark ? Colors.white24 : Colors.black26),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          "Read",
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-      );
-    }
-
-    return const SizedBox.shrink(); // Empty space for mentions
+      },
+    );
   }
 }

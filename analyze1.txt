@@ -1,9 +1,0 @@
-Analyzing media_preview_screen.dart...
-
-  error - media_preview_screen.dart:45:28 - The argument type 'void Function()' can't be assigned to the parameter type 'dynamic Function(EditorMode)?'.  - argument_type_not_assignable
-   info - media_preview_screen.dart:73:45 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
-   info - media_preview_screen.dart:84:45 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
-   info - media_preview_screen.dart:141:36 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
-   info - media_preview_screen.dart:141:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
-
-5 issues found.

@@ -396,7 +396,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                   width: 3,
                   height: height,
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.5),
+                    color: Colors.red.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 );
@@ -482,7 +482,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
+                color: Colors.red.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, color: Colors.red, size: 18),

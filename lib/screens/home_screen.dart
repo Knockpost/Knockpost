@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import '../utils/haptic_helper.dart';
+import '../utils/global_post_state.dart';
 
 import '../models/post_model.dart';
 import '../models/user_model.dart';
@@ -18,7 +19,7 @@ import 'create_post/create_post_screen.dart';
 import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
 import 'search/search_screen.dart';
-import 'messages/messages_screen.dart';
+import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
 import '../widgets/system_nav_bar_fill.dart';
 
@@ -37,42 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   double _scrollDelta = 0;
   bool _showBars = true;
   int _currentNavIndex = 0;
-
-  /// Each feed post: the user who posted, their images, and a caption.
-  final List<({UserModel user, List<String> images, String caption})>
-      _demoFeedPosts = const [
-    (
-      user: demoZaynMalik,
-      images: [
-        'assets/test1.jpg',
-        'assets/test2.jpg',
-        'assets/test3.jpg',
-        'assets/test4.jpg',
-      ],
-      caption:
-          'Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body.',
-    ),
-    (
-      user: demoSaptarshiNayak,
-      images: [],
-      caption: 'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
-    ),
-    (
-      user: demoSaptarshiNayak,
-      images: ['assets/test3.jpg'],
-      caption: 'Morning run hits different 🏃',
-    ),
-    (
-      user: demoAryaLayek,
-      images: ['assets/test2.jpg', 'assets/test4.jpg', 'assets/test1.jpg'],
-      caption: 'A weekend well spent ✨',
-    ),
-    (
-      user: demoJustinBieber,
-      images: ['assets/test4.jpg', 'assets/test2.jpg'],
-      caption: 'Golden hour was different today 🌅',
-    ),
-  ];
 
   @override
   void initState() {
@@ -114,12 +79,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _animateToTab(int index) {
     if (index < 0 || index > 4 || _currentNavIndex == index) return;
 
+    final int diff = (index - _currentNavIndex).abs();
     _setCurrentNavIndex(index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOut,
-    );
+    
+    if (diff == 1) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _pageController.jumpToPage(index);
+    }
   }
 
   void _handleHorizontalSwipeEnd(DragEndDetails details) {
@@ -260,6 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: NotificationListener<ScrollNotification>(
                           onNotification: _onScrollNotification,
                           child: NestedScrollView(
+                            physics: const ClampingScrollPhysics(),
                             controller: _scrollController,
                             headerSliverBuilder: (context, innerBoxIsScrolled) {
                               return [
@@ -271,14 +243,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   snap: true,
                                   titleSpacing: 20,
                                   centerTitle: false,
-                                  systemOverlayStyle: SystemUiOverlayStyle(
-                                    statusBarIconBrightness: isDark
-                                        ? Brightness.light
-                                        : Brightness.dark,
-                                    statusBarBrightness: isDark
-                                        ? Brightness.dark
-                                        : Brightness.light,
-                                  ),
                                   title: Text(
                                     "KnockPost",
                                     style: TextStyle(
@@ -305,51 +269,79 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ];
                             },
-                            body: ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 90),
-                              itemCount: _demoFeedPosts.length + 1,
-                              itemBuilder: (context, index) {
-                                const stripIndex = 2;
-                                final totalItems = _demoFeedPosts.length + 1;
-                                final isLast = index == totalItems - 1;
-                                final dividerColor = isDark
-                                    ? const Color(0xFF2A2A2A)
-                                    : const Color(0xFFE8E8E8);
-                                final divider = Divider(
-                                  height: 1,
-                                  thickness: 1,
-                                  color: dividerColor,
-                                );
+                            body: ValueListenableBuilder<Set<String>>(
+                              valueListenable: GlobalPostState.deletedPostIds,
+                              builder: (context, deletedIds, _) {
+                                // For the demo, let's combine some posts for the home feed
+                                // Only show the latest own post in Recents
+                                final ownPostsSorted = [...demoOwnPosts]
+                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                                final latestOwnPost = ownPostsSorted.isNotEmpty
+                                    ? [ownPostsSorted.first]
+                                    : <PostModel>[];
 
-                                Widget content;
-                                if (index == stripIndex) {
-                                  content = const PeopleSuggestionStrip();
-                                } else {
-                                  final postIndex = index < stripIndex
-                                      ? index
-                                      : index - 1;
-                                  final post = _demoFeedPosts[postIndex];
+                                final allDemoPosts = [
+                                  ...latestOwnPost,
+                                  ...getDemoPostsForUser('zayn01'),
+                                  ...getDemoPostsForUser('saptarshi01'),
+                                ];
+                                
+                                final activePosts = allDemoPosts
+                                    .where((p) => !deletedIds.contains(p.id))
+                                    .toList()
+                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-                                  if (post.images.isEmpty) {
-                                    content = ThoughtCard(
-                                      user: post.user,
-                                      text: post.caption,
+                                return ListView.builder(
+                                  padding: const EdgeInsets.only(bottom: 90),
+                                  itemCount: activePosts.length + 1,
+                                  itemBuilder: (context, index) {
+                                    const stripIndex = 2;
+                                    final totalItems = activePosts.length + 1;
+                                    final isLast = index == totalItems - 1;
+                                    
+                                    if (index == stripIndex) {
+                                      return const PeopleSuggestionStrip();
+                                    }
+
+                                    final postIndex = index < stripIndex ? index : index - 1;
+                                    if (postIndex >= activePosts.length) return const SizedBox.shrink();
+                                    
+                                    final post = activePosts[postIndex];
+                                    final author = post.authorId == 'me' ? demoOwnUser : findDemoUserByUsername(post.authorId == 'zayn01' ? 'zayn.malik' : 'saptarshi.nayak') ?? demoOwnUser;
+
+                                    final dividerColor = isDark
+                                        ? const Color(0xFF2A2A2A)
+                                        : const Color(0xFFE8E8E8);
+                                    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+                                    Widget card;
+                                    if (post.type == PostType.text) {
+                                      card = ThoughtCard(
+                                        user: author,
+                                        text: post.text,
+                                        likes: post.likes,
+                                        views: post.views,
+                                        postId: post.id,
+                                      );
+                                    } else {
+                                      card = PostCard(
+                                        imagePaths: post.imagePaths,
+                                        user: author,
+                                        caption: post.text,
+                                        likes: post.likes,
+                                        views: post.views,
+                                        postId: post.id,
+                                      );
+                                    }
+
+                                    return Column(
+                                      children: [
+                                        divider,
+                                        card,
+                                        if (isLast) divider,
+                                      ],
                                     );
-                                  } else {
-                                    content = PostCard(
-                                      imagePaths: post.images,
-                                      user: post.user,
-                                      caption: post.caption,
-                                    );
-                                  }
-                                }
-
-                                return Column(
-                                  children: [
-                                    divider,
-                                    content,
-                                    if (isLast) divider,
-                                  ],
+                                  },
                                 );
                               },
                             ),

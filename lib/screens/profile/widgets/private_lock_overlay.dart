@@ -27,7 +27,7 @@ class PrivateLockOverlay extends StatelessWidget {
         color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+          color: isDark ? Colors.white12 : Colors.black.withOpacity(0.08),
         ),
       ),
       child: Column(

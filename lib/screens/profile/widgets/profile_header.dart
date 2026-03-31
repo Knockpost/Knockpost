@@ -125,7 +125,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  bg.withValues(alpha: isDark ? 0.20 : 0.72),
+                                  bg.withOpacity(isDark ? 0.20 : 0.72),
                                   bg,
                                 ],
                                 stops: const [0.42, 0.86, 1.0],
@@ -227,7 +227,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                             user.bio!,
                             style: TextStyle(
                               fontSize: 14.5,
-                              color: textColor.withValues(alpha: 0.9),
+                              color: textColor.withOpacity(0.9),
                               height: 1.4,
                             ),
                           ),
@@ -359,9 +359,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                             fontWeight: FontWeight.w700,
                                             color: _canMessage
                                                 ? textColor
-                                                : textColor.withValues(
-                                                    alpha: 0.45,
-                                                  ),
+                                                : textColor.withOpacity(0.45),
                                           ),
                                         ),
                                       ),
@@ -634,7 +632,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
                 ),
                 child: Container(
                   color: (widget.isDark ? Colors.black : Colors.white)
-                      .withValues(alpha: fade * 0.05),
+                      .withOpacity(fade * 0.05),
                 ),
               ),
             ),
@@ -752,7 +750,7 @@ class _BlurMenuButton extends StatelessWidget {
           shadows: hasCover
               ? [
                   Shadow(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: Colors.black.withOpacity(0.6),
                     blurRadius: 6,
                   ),
                 ]

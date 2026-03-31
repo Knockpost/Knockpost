@@ -7,11 +7,17 @@ import 'reaction_bar.dart';
 class ThoughtCard extends StatefulWidget {
   final UserModel user;
   final String text;
+  final int likes;
+  final int views;
+  final String? postId;
 
   const ThoughtCard({
     super.key,
     required this.user,
     required this.text,
+    this.likes = 0,
+    this.views = 0,
+    this.postId,
   });
 
   @override
@@ -39,7 +45,10 @@ class _ThoughtCardState extends State<ThoughtCard> {
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: PostHeader(user: widget.user),
+          child: PostHeader(
+            user: widget.user,
+            postId: widget.postId,
+          ),
         ),
 
         const SizedBox(height: 12),
@@ -68,8 +77,12 @@ class _ThoughtCardState extends State<ThoughtCard> {
           child: ReactionBar(
             doubleTapped: _doubleTapped,
             onDoubleTapHandled: _onDoubleTapHandled,
-            postId: 'demo_thought_${widget.text.hashCode}',
-            isPostOwner: false, // Viewer perspective for demo
+            postId: widget.postId ?? 'thought_${widget.user.username}_${widget.text.hashCode}',
+            isPostOwner: widget.user.isOwnProfile,
+            initialLikes: widget.likes,
+            initialViews: widget.views,
+            shareUsername: widget.user.username,
+            shareCaption: widget.text,
           ),
         ),
 

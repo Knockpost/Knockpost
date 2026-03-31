@@ -57,7 +57,7 @@ class CreatorRankBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: mini ? 0.2 : 0.35),
+            color: color.withOpacity(mini ? 0.2 : 0.35),
             blurRadius: mini ? 3 : 6,
             offset: const Offset(0, 2),
           ),
@@ -98,7 +98,7 @@ class RankInfoCard extends StatelessWidget {
         color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF7F7F7),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+          color: isDark ? Colors.white12 : Colors.black.withOpacity(0.08),
         ),
       ),
       child: Column(

@@ -25,20 +25,32 @@ class _ReelsScreenState extends State<ReelsScreen> {
 
   final List<Map<String, String>> reels = [
     {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "id": "kp_official",
+      "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4",
       "username": "knockpost_official",
       "caption": "Building KnockPost — the future of social 🚀",
     },
     {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "id": "zayn01",
+      "url": "https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4",
+      "username": "zayn.malik",
+      "caption": "Vibing to the new beats 🎤✨ #zayn #music #life",
+    },
+    {
+      "id": "saptarshi01",
+      "url": "https://www.w3schools.com/tags/mov_bbb.mp4",
+      "username": "saptarshi.nayak",
+      "caption": "Finding peace in the heart of nature 🌿🌊 #vibes #naturelover",
+    },
+    {
+      "id": "design_daily",
+      "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
       "username": "design_daily",
       "caption": "Clean UI is everything ✨ #design #flutter",
     },
     {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "id": "dev_comm",
+      "url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
       "username": "dev_community",
       "caption": "Drop a 🔥 if you love Flutter!",
     },
@@ -82,9 +94,9 @@ class _ReelsScreenState extends State<ReelsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // CustomBottomNav is 50px tall. ReelItem adds 20px internally.
-    // 30.0 + 20.0 = 50.0. This makes the text flush with the top of the nav bar, eliminating the gap.
-    final bottomNavHeight = 30.0 + MediaQuery.paddingOf(context).bottom;
+    // Bottom nav total height = 50px (icons) + system nav bar padding
+    // ReelItem adds 20px internally for content spacing, so subtract that
+    final bottomNavHeight = 40.0 + MediaQuery.of(context).viewPadding.bottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: _reelsOverlayStyle,
@@ -111,6 +123,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
               },
               itemBuilder: (context, index) {
                 return ReelItem(
+                  userId: reels[index]["id"]!,
                   videoUrl: reels[index]["url"]!,
                   username: reels[index]["username"]!,
                   caption: reels[index]["caption"]!,
@@ -135,7 +148,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withValues(alpha: 0.6),
+                      Colors.black.withOpacity(0.6),
                       Colors.transparent,
                     ],
                     begin: Alignment.topCenter,
@@ -158,28 +171,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                         ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CreatePostScreen(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_outlined,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                    ),
+                    const Spacer(),
                   ],
                 ),
               ),
