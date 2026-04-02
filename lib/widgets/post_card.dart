@@ -4,17 +4,26 @@ import '../utils/haptic_helper.dart';
 import 'post_header.dart';
 import 'media_carousel.dart';
 import 'reaction_bar.dart';
+import 'package:just_audio/just_audio.dart';
 
 class PostCard extends StatefulWidget {
   final List<String> imagePaths;
   final UserModel user;
   final String caption;
+  final String? musicUrl;
+  final String? musicTitle;
+  final String? musicArtist;
+  final bool isVideoPost;
 
   const PostCard({
     super.key,
     required this.imagePaths,
     required this.user,
     this.caption = '',
+    this.musicUrl,
+    this.musicTitle,
+    this.musicArtist,
+    this.isVideoPost = false,
   });
 
   @override
@@ -23,6 +32,29 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard> {
   bool _doubleTapped = false;
+  AudioPlayer? _audioPlayer;
+  bool _isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.musicUrl != null && widget.musicUrl!.isNotEmpty) {
+      _audioPlayer = AudioPlayer();
+      _audioPlayer!.setUrl(widget.musicUrl!).then((_) {
+        _audioPlayer!.setLoopMode(LoopMode.one);
+        _audioPlayer!.play();
+      });
+      _audioPlayer!.playingStream.listen((playing) {
+        if (mounted) setState(() => _isPlaying = playing);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer?.dispose();
+    super.dispose();
+  }
 
   void _onDoubleTap() {
     KnockHaptics.impact();
@@ -62,9 +94,59 @@ class _PostCardState extends State<PostCard> {
         const SizedBox(height: 14),
 
         // Double-tap on image triggers 👍 reaction
-        GestureDetector(
-          onDoubleTap: _onDoubleTap,
-          child: MediaCarousel(imagePaths: widget.imagePaths),
+        Stack(
+          children: [
+            GestureDetector(
+              onDoubleTap: _onDoubleTap,
+              child: MediaCarousel(
+                imagePaths: widget.imagePaths,
+                isVideoPost: widget.isVideoPost,
+              ),
+            ),
+            if (widget.musicUrl != null && widget.musicUrl!.isNotEmpty)
+              Positioned(
+                bottom: 15,
+                left: 15,
+                child: GestureDetector(
+                  onTap: () {
+                    KnockHaptics.tap();
+                    if (_isPlaying) {
+                      _audioPlayer?.pause();
+                    } else {
+                      _audioPlayer?.play();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isPlaying ? Icons.music_note : Icons.music_off,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          widget.musicTitle ?? 'Music',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
 
         const SizedBox(height: 10),

@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
 
@@ -8,7 +11,7 @@ class MusicTrack {
   final String duration;
   final String coverUrl;
   final String category;
-  final String previewUrl; // actual audio URL
+  final String previewUrl;
 
   MusicTrack(this.title, this.artist, this.duration, this.coverUrl,
       this.category, this.previewUrl);
@@ -27,76 +30,112 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
   late TabController _tabController;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Free sample audio clips (royalty-free from SampleLib / assets)
-  static const _s1 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-  static const _s2 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3';
-  static const _s3 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3';
-  static const _s4 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3';
-  static const _s5 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3';
-  static const _s6 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3';
-  static const _s7 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3';
-  static const _s8 = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3';
-
-  final List<MusicTrack> _allTracks = [
-    // Trending
-    MusicTrack("Blinding Lights", "The Weeknd", "3:20", "", "Trending", _s1),
-    MusicTrack("Levitating", "Dua Lipa", "3:23", "", "Trending", _s2),
-    MusicTrack("As It Was", "Harry Styles", "2:47", "", "Trending", _s3),
-    MusicTrack("Anti-Hero", "Taylor Swift", "3:21", "", "Trending", _s4),
-    MusicTrack("Kill Bill", "SZA", "2:33", "", "Trending", _s5),
-    MusicTrack("Flowers", "Miley Cyrus", "3:20", "", "Trending", _s6),
-    // Pop
-    MusicTrack("Shape of You", "Ed Sheeran", "3:53", "", "Pop", _s7),
-    MusicTrack("Peaches", "Justin Bieber", "3:18", "", "Pop", _s8),
-    MusicTrack("Watermelon Sugar", "Harry Styles", "2:54", "", "Pop", _s1),
-    MusicTrack("Stay", "The Kid LAROI & JB", "2:21", "", "Pop", _s2),
-    MusicTrack("Bad Habits", "Ed Sheeran", "3:50", "", "Pop", _s3),
-    MusicTrack("Dynamite", "BTS", "3:19", "", "Pop", _s4),
-    // Hip-Hop
-    MusicTrack("HUMBLE.", "Kendrick Lamar", "2:57", "", "Hip-Hop", _s5),
-    MusicTrack("SICKO MODE", "Travis Scott", "5:12", "", "Hip-Hop", _s6),
-    MusicTrack("Lucid Dreams", "Juice WRLD", "3:59", "", "Hip-Hop", _s7),
-    MusicTrack("Blueberry Faygo", "Lil Mosey", "2:36", "", "Hip-Hop", _s8),
-    MusicTrack("Industry Baby", "Lil Nas X", "3:32", "", "Hip-Hop", _s1),
-    // Chill
-    MusicTrack("Starboy", "The Weeknd", "3:50", "", "Chill", _s2),
-    MusicTrack("Heat Waves", "Glass Animals", "3:58", "", "Chill", _s3),
-    MusicTrack("Sunflower", "Post Malone", "2:38", "", "Chill", _s4),
-    MusicTrack("Circles", "Post Malone", "3:35", "", "Chill", _s5),
-    MusicTrack("Snowman", "Sia", "3:15", "", "Chill", _s6),
-    // Bollywood
-    MusicTrack("Tum Hi Ho", "Arijit Singh", "4:22", "", "Bollywood", _s7),
-    MusicTrack("Kesariya", "Arijit Singh", "4:28", "", "Bollywood", _s8),
-    MusicTrack("Raataan Lambiyan", "Jubin Nautiyal", "3:49", "", "Bollywood", _s1),
-    MusicTrack("Pasoori", "Ali Sethi", "3:52", "", "Bollywood", _s2),
-    MusicTrack("Apna Bana Le", "Arijit Singh", "4:34", "", "Bollywood", _s3),
-  ];
-
-  final _tabs = ['Trending', 'Pop', 'Hip-Hop', 'Chill', 'Bollywood'];
-  int? _playingIndex;
+  final List<String> _tabs = ['Trending', 'Pop', 'Hip-Hop', 'Chill', 'Bollywood'];
+  
+  Map<String, List<MusicTrack>> _categoryTracksMap = {};
+  List<MusicTrack> _searchTracks = [];
+  
+  String? _playingUrl;
   String _searchQuery = '';
+  bool _isLoadingTracks = false;
   bool _isLoadingAudio = false;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
-      _stopAudio();
-      setState(() {});
+      if (_tabController.indexIsChanging) {
+        _stopAudio();
+        _loadTracksForCategory(_tabs[_tabController.index]);
+      }
     });
+
+    // Load initial category
+    _loadTracksForCategory(_tabs[0]);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _tabController.dispose();
+    _debounceTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
 
-  void _filterTracks(String query) {
+  Future<void> _loadTracksForCategory(String category) async {
+    if (_categoryTracksMap.containsKey(category) &&
+        _categoryTracksMap[category]!.isNotEmpty) {
+      return; 
+    }
+    
+    // Map category to a good iTunes search term
+    String searchTerm = category;
+    if (category == 'Trending') searchTerm = 'Top billboard hits';
+    else if (category == 'Chill') searchTerm = 'Lofi chillhop';
+    else if (category == 'Bollywood') searchTerm = 'Bollywood latest hits';
+    else searchTerm = '$category music';
+
+    await _fetchFromITunes(searchTerm, category);
+  }
+
+  void _onSearchChanged(String query) {
     setState(() => _searchQuery = query.toLowerCase());
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    
+    if (query.trim().isEmpty) {
+      setState(() { _searchTracks = []; });
+      return;
+    }
+    
+    _debounceTimer = Timer(const Duration(milliseconds: 600), () {
+      _fetchFromITunes(query, 'Search');
+    });
+  }
+
+  Future<void> _fetchFromITunes(String term, String categoryKey) async {
+    if (mounted) setState(() => _isLoadingTracks = true);
+    
+    try {
+      final url = Uri.parse('https://itunes.apple.com/search?term=${Uri.encodeComponent(term)}&limit=30&media=music&entity=song');
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['results'] as List;
+        
+        final tracks = results.map((item) {
+          int millis = item['trackTimeMillis'] ?? 0;
+          int sec = (millis / 1000).round();
+          String dur = '${sec ~/ 60}:${(sec % 60).toString().padLeft(2, '0')}';
+          
+          return MusicTrack(
+            item['trackName'] ?? 'Unknown',
+            item['artistName'] ?? 'Unknown Artist',
+            dur,
+            (item['artworkUrl100'] as String?)?.replaceAll('100x100', '300x300') ?? '', 
+            categoryKey,
+            item['previewUrl'] ?? '',
+          );
+        }).where((t) => t.previewUrl.isNotEmpty).toList();
+
+        if (mounted) {
+          setState(() {
+            if (categoryKey == 'Search') {
+              _searchTracks = tracks;
+            } else {
+              _categoryTracksMap[categoryKey] = tracks;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('iTunes API Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingTracks = false);
+    }
   }
 
   void _onTrackTap(MusicTrack track) {
@@ -107,54 +146,44 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
 
   Future<void> _stopAudio() async {
     await _audioPlayer.stop();
-    if (mounted) setState(() { _playingIndex = null; _isLoadingAudio = false; });
+    if (mounted) setState(() { _playingUrl = null; _isLoadingAudio = false; });
   }
 
-  Future<void> _togglePlayPause(int globalIndex) async {
+  Future<void> _togglePlayPause(MusicTrack track) async {
     KnockHaptics.tap();
 
-    if (_playingIndex == globalIndex) {
-      // Currently playing this track → pause it
+    if (_playingUrl == track.previewUrl) {
       await _audioPlayer.pause();
-      setState(() => _playingIndex = null);
+      setState(() => _playingUrl = null);
       return;
     }
 
-    // Play a new track
-    setState(() { _playingIndex = globalIndex; _isLoadingAudio = true; });
+    setState(() { _playingUrl = track.previewUrl; _isLoadingAudio = true; });
 
     try {
-      final track = _allTracks[globalIndex];
       await _audioPlayer.setUrl(track.previewUrl);
       await _audioPlayer.seek(Duration.zero);
       await _audioPlayer.play();
       if (mounted) setState(() => _isLoadingAudio = false);
 
-      // Listen for completion
       _audioPlayer.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed && mounted) {
-          setState(() => _playingIndex = null);
+          setState(() => _playingUrl = null);
         }
       });
     } catch (e) {
-      if (mounted) setState(() { _playingIndex = null; _isLoadingAudio = false; });
+      if (mounted) setState(() { _playingUrl = null; _isLoadingAudio = false; });
     }
   }
 
   Color _accentForCategory(String cat) {
     switch (cat) {
-      case 'Trending':
-        return const Color(0xFFF15BB5);
-      case 'Pop':
-        return const Color(0xFF4361EE);
-      case 'Hip-Hop':
-        return const Color(0xFFFF6B35);
-      case 'Chill':
-        return const Color(0xFF06D6A0);
-      case 'Bollywood':
-        return const Color(0xFFFFBE0B);
-      default:
-        return Colors.white;
+      case 'Trending': return const Color(0xFFF15BB5);
+      case 'Pop': return const Color(0xFF4361EE);
+      case 'Hip-Hop': return const Color(0xFFFF6B35);
+      case 'Chill': return const Color(0xFF06D6A0);
+      case 'Bollywood': return const Color(0xFFFFBE0B);
+      default: return Colors.white;
     }
   }
 
@@ -199,7 +228,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                 ),
                 child: TextField(
                   controller: _searchController,
-                  onChanged: _filterTracks,
+                  onChanged: _onSearchChanged,
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                   decoration: InputDecoration(
                     prefixIcon: Icon(Icons.search_rounded,
@@ -246,13 +275,21 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                 controller: _tabController,
                 physics: const BouncingScrollPhysics(),
                 children: _tabs.map((cat) {
-                  final tracks = _allTracks.where((t) {
-                    final matchesCat = t.category == cat;
-                    final matchesSearch = _searchQuery.isEmpty ||
-                        t.title.toLowerCase().contains(_searchQuery) ||
-                        t.artist.toLowerCase().contains(_searchQuery);
-                    return matchesCat && matchesSearch;
-                  }).toList();
+                  List<MusicTrack> tracks = [];
+                  if (_searchQuery.isNotEmpty) {
+                    tracks = _searchTracks;
+                  } else {
+                    tracks = _categoryTracksMap[cat] ?? [];
+                  }
+
+                  if (_isLoadingTracks && tracks.isEmpty) {
+                    return Center(
+                      child: SizedBox(
+                        width: 24, height: 24, 
+                        child: CircularProgressIndicator(color: accent, strokeWidth: 2),
+                      )
+                    );
+                  }
 
                   if (tracks.isEmpty) {
                     return Center(
@@ -269,8 +306,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                     itemCount: tracks.length,
                     itemBuilder: (context, index) {
                       final track = tracks[index];
-                      final globalIndex = _allTracks.indexOf(track);
-                      final isPlaying = _playingIndex == globalIndex;
+                      final isPlaying = _playingUrl == track.previewUrl;
                       final catAccent = _accentForCategory(cat);
 
                       return GestureDetector(
@@ -299,17 +335,14 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      catAccent.withOpacity(0.6),
-                                      catAccent.withOpacity(0.2),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
+                                  color: Colors.white.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(10),
+                                  image: track.coverUrl.isNotEmpty ? DecorationImage(
+                                    image: NetworkImage(track.coverUrl),
+                                    fit: BoxFit.cover,
+                                  ) : null,
                                 ),
-                                child: Center(
+                                child: track.coverUrl.isEmpty ? Center(
                                   child: Icon(
                                     isPlaying
                                         ? Icons.equalizer_rounded
@@ -317,7 +350,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                     color: Colors.white.withOpacity(0.9),
                                     size: 24,
                                   ),
-                                ),
+                                ) : null,
                               ),
                               const SizedBox(width: 14),
 
@@ -366,7 +399,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
 
                               // ── Play / Pause ──
                               GestureDetector(
-                                onTap: () => _togglePlayPause(globalIndex),
+                                onTap: () => _togglePlayPause(track),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   width: 38,
@@ -383,8 +416,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                       width: 1,
                                     ),
                                   ),
-                                  child: _isLoadingAudio &&
-                                          _playingIndex == globalIndex
+                                  child: _isLoadingAudio && isPlaying
                                       ? Padding(
                                           padding: const EdgeInsets.all(10),
                                           child: CircularProgressIndicator(

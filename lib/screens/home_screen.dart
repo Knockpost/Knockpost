@@ -649,9 +649,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       _KeepAlivePage(
                         child: NotificationListener<ScrollNotification>(
                           onNotification: _onScrollNotification,
-                          child: ProfileScreen(
-                            user: demoOwnUser,
-                            posts: demoOwnPosts,
+                          child: ValueListenableBuilder<List<PostModel>>(
+                            valueListenable: demoOwnPostsNotifier,
+                            builder: (context, currentPosts, child) {
+                              return ProfileScreen(
+                                user: demoOwnUser,
+                                posts: currentPosts,
+                              );
+                            },
                           ),
                         ),
                       ),

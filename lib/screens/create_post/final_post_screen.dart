@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
+import 'music_editor_screen.dart';
 import 'music_picker_screen.dart';
 import 'post_settings_sheet.dart';
 
@@ -16,6 +18,8 @@ class FinalPostScreen extends StatefulWidget {
   final bool isGlimpse;
   final PostDuration selectedDuration;
   final PostAudience selectedAudience;
+  final MusicTrack? initialMusic;
+  final int? initialTrimSeconds;
 
   const FinalPostScreen({
     super.key,
@@ -24,6 +28,8 @@ class FinalPostScreen extends StatefulWidget {
     this.isGlimpse = false,
     this.selectedDuration = PostDuration.h24,
     this.selectedAudience = PostAudience.myFriends,
+    this.initialMusic,
+    this.initialTrimSeconds,
   });
 
   @override
@@ -45,6 +51,8 @@ class _FinalPostScreenState extends State<FinalPostScreen>
   Timer? _recordingTimer;
 
   late AnimationController _pulseController;
+  final AudioPlayer _bgAudioPlayer = AudioPlayer();
+  int _trimStartSeconds = 0;
 
   @override
   void initState() {
@@ -58,6 +66,27 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
+    
+    _selectedMusic = widget.initialMusic;
+    _trimStartSeconds = widget.initialTrimSeconds ?? 0;
+    if (_selectedMusic != null) {
+      _playSelectedMusic();
+    }
+  }
+
+  Future<void> _playSelectedMusic() async {
+    if (_selectedMusic == null) {
+      await _bgAudioPlayer.stop();
+      return;
+    }
+    try {
+      await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
+      await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
+      await _bgAudioPlayer.setLoopMode(LoopMode.one);
+      await _bgAudioPlayer.play();
+    } catch (e) {
+      debugPrint('FinalPost bg audio error: $e');
+    }
   }
 
   @override
@@ -66,6 +95,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     _pulseController.dispose();
     _recordingTimer?.cancel();
     _recorder.dispose();
+    _bgAudioPlayer.dispose();
     super.dispose();
   }
 
@@ -138,6 +168,37 @@ class _FinalPostScreenState extends State<FinalPostScreen>
 
   void _postContent() {
     KnockHaptics.tap();
+
+    final type = widget.isGlimpse
+        ? PostType.glimpse
+        : (widget.files.isEmpty ? PostType.text : PostType.media);
+
+    debugPrint('[_postContent] Creating post: type=$type, files=${widget.files.length}, isGlimpse=${widget.isGlimpse}');
+    for (final f in widget.files) {
+      debugPrint('[_postContent] File path: ${f.path}');
+    }
+
+    final newPost = PostModel(
+      id: 'p_${DateTime.now().millisecondsSinceEpoch}',
+      authorId: 'me',
+      type: type,
+      duration: _selectedDuration,
+      imagePaths: widget.files.map((f) => f.path).toList(),
+      text: _captionController.text.trim(),
+      musicUrl: widget.initialMusic?.previewUrl,
+      musicTitle: widget.initialMusic?.title,
+      musicArtist: widget.initialMusic?.artist,
+      createdAt: DateTime.now(),
+      likes: 0,
+      views: 0,
+    );
+
+    // Add to the front of our global mock list so it shows up in Recents/Profile
+    demoOwnPosts.insert(0, newPost);
+    debugPrint('[_postContent] demoOwnPosts now has ${demoOwnPosts.length} items');
+    demoOwnPostsNotifier.value = List.from(demoOwnPosts);
+    debugPrint('[_postContent] Notifier updated. Popping to first route...');
+
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -336,7 +397,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                             color: Colors.grey),
                         onPressed: () {
                           KnockHaptics.tap();
-                          setState(() => _selectedMusic = null);
+                          setState(() {
+                            _selectedMusic = null;
+                            _bgAudioPlayer.stop();
+                          });
                         },
                       )
                     : Icon(Icons.arrow_forward_ios,
@@ -352,9 +416,28 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                         builder: (_) => const MusicPickerScreen()),
                   );
                   if (result != null && result is MusicTrack) {
-                    setState(() {
-                      _selectedMusic = result;
-                    });
+                    final isVideo = widget.files.isNotEmpty &&
+                        (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
+                         widget.files.first.path.toLowerCase().endsWith('.mov'));
+
+                    final overlayResult = await Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        opaque: false,
+                        pageBuilder: (_, __, ___) => MusicOverlayScreen(
+                          track: result,
+                          isVideo: isVideo,
+                        ),
+                      ),
+                    );
+
+                    if (overlayResult != null && overlayResult is Map) {
+                      setState(() {
+                        _selectedMusic = overlayResult['track'] as MusicTrack;
+                        _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
+                      });
+                      _playSelectedMusic();
+                    }
                   }
                 },
               ),

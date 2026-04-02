@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/post_model.dart';
@@ -25,7 +26,7 @@ class ShowcaseGrid extends StatelessWidget {
 
   List<PostModel> get _showcasePosts =>
       posts
-          .where((p) => p.isInShowcase && p.type == PostType.media && p.imagePaths.isNotEmpty)
+          .where((p) => p.isInShowcase && (p.type == PostType.media || p.type == PostType.glimpse) && p.imagePaths.isNotEmpty)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -91,12 +92,45 @@ class _GridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
+    if ((post.type == PostType.media || post.type == PostType.glimpse) && post.imagePaths.isNotEmpty) {
+      final imagePath = post.imagePaths.first;
+      final hasVideoExtension = imagePath.toLowerCase().endsWith('.mp4') || imagePath.toLowerCase().endsWith('.mov') || imagePath.toLowerCase().endsWith('.mkv');
+      final isVideo = hasVideoExtension || post.type == PostType.glimpse;
+      
+      Widget imageWidget;
+      if (isVideo) {
+        imageWidget = Container(
+          color: isDark ? Colors.grey.shade900 : Colors.grey.shade300,
+          child: Center(
+            child: Icon(Icons.videocam, color: isDark ? Colors.white54 : Colors.black54, size: 32),
+          ),
+        );
+      } else {
+        imageWidget = imagePath.startsWith('assets/')
+            ? Image.asset(imagePath, fit: BoxFit.cover)
+            : Image.file(File(imagePath), fit: BoxFit.cover);
+      }
+
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(post.imagePaths.first, fit: BoxFit.cover),
-          if (post.imagePaths.length > 1)
+          imageWidget,
+          
+          if (post.type == PostType.glimpse)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black26,
+                child: const Center(
+                  child: Icon(
+                    Icons.play_circle_fill_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+              ),
+            ),
+            
+          if (post.imagePaths.length > 1 && post.type == PostType.media)
             Positioned(
               top: 6,
               right: 6,
@@ -251,6 +285,10 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             imagePaths: post.imagePaths,
                             user: widget.user,
                             caption: post.text,
+                            musicUrl: post.musicUrl,
+                            musicTitle: post.musicTitle,
+                            musicArtist: post.musicArtist,
+                            isVideoPost: post.type == PostType.glimpse,
                           ),
                     if (isLast) divider,
                   ],

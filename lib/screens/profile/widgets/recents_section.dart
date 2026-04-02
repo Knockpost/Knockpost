@@ -30,6 +30,11 @@ class RecentsSection extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final recentPosts = _recentPosts;
 
+    debugPrint('[RecentsSection] Total posts: ${posts.length}, Recent: ${recentPosts.length}');
+    for (final p in recentPosts) {
+      debugPrint('[RecentsSection] Post id=${p.id} type=${p.type} images=${p.imagePaths.length} text="${p.text.substring(0, p.text.length.clamp(0, 30))}"');
+    }
+
     if (recentPosts.isEmpty) {
       return ProfileEmptySection(
         icon: Icons.history_rounded,
@@ -58,11 +63,16 @@ class RecentsSection extends StatelessWidget {
         final isLast = i == recentPosts.length - 1;
 
         Widget content;
-        if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
+        if ((post.type == PostType.media || post.type == PostType.glimpse) &&
+            post.imagePaths.isNotEmpty) {
           content = PostCard(
             imagePaths: post.imagePaths,
             user: user,
             caption: post.text,
+            musicUrl: post.musicUrl,
+            musicTitle: post.musicTitle,
+            musicArtist: post.musicArtist,
+            isVideoPost: post.type == PostType.glimpse,
           );
         } else {
           content = ThoughtCard(
@@ -82,3 +92,4 @@ class RecentsSection extends StatelessWidget {
     );
   }
 }
+

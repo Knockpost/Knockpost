@@ -2,22 +2,28 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
 import '../../models/post_model.dart';
 import 'music_picker_screen.dart';
 import 'music_editor_screen.dart';
 import 'post_settings_sheet.dart';
+import 'final_post_screen.dart';
 
 class GlimpseEditorScreen extends StatefulWidget {
   final List<File> files;
   final String? initialCaption;
   final double playbackSpeed;
+  final MusicTrack? initialMusic;
+  final int? trimStartSeconds;
 
   const GlimpseEditorScreen({
     super.key,
     required this.files,
     this.initialCaption,
     this.playbackSpeed = 1.0,
+    this.initialMusic,
+    this.trimStartSeconds,
   });
 
   @override
@@ -83,6 +89,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
   int _selectedFilterIndex = 0;
   int _currentMediaIndex = 0;
   bool _showFilters = false;
+  final AudioPlayer _bgAudioPlayer = AudioPlayer();
 
   // -- Video State --
   late List<VideoPlayerController?> _videoControllers;
@@ -292,6 +299,10 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
+    _selectedMusic = widget.initialMusic;
+    if (_selectedMusic != null) {
+      _playSelectedMusic();
+    }
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -321,11 +332,26 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
     });
   }
 
+  Future<void> _playSelectedMusic() async {
+    if (_selectedMusic == null) return;
+    try {
+      await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
+      if (widget.initialMusic == _selectedMusic && widget.trimStartSeconds != null) {
+        await _bgAudioPlayer.seek(Duration(seconds: widget.trimStartSeconds!));
+      }
+      await _bgAudioPlayer.setLoopMode(LoopMode.one);
+      await _bgAudioPlayer.play();
+    } catch (e) {
+      debugPrint("Editor Audio Error: $e");
+    }
+  }
+
   @override
   void dispose() {
     for (var ctrl in _videoControllers) {
       ctrl?.dispose();
     }
+    _bgAudioPlayer.dispose();
     _captionController.dispose();
     _textOverlayController.dispose();
     _textFocusNode.dispose();
@@ -340,7 +366,24 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
       isGlimpse: true,
     );
     if (settings == null || !mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    await _bgAudioPlayer.stop();
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FinalPostScreen(
+          files: widget.files,
+          initialCaption: _captionController.text.trim(),
+          isGlimpse: true,
+          selectedDuration: settings.duration,
+          selectedAudience: settings.audience,
+          initialMusic: _selectedMusic,
+          initialTrimSeconds: widget.trimStartSeconds,
+        ),
+      ),
+    );
   }
 
   @override
@@ -596,6 +639,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                                     onTap: () {
                                       KnockHaptics.tap();
                                       setState(() => _selectedMusic = null);
+                                      _bgAudioPlayer.stop();
                                     },
                                     child: Icon(
                                       Icons.close_rounded,
@@ -1047,7 +1091,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                         // Open new MusicOverlayScreen
                         final isVideo =
                             _videoControllers[_currentMediaIndex] != null;
-                        await Navigator.push(
+                        final overlayResult = await Navigator.push(
                           context,
                           PageRouteBuilder(
                             opaque: false,
@@ -1057,8 +1101,12 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                             ),
                           ),
                         );
-                        // Once finished with overlay, set active music
-                        setState(() => _selectedMusic = result);
+                        
+                        if (overlayResult != null && overlayResult is Map) {
+                          // Once finished with overlay, set active music
+                          setState(() => _selectedMusic = overlayResult['track'] as MusicTrack);
+                          _playSelectedMusic();
+                        }
                       }
                     },
                   ),

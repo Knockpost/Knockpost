@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
 import 'music_picker_screen.dart';
+import 'music_editor_screen.dart';
 import 'post_settings_sheet.dart';
 import 'final_post_screen.dart';
 
@@ -45,6 +47,9 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
   late Animation<double> _toolbarAnim;
   late AnimationController _sheetAnimCtrl;
   late Animation<Offset> _sheetSlide;
+
+  final AudioPlayer _bgAudioPlayer = AudioPlayer();
+  int _trimStartSeconds = 0;
 
   // ── Filter definitions ────────────────────────────────────────────────────
   final List<String> _filterNames = [
@@ -136,6 +141,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     _toolbarAnimCtrl.dispose();
     _sheetAnimCtrl.dispose();
     _textInputCtrl.dispose();
+    _bgAudioPlayer.dispose();
     super.dispose();
   }
 
@@ -153,6 +159,10 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     KnockHaptics.tap();
     final settings = await showPostSettingsSheet(context, isGlimpse: false);
     if (settings == null || !mounted) return;
+    
+    await _bgAudioPlayer.stop();
+    if (!mounted) return;
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -162,22 +172,58 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
           isGlimpse: false,
           selectedDuration: settings.duration,
           selectedAudience: settings.audience,
+          initialMusic: _selectedMusic,
+          initialTrimSeconds: _trimStartSeconds,
         ),
       ),
     );
   }
 
   Future<void> _pickMusic() async {
-    final result = await Navigator.push<MusicTrack>(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MusicPickerScreen()),
     );
-    if (result != null && mounted) {
-      setState(() {
-        _selectedMusic = result;
-        _activeTool = _EditorTool.none;
-      });
-      _sheetAnimCtrl.reverse();
+    if (result != null && result is MusicTrack && mounted) {
+      final isVideo = widget.files.isNotEmpty &&
+          (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
+           widget.files.first.path.toLowerCase().endsWith('.mov'));
+
+      final overlayResult = await Navigator.push(
+        context,
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (_, __, ___) => MusicOverlayScreen(
+            track: result,
+            isVideo: isVideo,
+          ),
+        ),
+      );
+
+      if (overlayResult != null && overlayResult is Map && mounted) {
+        setState(() {
+          _selectedMusic = overlayResult['track'] as MusicTrack;
+          _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
+          _activeTool = _EditorTool.none;
+        });
+        _sheetAnimCtrl.reverse();
+        _playSelectedMusic();
+      }
+    }
+  }
+
+  Future<void> _playSelectedMusic() async {
+    if (_selectedMusic == null) {
+      await _bgAudioPlayer.stop();
+      return;
+    }
+    try {
+      await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
+      await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
+      await _bgAudioPlayer.setLoopMode(LoopMode.one);
+      await _bgAudioPlayer.play();
+    } catch (e) {
+      debugPrint('MediaEditor bg audio error: $e');
     }
   }
 
@@ -373,7 +419,10 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                         GestureDetector(
                           onTap: () {
                             KnockHaptics.tap();
-                            setState(() => _selectedMusic = null);
+                            setState(() {
+                              _selectedMusic = null;
+                            });
+                            _bgAudioPlayer.stop();
                           },
                           child: Icon(
                             Icons.close_rounded,

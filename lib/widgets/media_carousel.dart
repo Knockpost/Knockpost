@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
+  final bool isVideoPost;
 
   const MediaCarousel({
     super.key,
     required this.imagePaths,
+    this.isVideoPost = false,
   });
 
   @override
@@ -52,6 +56,32 @@ class _MediaCarouselState extends State<MediaCarousel> {
 
   bool get _hasMultipleImages => widget.imagePaths.length > 1;
 
+  Widget _buildImage(String path) {
+    // Check extension or fallback to explicit flag for videos missing extensions
+    final hasVideoExtension = path.toLowerCase().endsWith('.mp4') || path.toLowerCase().endsWith('.mov') || path.toLowerCase().endsWith('.mkv');
+    final isVideo = hasVideoExtension || widget.isVideoPost;
+    
+    if (path.startsWith('assets/')) {
+      if (isVideo) return _VideoItem(path: path, isAsset: true);
+      return Image.asset(
+        path,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+    } else {
+      if (isVideo) return _VideoItem(path: path, isAsset: false);
+      return Image.file(
+        File(path),
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.imagePaths.isEmpty) return const SizedBox.shrink();
@@ -65,11 +95,10 @@ class _MediaCarouselState extends State<MediaCarousel> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.asset(
-            widget.imagePaths.first,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            filterQuality: FilterQuality.high,
+          child: SizedBox(
+            width: screenWidth - 12,
+            height: screenWidth - 12,
+            child: _buildImage(widget.imagePaths.first),
           ),
         ),
       );
@@ -104,13 +133,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
                         _onScroll(); // ensure timer resets on page snap
                       },
                       itemBuilder: (context, index) {
-                        return Image.asset(
-                          widget.imagePaths[index],
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          filterQuality: FilterQuality.high,
-                        );
+                        return _buildImage(widget.imagePaths[index]);
                       },
                     ),
                   ),
@@ -184,6 +207,87 @@ class _MediaCarouselState extends State<MediaCarousel> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _VideoItem extends StatefulWidget {
+  final String path;
+  final bool isAsset;
+
+  const _VideoItem({required this.path, required this.isAsset});
+
+  @override
+  State<_VideoItem> createState() => _VideoItemState();
+}
+
+class _VideoItemState extends State<_VideoItem> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.isAsset 
+        ? VideoPlayerController.asset(widget.path)
+        : VideoPlayerController.file(File(widget.path));
+        
+    _controller.initialize().then((_) {
+      _controller.setVolume(0);
+      _controller.setLooping(true);
+      _controller.play();
+      if (mounted) {
+        setState(() {
+          _initialized = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_initialized) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _controller.value.size.width,
+              height: _controller.value.size.height,
+              child: VideoPlayer(_controller),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.videocam, color: Colors.white, size: 16),
+            ),
+          ),
+        ],
+      );
+    }
+    return Container(
+      color: Colors.black,
+      child: const Center(
+        child: SizedBox(
+          width: 24, 
+          height: 24, 
+          child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)
+        )
+      ),
     );
   }
 }

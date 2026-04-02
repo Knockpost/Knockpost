@@ -45,6 +45,16 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.posts != oldWidget.posts) {
+      setState(() {
+        _posts = widget.posts;
+      });
+    }
+  }
+
   void _openEdit() async {
     final updated = await Navigator.push<UserModel>(
       context,

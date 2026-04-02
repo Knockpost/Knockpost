@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
 import 'music_picker_screen.dart';
 
@@ -17,247 +18,318 @@ class MusicOverlayScreen extends StatefulWidget {
   State<MusicOverlayScreen> createState() => _MusicOverlayScreenState();
 }
 
-class _MusicOverlayScreenState extends State<MusicOverlayScreen> {
-  int _selectedStyleIndex = 0; // 0: None, 1: Style 1, 2: Style 2, 3: Style 3
-  double _scrollOffset = 0.3; // 0.0 to 1.0 represents the music track position
-  int _duration = 15; // 15 seconds max
+class _MusicOverlayScreenState extends State<MusicOverlayScreen>
+    with SingleTickerProviderStateMixin {
+  int _selectedStyleIndex = 0; // 0: Music Only, 1: Aa, 2: Ai, 3: Aa
+  int _trimStartSeconds = 0;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  late ScrollController _waveformScrollController;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.8, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _waveformScrollController = ScrollController()
+      ..addListener(() {
+        if (_waveformScrollController.hasClients) {
+          final offset = _waveformScrollController.offset;
+          // Calculate approx seconds
+          final secs = (offset / 9.0).clamp(0, 180).toInt();
+          if (_trimStartSeconds != secs) {
+            setState(() => _trimStartSeconds = secs);
+            _audioPlayer.seek(Duration(seconds: secs));
+          }
+        }
+      });
+
+    _playMusicPreview();
+  }
+
+  Future<void> _playMusicPreview() async {
+    try {
+      await _audioPlayer.setUrl(widget.track.previewUrl);
+      await _audioPlayer.setLoopMode(LoopMode.one);
+      await _audioPlayer.play();
+    } catch (e) {
+      debugPrint('Audio error in overlay: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    _pulseController.dispose();
+    _waveformScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withValues(alpha: 0.8), // Dark transparent overlay mimicking Insta
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ─── TOP BAR ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const SizedBox(width: 40), // Balance the 'Done' text
-                  Row(
+      backgroundColor: Colors.transparent, // Background shows the photo underneath
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Glassmorphism Backdrop ──
+          Positioned.fill(
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                child: Container(color: Colors.black.withValues(alpha: 0.5)),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                // ── Top Header ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _topIcon(Icons.feedback_outlined), // Placeholder for lyrics warning/feedback
-                      const SizedBox(width: 16),
-                      // Album Art box
-                      Container(
-                        width: 36, height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          image: const DecorationImage(
-                            image: NetworkImage("https://i.pravatar.cc/100"), // Placeholder track art
-                            fit: BoxFit.cover,
-                          ),
+                      _glassBtn(
+                        child: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+                        onTap: () {
+                          KnockHaptics.tap();
+                          Navigator.pop(context, null); // Return null on cancel
+                        },
+                      ),
+                      const Text(
+                        'SOUND STUDIO',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      // Color wheel circle
-                      Container(
-                        width: 32, height: 32,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: SweepGradient(
-                            colors: [Colors.red, Colors.yellow, Colors.green, Colors.blue, Colors.purple, Colors.red],
+                      GestureDetector(
+                        onTap: () {
+                          KnockHaptics.tap();
+                          // Return a map containing both track and trim info
+                          Navigator.pop(context, {
+                            'track': widget.track,
+                            'trimStartSeconds': _trimStartSeconds,
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            "Done",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      KnockHaptics.tap();
-                      Navigator.pop(context, widget.track);
-                    },
-                    child: const Text(
-                      "Done",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
 
-            // ─── MIDDLE ARIA (Lyrics or "Music Only") ───
-            Expanded(
-              child: Center(
-                child: Text(
-                  _selectedStyleIndex == 0 ? "Music Only" : "${widget.track.title} \n Lyrics Placeholder...",
+                const Spacer(flex: 2),
+
+                // ── Hero Album Art (Pulsing Circle) ──
+                AnimatedBuilder(
+                  animation: _pulseAnim,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _pulseAnim.value,
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              blurRadius: 40,
+                              spreadRadius: 10,
+                            ),
+                          ],
+                          image: DecorationImage(
+                            image: NetworkImage(widget.track.coverUrl),
+                            fit: BoxFit.cover,
+                          ),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
+
+                // ── Lyrics Placeholder or "Music Only" ──
+                Text(
+                  _selectedStyleIndex == 0 ? "Music Only" : "${widget.track.title}\n(Lyrics)",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: _selectedStyleIndex == 0 ? 24 : 28,
-                    fontWeight: _selectedStyleIndex == 0 ? FontWeight.w500 : FontWeight.bold,
-                    shadows: const [Shadow(color: Colors.black87, blurRadius: 10)],
+                    fontWeight: _selectedStyleIndex == 0 ? FontWeight.w600 : FontWeight.w800,
+                    letterSpacing: -0.5,
+                    shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
                   ),
                 ),
-              ),
-            ),
-
-            // ─── BOTTOM CONTROLS ───
-            _buildBottomControls(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _topIcon(IconData icon) {
-    return Icon(icon, color: Colors.white, size: 28);
-  }
-
-  Widget _buildBottomControls() {
-    return Container(
-      color: const Color(0xFF0A0A1A), // Deep navy blue matching the screenshot base
-      padding: const EdgeInsets.only(top: 16, bottom: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ─── Style Selectors ───
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _styleOption(0, Icons.not_interested_rounded),
-              _styleOptionText(1, "Aa", FontWeight.normal),
-              _styleOptionText(2, "Ai", FontWeight.bold, fontStyle: FontStyle.italic),
-              _styleOptionText(3, "Aa", FontWeight.w900, hasUnderline: true),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-
-          // ─── Duration Slider Row ───
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Row(
-              children: [
-                // Duration Circle (15s)
-                Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  child: Center(
-                    child: Text(
-                      _duration.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                const SizedBox(height: 12),
+                if (_selectedStyleIndex == 0)
+                  Text(
+                    widget.track.artist,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                
-                // Track progress line
-                Expanded(
-                  child: Stack(
-                    alignment: Alignment.center,
+
+                const Spacer(flex: 3),
+
+                // ── Bottom Panel ──
+                Container(
+                  padding: const EdgeInsets.only(top: 24, bottom: 40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Style Selectors
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _styleOption(0, Icons.not_interested_rounded),
+                          _styleOptionText(1, "Aa", FontWeight.normal),
+                          _styleOptionText(2, "Ai", FontWeight.bold, fontStyle: FontStyle.italic),
+                          _styleOptionText(3, "Aa", FontWeight.w900, hasUnderline: true),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+
+                      // Trimmer Info
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Trim 15s segment',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 12,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '0:${_trimStartSeconds.toString().padLeft(2, '0')}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Futuristic Waveform Scrubber ──
                       Container(
-                        height: 2,
-                        color: Colors.white30,
-                      ),
-                      // Colored progress
-                      Positioned(
-                        left: 0,
-                        right: MediaQuery.sizeOf(context).width * (1 - _scrollOffset) - 100, // naive calc
-                        child: Container(
-                          height: 2,
-                          color: Colors.pinkAccent,
-                        ),
-                      ),
-                      // Progress handle dots
-                      Positioned(
-                        left: (MediaQuery.sizeOf(context).width - 120) * _scrollOffset,
-                        child: Row(
+                        height: 90,
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            _progressDot(Colors.pinkAccent),
-                            const SizedBox(width: 4),
-                            _progressDot(Colors.white),
-                            const SizedBox(width: 4),
-                            _progressDot(Colors.pinkAccent),
+                            // Solid White Pill
+                            Container(
+                              width: 130,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Waveform fg
+                            ShaderMask(
+                              blendMode: BlendMode.srcIn,
+                              shaderCallback: (Rect bounds) {
+                                final screenWidth = MediaQuery.sizeOf(context).width;
+                                if (screenWidth <= 0) {
+                                  return const LinearGradient(colors: [Colors.transparent, Colors.transparent]).createShader(bounds);
+                                }
+                                final center = screenWidth / 2;
+                                const halfWindow = 65.0; // 130 width / 2
+                                final stop1 = ((center - halfWindow) / screenWidth).clamp(0.0, 1.0);
+                                final stop2 = ((center + halfWindow) / screenWidth).clamp(0.0, 1.0);
+
+                                return LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.3),
+                                    Colors.white.withValues(alpha: 0.3),
+                                    Colors.grey.shade400,
+                                    Colors.grey.shade400,
+                                    Colors.white.withValues(alpha: 0.3),
+                                    Colors.white.withValues(alpha: 0.3),
+                                  ],
+                                  stops: [0.0, stop1, stop1, stop2, stop2, 1.0],
+                                ).createShader(bounds);
+                              },
+                              child: ListView.builder(
+                                controller: _waveformScrollController,
+                                scrollDirection: Axis.horizontal,
+                                physics: const ClampingScrollPhysics(),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: MediaQuery.sizeOf(context).width / 2 - 65,
+                                ),
+                                itemCount: 150, // Fake track length
+                                itemBuilder: (context, i) {
+                                  final double height = (i % 5 == 0) ? 32.0 : ((i % 2 == 0) ? 18.0 : 25.0);
+                                  return Center(
+                                    child: Container(
+                                      width: 3.5,
+                                      height: height,
+                                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           ],
                         ),
-                      )
+                      ),
                     ],
-                  ),
-                ),
-                
-                const SizedBox(width: 16),
-                
-                // Stop/Play button
-                Container(
-                  width: 36, height: 36,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.stop_rounded, color: Colors.black, size: 20),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-
-          // ─── Colorful Waveform Scroller ───
-          SizedBox(
-            height: 60,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Fake Waveform background lines
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(40, (index) {
-                    return Container(
-                      width: 3,
-                      height: (index % 3 == 0) ? 20 : (index % 2 == 0 ? 12 : 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    );
-                  }),
-                ),
-
-                // Selected gradient highlight box
-                Positioned(
-                  child: Container(
-                    width: 120, // 15 seconds representation
-                    height: 50,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      gradient: const LinearGradient(
-                        colors: [Colors.yellowAccent, Colors.pinkAccent, Colors.purpleAccent],
-                      ),
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(10, (index) {
-                          return Container(
-                            width: 3,
-                            height: (index % 2 == 0) ? 18 : 26,
-                            decoration: BoxDecoration(
-                              color: Colors.black12,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -268,12 +340,23 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen> {
     );
   }
 
-  Widget _progressDot(Color color) {
-    return Container(
-      width: 4, height: 4,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
+  Widget _glassBtn({required Widget child, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.black.withValues(alpha: 0.3),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+            ),
+            child: Center(child: child),
+          ),
+        ),
       ),
     );
   }
@@ -286,17 +369,13 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen> {
         setState(() => _selectedStyleIndex = index);
       },
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         margin: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
-        child: Icon(
-          icon,
-          color: isSelected ? Colors.red : Colors.white,
-          size: 20,
-        ),
+        child: Icon(icon, color: isSelected ? Colors.black : Colors.white, size: 20),
       ),
     );
   }
@@ -310,10 +389,10 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen> {
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           text,

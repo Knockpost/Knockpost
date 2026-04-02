@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 import 'glimpse_editor_screen.dart';
@@ -34,6 +35,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
   Timer? _timer;
 
   MusicTrack? _selectedMusic;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   final List<String> _speedOptions = ['.3x', '.5x', '1x', '2x', '3x'];
   int _selectedSpeedIndex = 2; // Default is 1x
@@ -210,11 +212,26 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
           final secs = (offset / 9.0).clamp(0, 180).toInt();
           if (_trimStartSeconds != secs) {
             setState(() => _trimStartSeconds = secs);
+            if (_showMusicTrimmer && _selectedMusic != null) {
+              _audioPlayer.seek(Duration(seconds: secs));
+            }
           }
         }
       });
 
     _initCamera();
+  }
+
+  Future<void> _playMusicPreview() async {
+    if (_selectedMusic == null) return;
+    try {
+      await _audioPlayer.setUrl(_selectedMusic!.previewUrl);
+      await _audioPlayer.seek(Duration(seconds: _trimStartSeconds));
+      await _audioPlayer.setLoopMode(LoopMode.one);
+      await _audioPlayer.play();
+    } catch (e) {
+      debugPrint('Audio error: $e');
+    }
   }
 
   Future<void> _initCamera() async {
@@ -286,11 +303,18 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
 
     KnockHaptics.tap();
     await _ctrl!.startVideoRecording();
+
     final limit = _selectedMusic != null ? 15 : 150;
     setState(() {
       _isRecording = true;
       _recordProgress = 0.0;
     });
+
+    if (_selectedMusic != null) {
+      _audioPlayer.seek(Duration(seconds: _trimStartSeconds));
+      _audioPlayer.play();
+    }
+
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (!mounted) return;
       setState(
@@ -303,6 +327,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
   Future<void> _stopRecording() async {
     if (!_isRecording || _ctrl == null) return;
     _timer?.cancel();
+    _audioPlayer.pause();
     final video = await _ctrl!.stopVideoRecording();
     KnockHaptics.tap();
     setState(() {
@@ -322,7 +347,12 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
       context,
       MaterialPageRoute(
         builder: (_) =>
-            GlimpseEditorScreen(files: files, playbackSpeed: speedMultiplier),
+            GlimpseEditorScreen(
+              files: files, 
+              playbackSpeed: speedMultiplier,
+              initialMusic: _selectedMusic,
+              trimStartSeconds: _trimStartSeconds,
+            ),
       ),
     );
   }
@@ -351,6 +381,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
         _selectedMusic = result;
         _showMusicTrimmer = true;
       });
+      _playMusicPreview();
     }
   }
 
@@ -358,6 +389,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
   void dispose() {
     _ctrl?.dispose();
     _timer?.cancel();
+    _audioPlayer.dispose();
     _carouselController.dispose();
     _pulseAnim.dispose();
     _tagController.dispose();
@@ -1056,7 +1088,11 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                           ),
                           onTap: () {
                             KnockHaptics.tap();
-                            setState(() => _showMusicTrimmer = false);
+                            setState(() {
+                              _showMusicTrimmer = false;
+                              _selectedMusic = null;
+                            });
+                            _audioPlayer.pause();
                           },
                         ),
                         const Text(
@@ -1296,6 +1332,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                       onTap: () {
                         KnockHaptics.tap();
                         setState(() => _showMusicTrimmer = false);
+                        _audioPlayer.pause();
                       },
                       child: Container(
                         width: double.infinity,
@@ -1545,7 +1582,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                                         active: _showFilterStrip,
                                       ),
 
-                                      // 5. Flash (Hidden initially, requires scrolling)
+                                      // 5. Flash
                                       _pillarBtn(
                                         _ctrl?.value.flashMode ==
                                                 FlashMode.torch
