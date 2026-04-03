@@ -330,11 +330,19 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
     _audioPlayer.pause();
     final video = await _ctrl!.stopVideoRecording();
     KnockHaptics.tap();
+    
+    File videoFile = File(video.path);
+    if (!videoFile.path.toLowerCase().endsWith('.mp4') && 
+        !videoFile.path.toLowerCase().endsWith('.mov')) {
+      final newPath = '${videoFile.path}.mp4';
+      videoFile = await videoFile.rename(newPath);
+    }
+    
     setState(() {
       _isRecording = false;
       _recordProgress = 0.0;
     });
-    if (mounted) _goToEditor([File(video.path)]);
+    if (mounted) _goToEditor([videoFile]);
   }
 
   void _goToEditor(List<File> files) {
@@ -1021,12 +1029,12 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.white24, width: 0.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 10,
                 spreadRadius: 2,
               ),
@@ -1236,13 +1244,14 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                                 final screenWidth = MediaQuery.sizeOf(
                                   context,
                                 ).width;
-                                if (screenWidth <= 0)
+                                if (screenWidth <= 0) {
                                   return const LinearGradient(
                                     colors: [
                                       Colors.transparent,
                                       Colors.transparent,
                                     ],
                                   ).createShader(bounds);
+                                }
 
                                 final center = screenWidth / 2;
                                 const halfWindow = 65.0; // 130 width / 2
@@ -1404,7 +1413,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                         color:
                             (_carouselEffects[_currentCarouselIndex]['color']
                                     as Color)
-                                .withOpacity(0.10),
+                                .withValues(alpha: 0.10),
                       ),
                     ),
                   ),
@@ -1447,7 +1456,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                             colors: [
-                              Colors.black.withOpacity(0.88),
+                              Colors.black.withValues(alpha: 0.88),
                               Colors.transparent,
                             ],
                           ),

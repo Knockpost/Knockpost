@@ -72,6 +72,7 @@ class RecentsSection extends StatelessWidget {
             musicUrl: post.musicUrl,
             musicTitle: post.musicTitle,
             musicArtist: post.musicArtist,
+            musicTrimStart: post.musicTrimStart,
             isVideoPost: post.type == PostType.glimpse,
           );
         } else {

@@ -26,6 +26,7 @@ class PostModel {
   final String? musicUrl;
   final String? musicTitle;
   final String? musicArtist;
+  final int? musicTrimStart;
 
   final DateTime createdAt;
   final int likes;
@@ -42,6 +43,7 @@ class PostModel {
     this.musicUrl,
     this.musicTitle,
     this.musicArtist,
+    this.musicTrimStart,
     required this.createdAt,
     this.likes = 0,
     this.views = 0,
@@ -76,6 +78,7 @@ class PostModel {
     String? musicUrl,
     String? musicTitle,
     String? musicArtist,
+    int? musicTrimStart,
   }) {
     return PostModel(
       id: id,
@@ -87,6 +90,7 @@ class PostModel {
       musicUrl: musicUrl ?? this.musicUrl,
       musicTitle: musicTitle ?? this.musicTitle,
       musicArtist: musicArtist ?? this.musicArtist,
+      musicTrimStart: musicTrimStart ?? this.musicTrimStart,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       views: views ?? this.views,

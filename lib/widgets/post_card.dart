@@ -13,6 +13,7 @@ class PostCard extends StatefulWidget {
   final String? musicUrl;
   final String? musicTitle;
   final String? musicArtist;
+  final int? musicTrimStart;
   final bool isVideoPost;
 
   const PostCard({
@@ -23,6 +24,7 @@ class PostCard extends StatefulWidget {
     this.musicUrl,
     this.musicTitle,
     this.musicArtist,
+    this.musicTrimStart,
     this.isVideoPost = false,
   });
 
@@ -40,7 +42,16 @@ class _PostCardState extends State<PostCard> {
     super.initState();
     if (widget.musicUrl != null && widget.musicUrl!.isNotEmpty) {
       _audioPlayer = AudioPlayer();
-      _audioPlayer!.setUrl(widget.musicUrl!).then((_) {
+      
+      final start = widget.musicTrimStart ?? 0;
+      final uri = Uri.parse(widget.musicUrl!);
+      final source = ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(seconds: start),
+        end: Duration(seconds: start + 15),
+      );
+      
+      _audioPlayer!.setAudioSource(source).then((_) {
         _audioPlayer!.setLoopMode(LoopMode.one);
         _audioPlayer!.play();
       });

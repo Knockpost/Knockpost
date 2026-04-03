@@ -229,8 +229,14 @@ class _VideoItemState extends State<_VideoItem> {
   void initState() {
     super.initState();
     _controller = widget.isAsset 
-        ? VideoPlayerController.asset(widget.path)
-        : VideoPlayerController.file(File(widget.path));
+        ? VideoPlayerController.asset(
+            widget.path,
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          )
+        : VideoPlayerController.file(
+            File(widget.path),
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          );
         
     _controller.initialize().then((_) {
       _controller.setVolume(0);

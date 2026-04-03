@@ -7,6 +7,7 @@ import '../../../widgets/system_nav_bar_fill.dart';
 import '../../../widgets/post_card.dart';
 import '../../../widgets/thought_card.dart';
 import 'profile_ui_helpers.dart';
+import 'package:video_player/video_player.dart';
 
 /// Grid view of lifetime posts (Showcase tab).
 /// Tapping a post opens it in a full-screen scroll detail view.
@@ -99,12 +100,7 @@ class _GridTile extends StatelessWidget {
       
       Widget imageWidget;
       if (isVideo) {
-        imageWidget = Container(
-          color: isDark ? Colors.grey.shade900 : Colors.grey.shade300,
-          child: Center(
-            child: Icon(Icons.videocam, color: isDark ? Colors.white54 : Colors.black54, size: 32),
-          ),
-        );
+        imageWidget = _VideoThumbnail(path: imagePath);
       } else {
         imageWidget = imagePath.startsWith('assets/')
             ? Image.asset(imagePath, fit: BoxFit.cover)
@@ -169,6 +165,62 @@ class _GridTile extends StatelessWidget {
     );
   }
 }
+
+class _VideoThumbnail extends StatefulWidget {
+  final String path;
+  
+  const _VideoThumbnail({required this.path});
+
+  @override
+  State<_VideoThumbnail> createState() => _VideoThumbnailState();
+}
+
+class _VideoThumbnailState extends State<_VideoThumbnail> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.path.startsWith('assets/')
+        ? VideoPlayerController.asset(widget.path)
+        : VideoPlayerController.file(File(widget.path));
+        
+    _controller.initialize().then((_) {
+      if (mounted) setState(() => _initialized = true);
+    }).catchError((_) {
+      // Ignored for thumbnail
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return Container(
+        color: Colors.black12,
+        child: const Center(
+          child: Icon(Icons.videocam, color: Colors.white54, size: 32),
+        ),
+      );
+    }
+    
+    return FittedBox(
+      fit: BoxFit.cover,
+      child: SizedBox(
+        width: _controller.value.size.width,
+        height: _controller.value.size.height,
+        child: VideoPlayer(_controller),
+      ),
+    );
+  }
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full-screen scrollable detail view — Instagram-style PostCard list
@@ -288,6 +340,7 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             musicUrl: post.musicUrl,
                             musicTitle: post.musicTitle,
                             musicArtist: post.musicArtist,
+                            musicTrimStart: post.musicTrimStart,
                             isVideoPost: post.type == PostType.glimpse,
                           ),
                     if (isLast) divider,

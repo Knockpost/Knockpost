@@ -63,7 +63,7 @@ class CollagePickerScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _kAccentBlue.withOpacity(0.8),
+                      color: _kAccentBlue.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(labels[index], style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),

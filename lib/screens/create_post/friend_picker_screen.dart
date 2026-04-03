@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../widgets/people_suggestion_strip.dart'; // Using demoSuggestedUsers

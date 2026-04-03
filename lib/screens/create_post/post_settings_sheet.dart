@@ -384,9 +384,6 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
     required bool isDark,
   }) {
     final isSelected = _duration == value;
-    final accent = isSelected
-        ? (isDark ? Colors.white : Colors.black)
-        : Colors.transparent;
 
     return GestureDetector(
       onTap: () {

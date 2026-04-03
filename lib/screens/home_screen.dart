@@ -256,6 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           final text = captionController.text.trim();
                           if (text.isEmpty) return;
                           KnockHaptics.tap();
+                          final nav = Navigator.of(context);
                           Navigator.pop(ctx);
                           if (!mounted) return;
                           final settings = await showPostSettingsSheet(
@@ -263,8 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             isGlimpse: false,
                           );
                           if (settings == null || !mounted) return;
-                          Navigator.push(
-                            context,
+                          nav.push(
                             MaterialPageRoute(
                               builder: (_) => FinalPostScreen(
                                 files: const [],
@@ -312,14 +312,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         isDark: isDark,
                         onTap: () async {
                           KnockHaptics.tap();
+                          final nav = Navigator.of(context);
                           Navigator.pop(ctx);
                           final XFile? photo = await _imagePicker.pickImage(
                             source: ImageSource.camera,
                             imageQuality: 85,
                           );
                           if (photo != null && mounted) {
-                            Navigator.push(
-                              context,
+                            nav.push(
                               MaterialPageRoute(
                                 builder: (_) => MediaEditorScreen(
                                   files: [File(photo.path)],
@@ -338,12 +338,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         isDark: isDark,
                         onTap: () async {
                           KnockHaptics.tap();
+                          final nav = Navigator.of(context);
                           Navigator.pop(ctx);
                           final List<XFile> files =
                               await _imagePicker.pickMultiImage(imageQuality: 80);
                           if (files.isNotEmpty && mounted) {
-                            Navigator.push(
-                              context,
+                            nav.push(
                               MaterialPageRoute(
                                 builder: (_) => MediaEditorScreen(
                                   files: files.map((e) => File(e.path)).toList(),

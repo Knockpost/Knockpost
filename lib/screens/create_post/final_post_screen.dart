@@ -188,6 +188,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       musicUrl: widget.initialMusic?.previewUrl,
       musicTitle: widget.initialMusic?.title,
       musicArtist: widget.initialMusic?.artist,
+      musicTrimStart: widget.initialTrimSeconds,
       createdAt: DateTime.now(),
       likes: 0,
       views: 0,
@@ -410,18 +411,18 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                             : Colors.grey.shade400),
                 onTap: () async {
                   KnockHaptics.tap();
-                  final result = await Navigator.push(
-                    context,
+                  final nav = Navigator.of(context);
+                  final result = await nav.push(
                     MaterialPageRoute(
                         builder: (_) => const MusicPickerScreen()),
                   );
                   if (result != null && result is MusicTrack) {
+                    if (!mounted) return;
                     final isVideo = widget.files.isNotEmpty &&
                         (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
                          widget.files.first.path.toLowerCase().endsWith('.mov'));
 
-                    final overlayResult = await Navigator.push(
-                      context,
+                    final overlayResult = await nav.push(
                       PageRouteBuilder(
                         opaque: false,
                         pageBuilder: (_, __, ___) => MusicOverlayScreen(
