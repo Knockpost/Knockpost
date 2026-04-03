@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -44,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
       }
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = AuthService.instance.currentUser;
 
     if (user != null) {
       if (!user.emailVerified) {
@@ -60,28 +61,15 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       // If not marked registered locally, check Firestore (prefer cache)
-      DocumentSnapshot? userDoc;
+      Map<String, dynamic>? userProfile;
       try {
-        userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get(const GetOptions(source: Source.cache));
-
-        if (!userDoc.exists) {
-          userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-        }
+        userProfile = await DatabaseService.instance.getUserProfile(user.uid, useCache: true);
       } catch (_) {
-        userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        userProfile = await DatabaseService.instance.getUserProfile(user.uid);
       }
 
       if (mounted) {
-        if (userDoc.exists) {
+        if (userProfile != null) {
           await prefs.setBool(
             'is_registered',
             true,
@@ -107,12 +95,12 @@ class _SplashScreenState extends State<SplashScreen> {
         throw Exception("No email found in SharedPreferences.");
       }
 
-      await FirebaseAuth.instance.signInWithEmailLink(
+      await AuthService.instance.signInWithEmailLink(
         email: email,
         emailLink: link,
       );
 
-      final user = FirebaseAuth.instance.currentUser;
+      final user = AuthService.instance.currentUser;
       if (user != null && mounted) {
         _navigate(SignupUsernameScreen(email: email, isGoogleSignup: true));
       }

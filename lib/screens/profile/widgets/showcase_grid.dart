@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../widgets/system_nav_bar_fill.dart';
@@ -101,7 +102,12 @@ class _GridTile extends StatelessWidget {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(post.imagePaths.first, fit: BoxFit.cover),
+          (post.imagePaths.first.startsWith('/') ||
+           post.imagePaths.first.startsWith('file://') ||
+           post.imagePaths.first.startsWith('C:') ||
+           post.imagePaths.first.contains('/data/user/'))
+              ? Image.file(File(post.imagePaths.first), fit: BoxFit.cover)
+              : Image.asset(post.imagePaths.first, fit: BoxFit.cover),
           if (post.imagePaths.length > 1)
             Positioned(
               top: 6,

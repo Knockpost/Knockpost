@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 /// Instagram-quality pinch-to-zoom.
 ///
@@ -308,6 +309,19 @@ class _KnockZoomerState extends State<KnockZoomer>
         filterQuality: FilterQuality.high,
       );
     }
+
+    if (widget.imagePath != null &&
+        (widget.imagePath!.startsWith('/') ||
+         widget.imagePath!.startsWith('file://') ||
+         widget.imagePath!.startsWith('C:') ||
+         widget.imagePath!.contains('/data/user/'))) {
+      return Image.file(
+        File(widget.imagePath!),
+        fit: widget.fit,
+        filterQuality: FilterQuality.high,
+      );
+    }
+
     return Image.asset(
       widget.imagePath!,
       fit: widget.fit,
