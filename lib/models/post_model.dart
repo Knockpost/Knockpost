@@ -1,4 +1,5 @@
 // KnockPost — Post Model
+import 'package:flutter/foundation.dart';
 
 enum PostDuration {
   h24, // 24-hour post — stays in Recents for 3 days then disappears
@@ -7,8 +8,9 @@ enum PostDuration {
 }
 
 enum PostType {
-  media, // Image(s) / video
+  media, // Image(s)
   text, // Text-only
+  glimpse, // Video up to 2m30s
 }
 
 class PostModel {
@@ -20,6 +22,10 @@ class PostModel {
 
   final List<String> imagePaths; // empty for text posts
   final String text; // empty for media-only posts
+
+  final String? musicUrl;
+  final String? musicTitle;
+  final String? musicArtist;
 
   final DateTime createdAt;
   final int likes;
@@ -33,6 +39,9 @@ class PostModel {
     required this.duration,
     this.imagePaths = const [],
     this.text = '',
+    this.musicUrl,
+    this.musicTitle,
+    this.musicArtist,
     required this.createdAt,
     this.likes = 0,
     this.views = 0,
@@ -64,6 +73,9 @@ class PostModel {
     bool? isLikedByMe,
     int? likes,
     int? views,
+    String? musicUrl,
+    String? musicTitle,
+    String? musicArtist,
   }) {
     return PostModel(
       id: id,
@@ -72,6 +84,9 @@ class PostModel {
       duration: duration,
       imagePaths: imagePaths,
       text: text,
+      musicUrl: musicUrl ?? this.musicUrl,
+      musicTitle: musicTitle ?? this.musicTitle,
+      musicArtist: musicArtist ?? this.musicArtist,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       views: views ?? this.views,
@@ -82,6 +97,8 @@ class PostModel {
 
 // ─── Demo posts ──────────────────────────────────────────────────────────────
 final now = DateTime.now();
+
+final ValueNotifier<List<PostModel>> demoOwnPostsNotifier = ValueNotifier<List<PostModel>>(demoOwnPosts);
 
 final List<PostModel> demoOwnPosts = [
   // Recents — 24h media post (still fresh)
