@@ -151,9 +151,9 @@ class _HomeScreenState extends State<HomeScreen> {
     Color bgColor,
     Color textColor,
   ) {
-    final sheetBg = isDark ? const Color(0xFF111111) : const Color(0xFFFAFAFA);
-    final labelColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
-    final subColor = isDark ? const Color(0xFF888888) : const Color(0xFF999999);
+    final sheetBg = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFF8F8F8);
+    final labelColor = isDark ? Colors.white : const Color(0xFF111111);
+    final subColor = isDark ? const Color(0xFF777777) : const Color(0xFF888888);
     final captionController = TextEditingController();
 
     showModalBottomSheet(
@@ -163,55 +163,68 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (ctx) {
         final screenHeight = MediaQuery.of(context).size.height;
         return Container(
-          height: screenHeight * 0.6,
+          height: screenHeight * 0.68,
           decoration: BoxDecoration(
             color: sheetBg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 30,
+                offset: const Offset(0, -8),
+              ),
+            ],
           ),
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Container(
-                  width: 32,
-                  height: 4,
+                  width: 36,
+                  height: 5,
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
 
-                // ── Text compose area ──
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       CircleAvatar(
-                        radius: 20,
+                        radius: 21,
                         backgroundColor: isDark
                             ? const Color(0xFF2A2A2A)
-                            : const Color(0xFFEEEEEE),
-                        child: Icon(
-                          Icons.person_outline_rounded,
-                          size: 22,
-                          color: isDark
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade600,
-                        ),
+                            : const Color(0xFFE0E0E0),
+                        backgroundImage: demoOwnUser.avatarAsset != null
+                            ? AssetImage(demoOwnUser.avatarAsset!)
+                            : null,
+                        child: demoOwnUser.avatarAsset == null
+                            ? Icon(
+                                Icons.person_rounded,
+                                size: 22,
+                                color: isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: TextField(
                           controller: captionController,
-                          maxLines: 3,
+                          maxLines: null,
                           minLines: 1,
+                          textInputAction: TextInputAction.newline,
+                          keyboardType: TextInputType.multiline,
                           style: TextStyle(
                             fontSize: 16,
+                            fontWeight: FontWeight.w500,
                             color: labelColor,
                             height: 1.5,
                           ),
@@ -220,10 +233,63 @@ class _HomeScreenState extends State<HomeScreen> {
                             hintStyle: TextStyle(
                               fontSize: 16,
                               color: subColor,
-                              fontWeight: FontWeight.w300,
+                              fontWeight: FontWeight.w400,
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
+                            contentPadding: const EdgeInsets.only(
+                              top: 8,
+                              bottom: 8,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: SizedBox(
+                          width: 60,
+                          height: 35,
+                          child: Material(
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF111111),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                            child: InkWell(
+                              customBorder: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                              onTap: () async {
+                                final text = captionController.text.trim();
+                                if (text.isEmpty) return;
+                                KnockHaptics.tap();
+                                Navigator.pop(ctx);
+                                if (!context.mounted) return;
+                                final settings = await showPostSettingsSheet(
+                                  context,
+                                  isGlimpse: false,
+                                );
+                                if (settings == null || !context.mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FinalPostScreen(
+                                      files: const [],
+                                      initialCaption: text,
+                                      isGlimpse: false,
+                                      selectedDuration: settings.duration,
+                                      selectedAudience: settings.audience,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Icon(
+                                Icons.send_rounded,
+                                size: 18,
+                                color: isDark ? Colors.black : Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -231,137 +297,105 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // Send button row
-                Padding(
-                  padding: const EdgeInsets.only(right: 20, top: 4),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: SizedBox(
-                      height: 34,
-                      child: TextButton(
-                        onPressed: () async {
-                          final text = captionController.text.trim();
-                          if (text.isEmpty) return;
-                          KnockHaptics.tap();
-                          Navigator.pop(ctx);
-                          if (!context.mounted) return;
-                          final settings = await showPostSettingsSheet(
-                            context,
-                            isGlimpse: false,
-                          );
-                          if (settings == null || !context.mounted) return;
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FinalPostScreen(
-                                files: const [],
-                                initialCaption: text,
-                                isGlimpse: false,
-                                selectedDuration: settings.duration,
-                                selectedAudience: settings.audience,
-                              ),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: isDark
-                              ? Colors.white
-                              : const Color(0xFF1A1A1A),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: Text(
-                          "Send",
-                          style: TextStyle(
-                            color: isDark ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 24),
+
+                Container(
+                  height: 1,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.06),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 8),
 
-                // ── Action list ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      _createMenuItem(
-                        icon: Icons.camera_alt_rounded,
-                        label: "Camera",
-                        subtitle: "Capture a moment",
-                        isDark: isDark,
-                        onTap: () async {
-                          KnockHaptics.tap();
-                          Navigator.pop(ctx);
-                          final XFile? photo = await _imagePicker.pickImage(
-                            source: ImageSource.camera,
-                            imageQuality: 85,
-                          );
-                          if (photo != null && context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MediaEditorScreen(
-                                  files: [File(photo.path)],
-                                  initialCaption: captionController.text.trim(),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      _createMenuItem(
-                        icon: Icons.collections_rounded,
-                        label: "Photo / Media",
-                        subtitle: "Choose from gallery",
-                        isDark: isDark,
-                        onTap: () async {
-                          KnockHaptics.tap();
-                          Navigator.pop(ctx);
-                          final List<XFile> files =
-                              await _imagePicker.pickMultiImage(imageQuality: 80);
-                          if (files.isNotEmpty && context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MediaEditorScreen(
-                                  files: files.map((e) => File(e.path)).toList(),
-                                  initialCaption: captionController.text.trim(),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      _createMenuItem(
-                        icon: Icons.play_circle_outline_rounded,
-                        label: "Waves",
-                        subtitle: "Reels, shorts & lipsync videos",
-                        isDark: isDark,
-                        onTap: () async {
-                          KnockHaptics.tap();
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const WavesCameraScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                _createMenuItem(
+                  icon: Icons.camera_rounded,
+                  label: "Camera",
+                  subtitle: "Capture a moment",
+                  isDark: isDark,
+                  onTap: () async {
+                    KnockHaptics.tap();
+                    Navigator.pop(ctx);
+                    final XFile? photo = await _imagePicker.pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 85,
+                    );
+                    if (photo != null && context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MediaEditorScreen(
+                            files: [File(photo.path)],
+                            initialCaption: captionController.text.trim(),
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
-                const Spacer(),
+                const SizedBox(height: 7),
+                _createMenuItem(
+                  icon: Icons.photo_library_rounded,
+                  label: "Post",
+                  subtitle: "Choose from gallery",
+                  isDark: isDark,
+                  onTap: () async {
+                    KnockHaptics.tap();
+                    Navigator.pop(ctx);
+                    final List<XFile> files = await _imagePicker.pickMultiImage(
+                      imageQuality: 80,
+                    );
+                    if (files.isNotEmpty && context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MediaEditorScreen(
+                            files: files.map((e) => File(e.path)).toList(),
+                            initialCaption: captionController.text.trim(),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 7),
+                _createMenuItem(
+                  icon: Icons.auto_awesome_rounded,
+                  label: "Glimpse",
+                  subtitle: "Share moments with music",
+                  isDark: isDark,
+                  onTap: () async {
+                    KnockHaptics.tap();
+                    Navigator.pop(ctx);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Glimpse composer coming soon!')),
+                    );
+                  },
+                ),
+                const SizedBox(height: 7),
+                _createMenuItem(
+                  icon: Icons.play_circle_outline_rounded,
+                  label: "Waves",
+                  subtitle: "Reels, shorts & lipsync videos",
+                  isDark: isDark,
+                  onTap: () async {
+                    KnockHaptics.tap();
+                    Navigator.pop(ctx);
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const WavesCameraScreen(),
+                      ),
+                    );
+                  },
+                ),
+
+                SizedBox(
+                  height: MediaQuery.of(ctx).padding.bottom > 0 ? 12 : 24,
+                ),
               ],
             ),
           ),
@@ -376,31 +410,50 @@ class _HomeScreenState extends State<HomeScreen> {
     required String subtitle,
     required bool isDark,
     required VoidCallback onTap,
+    List<Color> accentColors = const [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+    List<Color> lightAccentColors = const [
+      Color(0xFFF0F0F0),
+      Color(0xFFE0E0E0),
+    ],
   }) {
-    final iconBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0);
-    final iconColor = isDark ? Colors.grey.shade300 : const Color(0xFF555555);
-    final titleColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111111);
     final subtitleColor = isDark
-        ? const Color(0xFF666666)
-        : const Color(0xFF999999);
+        ? const Color(0xFF606060)
+        : const Color(0xFF888888);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
+        splashColor: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.04),
+        highlightColor: isDark
+            ? Colors.white.withValues(alpha: 0.03)
+            : Colors.black.withValues(alpha: 0.02),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 20),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark ? accentColors : lightAccentColors,
+                  ),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(icon, size: 22, color: iconColor),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: isDark
+                      ? Colors.grey.shade300
+                      : const Color(0xFF444444),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -410,16 +463,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       label,
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
                         color: titleColor,
-                        letterSpacing: -0.2,
+                        letterSpacing: -0.3,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 12, color: subtitleColor),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w400,
+                        color: subtitleColor,
+                      ),
                     ),
                   ],
                 ),

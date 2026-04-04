@@ -249,6 +249,7 @@ class _DiscoverKnockButtonState extends State<_DiscoverKnockButton> {
     return ValueListenableBuilder<KnockStatus>(
       valueListenable: _notifier,
       builder: (context, status, _) {
+
         return SizedBox(
           width: 96,
           child: KnockButton(
