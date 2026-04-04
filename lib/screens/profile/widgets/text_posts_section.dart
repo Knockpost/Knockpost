@@ -70,6 +70,8 @@ class TextPostsSection extends StatelessWidget {
                 knockStatus: KnockStatus.none,
               ),
               text: post.text,
+              likes: post.likes,
+              views: post.views,
             ),
             if (isLast) divider,
           ],

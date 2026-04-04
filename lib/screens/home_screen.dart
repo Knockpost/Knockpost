@@ -22,6 +22,7 @@ import 'messages/messages_list_screen.dart';
 import 'profile/profile_screen.dart';
 import 'waves/waves_feed_screen.dart';
 import 'search/search_screen.dart';
+import 'notifications/notifications_screen.dart';
 import '../widgets/system_nav_bar_fill.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -632,7 +633,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Icons.notifications_none,
                                         color: textColor,
                                       ),
-                                      onPressed: () {},
+                                      onPressed: () {
+                                        KnockHaptics.tap();
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const NotificationsScreen(),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -676,12 +685,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                     content = ThoughtCard(
                                       user: post.user,
                                       text: post.caption,
+                                      likes: 120, // Default for demo post without explicit model length here
+                                      views: 500, // Default for demo
                                     );
                                   } else {
                                     content = PostCard(
                                       imagePaths: post.images,
                                       user: post.user,
                                       caption: post.caption,
+                                      likes: 150, // Default for demo
+                                      views: 800, // Default for demo
                                     );
                                   }
                                 }

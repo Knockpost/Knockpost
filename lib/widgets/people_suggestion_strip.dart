@@ -6,6 +6,7 @@ import '../models/post_model.dart';
 import '../utils/haptic_helper.dart';
 import '../screens/profile/widgets/knock_button.dart';
 import '../screens/profile/other_profile_screen.dart';
+import '../screens/discover/discover_people_screen.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
@@ -150,12 +151,26 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
                 ),
               ),
               const Spacer(),
-              Text(
-                'See all',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? Colors.white54 : Colors.black45,
-                  fontWeight: FontWeight.w500,
+              GestureDetector(
+                onTap: () {
+                  KnockHaptics.tap();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DiscoverPeopleScreen(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                  child: Text(
+                    'See all',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
             ],

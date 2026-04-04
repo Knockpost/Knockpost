@@ -8,6 +8,7 @@ import 'signup/signup_email_screen.dart';
 import 'signup/signup_username_screen.dart';
 import 'signup/signup_verification_screen.dart';
 import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -284,21 +285,87 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // 🔥 LOGIN BYPASS
-  void login() async {
+  // 🔥 LOGIN LOGIC
+  Future<void> login() async {
+    final email = userController.text.trim();
+    final password = passwordController.text.trim();
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomeScreen(),
-      ),
-      (route) => false,
-    );
+    if (email.isEmpty || password.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both email and password.')),
+      );
+      return;
+    }
 
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await AuthService.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        ),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'An error occurred during login.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> signInWithGoogle() async {
-    // same as before (unchanged)
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final userCredential = await AuthService.instance.signInWithGoogle();
+      
+      if (!mounted) return;
+      
+      if (userCredential != null) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HomeScreen(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error signing in with Google: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
 }

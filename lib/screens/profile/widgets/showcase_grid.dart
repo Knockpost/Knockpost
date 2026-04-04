@@ -280,6 +280,8 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                         ? ThoughtCard(
                             user: widget.user,
                             text: post.text,
+                            likes: post.likes,
+                            views: post.views,
                           )
                         : PostCard(
                             imagePaths: post.imagePaths,
@@ -289,6 +291,8 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             musicTitle: post.musicTitle,
                             musicArtist: post.musicArtist,
                             isVideoPost: post.type == PostType.waves,
+                            likes: post.likes,
+                            views: post.views,
                           ),
                     if (isLast) divider,
                   ],

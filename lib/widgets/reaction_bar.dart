@@ -26,6 +26,7 @@ class ReactionBar extends StatefulWidget {
   final VoidCallback? onDoubleTapHandled;
   final String postId;
   final bool isPostOwner;
+  final ValueChanged<bool>? onReactionChanged;
 
   const ReactionBar({
     super.key,
@@ -33,6 +34,7 @@ class ReactionBar extends StatefulWidget {
     this.onDoubleTapHandled,
     this.postId = 'demo_post',
     this.isPostOwner = false,
+    this.onReactionChanged,
   });
 
   @override
@@ -110,6 +112,7 @@ class _ReactionBarState extends State<ReactionBar>
     if (_selectedEmoji != null) {
       // Already reacted → un-react
       setState(() => _selectedEmoji = null);
+      widget.onReactionChanged?.call(false);
     } else {
       _selectWithAnimation('❤');
     }
@@ -120,6 +123,7 @@ class _ReactionBarState extends State<ReactionBar>
     KnockHaptics.impact();
     setState(() => _selectedEmoji = emoji);
     _heartController.forward(from: 0);
+    widget.onReactionChanged?.call(true);
   }
 
   /// Build the right widget for each reaction

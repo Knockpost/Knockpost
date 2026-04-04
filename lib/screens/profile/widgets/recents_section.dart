@@ -73,11 +73,15 @@ class RecentsSection extends StatelessWidget {
             musicTitle: post.musicTitle,
             musicArtist: post.musicArtist,
             isVideoPost: post.type == PostType.waves,
+            likes: post.likes,
+            views: post.views,
           );
         } else {
           content = ThoughtCard(
             user: user,
             text: post.text,
+            likes: post.likes,
+            views: post.views,
           );
         }
 
