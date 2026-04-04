@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
-import '../widgets/post_card.dart';
-import '../widgets/thought_card.dart';
+import 'post/post_card.dart';
+import 'thoughts/thought_card.dart';
 import '../widgets/comment_sheet.dart';
 
 class SinglePostScreen extends StatefulWidget {
@@ -75,15 +75,11 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                 ? ThoughtCard(
                     user: widget.author,
                     text: widget.post.text,
-                    likes: widget.post.likes,
-                    views: widget.post.views,
                   )
                 : PostCard(
                     imagePaths: widget.post.imagePaths,
                     user: widget.author,
                     caption: widget.post.text,
-                    likes: widget.post.likes,
-                    views: widget.post.views,
                   ),
           ],
         ),

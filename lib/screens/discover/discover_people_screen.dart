@@ -263,7 +263,6 @@ class _DiscoverKnockButtonState extends State<_DiscoverKnockButton> {
             userId: widget.user.id,
             privacyType: widget.user.privacyType,
             accountType: widget.user.accountType,
-            isCompact: true,
             onStatusChanged: (newStatus) {
               _notifier.value = newStatus;
             },
