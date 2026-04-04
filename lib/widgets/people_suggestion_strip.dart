@@ -439,7 +439,7 @@ class _SuggestionCard extends StatelessWidget {
               Divider(
                 height: 1, 
                 thickness: 0.5,
-                color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
               ),
 
               // Bottom Action Button (Text-only)

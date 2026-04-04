@@ -179,7 +179,7 @@ class _OptionCircle extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: Colors.grey.shade800.withOpacity(0.6),
+                color: Colors.grey.shade800.withValues(alpha: 0.6),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: Colors.white, size: 24),

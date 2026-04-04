@@ -265,11 +265,11 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.black.withOpacity(0.3),
+                  Colors.black.withValues(alpha: 0.3),
                   Colors.transparent,
                   Colors.transparent,
-                  Colors.black.withOpacity(0.6),
-                  Colors.black.withOpacity(0.85),
+                  Colors.black.withValues(alpha: 0.6),
+                  Colors.black.withValues(alpha: 0.85),
                 ],
                 stops: const [0.0, 0.15, 0.5, 0.85, 1.0],
                 begin: Alignment.topCenter,
@@ -464,7 +464,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                 Text(
                   widget.caption,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -513,7 +513,7 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -539,8 +539,8 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
                   padding: EdgeInsets.zero,
                   colors: VideoProgressColors(
                     playedColor: Colors.white,
-                    bufferedColor: Colors.white.withOpacity(0.3),
-                    backgroundColor: Colors.white.withOpacity(0.1),
+                    bufferedColor: Colors.white.withValues(alpha: 0.3),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
               ),
@@ -918,7 +918,7 @@ class _ReelReactionButtonState extends State<ReelReactionButton>
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

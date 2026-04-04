@@ -157,9 +157,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.35),
+                              color: Colors.black.withValues(alpha: 0.35),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.15),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 width: 0.5,
                               ),
                               borderRadius: BorderRadius.circular(20),

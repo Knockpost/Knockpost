@@ -25,7 +25,7 @@ class ShareSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -234,7 +234,7 @@ class ShareSheet extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.grey.shade800.withOpacity(0.6),
+              color: Colors.grey.shade800.withValues(alpha: 0.6),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 26),

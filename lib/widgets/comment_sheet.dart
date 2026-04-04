@@ -251,7 +251,7 @@ class _CommentSheetState extends State<CommentSheet> {
                 ),
               ),
 
-              Divider(height: 1, color: subtleColor.withOpacity(0.3)),
+              Divider(height: 1, color: subtleColor.withValues(alpha: 0.3)),
 
               // ── Private Notice ──
               Padding(
@@ -262,13 +262,13 @@ class _CommentSheetState extends State<CommentSheet> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.transparent,
-                        border: Border.all(color: subtleColor.withOpacity(0.2)),
+                        border: Border.all(color: subtleColor.withValues(alpha: 0.2)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         'Only you and the creator can see what you write here. No one else can view these comments.',
                         style: TextStyle(
-                          color: textColor.withOpacity(0.8),
+                          color: textColor.withValues(alpha: 0.8),
                           fontSize: 13,
                           height: 1.4,
                         ),
@@ -286,7 +286,7 @@ class _CommentSheetState extends State<CommentSheet> {
                       child: Text(
                         'Your comments stay visible only to you and this creator.',
                         style: TextStyle(
-                          color: textColor.withOpacity(0.7),
+                          color: textColor.withValues(alpha: 0.7),
                           fontSize: 12,
                         ),
                         textAlign: TextAlign.center,
@@ -377,7 +377,7 @@ class _CommentSheetState extends State<CommentSheet> {
                 decoration: BoxDecoration(
                   color: bgColor,
                   border: Border(
-                    top: BorderSide(color: subtleColor.withOpacity(0.15)),
+                    top: BorderSide(color: subtleColor.withValues(alpha: 0.15)),
                   ),
                 ),
                 child: Row(
@@ -563,7 +563,7 @@ class _CommentSheetState extends State<CommentSheet> {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: textColor.withOpacity(0.08),
+                            color: textColor.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -599,7 +599,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           Icon(
                             Icons.subdirectory_arrow_right_rounded,
                             size: 12,
-                            color: subtleColor.withOpacity(0.6),
+                            color: subtleColor.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -618,7 +618,7 @@ class _CommentSheetState extends State<CommentSheet> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: subtleColor.withOpacity(0.8),
+                                color: subtleColor.withValues(alpha: 0.8),
                               ),
                             ),
                           ),
@@ -732,7 +732,7 @@ class _CommentSheetState extends State<CommentSheet> {
           Icon(
             Icons.chat_bubble_outline_rounded,
             size: 56,
-            color: subtleColor.withOpacity(0.4),
+            color: subtleColor.withValues(alpha: 0.4),
           ),
           const SizedBox(height: 16),
           Text(
@@ -740,7 +740,7 @@ class _CommentSheetState extends State<CommentSheet> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: textColor.withOpacity(0.5),
+              color: textColor.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 6),

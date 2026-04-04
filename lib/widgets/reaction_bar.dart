@@ -315,7 +315,7 @@ class _ReactionBarState extends State<ReactionBar>
                       child: Icon(
                         Icons.chat_bubble_outline,
                         size: 20,
-                        color: isDark ? Colors.white.withOpacity(0.8) : Colors.black.withOpacity(0.75),
+                        color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.75),
                       ),
                     ),
                   ),
@@ -348,7 +348,7 @@ class _ReactionBarState extends State<ReactionBar>
                       child: Icon(
                         Icons.share_outlined,
                         size: 20,
-                        color: isDark ? Colors.white.withOpacity(0.8) : Colors.black.withOpacity(0.75),
+                        color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.75),
                       ),
                     ),
                   ),
@@ -378,7 +378,7 @@ class _ReactionBarState extends State<ReactionBar>
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

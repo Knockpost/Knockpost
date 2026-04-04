@@ -189,7 +189,7 @@ class _KnockZoomerState extends State<KnockZoomer>
           child: ValueListenableBuilder<double>(
             valueListenable: _darkness,
             builder: (_, d, __) => ColoredBox(
-              color: Colors.black.withOpacity(d),
+              color: Colors.black.withValues(alpha: d),
             ),
           ),
         ),
