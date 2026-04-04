@@ -89,7 +89,7 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
                       height: 1,
                       thickness: 0.5,
                       indent: 72,
-                      color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
                     ),
                     itemBuilder: (context, index) {
                       final user = users[index];
@@ -249,12 +249,6 @@ class _DiscoverKnockButtonState extends State<_DiscoverKnockButton> {
     return ValueListenableBuilder<KnockStatus>(
       valueListenable: _notifier,
       builder: (context, status, _) {
-        final isKnocked = status == KnockStatus.knocked || 
-                           status == KnockStatus.pending || 
-                           status == KnockStatus.mutualKnocked;
-        
-        final label = status == KnockStatus.theyKnockedYou ? 'Knock Back' : 
-                      isKnocked ? 'Knocked' : 'Knock';
 
         return SizedBox(
           width: 96,

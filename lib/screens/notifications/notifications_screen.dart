@@ -197,7 +197,7 @@ class _NotifTile extends StatelessWidget {
     final subColor  = isDark ? Colors.white54 : Colors.black45;
     final unreadBg  = !notif.isRead
         ? (isDark
-            ? Colors.white.withOpacity(0.06)
+            ? Colors.white.withValues(alpha: 0.06)
             : const Color(0xFFE8F4FD))
         : Colors.transparent;
 
