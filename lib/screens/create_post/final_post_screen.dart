@@ -420,6 +420,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                         (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
                          widget.files.first.path.toLowerCase().endsWith('.mov'));
 
+                    if (!context.mounted) return;
                     final overlayResult = await Navigator.push(
                       context,
                       PageRouteBuilder(

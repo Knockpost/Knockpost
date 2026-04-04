@@ -89,7 +89,7 @@ class ShareSheet extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
+                        const Text(
                           "KnockPost",
                           style: TextStyle(
                             color: Colors.white,

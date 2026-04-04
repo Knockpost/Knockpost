@@ -13,6 +13,11 @@ class PostCard extends StatefulWidget {
   final int likes;
   final int views;
   final String? postId;
+  final String? musicUrl;
+  final String? musicTitle;
+  final String? musicArtist;
+  final int? musicTrimStart;
+  final bool isVideoPost;
 
   const PostCard({
     super.key,
@@ -22,6 +27,11 @@ class PostCard extends StatefulWidget {
     this.likes = 0,
     this.views = 0,
     this.postId,
+    this.musicUrl,
+    this.musicTitle,
+    this.musicArtist,
+    this.musicTrimStart,
+    this.isVideoPost = false,
   });
 
   @override

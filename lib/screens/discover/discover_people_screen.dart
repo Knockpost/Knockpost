@@ -249,13 +249,6 @@ class _DiscoverKnockButtonState extends State<_DiscoverKnockButton> {
     return ValueListenableBuilder<KnockStatus>(
       valueListenable: _notifier,
       builder: (context, status, _) {
-        final isKnocked = status == KnockStatus.knocked || 
-                           status == KnockStatus.pending || 
-                           status == KnockStatus.mutualKnocked;
-        
-        final label = status == KnockStatus.theyKnockedYou ? 'Knock Back' : 
-                      isKnocked ? 'Knocked' : 'Knock';
-
         return SizedBox(
           width: 96,
           child: KnockButton(

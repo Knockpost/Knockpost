@@ -5,6 +5,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/user_model.dart';
+import '../../../utils/haptic_helper.dart';
+import '../../discover/discover_people_screen.dart';
 import 'creator_rank_badge.dart';
 import 'knock_button.dart';
 
@@ -234,7 +236,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         ),
                       const SizedBox(height: 10),
                       if (user.isOwnProfile)
-                        _buildOwnFriendsRow(textColor, isDark)
+                        _buildOwnFriendsRow(context, textColor, isDark)
                       else if (user.mutualFriendsWhoKnocked.isNotEmpty)
                         _buildFriendsKnockedRow(user, textColor, isDark),
                       if (user.isOwnProfile ||
@@ -422,31 +424,41 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     );
   }
 
-  Widget _buildOwnFriendsRow(Color textColor, bool isDark) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 58,
-          height: 26,
-          child: Stack(
-            children: [
-              _friendPreviewAvatar('assets/test2.jpg', 0, isDark),
-              _friendPreviewAvatar('assets/test3.jpg', 16, isDark),
-              _friendPreviewAvatar('assets/test4.jpg', 32, isDark),
-            ],
+  Widget _buildOwnFriendsRow(BuildContext context, Color textColor, bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        KnockHaptics.impact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
+        );
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 58,
+            height: 26,
+            child: Stack(
+              children: [
+                _friendPreviewAvatar('assets/test2.jpg', 0, isDark),
+                _friendPreviewAvatar('assets/test3.jpg', 16, isDark),
+                _friendPreviewAvatar('assets/test4.jpg', 32, isDark),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'See Friends',
-          style: TextStyle(
-            fontSize: 14.5,
-            color: textColor,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+          const SizedBox(width: 8),
+          Text(
+            'See Friends',
+            style: TextStyle(
+              fontSize: 14.5,
+              color: textColor,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.1,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

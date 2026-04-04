@@ -1,0 +1,226 @@
+﻿commit 851007f68fc7d46237e7328e958cee581624ccd9
+Merge: 1fb0b7f e97cd44
+Author: SumanPatra1797 <suman.patra1797@gmail.com>
+Date:   Tue Mar 31 17:25:49 2026 +0530
+
+    Merge branch 'main' of https://github.com/Knockpost/Knockpost
+
+commit 1fb0b7f632f58af89332d4982b88e9902548cd5f
+Author: SumanPatra1797 <suman.patra1797@gmail.com>
+Date:   Tue Mar 31 17:25:44 2026 +0530
+
+    +
+
+ pubspec.lock | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+commit e97cd44c819d3075a242ed364266e13237fbfa38
+Merge: 4855b5b 2e16275
+Author: Knockpost <knockpostofficial@gmail.com>
+Date:   Tue Mar 31 17:21:03 2026 +0530
+
+    Merge pull request #10 from Knockpost/suman
+    
+    Suman
+
+commit 2e16275364c09a7dba71b7f74f64f97082fd66e0
+Merge: e028035 4855b5b
+Author: Knockpost <knockpostofficial@gmail.com>
+Date:   Tue Mar 31 17:17:11 2026 +0530
+
+    Merge branch 'main' into suman
+
+commit e02803501c44e57130f15e2f15042243be10f8b7
+Author: SumanPatra1797 <suman.patra1797@gmail.com>
+Date:   Tue Mar 31 16:28:32 2026 +0530
+
+    some new feature add like notification part and many more
+
+ analysis.txt                                       |  Bin 0 -> 2448 bytes
+ analyze.txt                                        |   44 -
+ analyze1.txt                                       |    9 -
+ analyze_new.txt                                    |   44 -
+ analyze_output.txt                                 |  Bin 5696 -> 0 bytes
+ .../src/main/res/drawable-hdpi/android12splash.png |  Bin 5986 -> 5038 bytes
+ android/app/src/main/res/drawable-hdpi/splash.png  |  Bin 5986 -> 5038 bytes
+ .../src/main/res/drawable-mdpi/android12splash.png |  Bin 3379 -> 3017 bytes
+ android/app/src/main/res/drawable-mdpi/splash.png  |  Bin 3379 -> 3017 bytes
+ .../res/drawable-night-hdpi/android12splash.png    |  Bin 4350 -> 5038 bytes
+ .../src/main/res/drawable-night-hdpi/splash.png    |  Bin 4350 -> 0 bytes
+ .../res/drawable-night-mdpi/android12splash.png    |  Bin 2304 -> 3017 bytes
+ .../src/main/res/drawable-night-mdpi/splash.png    |  Bin 2304 -> 0 bytes
+ .../src/main/res/drawable-night-v21/background.png |  Bin 69 -> 0 bytes
+ .../res/drawable-night-xhdpi/android12splash.png   |  Bin 5997 -> 7548 bytes
+ .../src/main/res/drawable-night-xhdpi/splash.png   |  Bin 5997 -> 0 bytes
+ .../res/drawable-night-xxhdpi/android12splash.png  |  Bin 12557 -> 13298 bytes
+ .../src/main/res/drawable-night-xxhdpi/splash.png  |  Bin 12557 -> 0 bytes
+ .../res/drawable-night-xxxhdpi/android12splash.png |  Bin 19062 -> 19478 bytes
+ .../src/main/res/drawable-night-xxxhdpi/splash.png |  Bin 19062 -> 0 bytes
+ .../app/src/main/res/drawable-night/background.png |  Bin 69 -> 0 bytes
+ .../app/src/main/res/drawable-v21/background.png   |  Bin 69 -> 69 bytes
+ .../main/res/drawable-xhdpi/android12splash.png    |  Bin 9532 -> 7548 bytes
+ android/app/src/main/res/drawable-xhdpi/splash.png |  Bin 9532 -> 7548 bytes
+ .../main/res/drawable-xxhdpi/android12splash.png   |  Bin 18654 -> 13298 bytes
+ .../app/src/main/res/drawable-xxhdpi/splash.png    |  Bin 18654 -> 13298 bytes
+ .../main/res/drawable-xxxhdpi/android12splash.png  |  Bin 27781 -> 19478 bytes
+ .../app/src/main/res/drawable-xxxhdpi/splash.png   |  Bin 27781 -> 19478 bytes
+ android/app/src/main/res/drawable/background.png   |  Bin 69 -> 69 bytes
+ .../app/src/main/res/values-night-v31/styles.xml   |    4 +-
+ android/app/src/main/res/values-night/styles.xml   |    4 +-
+ android/app/src/main/res/values-v31/styles.xml     |    8 +-
+ android/app/src/main/res/values/styles.xml         |    5 +-
+ assets/icon(white).png                             |  Bin 14546 -> 0 bytes
+ assets/icon2.png                                   |  Bin 134994 -> 0 bytes
+ assets/new_demo_1.jpg                              |  Bin 301845 -> 0 bytes
+ assets/new_demo_2.jpg                              |  Bin 314190 -> 0 bytes
+ assets/new_demo_3.jpg                              |  Bin 388902 -> 0 bytes
+ assets/new_demo_4.jpg                              |  Bin 284000 -> 0 bytes
+ assets/new_demo_5.jpg                              |  Bin 310926 -> 0 bytes
+ build_error.txt                                    |  Bin 6758 -> 0 bytes
+ clean_output.txt                                   |    0
+ conflicts.txt                                      |  Bin 760 -> 0 bytes
+ conflicts_utf8.txt                                 |   12 -
+ diff_home.txt                                      |  Bin 17936 -> 0 bytes
+ diff_home_8.txt                                    |  261 -
+ diff_saptarshi_suman.txt                           |  Bin 452782 -> 0 bytes
+ diff_suman_saptarshi.txt                           |  Bin 452628 -> 0 bytes
+ diff_suman_saptarshi_8.txt                         | 6280 --------------------
+ diff_target.txt                                    |  Bin 27978 -> 0 bytes
+ diff_target_8.txt                                  |  408 --
+ flutter_native_splash.yaml                         |   15 +-
+ lib/main.dart                                      |   19 +
+ lib/models/chat_model.dart                         |   22 -
+ lib/models/message_model.dart                      |   21 -
+ lib/models/notification_model.dart                 |  105 +-
+ lib/screens/create_post/final_post_screen.dart     |    4 +-
+ lib/screens/discover/discover_people_screen.dart   |  275 +
+ lib/screens/home_screen.dart                       |  180 +-
+ lib/screens/login_screen.dart                      |   71 +-
+ lib/screens/messages/chat_screen.dart              |   99 +-
+ lib/screens/messages/media_preview_screen.dart     |    8 +-
+ lib/screens/messages/message_info_screen.dart      |    2 +-
+ lib/screens/messages/messages_screen.dart          |  198 -
+ .../notifications/notifications_screen.dart        |  548 +-
+ lib/screens/profile/edit_profile_screen.dart       |   18 +-
+ lib/screens/profile/other_profile_screen.dart      |   21 +-
+ lib/screens/profile/profile_screen.dart            |    2 +
+ lib/screens/profile/profile_settings_screen.dart   |   22 +-
+ .../profile/widgets/creator_rank_badge.dart        |    4 +-
+ lib/screens/profile/widgets/knock_button.dart      |   11 +-
+ .../profile/widgets/private_lock_overlay.dart      |    2 +-
+ lib/screens/profile/widgets/profile_header.dart    |   12 +-
+ .../profile/widgets/profile_ui_helpers.dart        |    8 +-
+ lib/screens/profile/widgets/recents_section.dart   |  102 +-
+ lib/screens/profile/widgets/showcase_grid.dart     |   72 +-
+ .../profile/widgets/text_posts_section.dart        |   91 +-
+ lib/screens/reels/reel_item.dart                   |  125 +-
+ lib/screens/reels/reels_screen.dart                |   56 +-
+ lib/screens/reels/widgets/more_options_sheet.dart  |  168 +-
+ lib/screens/reels/widgets/share_sheet.dart         |  127 +-
+ lib/screens/single_post_screen.dart                |   93 +
+ lib/screens/splash_screen.dart                     |    2 +-
+ lib/services/chat_service.dart                     |   61 -
+ lib/theme/app_theme.dart                           |   63 +-
+ lib/utils/global_dismiss_state.dart                |   19 +
+ lib/utils/global_post_state.dart                   |   19 +
+ lib/widgets/comment_sheet.dart                     |  130 +-
+ lib/widgets/custom_bottom_nav.dart                 |    7 +-
+ lib/widgets/knock_zoomer.dart                      |  339 ++
+ lib/widgets/media_carousel.dart                    |   18 +-
+ lib/widgets/people_suggestion_strip.dart           |   80 +-
+ lib/widgets/post_card.dart                         |   19 +-
+ lib/widgets/post_header.dart                       |   95 +-
+ lib/widgets/reaction_bar.dart                      |  304 +-
+ lib/widgets/reactors_sheet.dart                    |  162 +
+ lib/widgets/thought_card.dart                      |   19 +-
+ out.txt                                            |   41 -
+ pubspec.yaml                                       |    3 -
+ saptarshi_files.txt                                |  Bin 4336 -> 0 bytes
+ saptarshi_files_8.txt                              |   69 -
+ web/index.html                                     |   84 +-
+ web/splash/img/dark-1x.png                         |  Bin 0 -> 3017 bytes
+ web/splash/img/dark-2x.png                         |  Bin 0 -> 7548 bytes
+ web/splash/img/dark-3x.png                         |  Bin 0 -> 13298 bytes
+ web/splash/img/dark-4x.png                         |  Bin 0 -> 19478 bytes
+ web/splash/img/light-1x.png                        |  Bin 0 -> 3017 bytes
+ web/splash/img/light-2x.png                        |  Bin 0 -> 7548 bytes
+ web/splash/img/light-3x.png                        |  Bin 0 -> 13298 bytes
+ web/splash/img/light-4x.png                        |  Bin 0 -> 19478 bytes
+ 110 files changed, 2525 insertions(+), 8589 deletions(-)
+
+commit ac0abed400f432d1152bd3728663be48c1717121
+Author: SumanPatra1797 <suman.patra1797@gmail.com>
+Date:   Sat Mar 28 20:51:25 2026 +0530
+
+    new things
+
+ assets/icon4.png                                   | Bin 83367 -> 0 bytes
+ assets/new_demo_1.jpg                              | Bin 0 -> 301845 bytes
+ assets/new_demo_2.jpg                              | Bin 0 -> 314190 bytes
+ assets/new_demo_3.jpg                              | Bin 0 -> 388902 bytes
+ assets/new_demo_4.jpg                              | Bin 0 -> 284000 bytes
+ assets/new_demo_5.jpg                              | Bin 0 -> 310926 bytes
+ assets/test1.jpg                                   | Bin 1946315 -> 301845 bytes
+ assets/test2.jpg                                   | Bin 2650621 -> 314190 bytes
+ assets/test3.jpg                                   | Bin 33673 -> 388902 bytes
+ assets/test4.jpg                                   | Bin 25778 -> 284000 bytes
+ lib/main.dart                                      |   1 -
+ lib/models/notification_model.dart                 |  94 ++++++
+ lib/screens/home_screen.dart                       |   8 +-
+ lib/screens/login_screen.dart                      |  79 ++---
+ lib/screens/messages/messages_screen.dart          |  37 ++-
+ .../notifications/notifications_screen.dart        | 340 +++++++++++++++++++++
+ lib/screens/profile/profile_settings_screen.dart   |  16 +-
+ 17 files changed, 525 insertions(+), 50 deletions(-)
+
+commit f80d552c5d8b6b20031f003aa58b94215f608b9d
+Author: SumanPatra1797 <suman.patra1797@gmail.com>
+Date:   Sat Mar 28 17:24:25 2026 +0530
+
+    Fix duplicate MessagesScreen import
+
+ lib/screens/home_screen.dart | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 4d259c7c8ca9c827c32e36c10fb59b6666d1d9dd
+Merge: ffa9dda 56e02f9
+Author: SumanPatra1797 <suman.patra1797@gmail.com>
+Date:   Sat Mar 28 17:02:56 2026 +0530
+
+    Merge origin/saptarshi into suman, preserving Suman's backend integration and chat features
+
+commit 56e02f94d4452e07d19085cf4ad8d561b0a6a6f2
+Author: Saptarshi Nayak <nayaksaptarshi100@gmail.com>
+Date:   Sat Mar 28 01:08:23 2026 +0530
+
+    Divider and all done
+
+ lib/screens/home_screen.dart                       |  60 ++++---
+ lib/screens/profile/other_profile_screen.dart      |   2 +-
+ lib/screens/profile/profile_screen.dart            |   2 +-
+ lib/screens/profile/widgets/recents_section.dart   |  33 ++--
+ lib/screens/profile/widgets/showcase_grid.dart     |  41 +++--
+ .../profile/widgets/text_posts_section.dart        | 187 ++++-----------------
+ lib/widgets/people_suggestion_strip.dart           |   6 -
+ 7 files changed, 113 insertions(+), 218 deletions(-)
+
+commit 807d3d23238e124c9b0b990400f30a1b3d6f8366
+Author: Saptarshi Nayak <nayaksaptarshi100@gmail.com>
+Date:   Fri Mar 27 23:55:44 2026 +0530
+
+    Recents, Showcase, Thoughts (Done)
+
+ lib/models/post_model.dart                       | 124 ++++++++++++--
+ lib/screens/home_screen.dart                     |  37 +++--
+ lib/screens/messages/chat_screen.dart            |  84 +++++-----
+ lib/screens/profile/edit_profile_screen.dart     |   8 +-
+ lib/screens/profile/other_profile_screen.dart    |  15 +-
+ lib/screens/profile/profile_screen.dart          |   2 +-
+ lib/screens/profile/profile_settings_screen.dart |  50 +++++-
+ lib/screens/profile/widgets/recents_section.dart | 125 +--------------
+ lib/screens/profile/widgets/showcase_grid.dart   | 195 ++++++++++++-----------
+ lib/screens/reels/reels_screen.dart              |   6 +-
+ lib/widgets/post_card.dart                       |   2 +-
+ lib/widgets/system_nav_bar_fill.dart             |  40 +++++
+ lib/widgets/thought_card.dart                    |  80 ++++++++++
+ 13 files changed, 462 insertions(+), 306 deletions(-)

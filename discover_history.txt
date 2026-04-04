@@ -1,0 +1,4 @@
+﻿a932c17 Re-apply lint fixes: withOpacity to withValues
+M	lib/screens/discover/discover_people_screen.dart
+e028035 some new feature add like notification part and many more
+A	lib/screens/discover/discover_people_screen.dart

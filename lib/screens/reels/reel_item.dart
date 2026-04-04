@@ -36,7 +36,6 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
   bool isPlaying = true;
   bool showHeart = false;
   bool _doubleTapped = false;
-  bool _isLiked = false;
   bool _isKnocked = false;
   bool _showBlackFlash = false;
   bool _hasError = false;
@@ -182,7 +181,6 @@ class _ReelItemState extends State<ReelItem> with TickerProviderStateMixin {
   void handleDoubleTap() {
     KnockHaptics.impact();
     setState(() {
-      _isLiked = true;
       _doubleTapped = true;
       showHeart = true;
     });

@@ -155,13 +155,12 @@ class _ReelsScreenState extends State<ReelsScreen> {
                     end: Alignment.bottomCenter,
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // ignore: prefer_const_constructors
                     Padding(
-                      padding: const EdgeInsets.only(left: 8.0),
-                      child: const Text(
+                      padding: EdgeInsets.only(left: 8.0),
+                      child: Text(
                         "Glimpse",
                         style: TextStyle(
                           color: Colors.white,
@@ -171,7 +170,7 @@ class _ReelsScreenState extends State<ReelsScreen> {
                         ),
                       ),
                     ),
-                    const Spacer(),
+                    Spacer(),
                   ],
                 ),
               ),

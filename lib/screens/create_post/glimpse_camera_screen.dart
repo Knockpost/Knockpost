@@ -1236,13 +1236,14 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
                                 final screenWidth = MediaQuery.sizeOf(
                                   context,
                                 ).width;
-                                if (screenWidth <= 0)
+                                if (screenWidth <= 0) {
                                   return const LinearGradient(
                                     colors: [
                                       Colors.transparent,
                                       Colors.transparent,
                                     ],
                                   ).createShader(bounds);
+                                }
 
                                 final center = screenWidth / 2;
                                 const halfWindow = 65.0; // 130 width / 2

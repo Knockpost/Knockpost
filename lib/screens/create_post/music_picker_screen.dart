@@ -32,7 +32,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
 
   final List<String> _tabs = ['Trending', 'Pop', 'Hip-Hop', 'Chill', 'Bollywood'];
   
-  Map<String, List<MusicTrack>> _categoryTracksMap = {};
+  final Map<String, List<MusicTrack>> _categoryTracksMap = {};
   List<MusicTrack> _searchTracks = [];
   
   String? _playingUrl;
@@ -73,10 +73,15 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
     
     // Map category to a good iTunes search term
     String searchTerm = category;
-    if (category == 'Trending') searchTerm = 'Top billboard hits';
-    else if (category == 'Chill') searchTerm = 'Lofi chillhop';
-    else if (category == 'Bollywood') searchTerm = 'Bollywood latest hits';
-    else searchTerm = '$category music';
+    if (category == 'Trending') {
+      searchTerm = 'Top billboard hits';
+    } else if (category == 'Chill') {
+      searchTerm = 'Lofi chillhop';
+    } else if (category == 'Bollywood') {
+      searchTerm = 'Bollywood latest hits';
+    } else {
+      searchTerm = '$category music';
+    }
 
     await _fetchFromITunes(searchTerm, category);
   }

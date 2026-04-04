@@ -33,14 +33,13 @@ class GlimpseEditorScreen extends StatefulWidget {
 class _TextOverlay {
   String text;
   Offset position;
-  double scale;
-  Color color;
+  double scale = 1.0;
+  Color color = Colors.white;
 
   _TextOverlay({
     required this.text,
     required this.position,
     this.scale = 1.0,
-    this.color = Colors.white,
   });
 }
 
@@ -1091,6 +1090,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                         // Open new MusicOverlayScreen
                         final isVideo =
                             _videoControllers[_currentMediaIndex] != null;
+                        if (!mounted) return;
                         final overlayResult = await Navigator.push(
                           context,
                           PageRouteBuilder(

@@ -22,7 +22,6 @@ import 'create_post/final_post_screen.dart';
 import 'create_post/post_settings_sheet.dart';
 import 'create_post/glimpse_editor_screen.dart';
 import 'create_post/glimpse_camera_screen.dart';
-import 'dart:io';
 
 import 'profile/profile_screen.dart';
 import 'reels/reels_screen.dart';
@@ -245,12 +244,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (text.isEmpty) return;
                           KnockHaptics.tap();
                           Navigator.pop(ctx);
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           final settings = await showPostSettingsSheet(
                             context,
                             isGlimpse: false,
                           );
-                          if (settings == null || !mounted) return;
+                          if (settings == null || !context.mounted) return;
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -305,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             source: ImageSource.camera,
                             imageQuality: 85,
                           );
-                          if (photo != null && mounted) {
+                          if (photo != null && context.mounted) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -329,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.pop(ctx);
                           final List<XFile> files =
                               await _imagePicker.pickMultiImage(imageQuality: 80);
-                          if (files.isNotEmpty && mounted) {
+                          if (files.isNotEmpty && context.mounted) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(

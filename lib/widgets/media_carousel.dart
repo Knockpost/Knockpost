@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'knock_zoomer.dart';
 
 class MediaCarousel extends StatefulWidget {
@@ -56,31 +57,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
 
   bool get _hasMultipleImages => widget.imagePaths.length > 1;
 
-  Widget _buildImage(String path) {
-    // Check extension or fallback to explicit flag for videos missing extensions
-    final hasVideoExtension = path.toLowerCase().endsWith('.mp4') || path.toLowerCase().endsWith('.mov') || path.toLowerCase().endsWith('.mkv');
-    final isVideo = hasVideoExtension || widget.isVideoPost;
-    
-    if (path.startsWith('assets/')) {
-      if (isVideo) return _VideoItem(path: path, isAsset: true);
-      return Image.asset(
-        path,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-      );
-    } else {
-      if (isVideo) return _VideoItem(path: path, isAsset: false);
-      return Image.file(
-        File(path),
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

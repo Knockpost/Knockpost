@@ -909,46 +909,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-
-  // Keep modal version as fallback (unused but preserved)
-  void _showAttachmentSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 40, height: 4,
-                  decoration: BoxDecoration(
-                      color: Colors.grey.shade400,
-                      borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 20),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                _AttachmentOption(icon: Icons.camera_alt_rounded, label: 'Camera', color: Colors.purple,
-                    onTap: () { Navigator.pop(ctx); _openMediaPicker(ImageSource.camera); }),
-                _AttachmentOption(icon: Icons.photo_library_rounded, label: 'Gallery', color: Colors.blue,
-                    onTap: () { Navigator.pop(ctx); _openMediaPicker(ImageSource.gallery); }),
-                _AttachmentOption(icon: Icons.videocam_rounded, label: 'Video', color: Colors.red,
-                    onTap: () { Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Video picker coming soon'))); }),
-                _AttachmentOption(icon: Icons.location_on_rounded, label: 'Location', color: Colors.green,
-                    onTap: () { Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Location sharing coming soon'))); }),
-              ]),
-              const SizedBox(height: 8),
-            ]),
-          ),
-        );
-      },
-    );
-  }
 }
 
 // ─────────────────────────────────────────────

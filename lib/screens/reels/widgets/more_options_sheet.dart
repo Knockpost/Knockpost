@@ -155,113 +155,58 @@ class MoreOptionsSheet extends StatelessWidget {
   }
 }
 
-/// Circular icon option (top grid)
-class _OptionCircle extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _OptionCircle({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 76,
-        child: Column(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade800.withValues(alpha: 0.6),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade300,
-                fontSize: 11,
-                height: 1.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// List-style option tile
 class _OptionTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String? trailing;
   final bool isDestructive;
   final VoidCallback onTap;
 
   const _OptionTile({
     required this.icon,
     required this.label,
-    this.trailing,
     this.isDestructive = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? Colors.red.shade400 : Colors.grey.shade200;
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 14),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDestructive 
+                    ? Colors.red.withValues(alpha: 0.1) 
+                    : Colors.grey.shade800.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive ? Colors.red.shade400 : Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: color,
-                  fontSize: 14,
+                  color: isDestructive ? Colors.red.shade400 : Colors.white,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            if (trailing != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  trailing!,
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            if (trailing == null)
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.grey.shade700,
-                size: 20,
-              ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.grey.shade700,
+              size: 20,
+            ),
           ],
         ),
       ),

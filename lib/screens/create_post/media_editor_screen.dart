@@ -10,7 +10,7 @@ import 'final_post_screen.dart';
 
 // ─── Tool Modes ───────────────────────────────────────────────────────────────
 
-enum _EditorTool { none, filter, adjust, text, music, overlay, edit }
+enum _EditorTool { none, filter, adjust, text, overlay, edit }
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
 
@@ -951,13 +951,11 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 class _TextOverlay {
   String text;
   Offset position;
-  double scale;
-  Color color;
+  double scale = 1.0;
+  Color color = Colors.white;
 
   _TextOverlay({
     required this.text,
     required this.position,
-    this.scale = 1.0,
-    this.color = Colors.white,
   });
 }

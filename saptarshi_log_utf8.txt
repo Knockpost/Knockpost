@@ -1,0 +1,10 @@
+﻿56e02f9 Divider and all done
+807d3d2 Recents, Showcase, Thoughts (Done)
+980a5c4 Reaction bar left --> right (done)
+5b40e0a NO POST YET ,done + fixed some bugs
+80cd6d5 Home feed profile and badge done
+0913a58 Merge branch 'saptarshi' of https://github.com/Knockpost/Knockpost into Arya
+f2fae27 some wor of fab, some of creating post and rename as glimpse
+bb61d98 tab bar under profile section done
+b05c0ca Profile zoom Functionality done
+90c169c dummy Profile done, people you may know suggetion animation done
