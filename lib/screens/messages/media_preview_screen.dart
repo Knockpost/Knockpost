@@ -109,7 +109,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: Colors.white.withOpacity(0.15),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.close, color: Colors.white, size: 22),
@@ -122,7 +122,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Row(
@@ -168,7 +168,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
+                        color: Colors.white.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: TextField(
@@ -199,7 +199,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF007AFF).withValues(alpha: 0.35),
+                            color: const Color(0xFF007AFF).withOpacity(0.35),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
