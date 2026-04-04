@@ -170,7 +170,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     KnockHaptics.tap();
 
     final type = widget.isGlimpse
-        ? PostType.glimpse
+        ? PostType.waves
         : (widget.files.isEmpty ? PostType.text : PostType.media);
 
     debugPrint('[_postContent] Creating post: type=$type, files=${widget.files.length}, isGlimpse=${widget.isGlimpse}');
@@ -185,9 +185,9 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       duration: _selectedDuration,
       imagePaths: widget.files.map((f) => f.path).toList(),
       text: _captionController.text.trim(),
-      musicUrl: widget.initialMusic?.previewUrl,
-      musicTitle: widget.initialMusic?.title,
-      musicArtist: widget.initialMusic?.artist,
+      musicUrl: _selectedMusic?.previewUrl,
+      musicTitle: _selectedMusic?.title,
+      musicArtist: _selectedMusic?.artist,
       createdAt: DateTime.now(),
       likes: 0,
       views: 0,
@@ -416,6 +416,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                         builder: (_) => const MusicPickerScreen()),
                   );
                   if (result != null && result is MusicTrack) {
+                    if (!context.mounted) return;
                     final isVideo = widget.files.isNotEmpty &&
                         (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
                          widget.files.first.path.toLowerCase().endsWith('.mov'));

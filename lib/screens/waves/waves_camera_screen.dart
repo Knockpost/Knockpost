@@ -8,22 +8,22 @@ import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
-import 'glimpse_editor_screen.dart';
-import 'glimpse_gallery_sheet.dart';
-import 'music_picker_screen.dart';
+import 'waves_editor_screen.dart';
+import 'waves_gallery_sheet.dart';
+import '../shared/music_picker_screen.dart';
 
 // ── Knockpost brand colors used across the camera screen ──
 const _kAccentPurple = Color(0xFF9B5DE5);
 const _kAccentBlue = Color(0xFF4361EE);
 
-class GlimpseCameraScreen extends StatefulWidget {
-  const GlimpseCameraScreen({super.key});
+class WavesCameraScreen extends StatefulWidget {
+  const WavesCameraScreen({super.key});
 
   @override
-  State<GlimpseCameraScreen> createState() => _GlimpseCameraScreenState();
+  State<WavesCameraScreen> createState() => _WavesCameraScreenState();
 }
 
-class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
+class _WavesCameraScreenState extends State<WavesCameraScreen>
     with SingleTickerProviderStateMixin {
   CameraController? _ctrl;
   List<CameraDescription> _cameras = [];
@@ -347,7 +347,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
       context,
       MaterialPageRoute(
         builder: (_) =>
-            GlimpseEditorScreen(
+            WavesEditorScreen(
               files: files, 
               playbackSpeed: speedMultiplier,
               initialMusic: _selectedMusic,
@@ -363,7 +363,7 @@ class _GlimpseCameraScreenState extends State<GlimpseCameraScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent, // Fully controlled by sheet
-      builder: (_) => const GlimpseGallerySheet(),
+      builder: (_) => const WavesGallerySheet(),
     );
     if (result != null && result is List<File> && mounted) {
       _goToEditor(result);

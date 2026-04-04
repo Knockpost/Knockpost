@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-class CommentSheet extends StatefulWidget {
+class WaveCommentSheet extends StatefulWidget {
   final String creatorUsername;
 
-  const CommentSheet({
+  const WaveCommentSheet({
     super.key,
     required this.creatorUsername,
   });
 
   @override
-  State<CommentSheet> createState() => _CommentSheetState();
+  State<WaveCommentSheet> createState() => _WaveCommentSheetState();
 }
 
-class _CommentSheetState extends State<CommentSheet> {
+class _WaveCommentSheetState extends State<WaveCommentSheet> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final List<_PrivateComment> _comments = [];

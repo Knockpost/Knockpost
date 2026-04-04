@@ -5,19 +5,19 @@ import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
 import '../../models/post_model.dart';
-import 'music_picker_screen.dart';
-import 'music_editor_screen.dart';
-import 'post_settings_sheet.dart';
-import 'final_post_screen.dart';
+import '../shared/music_picker_screen.dart';
+import '../shared/music_editor_screen.dart';
+import '../shared/post_settings_sheet.dart';
+import '../shared/final_post_screen.dart';
 
-class GlimpseEditorScreen extends StatefulWidget {
+class WavesEditorScreen extends StatefulWidget {
   final List<File> files;
   final String? initialCaption;
   final double playbackSpeed;
   final MusicTrack? initialMusic;
   final int? trimStartSeconds;
 
-  const GlimpseEditorScreen({
+  const WavesEditorScreen({
     super.key,
     required this.files,
     this.initialCaption,
@@ -27,13 +27,13 @@ class GlimpseEditorScreen extends StatefulWidget {
   });
 
   @override
-  State<GlimpseEditorScreen> createState() => _GlimpseEditorScreenState();
+  State<WavesEditorScreen> createState() => _WavesEditorScreenState();
 }
 
 class _TextOverlay {
   String text;
   Offset position;
-  double scale = 1.0;
+  double scale;
   Color color = Colors.white;
 
   _TextOverlay({
@@ -81,7 +81,7 @@ class _DrawPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
+class _WavesEditorScreenState extends State<WavesEditorScreen>
     with SingleTickerProviderStateMixin {
   late TextEditingController _captionController;
   MusicTrack? _selectedMusic;
@@ -358,7 +358,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
     super.dispose();
   }
 
-  Future<void> _publishGlimpse() async {
+  Future<void> _publishWave() async {
     KnockHaptics.tap();
     final settings = await showPostSettingsSheet(
       context,
@@ -734,7 +734,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                     ),
                     const SizedBox(width: 6),
                     const Text(
-                      "GLIMPSE",
+                      "WAVES",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -1087,10 +1087,10 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                         ),
                       );
                       if (result != null && result is MusicTrack) {
+                        if (!mounted) return;
                         // Open new MusicOverlayScreen
                         final isVideo =
                             _videoControllers[_currentMediaIndex] != null;
-                        if (!mounted) return;
                         final overlayResult = await Navigator.push(
                           context,
                           PageRouteBuilder(
@@ -1362,7 +1362,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
 
           // Post Button
           GestureDetector(
-            onTap: _publishGlimpse,
+            onTap: _publishWave,
             child: Container(
               height: 54,
               decoration: BoxDecoration(

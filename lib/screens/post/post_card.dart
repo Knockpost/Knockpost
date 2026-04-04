@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
-import '../utils/haptic_helper.dart';
-import 'post_header.dart';
+import '../../models/user_model.dart';
+import '../../utils/haptic_helper.dart';
+import '../../widgets/post_header.dart';
 import 'media_carousel.dart';
-import 'reaction_bar.dart';
+import '../../widgets/reaction_bar.dart';
 import 'package:just_audio/just_audio.dart';
 
 class PostCard extends StatefulWidget {

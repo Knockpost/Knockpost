@@ -250,7 +250,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
                 const SizedBox(width: 16),
                 ElevatedButton(
                   onPressed: () {
-                    // Inject selected assets directly back to the GlimpseGallerySheet and trigger app logic
+                    // Inject selected assets directly back to the WavesGallerySheet and trigger app logic
                     Navigator.pop(context, _selectedAssets);
                   },
                   style: ElevatedButton.styleFrom(

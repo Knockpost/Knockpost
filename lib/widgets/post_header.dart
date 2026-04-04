@@ -6,7 +6,7 @@ import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
 import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
-import '../screens/reels/widgets/more_options_sheet.dart';
+import '../screens/waves/widgets/more_options_sheet.dart';
 
 class PostHeader extends StatefulWidget {
   final UserModel user;

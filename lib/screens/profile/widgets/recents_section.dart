@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../widgets/post_card.dart';
-import '../../../widgets/thought_card.dart';
+import '../../post/post_card.dart';
+import '../../thoughts/thought_card.dart';
 import '../../../utils/global_post_state.dart';
 import 'profile_ui_helpers.dart';
 
@@ -62,7 +62,7 @@ class RecentsSection extends StatelessWidget {
             final isLast = i == recentPosts.length - 1;
 
             Widget content;
-            if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
+            if ((post.type == PostType.media || post.type == PostType.waves) && post.imagePaths.isNotEmpty) {
               content = PostCard(
                 imagePaths: post.imagePaths,
                 user: user,

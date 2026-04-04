@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
-import '../utils/haptic_helper.dart';
-import 'post_header.dart';
-import 'reaction_bar.dart';
+import '../../models/user_model.dart';
+import '../../utils/haptic_helper.dart';
+import '../../widgets/post_header.dart';
+import '../../widgets/reaction_bar.dart';
 
 class ThoughtCard extends StatefulWidget {
   final UserModel user;

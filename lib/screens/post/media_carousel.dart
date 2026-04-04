@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'knock_zoomer.dart';
+import '../../widgets/knock_zoomer.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;

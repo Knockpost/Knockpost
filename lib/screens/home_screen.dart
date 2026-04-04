@@ -13,18 +13,18 @@ import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
-import '../widgets/post_card.dart';
-import '../widgets/thought_card.dart';
+import 'post/post_card.dart';
+import 'thoughts/thought_card.dart';
 import 'package:image_picker/image_picker.dart';
-import 'create_post/create_post_screen.dart';
-import 'create_post/media_editor_screen.dart';
-import 'create_post/final_post_screen.dart';
-import 'create_post/post_settings_sheet.dart';
-import 'create_post/glimpse_editor_screen.dart';
-import 'create_post/glimpse_camera_screen.dart';
+import 'glimps/glimps_strip.dart';
+import 'post/media_editor_screen.dart';
+import 'shared/final_post_screen.dart';
+import 'shared/post_settings_sheet.dart';
+import 'waves/waves_editor_screen.dart';
+import 'waves/waves_camera_screen.dart';
 
 import 'profile/profile_screen.dart';
-import 'reels/reels_screen.dart';
+import 'waves/waves_feed_screen.dart';
 import 'search/search_screen.dart';
 import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
@@ -343,9 +343,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 8),
                       _createMenuItem(
-                        icon: Icons.auto_awesome_rounded,
-                        label: "Glimpse",
-                        subtitle: "Share moments with music",
+                        icon: Icons.play_circle_outline_rounded,
+                        label: "Waves",
+                        subtitle: "Reels, shorts & lipsync videos",
                         isDark: isDark,
                         onTap: () async {
                           KnockHaptics.tap();
@@ -353,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const GlimpseCameraScreen(),
+                              builder: (_) => const WavesCameraScreen(),
                             ),
                           );
                         },
@@ -594,17 +594,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                 return ListView.builder(
                                   padding: const EdgeInsets.only(bottom: 90),
-                                  itemCount: activePosts.length + 1,
+                                  itemCount: activePosts.length + 2,
                                   itemBuilder: (context, index) {
-                                    const stripIndex = 2;
-                                    final totalItems = activePosts.length + 1;
+                                    const glimpseStripIndex = 1;
+                                    const peopleStripIndex = 3;
+                                    final totalItems = activePosts.length + 2;
                                     final isLast = index == totalItems - 1;
                                     
-                                    if (index == stripIndex) {
+                                    if (index == glimpseStripIndex) {
+                                      return GlimpsStrip(glimpses: demoGlimpseFeed);
+                                    }
+                                    if (index == peopleStripIndex) {
                                       return const PeopleSuggestionStrip();
                                     }
 
-                                    final postIndex = index < stripIndex ? index : index - 1;
+                                    int postIndex = index;
+                                    if (index > peopleStripIndex) {
+                                      postIndex -= 2;
+                                    } else if (index > glimpseStripIndex) {
+                                      postIndex -= 1;
+                                    }
+                                    
                                     if (postIndex >= activePosts.length) return const SizedBox.shrink();
                                     
                                     final post = activePosts[postIndex];
@@ -654,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueListenable: _navIndexNotifier,
                         builder: (context, currentIndex, _) {
                           return _KeepAlivePage(
-                            child: ReelsScreen(isVisible: currentIndex == 2),
+                            child: WavesFeedScreen(isVisible: currentIndex == 2),
                           );
                         },
                       ),

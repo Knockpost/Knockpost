@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../widgets/thought_card.dart';
+import '../../thoughts/thought_card.dart';
 import '../../../utils/global_post_state.dart';
 import 'profile_ui_helpers.dart';
 

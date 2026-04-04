@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
-import 'music_picker_screen.dart';
-import 'music_editor_screen.dart';
-import 'post_settings_sheet.dart';
-import 'final_post_screen.dart';
+import '../shared/music_picker_screen.dart';
+import '../shared/music_editor_screen.dart';
+import '../shared/post_settings_sheet.dart';
+import '../shared/final_post_screen.dart';
 
 // ─── Tool Modes ───────────────────────────────────────────────────────────────
 

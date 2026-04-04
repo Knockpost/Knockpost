@@ -4,23 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
-import 'collage_picker_screen.dart';
-import 'music_picker_screen.dart';
-import 'template_picker_screen.dart';
-import 'custom_android_picker_sheet.dart';
+import '../post/collage_picker_screen.dart';
+import '../shared/music_picker_screen.dart';
+import '../post/template_picker_screen.dart';
+import '../post/custom_android_picker_sheet.dart';
 
 // Brand colors (imported for consistency)
 const _kAccentPurple = Color(0xFF9B5DE5);
 const _kAccentBlue = Color(0xFF4361EE);
 
-class GlimpseGallerySheet extends StatefulWidget {
-  const GlimpseGallerySheet({super.key});
+class WavesGallerySheet extends StatefulWidget {
+  const WavesGallerySheet({super.key});
 
   @override
-  State<GlimpseGallerySheet> createState() => _GlimpseGallerySheetState();
+  State<WavesGallerySheet> createState() => _WavesGallerySheetState();
 }
 
-class _GlimpseGallerySheetState extends State<GlimpseGallerySheet> {
+class _WavesGallerySheetState extends State<WavesGallerySheet> {
   List<AssetEntity> _assets = [];
   bool _isLoading = true;
   bool _hasPermission = false;
