@@ -96,6 +96,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       child: Scaffold(
         backgroundColor: bg,
         body: NestedScrollView(
+          // ClampingScrollPhysics prevents the bounce gap between tab bar and posts
+          physics: const ClampingScrollPhysics(),
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
 
             // ── Profile Header ─────────────────────────────────────────────

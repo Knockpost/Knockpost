@@ -56,31 +56,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
 
   bool get _hasMultipleImages => widget.imagePaths.length > 1;
 
-  Widget _buildImage(String path) {
-    // Check extension or fallback to explicit flag for videos missing extensions
-    final hasVideoExtension = path.toLowerCase().endsWith('.mp4') || path.toLowerCase().endsWith('.mov') || path.toLowerCase().endsWith('.mkv');
-    final isVideo = hasVideoExtension || widget.isVideoPost;
-    
-    if (path.startsWith('assets/')) {
-      if (isVideo) return _VideoItem(path: path, isAsset: true);
-      return Image.asset(
-        path,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-      );
-    } else {
-      if (isVideo) return _VideoItem(path: path, isAsset: false);
-      return Image.file(
-        File(path),
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,11 +70,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: screenWidth - 12,
-            height: screenWidth - 12,
-            child: _buildImage(widget.imagePaths.first),
-          ),
+          child: _buildImage(widget.imagePaths.first),
         ),
       );
     }
@@ -209,6 +180,31 @@ class _MediaCarouselState extends State<MediaCarousel> {
       ],
     );
   }
+
+  Widget _buildImage(String path) {
+    if (path.startsWith('/') ||
+        path.startsWith('file://') ||
+        path.startsWith('C:') ||
+        path.contains('/data/user/')) {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+    } else if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+    }
+
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
+    );
+  }
 }
 
 class _VideoItem extends StatefulWidget {
@@ -229,8 +225,14 @@ class _VideoItemState extends State<_VideoItem> {
   void initState() {
     super.initState();
     _controller = widget.isAsset 
-        ? VideoPlayerController.asset(widget.path)
-        : VideoPlayerController.file(File(widget.path));
+        ? VideoPlayerController.asset(
+            widget.path,
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          )
+        : VideoPlayerController.file(
+            File(widget.path),
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+          );
         
     _controller.initialize().then((_) {
       _controller.setVolume(0);

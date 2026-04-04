@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
+import '../../../utils/global_dismiss_state.dart';
+import '../../../utils/global_post_state.dart';
+import '../../../utils/haptic_helper.dart';
 
 class MoreOptionsSheet extends StatelessWidget {
+  final String userId;
   final String username;
+  final String? postId;
+  final bool isReel;
+  final bool isOwner;
 
   const MoreOptionsSheet({
     super.key,
+    required this.userId,
     required this.username,
+    this.postId,
+    this.isReel = false,
+    this.isOwner = false,
   });
 
   @override
@@ -32,86 +43,56 @@ class MoreOptionsSheet extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          /// Options Grid
+          /// Options Grid / List
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                /// Top row — primary actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _OptionCircle(
-                      icon: Icons.visibility_off_outlined,
-                      label: "Not\nInterested",
-                      onTap: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _buildSnackBar(
-                            Icons.visibility_off_outlined,
-                            "We'll show less content like this",
-                          ),
-                        );
-                      },
-                    ),
-                    _OptionCircle(
-                      icon: Icons.person_remove_outlined,
-                      label: "Unfollow\n@$username",
-                      onTap: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _buildSnackBar(
-                            Icons.person_remove_outlined,
-                            "Unfollowed @$username",
-                          ),
-                        );
-                      },
-                    ),
-                    _OptionCircle(
-                      icon: Icons.repeat_rounded,
-                      label: "Remix\nThis",
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                /// List options
-                _OptionTile(
-                  icon: Icons.info_outline_rounded,
-                  label: "Why you're seeing this",
-                  onTap: () => Navigator.pop(context),
-                ),
-                _OptionTile(
-                  icon: Icons.subtitles_outlined,
-                  label: "Manage captions",
-                  onTap: () => Navigator.pop(context),
-                ),
-                _OptionTile(
-                  icon: Icons.speed_rounded,
-                  label: "Playback speed",
-                  trailing: "1x",
-                  onTap: () => Navigator.pop(context),
-                ),
-                _OptionTile(
-                  icon: Icons.block_outlined,
-                  label: "Block @$username",
-                  isDestructive: true,
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                _OptionTile(
-                  icon: Icons.flag_outlined,
-                  label: "Report this glimpse",
-                  isDestructive: true,
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
+                if (isOwner) ...[
+                  // Simple management for owner
+                  _OptionTile(
+                    icon: Icons.edit_note_rounded,
+                    label: "Edit Post",
+                    onTap: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        _buildSnackBar(Icons.edit_note_rounded, "Edit mode coming soon"),
+                      );
+                    },
+                  ),
+                  _OptionTile(
+                    icon: Icons.delete_outline_rounded,
+                    label: "Delete Post",
+                    isDestructive: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showDeleteConfirmation(context);
+                    },
+                  ),
+                ] else ...[
+                  /// List options
+                  _OptionTile(
+                    icon: Icons.account_circle_outlined,
+                    label: "About this account",
+                    onTap: () => Navigator.pop(context),
+                  ),
+                  _OptionTile(
+                    icon: Icons.block_outlined,
+                    label: "Block @$username",
+                    isDestructive: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                  _OptionTile(
+                    icon: Icons.flag_outlined,
+                    label: "Report this ${isReel ? 'glimpse' : 'post'}",
+                    isDestructive: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -139,49 +120,36 @@ class MoreOptionsSheet extends StatelessWidget {
       duration: const Duration(seconds: 2),
     );
   }
-}
 
-/// Circular icon option (top grid)
-class _OptionCircle extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _OptionCircle({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 76,
-        child: Column(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade800.withValues(alpha: 0.6),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade300,
-                fontSize: 11,
-                height: 1.3,
-              ),
-            ),
-          ],
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Delete post?", style: TextStyle(color: Colors.white)),
+        content: const Text(
+          "Are you sure you want to delete this post? This action cannot be undone.",
+          style: TextStyle(color: Colors.white70),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: Colors.white60)),
+          ),
+          TextButton(
+            onPressed: () {
+              if (postId != null) {
+                GlobalPostState.delete(postId!);
+              }
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Post deleted")),
+              );
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -191,63 +159,54 @@ class _OptionCircle extends StatelessWidget {
 class _OptionTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String? trailing;
   final bool isDestructive;
   final VoidCallback onTap;
 
   const _OptionTile({
     required this.icon,
     required this.label,
-    this.trailing,
     this.isDestructive = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? Colors.red.shade400 : Colors.grey.shade200;
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 14),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDestructive 
+                    ? Colors.red.withValues(alpha: 0.1) 
+                    : Colors.grey.shade800.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive ? Colors.red.shade400 : Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: color,
-                  fontSize: 14,
+                  color: isDestructive ? Colors.red.shade400 : Colors.white,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            if (trailing != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  trailing!,
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            if (trailing == null)
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.grey.shade700,
-                size: 20,
-              ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.grey.shade700,
+              size: 20,
+            ),
           ],
         ),
       ),

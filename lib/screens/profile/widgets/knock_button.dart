@@ -11,6 +11,7 @@ class KnockButton extends StatefulWidget {
   final PrivacyType privacyType;
   final AccountType accountType;
   final bool isOwnProfile;
+  final bool isCompact;
   final ValueChanged<KnockStatus>? onStatusChanged;
 
   const KnockButton({
@@ -20,6 +21,7 @@ class KnockButton extends StatefulWidget {
     this.privacyType = PrivacyType.open,
     this.accountType = AccountType.normal,
     this.isOwnProfile = false,
+    this.isCompact = false,
     this.onStatusChanged,
   });
 
@@ -167,10 +169,13 @@ class _KnockButtonState extends State<KnockButton>
         scale: _scaleAnim,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(
+            vertical: widget.isCompact ? 5 : 8,
+            horizontal: widget.isCompact ? 12 : 0,
+          ),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(widget.isCompact ? 8 : 12),
             border: Border.all(
               color: borderColor,
             ),
@@ -179,7 +184,7 @@ class _KnockButtonState extends State<KnockButton>
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: widget.isCompact ? 12 : 13,
               fontWeight: FontWeight.w700,
               color: fg,
             ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/global_knock_state.dart';
+import '../utils/global_dismiss_state.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../utils/haptic_helper.dart';
@@ -118,13 +119,47 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
   @override
   void initState() {
     super.initState();
-    _users = List.of(demoSuggestedUsers);
+    // Filter out already dismissed users for this session
+    _users = demoSuggestedUsers.where((u) => !GlobalDismissState.isDismissed(u.id)).toList();
+    
     _statuses = {
       for (final u in _users) u.id: u.knockStatus,
     };
     for (final u in _users) {
       _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
     }
+    
+    // Listen for global dismissals (e.g., from profile screen)
+    GlobalDismissState.dismissedUserIds.addListener(_onGlobalDismissalChanged);
+  }
+
+  void _onGlobalDismissalChanged() {
+    final dismissed = GlobalDismissState.dismissedUserIds.value;
+    for (final userId in dismissed) {
+      if (_users.any((u) => u.id == userId)) {
+        final cardKey = _cardKeys[userId];
+        if (cardKey?.currentState != null) {
+          cardKey!.currentState!.dismiss(() {
+            if (mounted) {
+              setState(() {
+                _users.removeWhere((u) => u.id == userId);
+              });
+            }
+          });
+        } else if (mounted) {
+          // If not currently in building state or off-screen, just remove
+          setState(() {
+            _users.removeWhere((u) => u.id == userId);
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    GlobalDismissState.dismissedUserIds.removeListener(_onGlobalDismissalChanged);
+    super.dispose();
   }
 
   @override
@@ -156,9 +191,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
                   KnockHaptics.tap();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const DiscoverPeopleScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
                   );
                 },
                 child: Padding(
@@ -198,22 +231,11 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
                       setState(() => _statuses[user.id] = status);
                     },
                     onDismiss: () {
-                      cardKey.currentState?.dismiss(() {
-                        if (mounted) {
-                          setState(() {
-                            _users.remove(user);
-                          });
-                        }
-                      });
+                      // Already called GlobalDismissState.dismiss in _SuggestionAction
                     },
                     onRemove: () {
-                      cardKey.currentState?.dismiss(() {
-                        if (mounted) {
-                          setState(() {
-                            _users.remove(user);
-                          });
-                        }
-                      });
+                      KnockHaptics.impact();
+                      GlobalDismissState.dismiss(user.id);
                     },
                   ),
                 ),
@@ -568,7 +590,7 @@ class _SuggestionActionState extends State<_SuggestionAction>
         newStatus == KnockStatus.pending ||
         newStatus == KnockStatus.mutualKnocked) {
       Future.delayed(const Duration(milliseconds: 150), () {
-        if (mounted) widget.onDismiss();
+        if (mounted) GlobalDismissState.dismiss(widget.userId);
       });
     }
   }

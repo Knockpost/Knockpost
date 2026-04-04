@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
+import 'package:app_links/app_links.dart';
 import 'profile_setup_screen.dart';
 import 'signup_username_screen.dart';
 import '../home_screen.dart';
@@ -29,19 +32,70 @@ class _SignupVerificationScreenState
   
   bool isLoading = false;
   bool isChecking = false;
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
     super.initState();
+    _initDeepLinks();
+    
     // Check if already verified first
-    User? user = FirebaseAuth.instance.currentUser;
+    User? user = AuthService.instance.currentUser;
     if (user != null && user.emailVerified) {
-      // If already verified, immediately run the check logic to redirect
       WidgetsBinding.instance.addPostFrameCallback((_) {
         checkVerificationStatus();
       });
-    } else {
-      _createAccountAndVerify();
+    }
+    // Removed _createAccountAndVerify() call as it's redundant (sent from previous screen)
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initDeepLinks() {
+    _appLinks = AppLinks();
+
+    // Listen to incoming links while the app is open
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      debugPrint('Verification Screen Detected Link: $uri');
+      _handleIncomingLink(uri.toString());
+    });
+  }
+
+  Future<void> _handleIncomingLink(String link) async {
+    // Note: isSignInWithEmailLink is a method on FirebaseAuth instance, so we can use a helper or directly access _auth if exposed. However, we'll use FirebaseAuth.instance directly here just for the check, or we could add it to AuthService.
+    // To keep it simple without adding to AuthService just for that:
+    if (!FirebaseAuth.instance.isSignInWithEmailLink(link)) return;
+
+    setState(() {
+      isChecking = true;
+    });
+
+    try {
+      await AuthService.instance.signInWithEmailLink(
+        email: widget.email,
+        emailLink: link,
+      );
+      
+      // After signing in, refresh status
+      await checkVerificationStatus();
+    } catch (e) {
+      debugPrint("Email Link Verification Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Verification Failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isChecking = false;
+        });
+      }
     }
   }
 
@@ -51,7 +105,7 @@ class _SignupVerificationScreenState
     });
 
     try {
-      // Configure ActionCodeSettings for passwordless link
+      debugPrint("Auth Stage 2 (Resend): Configuring ActionCodeSettings");
       final actionCodeSettings = ActionCodeSettings(
         url: 'https://knockpost-84b21.firebaseapp.com',
         handleCodeInApp: true,
@@ -60,11 +114,13 @@ class _SignupVerificationScreenState
         androidMinimumVersion: '12',
       );
 
-      await FirebaseAuth.instance.sendSignInLinkToEmail(
+      debugPrint("Auth Stage 3 (Resend): Sending link to ${widget.email}");
+      await AuthService.instance.sendSignInLinkToEmail(
         email: widget.email,
         actionCodeSettings: actionCodeSettings,
       );
 
+      debugPrint("Auth Stage 4 (Resend): Link resent successfully");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -74,6 +130,7 @@ class _SignupVerificationScreenState
         );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint("Auth ERROR (Resend - Firebase): [${e.code}] ${e.message}");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -83,6 +140,7 @@ class _SignupVerificationScreenState
         );
       }
     } catch (e) {
+      debugPrint("Auth ERROR (Resend - Generic): $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("An error occurred: $e")),
@@ -97,8 +155,39 @@ class _SignupVerificationScreenState
     }
   }
 
+  void _showPasteLinkDialog() {
+    final TextEditingController linkController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Paste Magic Link"),
+          content: TextField(
+            controller: linkController,
+            decoration: const InputDecoration(hintText: "https://knockpost..."),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                if (linkController.text.trim().isNotEmpty) {
+                  _handleIncomingLink(linkController.text.trim());
+                }
+              },
+              child: const Text("Verify"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void goBackAndLogout() async {
-    await FirebaseAuth.instance.signOut();
+    await AuthService.instance.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -114,21 +203,18 @@ class _SignupVerificationScreenState
     });
 
     try {
-      User? user = FirebaseAuth.instance.currentUser;
+      User? user = AuthService.instance.currentUser;
       await user?.reload(); 
-      user = FirebaseAuth.instance.currentUser;
+      user = AuthService.instance.currentUser;
 
       if (user != null && user.emailVerified) {
         // Email is verified! Now where do we go?
         
         // 1. Check if Firestore profile exists
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final userProfile = await DatabaseService.instance.getUserProfile(user.uid);
 
         if (mounted) {
-          if (userDoc.exists) {
+          if (userProfile != null) {
             // Profile exists -> Home
             Navigator.pushAndRemoveUntil(
               context,
@@ -232,10 +318,31 @@ class _SignupVerificationScreenState
                               "Waiting for link...",
                               style: TextStyle(color: isDark ? Colors.white54 : Colors.black45, fontStyle: FontStyle.italic),
                             ),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 20),
+                            // Fallback for emulator testing
+                            TextButton(
+                              onPressed: () {
+                                _showPasteLinkDialog();
+                              },
+                              child: Text(
+                                "Link opened in browser? Paste it here.",
+                                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, decoration: TextDecoration.underline),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: isChecking ? null : () { 
+                                KnockHaptics.tap(); 
+                                checkVerificationStatus(); 
+                              },
+                              child: isChecking 
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : Text("I've already verified", style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 16)),
+                            ),
+                            const SizedBox(height: 10),
                             TextButton(
                               onPressed: isLoading ? null : () { KnockHaptics.tap(); _createAccountAndVerify(); }, // This now calls resend
-                              child: Text("Resend Sign-in Link", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+                              child: Text("Resend Sign-in Link", style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
                             ),
                           ],
                         ),

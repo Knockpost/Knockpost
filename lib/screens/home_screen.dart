@@ -4,24 +4,29 @@ import 'package:flutter/gestures.dart';
 // ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 import '../utils/haptic_helper.dart';
+import '../utils/global_post_state.dart';
+
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../widgets/custom_bottom_nav.dart';
-import 'glimps/glimps_strip.dart';
 import '../widgets/people_suggestion_strip.dart';
 import 'post/post_card.dart';
 import 'thoughts/thought_card.dart';
-import 'waves/waves_camera_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'glimps/glimps_strip.dart';
 import 'post/media_editor_screen.dart';
 import 'shared/final_post_screen.dart';
 import 'shared/post_settings_sheet.dart';
 import 'waves/waves_editor_screen.dart';
-import 'messages/messages_list_screen.dart';
+import 'waves/waves_camera_screen.dart';
+
 import 'profile/profile_screen.dart';
 import 'waves/waves_feed_screen.dart';
 import 'search/search_screen.dart';
+import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
 import '../widgets/system_nav_bar_fill.dart';
 
@@ -41,48 +46,22 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showBars = true;
   int _currentNavIndex = 0;
 
-  /// Each feed post: the user who posted, their images, and a caption.
-  final List<({UserModel user, List<String> images, String caption})>
-  _demoFeedPosts = [
-    (
-      user: demoZaynMalik,
-      images: [
-        'assets/test1.jpg',
-        'assets/test2.jpg',
-        'assets/test3.jpg',
-        'assets/test4.jpg',
-      ],
-      caption:
-          'Found my new favourite line.\n\nThe moment I saw her, a part of me walked out of my body.',
-    ),
-    (
-      user: demoSaptarshiNayak,
-      images: <String>[],
-      caption:
-          'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
-    ),
-    (
-      user: demoSaptarshiNayak,
-      images: ['assets/test3.jpg'],
-      caption: 'Morning run hits different 🏃',
-    ),
-    (
-      user: demoAryaLayek,
-      images: ['assets/test2.jpg', 'assets/test4.jpg', 'assets/test1.jpg'],
-      caption: 'A weekend well spent ✨',
-    ),
-    (
-      user: demoJustinBieber,
-      images: ['assets/test4.jpg', 'assets/test2.jpg'],
-      caption: 'Golden hour was different today 🌅',
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentNavIndex);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
+  }
+
+  Future<void> logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -107,12 +86,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _animateToTab(int index) {
     if (index < 0 || index > 4 || _currentNavIndex == index) return;
 
+    final int diff = (index - _currentNavIndex).abs();
     _setCurrentNavIndex(index);
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOut,
-    );
+    
+    if (diff == 1) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _pageController.jumpToPage(index);
+    }
   }
 
   void _handleHorizontalSwipeEnd(DragEndDetails details) {
@@ -196,7 +181,6 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 12),
-                // ── Drag handle ──
                 Container(
                   width: 36,
                   height: 5,
@@ -207,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 22),
 
-                // ── Text compose area ──
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -261,7 +244,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // ── Send button inline ──
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: SizedBox(
@@ -278,28 +260,38 @@ class _HomeScreenState extends State<HomeScreen> {
                               customBorder: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(50),
                               ),
-                            onTap: () {
-                              final text = captionController.text.trim();
-                              if (text.isEmpty) return;
-                              KnockHaptics.tap();
-                              Navigator.pop(ctx);
-                              // Insert thought directly into the feed
-                              setState(() {
-                                _demoFeedPosts.insert(0, (
-                                  user: demoOwnUser,
-                                  images: <String>[],
-                                  caption: text,
-                                ));
-                              });
-                            },
-                            child: Icon(
-                              Icons.send_rounded,
-                              size: 18,
-                              color: isDark ? Colors.black : Colors.white,
+                              onTap: () async {
+                                final text = captionController.text.trim();
+                                if (text.isEmpty) return;
+                                KnockHaptics.tap();
+                                Navigator.pop(ctx);
+                                if (!context.mounted) return;
+                                final settings = await showPostSettingsSheet(
+                                  context,
+                                  isGlimpse: false,
+                                );
+                                if (settings == null || !context.mounted) return;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FinalPostScreen(
+                                      files: const [],
+                                      initialCaption: text,
+                                      isGlimpse: false,
+                                      selectedDuration: settings.duration,
+                                      selectedAudience: settings.audience,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Icon(
+                                Icons.send_rounded,
+                                size: 18,
+                                color: isDark ? Colors.black : Colors.white,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                       ),
                     ],
                   ),
@@ -307,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 24),
 
-                // ── Divider ──
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -318,7 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 8),
 
-                // ── Action list ──
                 _createMenuItem(
                   icon: Icons.camera_rounded,
                   label: "Camera",
@@ -378,6 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () async {
                     KnockHaptics.tap();
                     Navigator.pop(ctx);
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Glimpse composer coming soon!')),
                     );
@@ -548,8 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
               extendBody: true,
 
               // ── FAB (X/Twitter-style fade + scale) ──────────────────
-              floatingActionButton:
-                  (_currentNavIndex == 0 || _currentNavIndex == 4)
+              floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
                   ? AnimatedOpacity(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeOut,
@@ -599,6 +589,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: NotificationListener<ScrollNotification>(
                           onNotification: _onScrollNotification,
                           child: NestedScrollView(
+                            physics: const ClampingScrollPhysics(),
                             controller: _scrollController,
                             headerSliverBuilder: (context, innerBoxIsScrolled) {
                               return [
@@ -610,14 +601,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   snap: true,
                                   titleSpacing: 20,
                                   centerTitle: false,
-                                  systemOverlayStyle: SystemUiOverlayStyle(
-                                    statusBarIconBrightness: isDark
-                                        ? Brightness.light
-                                        : Brightness.dark,
-                                    statusBarBrightness: isDark
-                                        ? Brightness.dark
-                                        : Brightness.light,
-                                  ),
                                   title: Text(
                                     "KnockPost",
                                     style: TextStyle(
@@ -637,9 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         KnockHaptics.tap();
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(
-                                            builder: (context) => const NotificationsScreen(),
-                                          ),
+                                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                                         );
                                       },
                                     ),
@@ -647,64 +628,89 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ];
                             },
-                            body: ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 90),
-                              itemCount: _demoFeedPosts.length + 2,
-                              itemBuilder: (context, index) {
-                                const glimpseStripIndex = 1;
-                                const peopleStripIndex = 3;
-                                final totalItems = _demoFeedPosts.length + 2;
-                                final isLast = index == totalItems - 1;
-                                final dividerColor = isDark
-                                    ? const Color(0xFF2A2A2A)
-                                    : const Color(0xFFE8E8E8);
-                                final divider = Divider(
-                                  height: 1,
-                                  thickness: 1,
-                                  color: dividerColor,
-                                );
+                            body: ValueListenableBuilder<Set<String>>(
+                              valueListenable: GlobalPostState.deletedPostIds,
+                              builder: (context, deletedIds, _) {
+                                // For the demo, let's combine some posts for the home feed
+                                // Only show the latest own post in Recents
+                                final ownPostsSorted = [...demoOwnPosts]
+                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                                final latestOwnPost = ownPostsSorted.isNotEmpty
+                                    ? [ownPostsSorted.first]
+                                    : <PostModel>[];
 
-                                Widget content;
-                                if (index == glimpseStripIndex) {
-                                  content = GlimpsStrip(
-                                    glimpses: demoGlimpseFeed,
-                                  );
-                                } else if (index == peopleStripIndex) {
-                                  content = const PeopleSuggestionStrip();
-                                } else {
-                                  int postIndex = index;
-                                  if (index > peopleStripIndex) {
-                                    postIndex -= 2;
-                                  } else if (index > glimpseStripIndex) {
-                                    postIndex -= 1;
-                                  }
+                                final allDemoPosts = [
+                                  ...latestOwnPost,
+                                  ...getDemoPostsForUser('zayn01'),
+                                  ...getDemoPostsForUser('saptarshi01'),
+                                ];
+                                
+                                final activePosts = allDemoPosts
+                                    .where((p) => !deletedIds.contains(p.id))
+                                    .toList()
+                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-                                  final post = _demoFeedPosts[postIndex];
+                                return ListView.builder(
+                                  padding: const EdgeInsets.only(bottom: 90),
+                                  itemCount: activePosts.length + 2,
+                                  itemBuilder: (context, index) {
+                                    const glimpseStripIndex = 1;
+                                    const peopleStripIndex = 3;
+                                    final totalItems = activePosts.length + 2;
+                                    final isLast = index == totalItems - 1;
+                                    
+                                    if (index == glimpseStripIndex) {
+                                      return GlimpsStrip(glimpses: demoGlimpseFeed);
+                                    }
+                                    if (index == peopleStripIndex) {
+                                      return const PeopleSuggestionStrip();
+                                    }
 
-                                  if (post.images.isEmpty) {
-                                    content = ThoughtCard(
-                                      user: post.user,
-                                      text: post.caption,
-                                      likes: 120, // Default for demo post without explicit model length here
-                                      views: 500, // Default for demo
+                                    int postIndex = index;
+                                    if (index > peopleStripIndex) {
+                                      postIndex -= 2;
+                                    } else if (index > glimpseStripIndex) {
+                                      postIndex -= 1;
+                                    }
+                                    
+                                    if (postIndex >= activePosts.length) return const SizedBox.shrink();
+                                    
+                                    final post = activePosts[postIndex];
+                                    final author = post.authorId == 'me' ? demoOwnUser : findDemoUserByUsername(post.authorId == 'zayn01' ? 'zayn.malik' : 'saptarshi.nayak') ?? demoOwnUser;
+
+                                    final dividerColor = isDark
+                                        ? const Color(0xFF2A2A2A)
+                                        : const Color(0xFFE8E8E8);
+                                    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+                                    Widget card;
+                                    if (post.type == PostType.text) {
+                                      card = ThoughtCard(
+                                        user: author,
+                                        text: post.text,
+                                        likes: post.likes,
+                                        views: post.views,
+                                        postId: post.id,
+                                      );
+                                    } else {
+                                      card = PostCard(
+                                        imagePaths: post.imagePaths,
+                                        user: author,
+                                        caption: post.text,
+                                        likes: post.likes,
+                                        views: post.views,
+                                        postId: post.id,
+                                      );
+                                    }
+
+                                    return Column(
+                                      children: [
+                                        divider,
+                                        card,
+                                        if (isLast) divider,
+                                      ],
                                     );
-                                  } else {
-                                    content = PostCard(
-                                      imagePaths: post.images,
-                                      user: post.user,
-                                      caption: post.caption,
-                                      likes: 150, // Default for demo
-                                      views: 800, // Default for demo
-                                    );
-                                  }
-                                }
-
-                                return Column(
-                                  children: [
-                                    divider,
-                                    content,
-                                    if (isLast) divider,
-                                  ],
+                                  },
                                 );
                               },
                             ),
@@ -716,9 +722,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueListenable: _navIndexNotifier,
                         builder: (context, currentIndex, _) {
                           return _KeepAlivePage(
-                            child: WavesFeedScreen(
-                              isVisible: currentIndex == 2,
-                            ),
+                            child: WavesFeedScreen(isVisible: currentIndex == 2),
                           );
                         },
                       ),
@@ -736,6 +740,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
                         ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.logout, color: textColor),
+                        onPressed: () {
+                          KnockHaptics.tap();
+                          logout(context);
+                        },
                       ),
                     ],
                   ),

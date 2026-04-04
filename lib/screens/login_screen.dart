@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/haptic_helper.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
+import '../services/database_service.dart';
 import 'signup/signup_email_screen.dart';
 import 'signup/signup_username_screen.dart';
 import 'signup/signup_verification_screen.dart';
 import 'home_screen.dart';
-import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,6 +40,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? Colors.black : Colors.white,
+
+      // IMPORTANT: disable resize
       resizeToAvoidBottomInset: false,
 
       body: SizedBox(
@@ -51,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Stack(
           children: [
 
+            /// CENTER CONTENT (ABSOLUTE FIXED)
             Positioned.fill(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -62,6 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       children: [
 
+                        /// ICON
                         Image.asset(
                           isDark ? "assets/icon(drak background).png" : "assets/icon(light backgroud).png",
                           width: 80,
@@ -83,18 +86,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 48),
 
+                        /// USERNAME
                         TextField(
                           controller: userController,
                           style: TextStyle(color: isDark ? Colors.white : Colors.black),
+
                           decoration: InputDecoration(
                             hintText: "Email",
                             hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+
                             filled: true,
                             fillColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2),
+
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 18,
                               horizontal: 16,
                             ),
+
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide.none,
@@ -104,13 +112,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 16),
 
+                        /// PASSWORD
                         TextField(
                           controller: passwordController,
                           obscureText: obscurePassword,
                           style: TextStyle(color: isDark ? Colors.white : Colors.black),
+
                           decoration: InputDecoration(
                             hintText: "Password",
                             hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+
                             filled: true,
                             fillColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2),
 
@@ -143,6 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 22),
 
+                        /// LOGIN BUTTON (NO SHADOW)
                         SizedBox(
                           width: double.infinity,
                           height: 54,
@@ -186,6 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 22),
 
+                        /// DIVIDER
                         Row(
                           children: [
 
@@ -206,6 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 22),
 
+                        /// GOOGLE BUTTON
                         SizedBox(
                           width: double.infinity,
                           height: 54,
@@ -285,7 +299,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // 🔥 LOGIN LOGIC
   Future<void> login() async {
     final email = userController.text.trim();
     final password = passwordController.text.trim();
@@ -308,24 +321,50 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
-        (route) => false,
-      );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'An error occurred during login.')),
-      );
+      final user = AuthService.instance.currentUser;
+      if (user != null && mounted) {
+        final userProfile = await DatabaseService.instance.getUserProfile(user.uid);
+
+        if (!mounted) return;
+
+        if (!user.emailVerified) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SignupVerificationScreen(
+                email: user.email ?? "",
+              ),
+            ),
+          );
+          return;
+        }
+
+        if (userProfile != null) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SignupUsernameScreen(
+                email: user.email ?? "",
+                isGoogleSignup: true,
+              ),
+            ),
+            (route) => false,
+          );
+        }
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      debugPrint("Login Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -341,24 +380,60 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final userCredential = await AuthService.instance.signInWithGoogle();
-      
-      if (!mounted) return;
-      
-      if (userCredential != null) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
-          (route) => false,
-        );
+      await AuthService.instance.signInWithGoogle();
+
+      final user = AuthService.instance.currentUser;
+      if (user != null) {
+        final userProfile = await DatabaseService.instance.getUserProfile(user.uid);
+
+        if (mounted) {
+          // Google users are pre-verified, so we skip SignupVerificationScreen entirely
+          if (userProfile != null) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          } else {
+            // New Google user -> Pick a username first
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SignupUsernameScreen(
+                  email: user.email ?? "",
+                  isGoogleSignup: true,
+                ),
+              ),
+              (route) => false,
+            );
+          }
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing in with Google: $e')),
-      );
+      debugPrint("Google Sign-In Detailed Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Google Sign-In failed. Error: $e"),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: "Details",
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Sign-In Error Details"),
+                    content: SingleChildScrollView(child: Text(e.toString())),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -367,5 +442,4 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
 }

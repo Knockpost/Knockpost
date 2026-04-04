@@ -75,11 +75,15 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                 ? ThoughtCard(
                     user: widget.author,
                     text: widget.post.text,
+                    likes: widget.post.likes,
+                    views: widget.post.views,
                   )
                 : PostCard(
                     imagePaths: widget.post.imagePaths,
                     user: widget.author,
                     caption: widget.post.text,
+                    likes: widget.post.likes,
+                    views: widget.post.views,
                   ),
           ],
         ),

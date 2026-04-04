@@ -67,6 +67,66 @@ class UserModel {
     this.mutualFriendsAvatars = const [],
   });
 
+  factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
+    return UserModel(
+      id: documentId,
+      displayName: map['displayName'] ?? map['fullName'] ?? '',
+      username: map['username'] ?? '',
+      bio: map['bio'],
+      avatarAsset: map['profileImageUrl'] != null && map['profileImageUrl'].toString().isNotEmpty
+          ? map['profileImageUrl']
+          : null,
+      coverImageAsset: map['coverImageUrl'],
+      friendsCount: map['friendsCount'] ?? 0,
+      mutualFriendsWhoKnocked: List<String>.from(map['mutualFriendsWhoKnocked'] ?? []),
+      accountType: map['accountType'] == 'creator' ? AccountType.creator : AccountType.normal,
+      privacyType: map['privacyType'] == 'private' ? PrivacyType.private : PrivacyType.open,
+      rank: _parseRank(map['rank']),
+      totalViews: map['totalViews'] ?? 0,
+      totalLikes: map['totalLikes'] ?? 0,
+      totalKnocksReceived: map['totalKnocksReceived'] ?? 0,
+      knockStatus: _parseKnockStatus(map['knockStatus']),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'displayName': displayName,
+      'username': username,
+      'bio': bio,
+      'profileImageUrl': avatarAsset,
+      'coverImageUrl': coverImageAsset,
+      'friendsCount': friendsCount,
+      'accountType': accountType.name,
+      'privacyType': privacyType.name,
+      'rank': rank.name,
+      'totalViews': totalViews,
+      'totalLikes': totalLikes,
+      'totalKnocksReceived': totalKnocksReceived,
+    };
+  }
+
+  static CreatorRank _parseRank(String? rankStr) {
+    if (rankStr == null) return CreatorRank.echo;
+    switch (rankStr) {
+      case 'plus': return CreatorRank.plus;
+      case 'pro': return CreatorRank.pro;
+      case 'impact': return CreatorRank.impact;
+      default: return CreatorRank.echo;
+    }
+  }
+
+  static KnockStatus _parseKnockStatus(String? statusStr) {
+    if (statusStr == null) return KnockStatus.none;
+    switch (statusStr) {
+      case 'pending': return KnockStatus.pending;
+      case 'knocked': return KnockStatus.knocked;
+      case 'theyKnockedYou': return KnockStatus.theyKnockedYou;
+      case 'mutualKnocked': return KnockStatus.mutualKnocked;
+      default: return KnockStatus.none;
+    }
+  }
+
   /// Creator/professional profiles behave as open accounts.
   bool get isEffectivelyOpen =>
       accountType == AccountType.creator || privacyType == PrivacyType.open;

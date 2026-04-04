@@ -300,7 +300,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (context) => ShareSheet(
-                        videoUrl: widget.videoUrl,
+                        url: widget.videoUrl,
                         username: widget.username,
                         caption: widget.caption,
                       ),
@@ -321,6 +321,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (context) => MoreOptionsSheet(
+                        userId: widget.username,
                         username: widget.username,
                       ),
                     );

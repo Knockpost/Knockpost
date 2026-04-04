@@ -10,24 +10,28 @@ class PostCard extends StatefulWidget {
   final List<String> imagePaths;
   final UserModel user;
   final String caption;
+  final int likes;
+  final int views;
+  final String? postId;
   final String? musicUrl;
   final String? musicTitle;
   final String? musicArtist;
+  final int? musicTrimStart;
   final bool isVideoPost;
-  final int likes;
-  final int views;
 
   const PostCard({
     super.key,
     required this.imagePaths,
     required this.user,
     this.caption = '',
+    this.likes = 0,
+    this.views = 0,
+    this.postId,
     this.musicUrl,
     this.musicTitle,
     this.musicArtist,
+    this.musicTrimStart,
     this.isVideoPost = false,
-    this.likes = 0,
-    this.views = 0,
   });
 
   @override
@@ -38,16 +42,22 @@ class _PostCardState extends State<PostCard> {
   bool _doubleTapped = false;
   AudioPlayer? _audioPlayer;
   bool _isPlaying = false;
-  late int _localLikes;
-  bool _hasReacted = false;
 
   @override
   void initState() {
     super.initState();
-    _localLikes = widget.likes;
     if (widget.musicUrl != null && widget.musicUrl!.isNotEmpty) {
       _audioPlayer = AudioPlayer();
-      _audioPlayer!.setUrl(widget.musicUrl!).then((_) {
+      
+      final start = widget.musicTrimStart ?? 0;
+      final uri = Uri.parse(widget.musicUrl!);
+      final source = ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(seconds: start),
+        end: Duration(seconds: start + 15),
+      );
+      
+      _audioPlayer!.setAudioSource(source).then((_) {
         _audioPlayer!.setLoopMode(LoopMode.one);
         _audioPlayer!.play();
       });
@@ -67,27 +77,11 @@ class _PostCardState extends State<PostCard> {
     KnockHaptics.impact();
     setState(() {
       _doubleTapped = true;
-      if (!_hasReacted) {
-        _hasReacted = true;
-        _localLikes++;
-      }
     });
   }
 
   void _onDoubleTapHandled() {
     setState(() => _doubleTapped = false);
-  }
-
-  void _handleReactionChange(bool reacted) {
-    setState(() {
-      if (reacted && !_hasReacted) {
-        _hasReacted = true;
-        _localLikes++;
-      } else if (!reacted && _hasReacted) {
-        _hasReacted = false;
-        _localLikes--;
-      }
-    });
   }
 
   @override
@@ -99,7 +93,10 @@ class _PostCardState extends State<PostCard> {
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: PostHeader(user: widget.user),
+          child: PostHeader(
+            user: widget.user,
+            postId: widget.postId,
+          ),
         ),
 
         const SizedBox(height: 12),
@@ -118,7 +115,7 @@ class _PostCardState extends State<PostCard> {
 
         const SizedBox(height: 14),
 
-        // Double-tap on image triggers 👍 reaction
+        // Double-tap on image triggers reaction
         Stack(
           children: [
             GestureDetector(
@@ -181,34 +178,12 @@ class _PostCardState extends State<PostCard> {
           child: ReactionBar(
             doubleTapped: _doubleTapped,
             onDoubleTapHandled: _onDoubleTapHandled,
-            postId: 'demo_post_${widget.imagePaths.length}',
-            isPostOwner: false, // Viewer perspective for demo
-            onReactionChanged: _handleReactionChange,
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              Text(
-                '$_localLikes Likes',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${widget.views} Views',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
+            postId: widget.postId ?? 'demo_post_${widget.imagePaths.hashCode}',
+            isPostOwner: widget.user.isOwnProfile,
+            initialLikes: widget.likes,
+            initialViews: widget.views,
+            shareUsername: widget.user.username,
+            shareCaption: widget.caption,
           ),
         ),
 

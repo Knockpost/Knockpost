@@ -39,9 +39,12 @@ class CustomBottomNav extends StatelessWidget {
           ),
         ),
       ),
-      child: SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewPadding.bottom,
+        ),
         child: Container(
-          height: 50, // Fixed height to match Instagram exactly
+          height: 50,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,

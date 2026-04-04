@@ -6,11 +6,17 @@ import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
 import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
+import '../screens/waves/widgets/more_options_sheet.dart';
 
 class PostHeader extends StatefulWidget {
   final UserModel user;
+  final String? postId;
 
-  const PostHeader({super.key, required this.user});
+  const PostHeader({
+    super.key,
+    required this.user,
+    this.postId,
+  });
 
   @override
   State<PostHeader> createState() => _PostHeaderState();
@@ -92,58 +98,17 @@ class _PostHeaderState extends State<PostHeader> {
 
   void _showMoreOptions() {
     KnockHaptics.impact();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Menu items ──
-                _buildMenuItem(
-                  icon: Icons.visibility_outlined,
-                  label: "Interested",
-                  onTap: () => Navigator.pop(context),
-                ),
-                _buildMenuItem(
-                  icon: Icons.not_interested_outlined,
-                  label: "Not interested",
-                  onTap: () => Navigator.pop(context),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _buildMenuItem(
-                  icon: Icons.account_circle_outlined,
-                  label: "About this account",
-                  onTap: () => Navigator.pop(context),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _buildMenuItem(
-                  icon: Icons.report_outlined,
-                  label: "Report",
-                  color: Colors.red,
-                  onTap: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
+        return MoreOptionsSheet(
+          userId: widget.user.id,
+          username: widget.user.username,
+          postId: widget.postId,
+          isReel: false,
+          isOwner: widget.user.isOwnProfile,
         );
       },
     );
@@ -161,36 +126,6 @@ class _PostHeaderState extends State<PostHeader> {
               setState(() => _status = newStatus);
             }
           },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    final effectiveColor = color ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87);
-
-    return InkWell(
-      onTap: () { KnockHaptics.selection(); onTap(); },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 24, color: effectiveColor),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: effectiveColor,
-              ),
-            ),
-          ],
         ),
       ),
     );

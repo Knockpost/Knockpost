@@ -1,11 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// ─── Smooth page transition (Instagram-like fade + slide) ────────────────────
+
+class _SmoothPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _SmoothPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // Incoming page: slides in from slight right + fades
+    // Outgoing page: stays COMPLETELY STILL (posts don't move)
+    final slide = Tween<Offset>(
+      begin: const Offset(0.06, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+    ));
+
+    final fade = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+    );
+
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(
+        position: slide,
+        child: child,
+      ),
+    );
+  }
+
+}
+
+// ─── App Theme ────────────────────────────────────────────────────────────────
+
 class AppTheme {
   AppTheme._();
 
   static const Color lightPrimary = Color(0xFF000000);
-  static const Color darkPrimary = Color(0xFFFFFFFF);
+  static const Color darkPrimary  = Color(0xFFFFFFFF);
+
+  static const _transitions = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: _SmoothPageTransitionsBuilder(),
+      TargetPlatform.iOS:     _SmoothPageTransitionsBuilder(),
+    },
+  );
 
   static final ThemeData lightTheme = ThemeData(
     brightness: Brightness.light,
@@ -21,7 +69,7 @@ class AppTheme {
       backgroundColor: Colors.white,
       foregroundColor: Colors.black,
       elevation: 0,
-      systemOverlayStyle: SystemUiOverlayStyle.dark, // Dark status bar icons
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Colors.white,
@@ -29,9 +77,10 @@ class AppTheme {
     ),
     iconTheme: const IconThemeData(color: Colors.black),
     textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.black),
+      bodyLarge:  TextStyle(color: Colors.black),
       bodyMedium: TextStyle(color: Colors.black),
     ),
+    pageTransitionsTheme: _transitions,
   );
 
   static final ThemeData darkTheme = ThemeData(
@@ -48,7 +97,7 @@ class AppTheme {
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       elevation: 0,
-      systemOverlayStyle: SystemUiOverlayStyle.light, // Light status bar icons
+      systemOverlayStyle: SystemUiOverlayStyle.light,
     ),
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Color(0xFF1A1A1A),
@@ -56,9 +105,10 @@ class AppTheme {
     ),
     iconTheme: const IconThemeData(color: Colors.white),
     textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.white),
+      bodyLarge:  TextStyle(color: Colors.white),
       bodyMedium: TextStyle(color: Colors.white),
     ),
+    pageTransitionsTheme: _transitions,
   );
 
   static SystemUiOverlayStyle getSystemUiOverlayStyle(BuildContext context) {
@@ -68,7 +118,8 @@ class AppTheme {
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
       systemNavigationBarColor: isDark ? Colors.black : Colors.white,
-      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
       systemNavigationBarDividerColor: Colors.transparent,
     );
   }
