@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import '../../widgets/knock_zoomer.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
@@ -71,10 +70,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: KnockZoomer(
-            imagePath: widget.imagePaths.first,
-            fit: BoxFit.cover,
-          ),
+          child: _buildImage(widget.imagePaths.first),
         ),
       );
     }
@@ -108,10 +104,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
                         _onScroll(); // ensure timer resets on page snap
                       },
                       itemBuilder: (context, index) {
-                        return KnockZoomer(
-                          imagePath: widget.imagePaths[index],
-                          fit: BoxFit.cover,
-                        );
+                        return _buildImage(widget.imagePaths[index]);
                       },
                     ),
                   ),
@@ -185,6 +178,31 @@ class _MediaCarouselState extends State<MediaCarousel> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildImage(String path) {
+    if (path.startsWith('/') ||
+        path.startsWith('file://') ||
+        path.startsWith('C:') ||
+        path.contains('/data/user/')) {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+    } else if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+    }
+
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
     );
   }
 }
