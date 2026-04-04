@@ -8,9 +8,10 @@ enum PostDuration {
 }
 
 enum PostType {
-  media, // Image(s)
-  text, // Text-only
-  glimpse, // Video up to 2m30s
+  media, // Image(s) — Post
+  text, // Text-only — Thoughts
+  glimps, // Photo + Music story — Glimps (Instagram Stories)
+  waves, // Video up to 2m30s — Waves (Instagram Reels)
 }
 
 class PostModel {
@@ -223,6 +224,19 @@ List<PostModel> getDemoPostsForUser(String userId) {
   final third = pool[(seed + 2) % pool.length];
 
   return [
+    // Glimpse (24h)
+    PostModel(
+      id: '${userId}_glimpse',
+      authorId: userId,
+      type: PostType.waves,
+      duration: PostDuration.h24,
+      imagePaths: [second],
+      text: 'Good vibes only ✨',
+      musicTitle: 'Trending Track',
+      createdAt: now.subtract(Duration(hours: 1 + seed)),
+      likes: 85 + seed * 4,
+      views: 400 + seed * 25,
+    ),
     // Recent post
     PostModel(
       id: '${userId}_recent',
@@ -271,3 +285,11 @@ List<PostModel> getDemoPostsForUser(String userId) {
     ),
   ];
 }
+
+final List<PostModel> demoGlimpseFeed = [
+  ...getDemoPostsForUser('arya01').where((p) => p.type == PostType.waves),
+  ...getDemoPostsForUser('saptarshi01').where((p) => p.type == PostType.waves),
+  ...getDemoPostsForUser('justin01').where((p) => p.type == PostType.waves),
+  ...getDemoPostsForUser('suman01').where((p) => p.type == PostType.waves),
+  ...getDemoPostsForUser('zayn01').where((p) => p.type == PostType.waves),
+];

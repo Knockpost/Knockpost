@@ -1,9 +1,0 @@
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|319|15|16|Undefined name '_showSpeedPicker'.
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|395|29|10|Undefined name '_pickMusic'.
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|396|37|14|Undefined name '_selectedMusic'.
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|428|31|14|Undefined name '_selectedMusic'.
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|775|29|19|Undefined name '_selectedSpeedIndex'.
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|777|20|12|The method '_selectSpeed' isn't defined for the type '_GlimpseCameraScreenState'.
-ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|796|13|13|Undefined name '_speedOptions'.
-WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|212|11|7|The value of the local variable 'flashOn' isn't used.
-WARNING|STATIC_WARNING|UNUSED_ELEMENT|C:\\KNOCKPOST2.0\\Knockpost\\lib\\screens\\create_post\\glimpse_camera_screen.dart|590|10|8|The declaration '_divider' isn't referenced.

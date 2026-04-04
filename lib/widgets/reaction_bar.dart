@@ -12,12 +12,11 @@ class ReactionEmoji {
 }
 
 const List<ReactionEmoji> _reactions = [
-  ReactionEmoji('👍', 'Like'),
-  ReactionEmoji('❤', 'Love'),
+  ReactionEmoji('😢', 'Sad'),
   ReactionEmoji('🥰', 'Care'),
   ReactionEmoji('😂', 'Haha'),
-  ReactionEmoji('😮', 'Wow'),
-  ReactionEmoji('😢', 'Sad'),
+  ReactionEmoji('👍', 'Like'),
+  ReactionEmoji('❤', 'Love'),
   ReactionEmoji('🔥', 'Fire'),
 ];
 
@@ -66,11 +65,13 @@ class _ReactionBarState extends State<ReactionBar>
     // Popup open/close animation
     _popupController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 350),
+      reverseDuration: const Duration(milliseconds: 250),
     );
     _popupScale = CurvedAnimation(
       parent: _popupController,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
     );
 
     // Heart / emoji bounce animation on select
@@ -78,14 +79,13 @@ class _ReactionBarState extends State<ReactionBar>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _heartScale =
-        TweenSequence<double>([
-          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.6), weight: 40),
-          TweenSequenceItem(tween: Tween(begin: 1.6, end: 0.9), weight: 30),
-          TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0), weight: 30),
-        ]).animate(
-          CurvedAnimation(parent: _heartController, curve: Curves.easeInOut),
-        );
+    _heartScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.95), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+    ]).animate(
+      CurvedAnimation(parent: _heartController, curve: Curves.easeInOutCubic),
+    );
   }
 
   @override
@@ -327,8 +327,8 @@ class _ReactionBarState extends State<ReactionBar>
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          blurRadius: 15,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
@@ -353,28 +353,46 @@ class _ReactionBarState extends State<ReactionBar>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(_reactions.length, (index) {
                           final isHovered = _hoveredIndex == index;
+                          final double staggerStart = index * 0.1;
+                          final double staggerEnd = (staggerStart + 0.6).clamp(0.0, 1.0);
+
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 5),
-                            child: SizedBox(
-                              width: 30,
-                              height: 30,
-                              child: OverflowBox(
-                                key: _emojiKeys[index],
-                                maxWidth: 56,
-                                maxHeight: 76,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOut,
-                                  transform: isHovered
-                                      ? (Matrix4.identity()
-                                          ..setTranslationRaw(0.0, -18.0, 0.0))
-                                      : Matrix4.identity(),
-                                  transformAlignment: Alignment.center,
-                                  child: AnimatedScale(
-                                    scale: isHovered ? 1.6 : 1.0,
-                                    duration: const Duration(milliseconds: 180),
-                                    curve: Curves.easeOut,
-                                    child: _buildEmojiWidget(index, 28),
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.5),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                parent: _popupController,
+                                curve: Interval(staggerStart, staggerEnd, curve: Curves.easeOutBack),
+                              )),
+                              child: ScaleTransition(
+                                scale: CurvedAnimation(
+                                  parent: _popupController,
+                                  curve: Interval(staggerStart, staggerEnd, curve: Curves.easeOutBack),
+                                ),
+                                child: SizedBox(
+                                  width: 30,
+                                  height: 30,
+                                  child: OverflowBox(
+                                    key: _emojiKeys[index],
+                                    maxWidth: 56,
+                                    maxHeight: 76,
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 250),
+                                      curve: Curves.easeOutBack,
+                                      transform: isHovered
+                                          ? (Matrix4.identity()
+                                              ..setTranslationRaw(0.0, -20.0, 0.0))
+                                          : Matrix4.identity(),
+                                      transformAlignment: Alignment.center,
+                                      child: AnimatedScale(
+                                        scale: isHovered ? 1.7 : 1.0,
+                                        duration: const Duration(milliseconds: 250),
+                                        curve: Curves.easeOutBack,
+                                        child: _buildEmojiWidget(index, 28),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),

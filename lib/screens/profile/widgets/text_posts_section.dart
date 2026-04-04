@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../widgets/thought_card.dart';
+import '../../thoughts/thought_card.dart';
 import 'profile_ui_helpers.dart';
 
 /// Scrollable list of text-only posts (Thoughts tab on profile).

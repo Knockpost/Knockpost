@@ -1,0 +1,320 @@
+import 'package:flutter/material.dart';
+import '../../models/user_model.dart';
+import '../../widgets/people_suggestion_strip.dart'; // Using demoSuggestedUsers
+import '../../utils/haptic_helper.dart';
+
+Future<List<String>?> showFriendPickerScreen(
+  BuildContext context, {
+  required String title,
+  required String subtitle,
+  required Color accentColor,
+  List<String> initiallySelected = const [],
+}) {
+  return Navigator.push<List<String>>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => FriendPickerScreen(
+        title: title,
+        subtitle: subtitle,
+        accentColor: accentColor,
+        initiallySelected: initiallySelected,
+      ),
+      fullscreenDialog: true, // Slides up from bottom like WhatsApp
+    ),
+  );
+}
+
+class FriendPickerScreen extends StatefulWidget {
+  final String title;
+  final String subtitle;
+  final Color accentColor;
+  final List<String> initiallySelected;
+
+  const FriendPickerScreen({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.accentColor,
+    this.initiallySelected = const [],
+  });
+
+  @override
+  State<FriendPickerScreen> createState() => _FriendPickerScreenState();
+}
+
+class _FriendPickerScreenState extends State<FriendPickerScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  final Set<String> _selectedIds = {};
+  
+  // Use demo users as friends for now
+  late List<UserModel> _friends;
+  late List<UserModel> _filteredFriends;
+
+  @override
+  void initState() {
+    super.initState();
+    _friends = List.of(demoSuggestedUsers);
+    // Sort alphabetically
+    _friends.sort((a, b) => a.displayName.compareTo(b.displayName));
+    _filteredFriends = _friends;
+    
+    _selectedIds.addAll(widget.initiallySelected);
+
+    _searchCtrl.addListener(() {
+      final query = _searchCtrl.text.toLowerCase().trim();
+      setState(() {
+        if (query.isEmpty) {
+          _filteredFriends = _friends;
+        } else {
+          _filteredFriends = _friends
+              .where((u) =>
+                  u.displayName.toLowerCase().contains(query) ||
+                  u.username.toLowerCase().contains(query))
+              .toList();
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggleSelection(String id) {
+    KnockHaptics.tap();
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleAll() {
+    KnockHaptics.tap();
+    setState(() {
+      if (_selectedIds.length == _friends.length) {
+        _selectedIds.clear(); // Deselect all
+      } else {
+        _selectedIds.addAll(_friends.map((e) => e.id)); // Select all
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? Colors.black : const Color(0xFFF8F9FA);
+    
+    final isAllSelected = _selectedIds.length == _friends.length && _friends.isNotEmpty;
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: bg,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded,
+              color: isDark ? Colors.white : Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
+                letterSpacing: -0.3,
+              ),
+            ),
+            Text(
+              '${_selectedIds.length} friends selected',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white54 : Colors.black54,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isAllSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            tooltip: isAllSelected ? 'Deselect All' : 'Select All',
+            onPressed: _toggleAll,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Column(
+        children: [
+          // ── Search Bar ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black,
+                  fontSize: 15,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search friends...',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                    size: 20,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          
+          // ── Subtitle Header ─────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.03)
+                : Colors.black.withValues(alpha: 0.02),
+            child: Text(
+              widget.subtitle.toUpperCase(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: widget.accentColor,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+
+          // ── Friends List ────────────────────────────────────────────────
+          Expanded(
+            child: _filteredFriends.isEmpty
+                ? Center(
+                    child: Text(
+                      'No friends found.',
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : Colors.black45,
+                        fontSize: 15,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredFriends.length,
+                    itemBuilder: (context, index) {
+                      final user = _filteredFriends[index];
+                      final isSelected = _selectedIds.contains(user.id);
+
+                      return InkWell(
+                        onTap: () => _toggleSelection(user.id),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          child: Row(
+                            children: [
+                              // Checkbox
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? widget.accentColor : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? widget.accentColor
+                                        : (isDark ? Colors.white38 : Colors.black26),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? const Icon(
+                                        Icons.check_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 16),
+                              // Avatar
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundImage: user.avatarAsset != null
+                                    ? AssetImage(user.avatarAsset!)
+                                    : null,
+                                backgroundColor: isDark
+                                    ? Colors.grey.shade900
+                                    : Colors.grey.shade200,
+                                child: user.avatarAsset == null
+                                    ? Icon(Icons.person,
+                                        color: isDark ? Colors.white54 : Colors.black38)
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              // Name
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user.displayName,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white : Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '@${user.username}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white54 : Colors.black54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+      // ── Floating Action Done Button ────────────────────────────────────
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: widget.accentColor,
+        elevation: 4,
+        onPressed: () {
+          KnockHaptics.tap();
+          Navigator.pop(context, _selectedIds.toList());
+        },
+        child: const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+      ),
+    );
+  }
+}

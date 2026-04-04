@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../widgets/post_card.dart';
-import '../../../widgets/thought_card.dart';
+import '../../post/post_card.dart';
+import '../../thoughts/thought_card.dart';
 import 'profile_ui_helpers.dart';
 
 /// Shows posts that are within their 3-day active window.
@@ -63,7 +63,7 @@ class RecentsSection extends StatelessWidget {
         final isLast = i == recentPosts.length - 1;
 
         Widget content;
-        if ((post.type == PostType.media || post.type == PostType.glimpse) &&
+        if ((post.type == PostType.media || post.type == PostType.waves) &&
             post.imagePaths.isNotEmpty) {
           content = PostCard(
             imagePaths: post.imagePaths,
@@ -72,7 +72,7 @@ class RecentsSection extends StatelessWidget {
             musicUrl: post.musicUrl,
             musicTitle: post.musicTitle,
             musicArtist: post.musicArtist,
-            isVideoPost: post.type == PostType.glimpse,
+            isVideoPost: post.type == PostType.waves,
           );
         } else {
           content = ThoughtCard(
