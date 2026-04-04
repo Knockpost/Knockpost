@@ -34,12 +34,13 @@ class _TextOverlay {
   String text;
   Offset position;
   double scale;
-  Color color = Colors.white;
+  Color color;
 
   _TextOverlay({
     required this.text,
     required this.position,
     this.scale = 1.0,
+    this.color = Colors.white,
   });
 }
 
@@ -317,10 +318,7 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
       if (pathLower.endsWith('.mp4') ||
           pathLower.endsWith('.mov') ||
           pathLower.endsWith('.mkv')) {
-        final ctrl = VideoPlayerController.file(
-          file,
-          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-        );
+        final ctrl = VideoPlayerController.file(file);
         ctrl.initialize().then((_) async {
           if (mounted) setState(() {});
           await ctrl.setPlaybackSpeed(widget.playbackSpeed);
@@ -1093,7 +1091,6 @@ class _GlimpseEditorScreenState extends State<GlimpseEditorScreen>
                         // Open new MusicOverlayScreen
                         final isVideo =
                             _videoControllers[_currentMediaIndex] != null;
-                        if (!mounted) return;
                         final overlayResult = await Navigator.push(
                           context,
                           PageRouteBuilder(

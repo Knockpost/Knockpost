@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../widgets/thought_card.dart';
+import '../../../utils/global_post_state.dart';
 import 'profile_ui_helpers.dart';
 
 /// Scrollable list of text-only posts (Thoughts tab on profile).
@@ -27,52 +28,60 @@ class TextPostsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPosts = _textPosts;
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: GlobalPostState.deletedPostIds,
+      builder: (context, deletedIds, _) {
+        final textPosts = _textPosts.where((p) => !deletedIds.contains(p.id)).toList();
 
-    if (textPosts.isEmpty) {
-      return ProfileEmptySection(
-        icon: Icons.format_quote_rounded,
-        message: 'No thoughts yet',
-        subtitle: isOwnProfile
-            ? 'Share what you feel'
-            : 'No thoughts shared yet',
-        gradientColors: const [Color(0xFFB388FF), Color(0xFF7C4DFF)],
-        tabController: tabController,
-        tabIndex: 2,
-      );
-    }
+        if (textPosts.isEmpty) {
+          return ProfileEmptySection(
+            icon: Icons.format_quote_rounded,
+            message: 'No thoughts yet',
+            subtitle: isOwnProfile
+                ? 'Share what you feel'
+                : 'No thoughts shared yet',
+            gradientColors: const [Color(0xFFB388FF), Color(0xFF7C4DFF)],
+            tabController: tabController,
+            tabIndex: 2,
+          );
+        }
 
-    final dividerColor = isDark
-        ? const Color(0xFF2A2A2A)
-        : const Color(0xFFE8E8E8);
+        final dividerColor = isDark
+            ? const Color(0xFF2A2A2A)
+            : const Color(0xFFE8E8E8);
 
-    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+        final divider = Divider(height: 1, thickness: 1, color: dividerColor);
 
-    return ListView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      padding: const EdgeInsets.only(bottom: 20),
-      itemCount: textPosts.length,
-      itemBuilder: (context, i) {
-        final post = textPosts[i];
-        final isLast = i == textPosts.length - 1;
+        return ListView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: 20),
+          itemCount: textPosts.length,
+          itemBuilder: (context, i) {
+            final post = textPosts[i];
+            final isLast = i == textPosts.length - 1;
 
-        return Column(
-          children: [
-            divider,
-            ThoughtCard(
-              user: user ?? const UserModel(
-                id: 'unknown',
-                displayName: 'User',
-                username: 'user',
-                friendsCount: 0,
-                accountType: AccountType.normal,
-                knockStatus: KnockStatus.none,
-              ),
-              text: post.text,
-            ),
-            if (isLast) divider,
-          ],
+            return Column(
+              children: [
+                divider,
+                ThoughtCard(
+                  user: user ?? const UserModel(
+                    id: 'unknown',
+                    displayName: 'User',
+                    username: 'user',
+                    friendsCount: 0,
+                    accountType: AccountType.normal,
+                    knockStatus: KnockStatus.none,
+                  ),
+                  text: post.text,
+                  likes: post.likes,
+                  views: post.views,
+                  postId: post.id,
+                ),
+                if (isLast) divider,
+              ],
+            );
+          },
         );
       },
     );

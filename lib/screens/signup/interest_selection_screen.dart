@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
+import '../../services/storage_service.dart';
 import '../home_screen.dart';
 import '../login_screen.dart';
 
@@ -67,7 +68,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       String uid = "";
 
       // Check if we are already logged in (Google Signup) or if we need to create an account
-      User? currentUser = FirebaseAuth.instance.currentUser;
+      User? currentUser = AuthService.instance.currentUser;
       
       if (currentUser != null && currentUser.email == widget.email) {
         // We are already logged in (Google)
@@ -84,7 +85,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
         }
       } else {
         // Email/Password Signup - Create Auth User first
-        UserCredential userCredential = await FirebaseAuth.instance
+        UserCredential userCredential = await AuthService.instance
             .createUserWithEmailAndPassword(
                 email: widget.email, password: widget.password);
         uid = userCredential.user!.uid;
@@ -92,27 +93,18 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
 
       // 2. Upload Image to Storage (if selected)
       if (widget.profileImage != null) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('profile_images')
-            .child('$uid.jpg');
-        await ref.putFile(widget.profileImage!);
-        profileImageUrl = await ref.getDownloadURL();
+        profileImageUrl = await StorageService.instance.uploadProfileImage(uid, widget.profileImage!);
       }
 
       // 3. Save Profile to Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .set({
-        'uid': uid,
-        'email': widget.email,
-        'username': widget.username,
-        'fullName': widget.fullName,
-        'profileImageUrl': profileImageUrl ?? "",
-        'interests': selectedInterests.toList(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await DatabaseService.instance.createUserProfile(
+        uid: uid,
+        email: widget.email,
+        username: widget.username,
+        fullName: widget.fullName,
+        profileImageUrl: profileImageUrl ?? "",
+        interests: selectedInterests.toList(),
+      );
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(

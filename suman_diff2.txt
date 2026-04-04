@@ -1,0 +1,16 @@
+lib/models/post_model.dart
+lib/screens/create_post/collage_picker_screen.dart
+lib/screens/create_post/final_post_screen.dart
+lib/screens/create_post/friend_picker_screen.dart
+lib/screens/create_post/glimpse_camera_screen.dart
+lib/screens/create_post/glimpse_editor_screen.dart
+lib/screens/create_post/media_editor_screen.dart
+lib/screens/create_post/music_picker_screen.dart
+lib/screens/create_post/post_settings_sheet.dart
+lib/screens/create_post/template_picker_screen.dart
+lib/screens/home_screen.dart
+lib/screens/profile/profile_screen.dart
+lib/screens/profile/widgets/recents_section.dart
+lib/screens/profile/widgets/showcase_grid.dart
+lib/widgets/media_carousel.dart
+lib/widgets/post_card.dart

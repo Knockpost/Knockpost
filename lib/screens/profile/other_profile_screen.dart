@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/global_knock_state.dart';
+import '../../utils/global_dismiss_state.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
@@ -12,6 +13,7 @@ import 'widgets/showcase_grid.dart';
 import 'widgets/text_posts_section.dart';
 import 'widgets/profile_ui_helpers.dart';
 import '../../widgets/system_nav_bar_fill.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Viewing someone ELSE's profile.
 class OtherProfileScreen extends StatefulWidget {
@@ -160,7 +162,9 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                 action(
                   icon: Icons.share_outlined,
                   label: 'Share profile',
-                  onTap: () => toast('Profile share options will appear here.'),
+                  onTap: () {
+                    Share.share('Check out ${_user.username} on KnockPost!\nhttps://knockpost.app/@${_user.username}');
+                  },
                 ),
                 action(
                   icon: Icons.link_rounded,
@@ -175,9 +179,12 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                   },
                 ),
                 action(
-                  icon: Icons.info_outline_rounded,
-                  label: 'About this account',
-                  onTap: () => toast('Account insights panel coming soon.'),
+                  icon: Icons.visibility_off_outlined,
+                  label: 'Not Interested',
+                  onTap: () {
+                    GlobalDismissState.dismiss(_user.id);
+                    toast("We'll show less content from @${_user.username}");
+                  },
                 ),
                 Divider(height: 1, color: div),
                 action(
@@ -189,7 +196,10 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                   icon: Icons.block_outlined,
                   label: 'Block',
                   color: danger,
-                  onTap: () => toast('@${_user.username} has been blocked'),
+                  onTap: () {
+                    GlobalDismissState.dismiss(_user.id);
+                    toast('@${_user.username} has been blocked');
+                  },
                 ),
                 action(
                   icon: Icons.flag_outlined,
@@ -226,6 +236,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
           Scaffold(
             backgroundColor: bg,
             body: NestedScrollView(
+              physics: const ClampingScrollPhysics(),
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 // Profile Header
                 SliverToBoxAdapter(

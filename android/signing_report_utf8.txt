@@ -10,130 +10,130 @@
 > Task :app:signingReport
 Variant: debug
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 Variant: release
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 Variant: profile
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :cloud_firestore:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :firebase_auth:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :firebase_core:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :firebase_storage:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :flutter_plugin_android_lifecycle:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :google_sign_in_android:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :image_picker_android:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
 > Task :shared_preferences_android:signingReport
 Variant: debugAndroidTest
 Config: debug
-Store: C:\Users\SUMAN\.android\debug.keystore
+Store: C:\Users\aryal\.android\debug.keystore
 Alias: AndroidDebugKey
-MD5: 51:58:3E:D9:A6:59:18:69:32:C9:BC:15:39:72:F2:7B
-SHA1: DB:FD:F6:43:2A:CB:06:12:99:7C:59:D2:44:92:10:B3:F3:3D:73:70
-SHA-256: 3F:2A:42:BB:78:48:41:36:A2:AC:EA:ED:58:03:E2:A9:C8:13:98:D0:01:2D:CC:10:CF:A9:8F:55:09:F2:43:8E
+MD5: DE:64:C0:5D:82:35:0F:A0:88:A3:61:AA:4A:16:79:5F
+SHA1: 8D:60:C8:09:A2:30:40:C2:A6:76:0B:06:AA:F9:83:67:58:CF:C0:93
+SHA-256: 17:92:0A:49:A6:08:6C:D7:68:B3:EB:AB:4E:78:84:58:81:83:EA:65:65:4B:5A:B9:C4:6D:CF:44:6C:84:47:51
 Valid until: Monday, 7 February, 2056
 ----------
 
-[Incubating] Problems report is available at: file:///D:/project/Knockpost/build/reports/problems/problems-report.html
+[Incubating] Problems report is available at: file:///C:/KNOCKPOST2.0/Knockpost/build/reports/problems/problems-report.html
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
 
@@ -141,5 +141,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD SUCCESSFUL in 1s
+BUILD SUCCESSFUL in 5s
 13 actionable tasks: 9 executed, 4 up-to-date

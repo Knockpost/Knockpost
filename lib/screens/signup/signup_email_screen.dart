@@ -30,25 +30,26 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
     });
 
     try {
-      // 1. Store email locally for verification later
+      debugPrint("Auth Stage 1: Storing email $email for link");
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('email_for_link', email);
 
-      // 2. Configure ActionCodeSettings for passwordless link
+      debugPrint("Auth Stage 2: Configuring ActionCodeSettings");
       final actionCodeSettings = ActionCodeSettings(
-        url: 'https://knockpost-84b21.firebaseapp.com', // Must be an authorized domain
+        url: 'https://knockpost-84b21.firebaseapp.com', 
         handleCodeInApp: true,
         androidPackageName: 'com.example.knockpost',
         androidInstallApp: true,
         androidMinimumVersion: '12',
       );
 
-      // 3. Send the link
+      debugPrint("Auth Stage 3: Sending link to $email");
       await FirebaseAuth.instance.sendSignInLinkToEmail(
         email: email,
         actionCodeSettings: actionCodeSettings,
       );
 
+      debugPrint("Auth Stage 4: Link sent successfully");
       if (mounted) {
         Navigator.push(
           context,
@@ -60,6 +61,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint("Auth ERROR (Firebase): [${e.code}] ${e.message}");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -69,6 +71,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
         );
       }
     } catch (e) {
+      debugPrint("Auth ERROR (Generic): $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e")),

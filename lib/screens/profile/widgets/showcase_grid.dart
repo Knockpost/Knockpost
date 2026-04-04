@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../widgets/system_nav_bar_fill.dart';
 import '../../../widgets/post_card.dart';
 import '../../../widgets/thought_card.dart';
+import '../../../utils/global_post_state.dart';
 import 'profile_ui_helpers.dart';
 import 'package:video_player/video_player.dart';
 
@@ -34,37 +36,42 @@ class ShowcaseGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final showcasePosts = _showcasePosts;
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: GlobalPostState.deletedPostIds,
+      builder: (context, deletedIds, _) {
+        final showcasePosts = _showcasePosts.where((p) => !deletedIds.contains(p.id)).toList();
 
-    if (showcasePosts.isEmpty) {
-      return ProfileEmptySection(
-        icon: Icons.grid_view_rounded,
-        message: 'Showcase is empty',
-        subtitle: isOwnProfile
-            ? 'Pin your best moments'
-            : 'No highlights added yet',
-        gradientColors: const [Color(0xFF5B9BFF), Color(0xFF2B8EFF)],
-        tabController: tabController,
-        tabIndex: 1,
-      );
-    }
+        if (showcasePosts.isEmpty) {
+          return ProfileEmptySection(
+            icon: Icons.grid_view_rounded,
+            message: 'Showcase is empty',
+            subtitle: isOwnProfile
+                ? 'Pin your best moments'
+                : 'No highlights added yet',
+            gradientColors: const [Color(0xFF5B9BFF), Color(0xFF2B8EFF)],
+            tabController: tabController,
+            tabIndex: 1,
+          );
+        }
 
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      padding: const EdgeInsets.all(2),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-        childAspectRatio: 1,
-      ),
-      itemCount: showcasePosts.length,
-      itemBuilder: (context, i) {
-        final post = showcasePosts[i];
-        return GestureDetector(
-          onTap: () => _openShowcaseDetail(context, showcasePosts, i),
-          child: _GridTile(post: post, isDark: isDark),
+        return GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(2),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+            childAspectRatio: 1,
+          ),
+          itemCount: showcasePosts.length,
+          itemBuilder: (context, i) {
+            final post = showcasePosts[i];
+            return GestureDetector(
+              onTap: () => _openShowcaseDetail(context, showcasePosts, i),
+              child: _GridTile(post: post, isDark: isDark),
+            );
+          },
         );
       },
     );
@@ -110,23 +117,13 @@ class _GridTile extends StatelessWidget {
       return Stack(
         fit: StackFit.expand,
         children: [
-          imageWidget,
-          
-          if (post.type == PostType.glimpse)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black26,
-                child: const Center(
-                  child: Icon(
-                    Icons.play_circle_fill_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-              ),
-            ),
-            
-          if (post.imagePaths.length > 1 && post.type == PostType.media)
+          (post.imagePaths.first.startsWith('/') ||
+           post.imagePaths.first.startsWith('file://') ||
+           post.imagePaths.first.startsWith('C:') ||
+           post.imagePaths.first.contains('/data/user/'))
+              ? Image.file(File(post.imagePaths.first), fit: BoxFit.cover)
+              : Image.asset(post.imagePaths.first, fit: BoxFit.cover),
+          if (post.imagePaths.length > 1)
             Positioned(
               top: 6,
               right: 6,
@@ -298,13 +295,16 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               backgroundColor: bg,
               surfaceTintColor: bg,
               elevation: 0,
+              titleSpacing: 0,
+              leadingWidth: 20,
               leading: IconButton(
+                padding: EdgeInsets.zero,
                 icon: Icon(Icons.arrow_back_ios_new_rounded,
                     size: 20, color: isDark ? Colors.white : Colors.black),
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
-                'Posts',
+                'Showcase',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -337,11 +337,9 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             imagePaths: post.imagePaths,
                             user: widget.user,
                             caption: post.text,
-                            musicUrl: post.musicUrl,
-                            musicTitle: post.musicTitle,
-                            musicArtist: post.musicArtist,
-                            musicTrimStart: post.musicTrimStart,
-                            isVideoPost: post.type == PostType.glimpse,
+                            likes: post.likes,
+                            views: post.views,
+                            postId: post.id,
                           ),
                     if (isLast) divider,
                   ],

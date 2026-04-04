@@ -129,13 +129,13 @@ class _ProfileEmptySectionState extends State<ProfileEmptySection>
     final cardBg = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8);
     final borderColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
 
     // Default neutral gradient when none specified
     final colors = widget.gradientColors ??
         (isDark
             ? [Colors.white24, Colors.white12]
-            : [Colors.black12, Colors.black.withValues(alpha: 0.06)]);
+            : [Colors.black12, Colors.black.withOpacity(0.06)]);
 
     final iconColor = isDark ? Colors.white54 : Colors.black38;
     final titleColor = isDark ? Colors.white70 : Colors.black54;
@@ -350,8 +350,8 @@ class _ProfileAnimatedTabBarState extends State<ProfileAnimatedTabBar>
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.10)
-                            : Colors.black.withValues(alpha: 0.07),
+                            ? Colors.white.withOpacity(0.10)
+                            : Colors.black.withOpacity(0.07),
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),

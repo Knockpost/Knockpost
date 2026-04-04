@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/database_service.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
@@ -43,13 +43,10 @@ class _SignupUsernameScreenState
     });
 
     try {
-      // Check if username already exists in Firestore
-      final result = await FirebaseFirestore.instance
-          .collection('users')
-          .where('username', isEqualTo: username)
-          .get();
+      // Check if username already exists in Firestore using DatabaseService
+      final isTaken = await DatabaseService.instance.checkUsernameTaken(username);
 
-      if (result.docs.isNotEmpty) {
+      if (isTaken) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("This username is already taken. Please choose another.")),

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'knock_zoomer.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
@@ -95,10 +95,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: screenWidth - 12,
-            height: screenWidth - 12,
-            child: _buildImage(widget.imagePaths.first),
+          child: KnockZoomer(
+            imagePath: widget.imagePaths.first,
+            fit: BoxFit.cover,
           ),
         ),
       );
@@ -133,7 +132,10 @@ class _MediaCarouselState extends State<MediaCarousel> {
                         _onScroll(); // ensure timer resets on page snap
                       },
                       itemBuilder: (context, index) {
-                        return _buildImage(widget.imagePaths[index]);
+                        return KnockZoomer(
+                          imagePath: widget.imagePaths[index],
+                          fit: BoxFit.cover,
+                        );
                       },
                     ),
                   ),
@@ -155,9 +157,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.35),
+                              color: Colors.black.withOpacity(0.35),
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.15),
+                                color: Colors.white.withOpacity(0.15),
                                 width: 0.5,
                               ),
                               borderRadius: BorderRadius.circular(20),

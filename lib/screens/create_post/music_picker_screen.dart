@@ -32,7 +32,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
 
   final List<String> _tabs = ['Trending', 'Pop', 'Hip-Hop', 'Chill', 'Bollywood'];
   
-  final Map<String, List<MusicTrack>> _categoryTracksMap = {};
+  Map<String, List<MusicTrack>> _categoryTracksMap = {};
   List<MusicTrack> _searchTracks = [];
   
   String? _playingUrl;
@@ -73,15 +73,10 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
     
     // Map category to a good iTunes search term
     String searchTerm = category;
-    if (category == 'Trending') {
-      searchTerm = 'Top billboard hits';
-    } else if (category == 'Chill') {
-      searchTerm = 'Lofi chillhop';
-    } else if (category == 'Bollywood') {
-      searchTerm = 'Bollywood latest hits';
-    } else {
-      searchTerm = '$category music';
-    }
+    if (category == 'Trending') searchTerm = 'Top billboard hits';
+    else if (category == 'Chill') searchTerm = 'Lofi chillhop';
+    else if (category == 'Bollywood') searchTerm = 'Bollywood latest hits';
+    else searchTerm = '$category music';
 
     await _fetchFromITunes(searchTerm, category);
   }
@@ -228,7 +223,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
               child: Container(
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextField(
@@ -237,10 +232,10 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                   decoration: InputDecoration(
                     prefixIcon: Icon(Icons.search_rounded,
-                        color: Colors.white.withValues(alpha: 0.4), size: 22),
+                        color: Colors.white.withOpacity(0.4), size: 22),
                     hintText: 'Search songs, artists',
                     hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.35), fontSize: 14),
+                        color: Colors.white.withOpacity(0.35), fontSize: 14),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   ),
@@ -300,7 +295,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                     return Center(
                       child: Text('No tracks found',
                           style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.3),
+                              color: Colors.white.withOpacity(0.3),
                               fontSize: 14)),
                     );
                   }
@@ -324,12 +319,12 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: isPlaying
-                                ? catAccent.withValues(alpha: 0.12)
-                                : Colors.white.withValues(alpha: 0.04),
+                                ? catAccent.withOpacity(0.12)
+                                : Colors.white.withOpacity(0.04),
                             borderRadius: BorderRadius.circular(14),
                             border: isPlaying
                                 ? Border.all(
-                                    color: catAccent.withValues(alpha: 0.3),
+                                    color: catAccent.withOpacity(0.3),
                                     width: 1)
                                 : null,
                           ),
@@ -340,7 +335,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: Colors.white.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(10),
                                   image: track.coverUrl.isNotEmpty ? DecorationImage(
                                     image: NetworkImage(track.coverUrl),
@@ -352,7 +347,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                     isPlaying
                                         ? Icons.equalizer_rounded
                                         : Icons.music_note_rounded,
-                                    color: Colors.white.withValues(alpha: 0.9),
+                                    color: Colors.white.withOpacity(0.9),
                                     size: 24,
                                   ),
                                 ) : null,
@@ -382,7 +377,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                       style: TextStyle(
                                           fontSize: 13,
                                           color:
-                                              Colors.white.withValues(alpha: 0.4)),
+                                              Colors.white.withOpacity(0.4)),
                                     ),
                                     // ── Mini Waveform ──
                                     if (isPlaying && !_isLoadingAudio) ...[
@@ -393,7 +388,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                       const SizedBox(height: 8),
                                       LinearProgressIndicator(
                                         backgroundColor:
-                                            catAccent.withValues(alpha: 0.1),
+                                            catAccent.withOpacity(0.1),
                                         color: catAccent,
                                         minHeight: 2,
                                       ),
@@ -412,12 +407,12 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: isPlaying
-                                        ? catAccent.withValues(alpha: 0.25)
-                                        : Colors.white.withValues(alpha: 0.08),
+                                        ? catAccent.withOpacity(0.25)
+                                        : Colors.white.withOpacity(0.08),
                                     border: Border.all(
                                       color: isPlaying
-                                          ? catAccent.withValues(alpha: 0.5)
-                                          : Colors.white.withValues(alpha: 0.15),
+                                          ? catAccent.withOpacity(0.5)
+                                          : Colors.white.withOpacity(0.15),
                                       width: 1,
                                     ),
                                   ),
@@ -467,7 +462,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
             height: heights[i],
             margin: const EdgeInsets.symmetric(horizontal: 1),
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.6),
+              color: accent.withOpacity(0.6),
               borderRadius: BorderRadius.circular(2),
             ),
           ),

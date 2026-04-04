@@ -10,22 +10,18 @@ class PostCard extends StatefulWidget {
   final List<String> imagePaths;
   final UserModel user;
   final String caption;
-  final String? musicUrl;
-  final String? musicTitle;
-  final String? musicArtist;
-  final int? musicTrimStart;
-  final bool isVideoPost;
+  final int likes;
+  final int views;
+  final String? postId;
 
   const PostCard({
     super.key,
     required this.imagePaths,
     required this.user,
     this.caption = '',
-    this.musicUrl,
-    this.musicTitle,
-    this.musicArtist,
-    this.musicTrimStart,
-    this.isVideoPost = false,
+    this.likes = 0,
+    this.views = 0,
+    this.postId,
   });
 
   @override
@@ -85,7 +81,10 @@ class _PostCardState extends State<PostCard> {
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: PostHeader(user: widget.user),
+          child: PostHeader(
+            user: widget.user,
+            postId: widget.postId,
+          ),
         ),
 
         const SizedBox(height: 12),
@@ -167,8 +166,12 @@ class _PostCardState extends State<PostCard> {
           child: ReactionBar(
             doubleTapped: _doubleTapped,
             onDoubleTapHandled: _onDoubleTapHandled,
-            postId: 'demo_post_${widget.imagePaths.length}',
-            isPostOwner: false, // Viewer perspective for demo
+            postId: widget.postId ?? 'demo_post_${widget.imagePaths.hashCode}',
+            isPostOwner: widget.user.isOwnProfile,
+            initialLikes: widget.likes,
+            initialViews: widget.views,
+            shareUsername: widget.user.username,
+            shareCaption: widget.caption,
           ),
         ),
 

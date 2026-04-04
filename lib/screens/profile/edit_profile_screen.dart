@@ -54,7 +54,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             toolbarWidgetColor: Colors.white,
             backgroundColor: Colors.black,
             activeControlsWidgetColor: Colors.white,
-            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+            dimmedLayerColor: Colors.black.withOpacity(0.8),
             cropFrameColor: Colors.white,
             cropGridColor: Colors.white24,
             initAspectRatio: CropAspectRatioPreset.square,
@@ -90,7 +90,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             toolbarWidgetColor: Colors.white,
             backgroundColor: Colors.black,
             activeControlsWidgetColor: Colors.white,
-            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+            dimmedLayerColor: Colors.black.withOpacity(0.8),
             cropFrameColor: Colors.white,
             cropGridColor: Colors.white24,
             initAspectRatio: CropAspectRatioPreset.ratio3x2,
@@ -138,7 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: subColor.withValues(alpha: 0.3),
+                    color: subColor.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -260,7 +260,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final fieldBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
     final borderColor = isDark
         ? Colors.white12
-        : Colors.black.withValues(alpha: 0.08);
+        : Colors.black.withOpacity(0.08);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -354,7 +354,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
+                        color: Colors.black.withOpacity(0.5),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -469,7 +469,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       hint: 'A little something about you...',
                       bg: fieldBg,
                       borderColor: isOver
-                          ? Colors.red.withValues(alpha: 0.5)
+                          ? Colors.red.withOpacity(0.5)
                           : borderColor,
                       textColor: textColor,
                       maxLines: 4,
@@ -503,7 +503,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Divider(
                 color: isDark
                     ? Colors.white12
-                    : Colors.black.withValues(alpha: 0.08),
+                    : Colors.black.withOpacity(0.08),
               ),
               const SizedBox(height: 8),
               ProfileSettingsRow(
@@ -590,12 +590,12 @@ class _EditField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
-            color: textColor.withValues(alpha: 0.35),
+            color: textColor.withOpacity(0.35),
             fontSize: 14.5,
           ),
           prefixText: prefixText != null ? '$prefixText ' : null,
           prefixStyle: TextStyle(
-            color: textColor.withValues(alpha: 0.5),
+            color: textColor.withOpacity(0.5),
             fontSize: 14.5,
           ),
           contentPadding:
