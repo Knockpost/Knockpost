@@ -347,7 +347,6 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                       icon: _selectedAudience.icon,
                       label: _selectedAudience.label,
                       isDark: isDark,
-                      accentColor: _selectedAudience.accentColor,
                     ),
                   ],
                 ),

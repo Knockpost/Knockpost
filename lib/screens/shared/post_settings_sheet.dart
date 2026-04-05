@@ -44,17 +44,6 @@ extension PostAudienceLabel on PostAudience {
         return Icons.lock_rounded;
     }
   }
-
-  Color get accentColor {
-    switch (this) {
-      case PostAudience.myFriends:
-        return const Color(0xFF4ADE80); // green
-      case PostAudience.myFriendsExcept:
-        return const Color(0xFFFBBF24); // amber
-      case PostAudience.onlyShareWith:
-        return const Color(0xFF60A5FA); // blue
-    }
-  }
 }
 
 // ─── Result Model ────────────────────────────────────────────────────────────
@@ -140,11 +129,21 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
     );
   }
 
+  int get _durationIndex {
+    switch (_duration) {
+      case PostDuration.h24:
+        return 0;
+      case PostDuration.h36:
+        return 1;
+      case PostDuration.lifetime:
+        return 2;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0E0E0E) : const Color(0xFFFAFAFA);
-    final divider = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEEEEEE);
 
     return SlideTransition(
       position: _slideAnim,
@@ -209,68 +208,83 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // ─── SECTION 1: Post Duration ─────────────────────
+            // ─── SECTION 1: Post Duration — Segmented Toggle ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionHeader(
-                    icon: Icons.timer_outlined,
-                    label: 'Post Duration',
-                    subtitle:
-                        'How long should this ${widget.isGlimpse ? 'Glimpse' : 'post'} be visible?',
-                    isDark: isDark,
+                  // Section label
+                  Text(
+                    'DURATION',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                  _buildDurationOption(
-                    value: PostDuration.h24,
-                    title: '24 Hours',
-                    subtitle: 'Disappears after one day',
-                    icon: Icons.timelapse_rounded,
-                    isDark: isDark,
-                  ),
+                  const SizedBox(height: 12),
+                  // ── Premium segmented toggle ──
+                  _buildDurationToggle(isDark),
                   const SizedBox(height: 10),
-                  _buildDurationOption(
-                    value: PostDuration.h36,
-                    title: '36 Hours',
-                    subtitle: 'Extended temporary visibility',
-                    icon: Icons.update_rounded,
-                    isDark: isDark,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildDurationOption(
-                    value: PostDuration.lifetime,
-                    title: 'Lifetime',
-                    subtitle: 'Stays on your profile permanently',
-                    icon: Icons.all_inclusive_rounded,
-                    isDark: isDark,
+                  // Subtitle below toggle
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _getDurationSubtitle(),
+                      key: ValueKey(_duration),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? Colors.grey.shade500
+                            : Colors.grey.shade500,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
 
             const SizedBox(height: 28),
-            Divider(height: 1, color: divider),
+
+            // ─── Divider ─────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                height: 1,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.06),
+              ),
+            ),
+
             const SizedBox(height: 24),
 
-            // ─── SECTION 2: Audience (WhatsApp style) ────────
+            // ─── SECTION 2: Audience ────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionHeader(
-                    icon: Icons.visibility_outlined,
-                    label: 'Who can see this?',
-                    subtitle: 'Choose your audience like a status update',
-                    isDark: isDark,
+                  Text(
+                    'AUDIENCE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   ...PostAudience.values.map((aud) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: _buildAudienceOption(aud, isDark),
                       )),
                 ],
@@ -317,188 +331,142 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
     );
   }
 
-  // ─── Section Header ───────────────────────────────────────────────────────
+  // ─── Duration Subtitle ────────────────────────────────────────────────────
 
-  Widget _sectionHeader({
-    required IconData icon,
-    required String label,
-    required String subtitle,
-    required bool isDark,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
+  String _getDurationSubtitle() {
+    switch (_duration) {
+      case PostDuration.h24:
+        return 'Disappears after one day';
+      case PostDuration.h36:
+        return 'Extended temporary visibility';
+      case PostDuration.lifetime:
+        return 'Stays on your profile permanently';
+    }
+  }
+
+  // ─── Premium Segmented Duration Toggle ────────────────────────────────────
+
+  Widget _buildDurationToggle(bool isDark) {
+    final segments = [
+      {'label': '24h', 'icon': Icons.timelapse_rounded},
+      {'label': '36h', 'icon': Icons.update_rounded},
+      {'label': '∞', 'icon': Icons.all_inclusive_rounded},
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final segmentWidth = (constraints.maxWidth - 6) / 3; // 6 = padding
+
+        return Container(
+          height: 52,
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.07)
+                ? Colors.white.withValues(alpha: 0.06)
                 : Colors.black.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: isDark ? Colors.white60 : Colors.black54,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black,
-                  letterSpacing: -0.2,
+              // ── Sliding active pill ──
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                left: _durationIndex * segmentWidth,
+                top: 0,
+                bottom: 0,
+                width: segmentWidth,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white : Colors.black,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isDark ? Colors.white : Colors.black)
+                            .withValues(alpha: 0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? Colors.grey.shade500
-                      : Colors.grey.shade600,
-                ),
+              // ── Tap targets ──
+              Row(
+                children: List.generate(3, (i) {
+                  final isActive = _durationIndex == i;
+                  return Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        KnockHaptics.tap();
+                        setState(() {
+                          switch (i) {
+                            case 0:
+                              _duration = PostDuration.h24;
+                              break;
+                            case 1:
+                              _duration = PostDuration.h36;
+                              break;
+                            case 2:
+                              _duration = PostDuration.lifetime;
+                              break;
+                          }
+                        });
+                      },
+                      child: Center(
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight:
+                                isActive ? FontWeight.w800 : FontWeight.w600,
+                            letterSpacing: 0.5,
+                            color: isActive
+                                ? (isDark ? Colors.black : Colors.white)
+                                : (isDark
+                                    ? Colors.white.withValues(alpha: 0.5)
+                                    : Colors.black.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                child: Icon(
+                                  segments[i]['icon'] as IconData,
+                                  key: ValueKey('$i-$isActive'),
+                                  size: 16,
+                                  color: isActive
+                                      ? (isDark ? Colors.black : Colors.white)
+                                      : (isDark
+                                          ? Colors.white
+                                              .withValues(alpha: 0.4)
+                                          : Colors.black
+                                              .withValues(alpha: 0.35)),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(segments[i]['label'] as String),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Duration Card ────────────────────────────────────────────────────────
-
-  Widget _buildDurationOption({
-    required PostDuration value,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isDark,
-  }) {
-    final isSelected = _duration == value;
-
-    return GestureDetector(
-      onTap: () {
-        KnockHaptics.tap();
-        setState(() => _duration = value);
+        );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.05))
-              : (isDark
-                  ? Colors.white.withValues(alpha: 0.03)
-                  : Colors.black.withValues(alpha: 0.02)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected
-                ? (isDark
-                    ? Colors.white.withValues(alpha: 0.25)
-                    : Colors.black.withValues(alpha: 0.2))
-                : (isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.black.withValues(alpha: 0.06)),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? (isDark ? Colors.white : Colors.black)
-                    : (isDark
-                        ? Colors.white.withValues(alpha: 0.07)
-                        : Colors.black.withValues(alpha: 0.06)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: isSelected
-                    ? (isDark ? Colors.black : Colors.white)
-                    : (isDark ? Colors.white54 : Colors.black45),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark
-                          ? Colors.grey.shade500
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? (isDark ? Colors.white : Colors.black)
-                    : Colors.transparent,
-                border: Border.all(
-                  color: isSelected
-                      ? (isDark ? Colors.white : Colors.black)
-                      : (isDark
-                          ? Colors.white.withValues(alpha: 0.25)
-                          : Colors.black.withValues(alpha: 0.2)),
-                  width: 1.5,
-                ),
-              ),
-              child: isSelected
-                  ? Icon(
-                      Icons.check_rounded,
-                      size: 13,
-                      color: isDark ? Colors.black : Colors.white,
-                    )
-                  : null,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  // ─── Audience Card (WhatsApp style) ──────────────────────────────────────
+  // ─── Audience Card (Monochrome Knockpost style) ──────────────────────────
 
   Widget _buildAudienceOption(PostAudience aud, bool isDark) {
     final isSelected = _audience == aud;
-    final accent = aud.accentColor;
 
     return GestureDetector(
       onTap: () async {
@@ -508,7 +476,7 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
             context,
             title: aud.label,
             subtitle: aud.subtitle,
-            accentColor: accent,
+            accentColor: isDark ? Colors.white : Colors.black,
             initiallySelected: _selectedFriendsExcept,
           );
           if (result != null) {
@@ -522,7 +490,7 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
             context,
             title: aud.label,
             subtitle: aud.subtitle,
-            accentColor: accent,
+            accentColor: isDark ? Colors.white : Colors.black,
             initiallySelected: _selectedOnlyShareWith,
           );
           if (result != null) {
@@ -535,49 +503,33 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
           setState(() => _audience = aud);
         }
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? accent.withValues(alpha: isDark ? 0.12 : 0.08)
-              : (isDark
-                  ? Colors.white.withValues(alpha: 0.03)
-                  : Colors.black.withValues(alpha: 0.02)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected
-                ? accent.withValues(alpha: 0.45)
-                : (isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.black.withValues(alpha: 0.06)),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
+            // Icon circle
             AnimatedContainer(
               duration: const Duration(milliseconds: 220),
-              width: 38,
-              height: 38,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? accent.withValues(alpha: 0.18)
+                    ? (isDark ? Colors.white : Colors.black)
                     : (isDark
                         ? Colors.white.withValues(alpha: 0.07)
-                        : Colors.black.withValues(alpha: 0.06)),
-                borderRadius: BorderRadius.circular(10),
+                        : Colors.black.withValues(alpha: 0.05)),
+                shape: BoxShape.circle,
               ),
               child: Icon(
                 aud.icon,
                 size: 18,
                 color: isSelected
-                    ? accent
+                    ? (isDark ? Colors.black : Colors.white)
                     : (isDark ? Colors.white54 : Colors.black45),
               ),
             ),
             const SizedBox(width: 14),
+            // Text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +538,7 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                     aud.label,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
@@ -597,32 +549,37 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                       fontSize: 12,
                       color: isDark
                           ? Colors.grey.shade500
-                          : Colors.grey.shade600,
+                          : Colors.grey.shade500,
                     ),
                   ),
                 ],
               ),
             ),
-            // Custom radio circle
+            // Radio indicator
             AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               width: 22,
               height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? accent : Colors.transparent,
+                color: isSelected
+                    ? (isDark ? Colors.white : Colors.black)
+                    : Colors.transparent,
                 border: Border.all(
                   color: isSelected
-                      ? accent
+                      ? (isDark ? Colors.white : Colors.black)
                       : (isDark
-                          ? Colors.white.withValues(alpha: 0.25)
-                          : Colors.black.withValues(alpha: 0.2)),
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : Colors.black.withValues(alpha: 0.18)),
                   width: 1.5,
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check_rounded,
-                      size: 13, color: Colors.white)
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: 13,
+                      color: isDark ? Colors.black : Colors.white,
+                    )
                   : null,
             ),
           ],
