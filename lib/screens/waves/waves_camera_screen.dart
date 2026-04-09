@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:io';
 import 'dart:ui';
+import 'package:colorfilter_generator/presets.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,16 +55,46 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'label': 'None',
     },
     {
-      'id': 'glow',
-      'icon': Icons.auto_fix_high_rounded,
+      'id': 'aesthetic',
+      'icon': Icons.blur_on_rounded,
       'color': Colors.white,
-      'label': 'Glow',
+      'label': 'Aesthetic',
     },
     {
-      'id': 'face',
-      'icon': Icons.face_retouching_natural_rounded,
+      'id': 'suave',
+      'icon': Icons.auto_awesome_rounded,
       'color': Colors.white,
-      'label': 'Smooth',
+      'label': 'Suave',
+    },
+    {
+      'id': 'losangeles',
+      'icon': Icons.wb_sunny_rounded,
+      'color': Colors.white,
+      'label': 'LA',
+    },
+    {
+      'id': 'bw',
+      'icon': Icons.tonality_rounded,
+      'color': Colors.white,
+      'label': 'B&W',
+    },
+    {
+      'id': 'zohan',
+      'icon': Icons.eco_rounded,
+      'color': Colors.white,
+      'label': 'Zohan',
+    },
+    {
+      'id': 'lowlight',
+      'icon': Icons.brightness_high_rounded,
+      'color': Colors.white,
+      'label': 'Low Light',
+    },
+    {
+      'id': 'camcorder',
+      'icon': Icons.videocam_rounded,
+      'color': Colors.white,
+      'label': 'Camcorder',
     },
     {
       'id': 'vivid',
@@ -83,36 +115,6 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'label': 'Noir',
     },
     {
-      'id': 'sparkle',
-      'icon': Icons.star_border_rounded,
-      'color': Colors.white,
-      'label': 'Sparkle',
-    },
-    {
-      'id': 'vhs',
-      'icon': Icons.videocam_rounded,
-      'color': Colors.white,
-      'label': 'VHS',
-    },
-    {
-      'id': 'bw',
-      'icon': Icons.tonality_rounded,
-      'color': Colors.white,
-      'label': 'B&W',
-    },
-    {
-      'id': 'cyber',
-      'icon': Icons.memory_rounded,
-      'color': Colors.white,
-      'label': 'Cyber',
-    },
-    {
-      'id': 'fade',
-      'icon': Icons.blur_linear_rounded,
-      'color': Colors.white,
-      'label': 'Fade',
-    },
-    {
       'id': 'warm',
       'icon': Icons.local_fire_department_rounded,
       'color': Colors.white,
@@ -131,40 +133,28 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'label': 'Dream',
     },
     {
-      'id': 'pastel',
-      'icon': Icons.color_lens_rounded,
-      'color': Colors.purpleAccent,
-      'label': 'Pastel',
-    },
-    {
-      'id': 'moody',
-      'icon': Icons.landscape_rounded,
-      'color': Colors.teal,
-      'label': 'Moody',
-    },
-    {
-      'id': 'sepia',
-      'icon': Icons.history_rounded,
-      'color': Colors.brown,
-      'label': 'Sepia',
-    },
-    {
-      'id': 'chrome',
-      'icon': Icons.camera_rounded,
-      'color': Colors.blueGrey,
-      'label': 'Chrome',
-    },
-    {
-      'id': 'neon',
-      'icon': Icons.lightbulb_rounded,
-      'color': Colors.yellowAccent,
-      'label': 'Neon',
-    },
-    {
       'id': 'cinematic',
       'icon': Icons.movie_filter_rounded,
-      'color': Colors.greenAccent,
+      'color': Colors.white,
       'label': 'Cinema',
+    },
+    {
+      'id': 'fade',
+      'icon': Icons.blur_linear_rounded,
+      'color': Colors.white,
+      'label': 'Fade',
+    },
+    {
+      'id': 'dramatic',
+      'icon': Icons.contrast_rounded,
+      'color': Colors.white,
+      'label': 'Dramatic',
+    },
+    {
+      'id': 'sunset',
+      'icon': Icons.wb_twilight_rounded,
+      'color': Colors.white,
+      'label': 'Sunset',
     },
   ];
 
@@ -416,595 +406,258 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
     // If a filter strip filter is active, use that
     if (_selectedFilterIndex > 0) {
       switch (_selectedFilterIndex) {
-        case 1: // Noir — high contrast greyscale
-          return const ColorFilter.matrix(<double>[
-            0.5, 0.5, 0.5, 0, -30, // R
-            0.5, 0.5, 0.5, 0, -30, // G
-            0.5, 0.5, 0.5, 0, -30, // B
-            0, 0, 0, 1, 0, // A
-          ]);
-        case 2: // Warm — golden tones
-          return const ColorFilter.matrix(<double>[
-            1.2,
-            0.1,
-            0,
-            0,
-            15,
-            0,
-            1.0,
-            0,
-            0,
-            8,
-            0,
-            0,
-            0.8,
-            0,
-            -10,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]);
-        case 3: // Cool — blue tones
-          return const ColorFilter.matrix(<double>[
-            0.85,
-            0,
-            0,
-            0,
-            -10,
-            0,
-            0.95,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1.2,
-            0,
-            20,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]);
-        case 4: // Cyber — teal + magenta
-          return const ColorFilter.matrix(<double>[
-            0.9,
-            0.1,
-            0.1,
-            0,
-            0,
-            0.1,
-            1.1,
-            0.1,
-            0,
-            10,
-            0.1,
-            0.1,
-            1.3,
-            0,
-            20,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]);
-        case 5: // Film — muted warm with lifted blacks
-          return const ColorFilter.matrix(<double>[
-            1.1,
-            0.05,
-            0,
-            0,
-            10,
-            0,
-            1.0,
-            0.05,
-            0,
-            8,
-            0,
-            0,
-            0.9,
-            0,
-            15,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]);
-        case 6: // Sepia — classic sepia tone
-          return const ColorFilter.matrix(<double>[
-            0.393,
-            0.769,
-            0.189,
-            0,
-            0,
-            0.349,
-            0.686,
-            0.168,
-            0,
-            0,
-            0.272,
-            0.534,
-            0.131,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]);
+        case 1: return ColorFilter.matrix(PresetFilters.moon.matrix);
+        case 2: return ColorFilter.matrix(PresetFilters.brannan.matrix);
+        case 3: return ColorFilter.matrix(PresetFilters.amaro.matrix);
+        case 4: return ColorFilter.matrix(PresetFilters.valencia.matrix);
+        case 5: return ColorFilter.matrix(PresetFilters.clarendon.matrix);
+        case 6: return ColorFilter.matrix(PresetFilters.slumber.matrix);
+        default: return const ColorFilter.matrix(<double>[
+          1, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1, 0, 0,
+          0, 0, 0, 1, 0,
+        ]);
       }
     }
 
-    // Carousel effect overrides
+    // Carousel effect overrides using exact Instagram Presets
     final effectId = _carouselEffects[_currentCarouselIndex]['id'];
     switch (effectId) {
-      case 'glow': // Warm glow + slight saturation boost
-        return const ColorFilter.matrix(<double>[
-          1.15,
-          0.05,
-          0,
-          0,
-          12,
-          0.05,
-          1.1,
-          0,
-          0,
-          8,
-          0,
-          0,
-          0.9,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'face': // Beauty / soft skin tone boost
-        return const ColorFilter.matrix(<double>[
-          1.1,
-          0.05,
-          0.05,
-          0,
-          10,
-          0.05,
-          1.05,
-          0.05,
-          0,
-          10,
-          0.05,
-          0.05,
-          1.0,
-          0,
-          10,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'sparkle': // High brightness, vibrant
-        return const ColorFilter.matrix(<double>[
-          1.3,
-          0,
-          0,
-          0,
-          20,
-          0,
-          1.3,
-          0,
-          0,
-          20,
-          0,
-          0,
-          1.3,
-          0,
-          20,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'vhs': // Retro VHS: slightly off-color R/B channels + grain feel
-        return const ColorFilter.matrix(<double>[
-          1.2,
-          0,
-          0.1,
-          0,
-          10,
-          0,
-          0.9,
-          0,
-          0,
-          0,
-          0.1,
-          0,
-          1.1,
-          0,
-          15,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'bw': // Pure black and white
-        return const ColorFilter.matrix(<double>[
-          0.33,
-          0.59,
-          0.11,
-          0,
-          0,
-          0.33,
-          0.59,
-          0.11,
-          0,
-          0,
-          0.33,
-          0.59,
-          0.11,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'vivid':
-        return const ColorFilter.matrix([
-          1.4,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1.4,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1.4,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'vintage':
-        return const ColorFilter.matrix([
-          0.9,
-          0.2,
-          0.1,
-          0,
-          15,
-          0.1,
-          0.8,
-          0.1,
-          0,
-          10,
-          0.1,
-          0.1,
-          0.7,
-          0,
-          5,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'noir':
-        return const ColorFilter.matrix([
-          0.33,
-          0.33,
-          0.33,
-          0,
-          0,
-          0.33,
-          0.33,
-          0.33,
-          0,
-          0,
-          0.33,
-          0.33,
-          0.33,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'cyber':
-        return const ColorFilter.matrix([
-          1.2,
-          0,
-          0.5,
-          0,
-          10,
-          0,
-          0.8,
-          0.5,
-          0,
-          0,
-          0.5,
-          0,
-          1.2,
-          0,
-          20,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'fade':
-        return const ColorFilter.matrix([
-          1,
-          0,
-          0,
-          0,
-          20,
-          0,
-          1,
-          0,
-          0,
-          20,
-          0,
-          0,
-          1,
-          0,
-          20,
-          0,
-          0,
-          0,
-          0.85,
-          0,
-        ]);
-      case 'warm':
-        return const ColorFilter.matrix([
-          1.3,
-          0,
-          0,
-          0,
-          15,
-          0,
-          1.1,
-          0,
-          0,
-          5,
-          0,
-          0,
-          0.8,
-          0,
-          -15,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'cool':
-        return const ColorFilter.matrix([
-          0.8,
-          0,
-          0,
-          0,
-          -10,
-          0,
-          0.9,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1.3,
-          0,
-          15,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'dream':
-        return const ColorFilter.matrix([
-          1.1,
-          0,
-          0.1,
-          0,
-          20,
-          0,
-          1.1,
-          0.1,
-          0,
-          10,
-          0,
-          0,
-          1.1,
-          0,
-          10,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'pastel':
-        return const ColorFilter.matrix([
-          0.9,
-          0.1,
-          0,
-          0,
-          30,
-          0,
-          1.0,
-          0.1,
-          0,
-          20,
-          0.1,
-          0.1,
-          1.1,
-          0,
-          30,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'moody':
-        return const ColorFilter.matrix([
-          0.8,
-          0,
-          0,
-          0,
-          -20,
-          0,
-          0.85,
-          0,
-          0,
-          -15,
-          0,
-          0,
-          0.9,
-          0,
-          -5,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'sepia':
-        return const ColorFilter.matrix([
-          0.39,
-          0.77,
-          0.19,
-          0,
-          0,
-          0.35,
-          0.69,
-          0.17,
-          0,
-          0,
-          0.27,
-          0.53,
-          0.13,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'chrome':
-        return const ColorFilter.matrix([
-          1.2,
-          0,
-          0,
-          0,
-          10,
-          0,
-          1.2,
-          0,
-          0,
-          10,
-          0,
-          0,
-          1.2,
-          0,
-          10,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'neon':
-        return const ColorFilter.matrix([
-          1.5,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1.0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.5,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      case 'cinematic':
-        return const ColorFilter.matrix([
-          1.3,
-          0.1,
-          0,
-          0,
-          10,
-          0,
-          1.1,
-          0.1,
-          0,
-          5,
-          0,
-          0.2,
-          1.3,
-          0,
-          20,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]);
-      default: // 'none' — identity matrix
-        return const ColorFilter.matrix(<double>[
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
+      case 'aesthetic': return ColorFilter.matrix(PresetFilters.reyes.matrix); // Warm, faded, lifted blacks like IG
+      case 'suave': return ColorFilter.matrix(PresetFilters.slumber.matrix); // Soft glow, rosy
+      case 'losangeles': return ColorFilter.matrix(PresetFilters.valencia.matrix); // Golden hour LA
+      case 'bw': return ColorFilter.matrix(PresetFilters.willow.matrix); // Soft B&W
+      case 'zohan': return ColorFilter.matrix(PresetFilters.juno.matrix); // Warm teal punch
+      case 'lowlight': return ColorFilter.matrix(PresetFilters.gingham.matrix); // Soft light boost
+      case 'camcorder': return ColorFilter.matrix(PresetFilters.stinson.matrix); // Washed out warm vintage
+      case 'vivid': return ColorFilter.matrix(PresetFilters.clarendon.matrix); // Saturated, pop
+      case 'vintage': return ColorFilter.matrix(PresetFilters.maven.matrix); // Retro vintage
+      case 'noir': return ColorFilter.matrix(PresetFilters.moon.matrix); // High contrast B&W
+      case 'warm': return ColorFilter.matrix(PresetFilters.rise.matrix); // Golden tone
+      case 'cool': return ColorFilter.matrix(PresetFilters.amaro.matrix); // Cooler cinematic
+      case 'dream': return ColorFilter.matrix(PresetFilters.ludwig.matrix); // Soft, bright, desaturated
+      case 'cinematic': return ColorFilter.matrix(PresetFilters.xProII.matrix); // High contrast moody
+      case 'fade': return ColorFilter.matrix(PresetFilters.brooklyn.matrix); // Color fade
+      case 'dramatic': return ColorFilter.matrix(PresetFilters.mayfair.matrix); // Deep contrast
+      case 'sunset': return ColorFilter.matrix(PresetFilters.aden.matrix); // Pastel sunset wash
+      default: return const ColorFilter.matrix(<double>[
+          1, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1, 0, 0,
+          0, 0, 0, 1, 0,
         ]);
     }
+  }
+
+  // ── Cinematic Multi-Layer Effect Profile (vignette, tone mapping blend color, blend mode) ──
+  Map<String, dynamic> _getEffectLayers() {
+    // 1. If basic Filter Strip is active, don't mix with cinematic Carousel effects
+    if (_selectedFilterIndex > 0) {
+      switch (_selectedFilterIndex) {
+        case 1: return {'blur': 0.0, 'vignette': 0.4, 'blendColor': null, 'blendMode': null}; // Noir needs vignette for drama
+        default: return {'blur': 0.0, 'vignette': 0.2, 'blendColor': null, 'blendMode': null};
+      }
+    }
+
+    final effectId = _carouselEffects[_currentCarouselIndex]['id'];
+    switch (effectId) {
+      case 'aesthetic':
+        return {
+          'blur': 1.2, // Authentic Instagram Blur
+          'vignette': 0.0, // No dark borders
+          'blendColor': null, // Removed artificial tinting that caused the fake blue/washout
+          'blendMode': null, // Relying purely on the professional reyes matrix
+          'tint': null, 
+        };
+      case 'suave':
+        return {
+          'blur': 0.3,
+          'vignette': 0.15,
+          'blendColor': const Color(0x33FFB6C1), // Rosy pink
+          'blendMode': BlendMode.softLight,
+          'tint': null,
+        };
+      case 'losangeles':
+        return {
+          'blur': 0.0,
+          'vignette': 0.15,
+          'blendColor': const Color(0x22FFA500), // Golden orange
+          'blendMode': BlendMode.overlay,
+          'tint': null,
+        };
+      case 'zohan':
+        return {
+          'blur': 0.0,
+          'vignette': 0.2,
+          'blendColor': const Color(0x1A008080), // Teal tint
+          'blendMode': BlendMode.colorDodge,
+          'tint': null,
+        };
+      case 'lowlight':
+        return {
+          'blur': 0.0, 
+          'vignette': 0.0, 
+          'blendColor': const Color(0x22FFFFFF), 
+          'blendMode': BlendMode.screen,
+          'tint': null,
+        };
+      case 'camcorder':
+        return {
+          'blur': 0.4, 
+          'vignette': 0.3, 
+          'blendColor': const Color(0x33FFA726),
+          'blendMode': BlendMode.hardLight,
+          'tint': null,
+        };
+      case 'dramatic':
+        return {
+          'blur': 0.0, 
+          'vignette': 0.4, 
+          'blendColor': const Color(0x44000000), // Deep shadows
+          'blendMode': BlendMode.multiply,
+          'tint': null,
+        };
+      case 'sunset':
+        return {
+          'blur': 0.0, 
+          'vignette': 0.1, 
+          'blendColor': const Color(0x22FF4500), // Pop orange/red
+          'blendMode': BlendMode.softLight, 
+          'tint': null,
+        };
+      case 'vintage':
+        return {
+          'blur': 0.0, 
+          'vignette': 0.25, 
+          'blendColor': const Color(0x220000FF), // Blue shadows
+          'blendMode': BlendMode.exclusion, // Cross process effect
+          'tint': null, 
+        };
+      case 'dream':
+        return {
+          'blur': 0.8, 
+          'vignette': 0.1, 
+          'blendColor': const Color(0x22FFFFFF), // Foggy glow
+          'blendMode': BlendMode.overlay,
+          'tint': null,
+        };
+      case 'noir':
+        return {
+          'blur': 0.0, 
+          'vignette': 0.3, 
+          'blendColor': null,
+          'blendMode': null,
+          'tint': null,
+        };
+      case 'fade':
+        return {
+          'blur': 0.2, 
+          'vignette': 0.0, 
+          'blendColor': const Color(0x22FFFFFF),
+          'blendMode': BlendMode.screen,
+          'tint': null,
+        };
+      case 'cinematic':
+        return {
+          'blur': 0.0, 
+          'vignette': 0.3, 
+          'blendColor': const Color(0x33008080),
+          'blendMode': BlendMode.multiply,
+          'tint': null,
+        };
+      default:
+        return {'blur': 0.0, 'vignette': 0.0, 'blendColor': null, 'blendMode': null, 'tint': null};
+    }
+  }
+
+  // ── Filtered camera preview with optional Tone Mapping Blur ──
+  Widget _buildFilteredPreview() {
+    final layers = _getEffectLayers();
+    final blurSigma = (layers['blur'] as double?) ?? 0.0;
+    final blendColor = layers['blendColor'] as Color?;
+    final blendMode = layers['blendMode'] as BlendMode?;
+
+    Widget preview = CameraPreview(_ctrl!);
+
+    // 1. Base Linear LUT (Color Matrices from colorfilter_generator)
+    preview = ColorFiltered(
+      colorFilter: _getActiveColorFilter(),
+      child: preview,
+    );
+
+    // 2. Non-linear Tone Mapping (S-curve, Cross-process, and Highlights via BlendMode)
+    // This is mathematically how Instagram achieves natural contrast popping!
+    if (blendColor != null && blendMode != null) {
+      preview = ColorFiltered(
+        colorFilter: ColorFilter.mode(blendColor, blendMode),
+        child: preview,
+      );
+    }
+
+    // 3. Diffusion & Clarity (Blur)
+    if (blurSigma > 0) {
+      preview = ImageFiltered(
+        imageFilter: ImageFilter.blur(
+          sigmaX: blurSigma,
+          sigmaY: blurSigma,
+          tileMode: TileMode.clamp,
+        ),
+        child: preview,
+      );
+    }
+
+    return preview;
+  }
+
+  // ── Tint overlay + vignette layers ──
+  List<Widget> _buildEffectOverlayLayers() {
+    if (_currentCarouselIndex == 0) return [];
+
+    final layers = _getEffectLayers();
+    final tint = layers['tint'] as Color?;
+    final vignetteIntensity = (layers['vignette'] as double?) ?? 0.0;
+    final List<Widget> overlays = [];
+
+    // Tint overlay
+    if (tint != null) {
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              color: tint,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Vignette overlay (radial gradient from transparent center to dark edges)
+    if (vignetteIntensity > 0) {
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 0.85,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: vignetteIntensity * 0.5),
+                    Colors.black.withValues(alpha: vignetteIntensity),
+                  ],
+                  stops: const [0.3, 0.75, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return overlays;
   }
 
   // ── Instagram-style Music Sticker (Floats during recording/preview) ──
@@ -1384,27 +1037,13 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                     child: SizedBox(
                       width: size.width,
                       height: size.width * _ctrl!.value.aspectRatio,
-                      child: ColorFiltered(
-                        colorFilter: _getActiveColorFilter(),
-                        child: CameraPreview(_ctrl!),
-                      ),
+                      child: _buildFilteredPreview(),
                     ),
                   ),
                 ),
 
-                // ── Live color overlay for glow/sparkle/VHS effects ──
-                if (_currentCarouselIndex > 0)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        color:
-                            (_carouselEffects[_currentCarouselIndex]['color']
-                                    as Color)
-                                .withValues(alpha: 0.10),
-                      ),
-                    ),
-                  ),
+                // ── Effect overlays: tint + vignette ──
+                ..._buildEffectOverlayLayers(),
 
                 // ── Top deep gradient ──
                 Positioned(
