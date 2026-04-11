@@ -52,61 +52,61 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'id': 'none',
       'icon': Icons.not_interested_rounded,
       'color': Colors.white,
-      'label': 'None',
+      'label': 'Normal',
     },
     {
       'id': 'aesthetic',
-      'icon': Icons.blur_on_rounded,
+      'icon': Icons.auto_awesome_rounded,
       'color': Colors.white,
-      'label': 'Aesthetic',
+      'label': 'Paris',
     },
     {
       'id': 'suave',
-      'icon': Icons.auto_awesome_rounded,
+      'icon': Icons.face_retouching_natural_rounded,
       'color': Colors.white,
-      'label': 'Suave',
+      'label': 'Oslo',
     },
     {
       'id': 'losangeles',
       'icon': Icons.wb_sunny_rounded,
       'color': Colors.white,
-      'label': 'LA',
+      'label': 'L.A.',
     },
     {
       'id': 'bw',
       'icon': Icons.tonality_rounded,
       'color': Colors.white,
-      'label': 'B&W',
+      'label': 'Classic',
     },
     {
       'id': 'zohan',
-      'icon': Icons.eco_rounded,
+      'icon': Icons.lens_blur_rounded,
       'color': Colors.white,
-      'label': 'Zohan',
+      'label': 'Tokyo',
     },
     {
       'id': 'lowlight',
-      'icon': Icons.brightness_high_rounded,
+      'icon': Icons.nights_stay_rounded,
       'color': Colors.white,
-      'label': 'Low Light',
+      'label': 'Melbourne',
     },
     {
       'id': 'camcorder',
       'icon': Icons.videocam_rounded,
       'color': Colors.white,
-      'label': 'Camcorder',
+      'label': 'VHS',
     },
     {
       'id': 'vivid',
       'icon': Icons.hdr_strong_rounded,
       'color': Colors.white,
-      'label': 'Vivid',
+      'label': 'Jakarta',
     },
     {
       'id': 'vintage',
       'icon': Icons.camera_roll_rounded,
       'color': Colors.white,
-      'label': 'Vintage',
+      'label': 'Retro',
     },
     {
       'id': 'noir',
@@ -118,13 +118,13 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'id': 'warm',
       'icon': Icons.local_fire_department_rounded,
       'color': Colors.white,
-      'label': 'Warm',
+      'label': 'Golden',
     },
     {
       'id': 'cool',
       'icon': Icons.ac_unit_rounded,
       'color': Colors.white,
-      'label': 'Cool',
+      'label': 'Moody',
     },
     {
       'id': 'dream',
@@ -142,7 +142,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'id': 'fade',
       'icon': Icons.blur_linear_rounded,
       'color': Colors.white,
-      'label': 'Fade',
+      'label': 'Lo-Fi',
     },
     {
       'id': 'dramatic',
@@ -154,7 +154,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       'id': 'sunset',
       'icon': Icons.wb_twilight_rounded,
       'color': Colors.white,
-      'label': 'Sunset',
+      'label': 'Peach',
     },
   ];
 
@@ -462,112 +462,158 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
 
     final effectId = _carouselEffects[_currentCarouselIndex]['id'];
     switch (effectId) {
-      case 'aesthetic':
+      case 'aesthetic': // Paris
         return {
-          'blur': 1.2, // Authentic Instagram Blur
-          'vignette': 0.0, // No dark borders
-          'blendColor': null, // Removed artificial tinting that caused the fake blue/washout
-          'blendMode': null, // Relying purely on the professional reyes matrix
+          'blur': 0.4, 
+          'vignette': 0.1, 
+          'blendColor': const Color(0x1AFFA500), // Very soft warm glow
+          'blendMode': BlendMode.softLight, 
           'tint': null, 
+          'lightLeak': null,
+          'vhsUI': false,
         };
-      case 'suave':
+      case 'suave': // Oslo
         return {
-          'blur': 0.3,
+          'blur': 0.8,
           'vignette': 0.15,
-          'blendColor': const Color(0x33FFB6C1), // Rosy pink
-          'blendMode': BlendMode.softLight,
-          'tint': null,
-        };
-      case 'losangeles':
-        return {
-          'blur': 0.0,
-          'vignette': 0.15,
-          'blendColor': const Color(0x22FFA500), // Golden orange
+          'blendColor': const Color(0x22FFC0CB), // Subtle rosy pink
           'blendMode': BlendMode.overlay,
           'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
         };
-      case 'zohan':
+      case 'losangeles': // LA
         return {
           'blur': 0.0,
-          'vignette': 0.2,
-          'blendColor': const Color(0x1A008080), // Teal tint
-          'blendMode': BlendMode.colorDodge,
+          'vignette': 0.15,
+          'blendColor': const Color(0x33FF8C00), // Rich golden hour
+          'blendMode': BlendMode.screen, // Opens shadows with warm light
           'tint': null,
+          'lightLeak': [const Color(0x22FF4500), Colors.transparent], // Very faint edge flare
+          'vhsUI': false,
         };
-      case 'lowlight':
+      case 'zohan': // Tokyo
+        return {
+          'blur': 0.0,
+          'vignette': 0.25,
+          'blendColor': const Color(0x2200CED1), // Cyan/Teal shadows
+          'blendMode': BlendMode.hardLight,
+          'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
+        };
+      case 'lowlight': // Melbourne
         return {
           'blur': 0.0, 
           'vignette': 0.0, 
-          'blendColor': const Color(0x22FFFFFF), 
+          'blendColor': const Color(0x22FFFFFF), // Soft lift
           'blendMode': BlendMode.screen,
           'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
         };
-      case 'camcorder':
+      case 'camcorder': // VHS
         return {
-          'blur': 0.4, 
-          'vignette': 0.3, 
-          'blendColor': const Color(0x33FFA726),
-          'blendMode': BlendMode.hardLight,
+          'blur': 0.2, 
+          'vignette': 0.6, 
+          'blendColor': const Color(0x228B4513), // Brownish VHS tint
+          'blendMode': BlendMode.colorBurn,
           'tint': null,
+          'lightLeak': [const Color(0x44FF0000), const Color(0x00FF0000)], // Heavy red light leak
+          'vhsUI': true,
         };
-      case 'dramatic':
+      case 'dramatic': // Dramatic
         return {
           'blur': 0.0, 
           'vignette': 0.4, 
-          'blendColor': const Color(0x44000000), // Deep shadows
-          'blendMode': BlendMode.multiply,
+          'blendColor': const Color(0x44000000), // Deep contrast crush
+          'blendMode': BlendMode.softLight,
           'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
         };
-      case 'sunset':
+      case 'sunset': // Peach
         return {
           'blur': 0.0, 
           'vignette': 0.1, 
-          'blendColor': const Color(0x22FF4500), // Pop orange/red
-          'blendMode': BlendMode.softLight, 
+          'blendColor': const Color(0x22FF7F50), // Coral/Peach pop
+          'blendMode': BlendMode.overlay, 
           'tint': null,
+          'lightLeak': [const Color(0x33FFB6C1), Colors.transparent], // Soft pink leak
+          'vhsUI': false,
         };
-      case 'vintage':
+      case 'vintage': // Retro
         return {
-          'blur': 0.0, 
-          'vignette': 0.25, 
-          'blendColor': const Color(0x220000FF), // Blue shadows
-          'blendMode': BlendMode.exclusion, // Cross process effect
+          'blur': 0.4, 
+          'vignette': 0.5, 
+          'blendColor': const Color(0x33A0522D), // Siena brown fade
+          'blendMode': BlendMode.exclusion, // Washed out cross-process
           'tint': null, 
+          'lightLeak': [const Color(0x44FFA500), Colors.transparent], // Orange flare
+          'vhsUI': false,
         };
       case 'dream':
         return {
-          'blur': 0.8, 
-          'vignette': 0.1, 
-          'blendColor': const Color(0x22FFFFFF), // Foggy glow
-          'blendMode': BlendMode.overlay,
+          'blur': 2.0, 
+          'vignette': 0.0, 
+          'blendColor': const Color(0x22E6E6FA), // Lavender haze
+          'blendMode': BlendMode.lighten,
           'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
         };
       case 'noir':
         return {
           'blur': 0.0, 
-          'vignette': 0.3, 
-          'blendColor': null,
-          'blendMode': null,
-          'tint': null,
-        };
-      case 'fade':
-        return {
-          'blur': 0.2, 
-          'vignette': 0.0, 
-          'blendColor': const Color(0x22FFFFFF),
-          'blendMode': BlendMode.screen,
-          'tint': null,
-        };
-      case 'cinematic':
-        return {
-          'blur': 0.0, 
-          'vignette': 0.3, 
-          'blendColor': const Color(0x33008080),
+          'vignette': 0.6, 
+          'blendColor': const Color(0x66000000), // Extra shadow depth
           'blendMode': BlendMode.multiply,
           'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
+        };
+      case 'fade': // Lo-Fi
+        return {
+          'blur': 0.0, 
+          'vignette': 0.4, 
+          'blendColor': const Color(0x33B0C4DE), // Steel blue fade
+          'blendMode': BlendMode.screen,
+          'tint': null,
+          'lightLeak': [const Color(0x228A2BE2), Colors.transparent], // Purple leak
+          'vhsUI': false,
+        };
+      case 'cinematic': // Cinema
+        return {
+          'blur': 0.0, 
+          'vignette': 0.5, 
+          'blendColor': const Color(0x33004080), // Deep Hollywood Teal
+          'blendMode': BlendMode.overlay,
+          'tint': null,
+          'lightLeak': null,
+          'vhsUI': true, // Add cinematic UI (letterbox/REC feel)
+        };
+      case 'warm': // Golden
+        return {
+          'blur': 0.0,
+          'vignette': 0.2,
+          'blendColor': const Color(0x22FFD700), // Gold
+          'blendMode': BlendMode.softLight,
+          'tint': null,
+          'lightLeak': [const Color(0x33FFA500), Colors.transparent],
+          'vhsUI': false,
+        };
+      case 'cool': // Moody
+        return {
+          'blur': 0.0,
+          'vignette': 0.3,
+          'blendColor': const Color(0x1A0000FF), // Deep blue
+          'blendMode': BlendMode.overlay,
+          'tint': null,
+          'lightLeak': null,
+          'vhsUI': false,
         };
       default:
-        return {'blur': 0.0, 'vignette': 0.0, 'blendColor': null, 'blendMode': null, 'tint': null};
+        return {'blur': 0.0, 'vignette': 0.0, 'blendColor': null, 'blendMode': null, 'tint': null, 'lightLeak': null, 'vhsUI': false};
     }
   }
 
@@ -610,13 +656,16 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
     return preview;
   }
 
-  // ── Tint overlay + vignette layers ──
+  // ── Tint overlay + vignette layers + Light Leaks + Retro UI ──
   List<Widget> _buildEffectOverlayLayers() {
-    if (_currentCarouselIndex == 0) return [];
+    if (_currentCarouselIndex == 0 && _selectedFilterIndex == 0) return [];
 
     final layers = _getEffectLayers();
     final tint = layers['tint'] as Color?;
     final vignetteIntensity = (layers['vignette'] as double?) ?? 0.0;
+    final lightLeak = layers['lightLeak'] as List<Color>?;
+    final vhsUI = (layers['vhsUI'] as bool?) ?? false;
+    
     final List<Widget> overlays = [];
 
     // Tint overlay
@@ -633,6 +682,43 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       );
     }
 
+    // Light Leak Overlay (Simulated Lens Flare / Film Burn)
+    if (lightLeak != null && lightLeak.length == 2) {
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: const Alignment(0.2, 0.5),
+                  colors: lightLeak,
+                  stops: const [0.0, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Complementary bottom-right leak
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomRight,
+                  end: const Alignment(0.5, 0.2),
+                  colors: [lightLeak[0].withValues(alpha: 0.05), Colors.transparent],
+                  stops: const [0.0, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     // Vignette overlay (radial gradient from transparent center to dark edges)
     if (vignetteIntensity > 0) {
       overlays.add(
@@ -642,13 +728,89 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
               decoration: BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.center,
-                  radius: 0.85,
+                  radius: 0.9,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withValues(alpha: vignetteIntensity * 0.5),
+                    Colors.black.withValues(alpha: vignetteIntensity * 0.4),
                     Colors.black.withValues(alpha: vignetteIntensity),
                   ],
-                  stops: const [0.3, 0.75, 1.0],
+                  stops: const [0.35, 0.8, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Retro VHS UI Overlay
+    if (vhsUI) {
+      final now = DateTime.now();
+      final dateStr = '${now.month.toString().padLeft(2, '0')}.${now.day.toString().padLeft(2, '0')}.${now.year}';
+      final formattedHour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
+      final timeStr = '${formattedHour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? "PM" : "AM"}';
+      
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Top REC blink
+                    Row(
+                      children: [
+                        Opacity(
+                          // Simple math to blink based on _recordProgress if recording
+                          opacity: (_isRecording && (_recordProgress * 100).toInt() % 10 < 5) ? 0.0 : 1.0,
+                          child: const Text(
+                            '• REC',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 18,
+                              letterSpacing: 2,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'Courier',
+                              shadows: [Shadow(color: Colors.red, blurRadius: 4)],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Bottom Date/Time
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Courier',
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timeStr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Courier',
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                          ),
+                        ),
+                        const SizedBox(height: 120), // Clear the bottom navigation & shutter
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
