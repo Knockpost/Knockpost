@@ -47,7 +47,7 @@ class ShowcaseGrid extends StatelessWidget {
             subtitle: isOwnProfile
                 ? 'Pin your best moments'
                 : 'No highlights added yet',
-            gradientColors: const [Color(0xFF5B9BFF), Color(0xFF2B8EFF)],
+            gradientColors: const [Color(0xFFFFA726), Color(0xFFFF7043)],
             tabController: tabController,
             tabIndex: 1,
           );
@@ -303,9 +303,9 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               surfaceTintColor: bg,
               elevation: 0,
               titleSpacing: 0,
-              leadingWidth: 20,
+              leadingWidth: 46,
               leading: IconButton(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.only(left: 8),
                 icon: Icon(Icons.arrow_back_ios_new_rounded,
                     size: 20, color: isDark ? Colors.white : Colors.black),
                 onPressed: () => Navigator.pop(context),
@@ -313,8 +313,9 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               title: Text(
                 'Showcase',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
                   color: isDark ? Colors.white : Colors.black,
                 ),
               ),
@@ -341,6 +342,7 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             text: post.text,
                             likes: post.likes,
                             views: post.views,
+                            disableProfileNavigation: false,
                           )
                         : PostCard(
                             imagePaths: post.imagePaths,
@@ -353,6 +355,7 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             isVideoPost: post.type == PostType.waves,
                             likes: post.likes,
                             views: post.views,
+                            disableProfileNavigation: false,
                           ),
                     if (isLast) divider,
                   ],

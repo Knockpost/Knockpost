@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 // ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   late final PageController _pageController;
   late final ValueNotifier<int> _navIndexNotifier;
-  double _horizontalDragDistance = 0;
   double _scrollDelta = 0;
   bool _showBars = true;
   int _currentNavIndex = 0;
@@ -86,38 +84,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void _animateToTab(int index) {
     if (index < 0 || index > 4 || _currentNavIndex == index) return;
 
-    final int diff = (index - _currentNavIndex).abs();
     _setCurrentNavIndex(index);
-    
-    if (diff == 1) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-      );
-    } else {
-      _pageController.jumpToPage(index);
-    }
+    _pageController.jumpToPage(index);
   }
 
-  void _handleHorizontalSwipeEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    final hasStrongFling = velocity.abs() > 550;
-    final hasCommittedDrag = _horizontalDragDistance.abs() > 72;
-
-    if (!hasStrongFling && !hasCommittedDrag) {
-      _horizontalDragDistance = 0;
-      return;
-    }
-
-    if (velocity < 0 || _horizontalDragDistance < 0) {
-      _animateToTab(_currentNavIndex + 1);
-    } else if (velocity > 0 || _horizontalDragDistance > 0) {
-      _animateToTab(_currentNavIndex - 1);
-    }
-
-    _horizontalDragDistance = 0;
-  }
 
   /// Handle scroll notifications from the feed (Twitter/X behavior)
   /// Hides bars after scrolling down ~50px, shows immediately on scroll up.
@@ -527,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
           if (_currentNavIndex != 0) {
-            _animateToTab(0);
+            _pageController.jumpToPage(0);
           }
         },
         child: Stack(
@@ -549,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         curve: Curves.easeOut,
                         scale: _showBars ? 1.0 : 0.0,
                         child: FloatingActionButton(
-                          backgroundColor: textColor,
+                          backgroundColor: const Color(0xFF1B1D1F),
                           onPressed: () {
                             KnockHaptics.tap();
                             _showCreateMenu(
@@ -559,31 +529,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               textColor,
                             );
                           },
-                          child: Icon(Icons.add, color: bgColor),
+                          child: const Icon(Icons.add, color: Colors.white, size: 26),
                         ),
                       ),
                     )
                   : null,
 
               // ── BODY ────────────────────────────────────────────────────
-              body: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onHorizontalDragStart: (_) {
-                  _horizontalDragDistance = 0;
-                },
-                onHorizontalDragUpdate: (details) {
-                  _horizontalDragDistance += details.delta.dx;
-                },
-                onHorizontalDragEnd: _handleHorizontalSwipeEnd,
-                child: SafeArea(
-                  top: !(isReelsTab || isProfileTab),
-                  bottom: false,
-                  child: PageView(
-                    controller: _pageController,
-                    allowImplicitScrolling: true,
-                    dragStartBehavior: DragStartBehavior.down,
-                    physics: const NeverScrollableScrollPhysics(),
-                    onPageChanged: _setCurrentNavIndex,
+              body: SafeArea(
+                top: !(isReelsTab || isProfileTab),
+                bottom: false,
+                child: PageView(
+                  controller: _pageController,
+                  allowImplicitScrolling: true,
+                  onPageChanged: _setCurrentNavIndex,
                     children: [
                       _KeepAlivePage(
                         child: NotificationListener<ScrollNotification>(
@@ -741,17 +700,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.logout, color: textColor),
-                        onPressed: () {
-                          KnockHaptics.tap();
-                          logout(context);
-                        },
-                      ),
                     ],
                   ),
                 ),
-              ),
 
               // ── BOTTOM NAV BAR ──────────────────────────────────────────
               // ClipRect ensures the nav is clipped as it slides out of view

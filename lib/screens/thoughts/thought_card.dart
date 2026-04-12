@@ -10,6 +10,7 @@ class ThoughtCard extends StatefulWidget {
   final int likes;
   final int views;
   final String? postId;
+  final bool disableProfileNavigation;
 
   const ThoughtCard({
     super.key,
@@ -18,6 +19,7 @@ class ThoughtCard extends StatefulWidget {
     this.likes = 0,
     this.views = 0,
     this.postId,
+    this.disableProfileNavigation = false,
   });
 
   @override
@@ -50,6 +52,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
           child: PostHeader(
             user: widget.user,
             postId: widget.postId,
+            disableProfileNavigation: widget.disableProfileNavigation,
           ),
         ),
 

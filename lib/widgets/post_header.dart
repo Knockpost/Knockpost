@@ -11,11 +11,13 @@ import '../screens/waves/widgets/more_options_sheet.dart';
 class PostHeader extends StatefulWidget {
   final UserModel user;
   final String? postId;
+  final bool disableProfileNavigation;
 
   const PostHeader({
     super.key,
     required this.user,
     this.postId,
+    this.disableProfileNavigation = false,
   });
 
   @override
@@ -115,6 +117,8 @@ class _PostHeaderState extends State<PostHeader> {
   }
 
   void _openProfile() {
+    if (widget.disableProfileNavigation) return;
+    
     Navigator.push(
       context,
       MaterialPageRoute(

@@ -70,6 +70,7 @@ class RecentsSection extends StatelessWidget {
                 likes: post.likes,
                 views: post.views,
                 postId: post.id,
+                disableProfileNavigation: true,
               );
             } else {
               content = ThoughtCard(
@@ -78,6 +79,7 @@ class RecentsSection extends StatelessWidget {
                 likes: post.likes,
                 views: post.views,
                 postId: post.id,
+                disableProfileNavigation: true,
               );
             }
 

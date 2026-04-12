@@ -18,6 +18,7 @@ class PostCard extends StatefulWidget {
   final String? musicArtist;
   final int? musicTrimStart;
   final bool isVideoPost;
+  final bool disableProfileNavigation;
 
   const PostCard({
     super.key,
@@ -32,6 +33,7 @@ class PostCard extends StatefulWidget {
     this.musicArtist,
     this.musicTrimStart,
     this.isVideoPost = false,
+    this.disableProfileNavigation = false,
   });
 
   @override
@@ -96,6 +98,7 @@ class _PostCardState extends State<PostCard> {
           child: PostHeader(
             user: widget.user,
             postId: widget.postId,
+            disableProfileNavigation: widget.disableProfileNavigation,
           ),
         ),
 

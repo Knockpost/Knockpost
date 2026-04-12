@@ -176,6 +176,12 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
           child: Row(
             children: [
+              Icon(
+                Icons.person_add_rounded,
+                color: isDark ? Colors.white : Colors.black87,
+                size: 20,
+              ),
+              const SizedBox(width: 6),
               Text(
                 'People you may know',
                 style: TextStyle(
@@ -244,7 +250,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
       ],
     );
   }

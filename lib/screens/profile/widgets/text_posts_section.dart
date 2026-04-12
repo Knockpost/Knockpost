@@ -77,6 +77,7 @@ class TextPostsSection extends StatelessWidget {
                   likes: post.likes,
                   views: post.views,
                   postId: post.id,
+                  disableProfileNavigation: true,
                 ),
                 if (isLast) divider,
               ],
