@@ -12,10 +12,6 @@ import 'waves_editor_screen.dart';
 import 'waves_gallery_sheet.dart';
 import '../shared/music_picker_screen.dart';
 
-// ── Knockpost brand colors used across the camera screen ──
-const _kAccentPurple = Color(0xFF9B5DE5);
-const _kAccentBlue = Color(0xFF4361EE);
-
 class WavesCameraScreen extends StatefulWidget {
   const WavesCameraScreen({super.key});
 
@@ -53,85 +49,85 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
     {
       'id': 'none',
       'icon': Icons.not_interested_rounded,
-      'color': Colors.transparent,
+      'color': Colors.white,
       'label': 'None',
     },
     {
       'id': 'glow',
       'icon': Icons.auto_fix_high_rounded,
-      'color': _kAccentPurple,
+      'color': Colors.white,
       'label': 'Glow',
     },
     {
       'id': 'face',
       'icon': Icons.face_retouching_natural_rounded,
-      'color': _kAccentBlue,
+      'color': Colors.white,
       'label': 'Smooth',
     },
     {
       'id': 'vivid',
       'icon': Icons.hdr_strong_rounded,
-      'color': Colors.redAccent,
+      'color': Colors.white,
       'label': 'Vivid',
     },
     {
       'id': 'vintage',
       'icon': Icons.camera_roll_rounded,
-      'color': Colors.orangeAccent,
+      'color': Colors.white,
       'label': 'Vintage',
     },
     {
       'id': 'noir',
       'icon': Icons.dark_mode_rounded,
-      'color': Colors.grey,
+      'color': Colors.white,
       'label': 'Noir',
     },
     {
       'id': 'sparkle',
       'icon': Icons.star_border_rounded,
-      'color': const Color(0xFFFFD166),
+      'color': Colors.white,
       'label': 'Sparkle',
     },
     {
       'id': 'vhs',
       'icon': Icons.videocam_rounded,
-      'color': const Color(0xFFF15BB5),
+      'color': Colors.white,
       'label': 'VHS',
     },
     {
       'id': 'bw',
       'icon': Icons.tonality_rounded,
-      'color': Colors.white54,
+      'color': Colors.white,
       'label': 'B&W',
     },
     {
       'id': 'cyber',
       'icon': Icons.memory_rounded,
-      'color': Colors.cyanAccent,
+      'color': Colors.white,
       'label': 'Cyber',
     },
     {
       'id': 'fade',
       'icon': Icons.blur_linear_rounded,
-      'color': Colors.white30,
+      'color': Colors.white,
       'label': 'Fade',
     },
     {
       'id': 'warm',
       'icon': Icons.local_fire_department_rounded,
-      'color': Colors.deepOrangeAccent,
+      'color': Colors.white,
       'label': 'Warm',
     },
     {
       'id': 'cool',
       'icon': Icons.ac_unit_rounded,
-      'color': Colors.lightBlueAccent,
+      'color': Colors.white,
       'label': 'Cool',
     },
     {
       'id': 'dream',
       'icon': Icons.cloud_rounded,
-      'color': Colors.pinkAccent,
+      'color': Colors.white,
       'label': 'Dream',
     },
     {
@@ -410,7 +406,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
         body: _isInitialized
             ? _buildCamera()
             : const Center(
-                child: CircularProgressIndicator(color: _kAccentPurple),
+                child: CircularProgressIndicator(color: Colors.white70),
               ),
       ),
     );
@@ -1540,7 +1536,6 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                         Icons.music_note_rounded,
                                         _pickMusic,
                                         active: _selectedMusic != null,
-                                        color: _kAccentPurple,
                                       ),
                                       // 2. Effects
                                       _pillarBtn(
@@ -1593,7 +1588,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                         active:
                                             _ctrl?.value.flashMode ==
                                             FlashMode.torch,
-                                        color: Colors.amber,
+                                        color: Colors.white,
                                       ),
 
                                       // 6. Speed (Hidden initially, requires scrolling)
@@ -1638,7 +1633,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: _kAccentPurple,
+                                              color: Colors.white70,
                                               width: 1.5,
                                             ),
                                           ),
@@ -1646,7 +1641,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                             child: Text(
                                               '15s',
                                               style: TextStyle(
-                                                color: _kAccentPurple,
+                                                color: Colors.white70,
                                                 fontSize: 8,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -1836,28 +1831,26 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                 child: Container(
                   width: 90,
                   height: 90,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: SweepGradient(
-                      colors: [_kAccentPurple, _kAccentBlue, _kAccentPurple],
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      width: 3.5,
                     ),
                   ),
                 ),
               ),
             if (!_isRecording && !isOriginal)
-              // The colored outline for selected effect
+              // Clean white outline for selected effect
               Container(
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: effect['color'], width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: effect['color'].withValues(alpha: 0.4),
-                      blurRadius: 16,
-                    ),
-                  ],
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    width: 3,
+                  ),
                 ),
               ),
 
@@ -1898,11 +1891,10 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                 borderRadius: isOriginal || _isRecording
                     ? null
                     : BorderRadius.circular(16),
-                boxShadow: isOriginal || _isRecording
+                boxShadow: _isRecording
                     ? [
                         BoxShadow(
-                          color: (_isRecording ? Colors.red : _kAccentPurple)
-                              .withValues(alpha: 0.5),
+                          color: Colors.red.withValues(alpha: 0.5),
                           blurRadius: 16,
                           spreadRadius: 2,
                         ),
@@ -1944,32 +1936,13 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.black.withValues(alpha: 0.3),
-        border: Border.all(color: Colors.white38, width: 1.5),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(effect['icon'], color: Colors.white70, size: 24),
-          // Small glowing dot for effect colors
-          Positioned(
-            bottom: 6,
-            child: Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: effect['color'],
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: effect['color'],
-                    blurRadius: 4,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      child: Center(
+        child: Icon(effect['icon'], color: Colors.white54, size: 24),
       ),
     );
   }
@@ -2072,7 +2045,6 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                       itemBuilder: (context, i) {
                         final isActive = _currentCarouselIndex == i;
                         final effect = _carouselEffects[i];
-                        final effectColor = effect['color'] as Color;
                         final effectIcon = effect['icon'] as IconData;
 
                         return GestureDetector(
@@ -2088,12 +2060,12 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                             duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? Colors.white.withValues(alpha: 0.12)
+                                  ? Colors.white.withValues(alpha: 0.10)
                                   : Colors.white.withValues(alpha: 0.04),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: isActive
-                                    ? _kAccentPurple
+                                    ? Colors.white.withValues(alpha: 0.5)
                                     : Colors.white.withValues(alpha: 0.08),
                                 width: 1.5,
                               ),
@@ -2109,11 +2081,11 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: isActive
-                                        ? effectColor.withValues(alpha: 0.3)
+                                        ? Colors.white.withValues(alpha: 0.15)
                                         : Colors.white.withValues(alpha: 0.06),
                                     border: Border.all(
                                       color: isActive
-                                          ? effectColor
+                                          ? Colors.white.withValues(alpha: 0.6)
                                           : Colors.white.withValues(
                                               alpha: 0.15,
                                             ),
@@ -2123,7 +2095,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                   child: Icon(
                                     effectIcon,
                                     color: isActive
-                                        ? effectColor
+                                        ? Colors.white
                                         : Colors.white60,
                                     size: 24,
                                   ),
@@ -2350,7 +2322,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                       children: [
                         const Icon(
                           Icons.alternate_email_rounded,
-                          color: _kAccentPurple,
+                          color: Colors.white70,
                           size: 18,
                         ),
                         const SizedBox(width: 6),
@@ -2395,7 +2367,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                           },
                           child: const Icon(
                             Icons.add_circle_rounded,
-                            color: _kAccentPurple,
+                            color: Colors.white70,
                             size: 24,
                           ),
                         ),
@@ -2417,13 +2389,13 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _kAccentPurple.withValues(
-                                      alpha: 0.3,
+                                    color: Colors.white.withValues(
+                                      alpha: 0.12,
                                     ),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: _kAccentPurple.withValues(
-                                        alpha: 0.5,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.25,
                                       ),
                                     ),
                                   ),
