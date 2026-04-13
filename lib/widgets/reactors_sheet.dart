@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../utils/haptic_helper.dart';
-
-class ReactorsSheet extends StatelessWidget {
+import '../models/post_model.dart';
+import '../screens/profile/other_profile_screen.dart';
+import '../utils/haptic_helper.dart';class ReactorsSheet extends StatelessWidget {
   final String postId;
 
   const ReactorsSheet({super.key, required this.postId});
@@ -71,8 +71,16 @@ class ReactorsSheet extends StatelessWidget {
                 return InkWell(
                   onTap: () {
                     KnockHaptics.selection();
-                    // Navigate to profile (already implemented in many places)
                     Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => OtherProfileScreen(
+                          user: user,
+                          posts: getDemoPostsForUser(user.id),
+                        ),
+                      ),
+                    );
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -94,15 +102,24 @@ class ReactorsSheet extends StatelessWidget {
                               right: -4,
                               bottom: -2,
                               child: Container(
-                                padding: const EdgeInsets.all(3),
+                                width: 24,
+                                height: 24,
+                                alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: bgColor,
+                                  color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: bgColor, width: 2),
+                                  border: Border.all(color: bgColor, width: 2.2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 2,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
                                 ),
                                 child: Text(
                                   reaction,
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(fontSize: 12, height: 1.1),
                                 ),
                               ),
                             ),

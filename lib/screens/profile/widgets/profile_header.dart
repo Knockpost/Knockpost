@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../discover/discover_people_screen.dart';
+import '../connections_screen.dart';
 import 'creator_rank_badge.dart';
 import 'knock_button.dart';
 
@@ -430,7 +431,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
         KnockHaptics.impact();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
+          MaterialPageRoute(builder: (_) => const ConnectionsScreen()),
         );
       },
       behavior: HitTestBehavior.opaque,
@@ -449,7 +450,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
           ),
           const SizedBox(width: 8),
           Text(
-            'See Friends',
+            'Connections',
             style: TextStyle(
               fontSize: 14.5,
               color: textColor,

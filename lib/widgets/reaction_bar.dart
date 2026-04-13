@@ -476,9 +476,21 @@ class _ReactionSummary extends StatelessWidget {
     required this.isDark,
   });
 
+  String _formatLikes(int count) {
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}k';
+    }
+    return count.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (likes <= 0) return const SizedBox.shrink();
+
+    final emojisToShow = <String>[];
+    if (likes >= 1) emojisToShow.add('👍');
+    if (likes >= 2) emojisToShow.add('❤️');
+    if (likes >= 3) emojisToShow.add('🔥');
 
     return GestureDetector(
       onTap: () {
@@ -493,19 +505,20 @@ class _ReactionSummary extends StatelessWidget {
           children: [
             // Overlapping reaction icons
             SizedBox(
-              width: 56,
-              height: 28,
+              width: 24.0 + (emojisToShow.length - 1) * 14.0,
+              height: 24,
               child: Stack(
-                children: [
-                  _miniEmoji('👍', 0),
-                  _miniEmoji('❤️', 16),
-                  _miniEmoji('🔥', 32),
-                ],
+                clipBehavior: Clip.none,
+                children: List.generate(emojisToShow.length, (index) {
+                  // Ensure left-most is on top
+                  final reversedIndex = emojisToShow.length - 1 - index;
+                  return _miniEmoji(emojisToShow[reversedIndex], reversedIndex * 14.0);
+                }),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
-              likes.toString(),
+              _formatLikes(likes),
               style: TextStyle(
                 color: isDark ? Colors.white70 : Colors.black87,
                 fontSize: 15,
@@ -522,16 +535,28 @@ class _ReactionSummary extends StatelessWidget {
     return Positioned(
       left: left,
       child: Container(
-        padding: const EdgeInsets.all(2),
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
           shape: BoxShape.circle,
           border: Border.all(
             color: isDark ? Colors.black : Colors.white,
-            width: 1.5,
+            width: 2.0,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ],
         ),
-        child: Text(emoji, style: const TextStyle(fontSize: 14)),
+        child: Text(
+          emoji,
+          style: const TextStyle(fontSize: 12, height: 1.1),
+        ),
       ),
     );
   }
