@@ -4,6 +4,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../discover/discover_people_screen.dart';
@@ -41,6 +43,7 @@ class ProfileHeader extends StatefulWidget {
 
 class _ProfileHeaderState extends State<ProfileHeader> {
   late KnockStatus _knockStatus;
+  bool _socialLinksExpanded = false;
 
   @override
   void initState() {
@@ -61,9 +64,67 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       _knockStatus == KnockStatus.mutualKnocked;
 
   bool get _showMessageButton =>
-      _knockStatus == KnockStatus.pending ||
       _knockStatus == KnockStatus.knocked ||
       _knockStatus == KnockStatus.mutualKnocked;
+
+  Future<void> _launchURL(String? url) async {
+    if (url == null || url.isEmpty) return;
+    try {
+      final uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  void _launchSocialLink(String key, String value) {
+    switch (key) {
+      case 'instagram':
+        _launchURL('https://instagram.com/$value');
+        break;
+      case 'youtube':
+        _launchURL(value.startsWith('http') ? value : 'https://youtube.com/@$value');
+        break;
+      case 'linkedin':
+        _launchURL(value.startsWith('http') ? value : 'https://linkedin.com/in/$value');
+        break;
+      case 'x':
+        _launchURL('https://x.com/$value');
+        break;
+      default:
+        _launchURL(value);
+    }
+  }
+
+  IconData _socialIcon(String key) {
+    switch (key) {
+      case 'instagram': return CupertinoIcons.camera;
+      case 'youtube': return CupertinoIcons.play_rectangle;
+      case 'linkedin': return CupertinoIcons.briefcase;
+      case 'x': return CupertinoIcons.at;
+      default: return CupertinoIcons.link;
+    }
+  }
+
+  String _socialLabel(String key, String value) {
+    switch (key) {
+      case 'instagram': return '@$value';
+      case 'x': return '@$value';
+      default: return value;
+    }
+  }
+
+  String _socialDisplayUrl(String key, String value) {
+    switch (key) {
+      case 'instagram': return 'instagram.com/$value';
+      case 'youtube': return 'youtube.com/@$value';
+      case 'linkedin': return 'linkedin.com/in/$value';
+      case 'x': return 'x.com/$value';
+      default: return value;
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +296,94 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                             ),
                           ),
                         ),
+                      if (user.socialLinks.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 16),
+                          child: AnimatedSize(
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                            alignment: Alignment.topLeft,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // First link row (always visible) + "and X others"
+                                GestureDetector(
+                                  onTap: () {
+                                    KnockHaptics.selection();
+                                    if (user.socialLinks.length == 1) {
+                                      final entry = user.socialLinks.entries.first;
+                                      _launchSocialLink(entry.key, entry.value);
+                                    } else {
+                                      setState(() => _socialLinksExpanded = !_socialLinksExpanded);
+                                    }
+                                  },
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: _socialDisplayUrl(
+                                                  user.socialLinks.keys.first,
+                                                  user.socialLinks.values.first,
+                                                ),
+                                              ),
+                                              if (user.socialLinks.length > 1 && !_socialLinksExpanded)
+                                                TextSpan(
+                                                  text: '   and ${user.socialLinks.length - 1} other${user.socialLinks.length - 1 > 1 ? 's' : ''}',
+                                                ),
+                                            ],
+                                          ),
+                                          style: TextStyle(
+                                            fontSize: 14.5,
+                                            color: isDark ? const Color(0xFFE0F1FF) : const Color(0xFF00376B),
+                                            fontWeight: FontWeight.w500,
+                                            letterSpacing: -0.2,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (_socialLinksExpanded)
+                                        Icon(
+                                          Icons.keyboard_arrow_up_rounded,
+                                          size: 20,
+                                          color: isDark ? const Color(0xFFE0F1FF) : const Color(0xFF00376B),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                // Expanded links (remaining links)
+                                if (_socialLinksExpanded)
+                                  ...user.socialLinks.entries.skip(1).map((entry) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        KnockHaptics.selection();
+                                        _launchSocialLink(entry.key, entry.value);
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 3),
+                                        child: Text(
+                                          _socialDisplayUrl(entry.key, entry.value),
+                                          style: TextStyle(
+                                            fontSize: 14.5,
+                                            color: isDark ? const Color(0xFFE0F1FF) : const Color(0xFF00376B),
+                                            fontWeight: FontWeight.w500,
+                                            letterSpacing: -0.2,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       if (user.isOwnProfile)
                         _buildOwnFriendsRow(context, textColor, isDark)
@@ -768,6 +917,61 @@ class _BlurMenuButton extends StatelessWidget {
                   ),
                 ]
               : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialLinkChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDark;
+  final Color textColor;
+
+  const _SocialLinkChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.isDark,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Premium Instagram-style blue link color
+    final blueColor = isDark ? const Color(0xFF3797EF) : const Color(0xFF0095F6);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: blueColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: blueColor.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: blueColor,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: blueColor,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
+import 'social_links_screen.dart';
 import 'widgets/profile_ui_helpers.dart';
 
 /// Edit Profile — edit name, username, bio, avatar, Open/Private toggle
@@ -22,7 +24,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameCtrl;
   late TextEditingController _usernameCtrl;
   late TextEditingController _bioCtrl;
-  late PrivacyType _privacyType;
+  late Map<String, String> _socialLinks;
   String? _avatarAsset;
   String? _coverImageAsset;
 
@@ -219,10 +221,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameCtrl = TextEditingController(text: widget.user.displayName);
     _usernameCtrl = TextEditingController(text: widget.user.username);
     _bioCtrl = TextEditingController(text: widget.user.bio);
-    _privacyType = widget.user.privacyType;
+    _socialLinks = Map.from(widget.user.socialLinks);
     _avatarAsset = widget.user.avatarAsset;
     _coverImageAsset = widget.user.coverImageAsset;
-
+ 
     for (final ctrl in [_nameCtrl, _usernameCtrl, _bioCtrl]) {
       ctrl.addListener(() => setState(() => _hasChanges = true));
     }
@@ -242,11 +244,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       displayName: _nameCtrl.text.trim(),
       username: _usernameCtrl.text.trim(),
       bio: _bioCtrl.text.trim(),
-      privacyType: _privacyType,
       avatarAsset: _avatarAsset,
       clearAvatar: _avatarAsset == null,
       coverImageAsset: _coverImageAsset,
       clearCover: _coverImageAsset == null,
+      socialLinks: _socialLinks,
     );
     Navigator.pop(context, updated);
   }
@@ -498,30 +500,67 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Privacy toggle (only for Normal accounts) ─────────────────
-            if (widget.user.accountType == AccountType.normal) ...[
-              Divider(
-                color: isDark
-                    ? Colors.white12
-                    : Colors.black.withValues(alpha: 0.08),
-              ),
-              const SizedBox(height: 8),
-              ProfileSettingsRow(
-                title: 'Private Account',
-                subtitle: 'Only accepted Knocks can see your profile & posts.',
-                trailing: Switch(
-                  value: _privacyType == PrivacyType.private,
-                  onChanged: (v) {
-                    KnockHaptics.selection();
-                    setState(() {
-                      _privacyType = v ? PrivacyType.private : PrivacyType.open;
-                      _hasChanges = true;
-                    });
-                  },
-                  activeThumbColor: textColor,
+            _FieldLabel('Links', subColor),
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () async {
+                KnockHaptics.selection();
+                final result = await Navigator.push<Map<String, String>>(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (_) => SocialLinksScreen(
+                      initialLinks: _socialLinks,
+                    ),
+                  ),
+                );
+                if (result != null) {
+                  setState(() {
+                    _socialLinks = result;
+                    _hasChanges = true;
+                  });
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: fieldBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.link_rounded,
+                      size: 20,
+                      color: textColor.withValues(alpha: 0.5),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _socialLinks.isEmpty
+                            ? 'Add social links'
+                            : '${_socialLinks.length} link${_socialLinks.length > 1 ? 's' : ''} added',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          color: _socialLinks.isEmpty
+                              ? textColor.withValues(alpha: 0.35)
+                              : textColor,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: textColor.withValues(alpha: 0.3),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
