@@ -7,6 +7,9 @@ import '../../../widgets/system_nav_bar_fill.dart';
 import '../../post/post_card.dart';
 import '../../thoughts/thought_card.dart';
 import '../../../utils/global_post_state.dart';
+import '../../../utils/haptic_helper.dart';
+import '../../../widgets/staggered_entry_animation.dart';
+import 'profile_glimps_strip.dart';
 import 'profile_ui_helpers.dart';
 import 'package:video_player/video_player.dart';
 
@@ -26,9 +29,15 @@ class ShowcaseGrid extends StatelessWidget {
     this.isOwnProfile = true,
   });
 
-  List<PostModel> get _showcasePosts =>
+  List<PostModel> get _showcaseGridPosts =>
       posts
           .where((p) => p.isInShowcase && (p.type == PostType.media || p.type == PostType.waves) && p.imagePaths.isNotEmpty)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  List<PostModel> get _showcaseGlimpses =>
+      posts
+          .where((p) => p.isInShowcase && p.type == PostType.glimps && p.imagePaths.isNotEmpty)
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -38,9 +47,10 @@ class ShowcaseGrid extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
-        final showcasePosts = _showcasePosts.where((p) => !deletedIds.contains(p.id)).toList();
+        final gridPosts = _showcaseGridPosts.where((p) => !deletedIds.contains(p.id)).toList();
+        final glimpses = _showcaseGlimpses.where((p) => !deletedIds.contains(p.id)).toList();
 
-        if (showcasePosts.isEmpty) {
+        if (gridPosts.isEmpty && glimpses.isEmpty) {
           return ProfileEmptySection(
             icon: Icons.grid_view_rounded,
             message: 'Showcase is empty',
@@ -53,24 +63,83 @@ class ShowcaseGrid extends StatelessWidget {
           );
         }
 
-        return GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(2),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 2,
-            mainAxisSpacing: 2,
-            childAspectRatio: 1,
-          ),
-          itemCount: showcasePosts.length,
-          itemBuilder: (context, i) {
-            final post = showcasePosts[i];
-            return GestureDetector(
-              onTap: () => _openShowcaseDetail(context, showcasePosts, i),
-              child: _GridTile(post: post, isDark: isDark),
-            );
-          },
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (glimpses.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 24, bottom: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Glimpses",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ProfileGlimpsStrip(glimpses: glimpses, user: user),
+            ],
+            if (gridPosts.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 12, bottom: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.grid_view_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Posts",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                padding: const EdgeInsets.all(2),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 2,
+                  mainAxisSpacing: 2,
+                  childAspectRatio: 1,
+                ),
+                itemCount: gridPosts.length,
+                itemBuilder: (context, i) {
+                  final post = gridPosts[i];
+                  return StaggeredEntryAnimation(
+                    index: i % 12, // Repeat animation for extremely large grids to prevent huge delays
+                    delay: const Duration(milliseconds: 40),
+                    child: GestureDetector(
+                      onTap: () => _openShowcaseDetail(context, gridPosts, i),
+                      child: _GridTile(post: post, isDark: isDark),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
         );
       },
     );
@@ -247,38 +316,50 @@ class _ShowcaseDetailScreen extends StatefulWidget {
 
 class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
   final ScrollController _scrollController = ScrollController();
-
-  // Keys attached to each post item so we can scroll to the tapped one
-  late final List<GlobalKey> _itemKeys;
-
-  @override
-  void initState() {
-    super.initState();
-    _itemKeys = List.generate(widget.posts.length, (_) => GlobalKey());
-
-    // After the first frame, scroll to the tapped post
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToStartIndex();
-    });
-  }
-
-  void _scrollToStartIndex() {
-    if (widget.startIndex == 0) return;
-    final key = _itemKeys[widget.startIndex];
-    final ctx = key.currentContext;
-    if (ctx != null) {
-      Scrollable.ensureVisible(
-        ctx,
-        duration: Duration.zero,
-        alignment: 0.0, // top of viewport
-      );
-    }
-  }
+  late final Key _centerKey = const ValueKey('center');
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Widget _buildPostItem(int i, bool isDark) {
+    if (i < 0 || i >= widget.posts.length) return const SizedBox.shrink();
+    final post = widget.posts[i];
+    final isLast = i == widget.posts.length - 1;
+    final dividerColor = isDark
+        ? const Color(0xFF2A2A2A)
+        : const Color(0xFFE8E8E8);
+    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+    return Column(
+      children: [
+        divider,
+        post.imagePaths.isEmpty
+            ? ThoughtCard(
+                user: widget.user,
+                text: post.text,
+                likes: post.likes,
+                views: post.views,
+                disableProfileNavigation: false,
+              )
+            : PostCard(
+                imagePaths: post.imagePaths,
+                user: widget.user,
+                caption: post.text,
+                postId: post.id,
+                musicUrl: post.musicUrl,
+                musicTitle: post.musicTitle,
+                musicArtist: post.musicArtist,
+                isVideoPost: post.type == PostType.waves,
+                likes: post.likes,
+                views: post.views,
+                disableProfileNavigation: false,
+              ),
+        if (isLast) divider,
+      ],
+    );
   }
 
   @override
@@ -320,47 +401,32 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 ),
               ),
             ),
-            body: ListView.builder(
+            body: CustomScrollView(
               controller: _scrollController,
-              padding: const EdgeInsets.only(bottom: 40),
-              itemCount: widget.posts.length,
-              itemBuilder: (context, i) {
-                final post = widget.posts[i];
-                final isLast = i == widget.posts.length - 1;
-                final dividerColor = isDark
-                    ? const Color(0xFF2A2A2A)
-                    : const Color(0xFFE8E8E8);
-                final divider = Divider(height: 1, thickness: 1, color: dividerColor);
-
-                return Column(
-                  key: _itemKeys[i],
-                  children: [
-                    divider,
-                    post.imagePaths.isEmpty
-                        ? ThoughtCard(
-                            user: widget.user,
-                            text: post.text,
-                            likes: post.likes,
-                            views: post.views,
-                            disableProfileNavigation: false,
-                          )
-                        : PostCard(
-                            imagePaths: post.imagePaths,
-                            user: widget.user,
-                            caption: post.text,
-                            postId: post.id,
-                            musicUrl: post.musicUrl,
-                            musicTitle: post.musicTitle,
-                            musicArtist: post.musicArtist,
-                            isVideoPost: post.type == PostType.waves,
-                            likes: post.likes,
-                            views: post.views,
-                            disableProfileNavigation: false,
-                          ),
-                    if (isLast) divider,
-                  ],
-                );
-              },
+              center: _centerKey,
+              slivers: [
+                if (widget.startIndex > 0)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final actualIndex = widget.startIndex - 1 - index;
+                        return _buildPostItem(actualIndex, isDark);
+                      },
+                      childCount: widget.startIndex,
+                    ),
+                  ),
+                SliverList(
+                  key: _centerKey,
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final actualIndex = widget.startIndex + index;
+                      return _buildPostItem(actualIndex, isDark);
+                    },
+                    childCount: widget.posts.length - widget.startIndex,
+                  ),
+                ),
+                const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
+              ],
             ),
           ),
           SystemNavBarFill(color: bg),

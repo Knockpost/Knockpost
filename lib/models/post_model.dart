@@ -140,6 +140,87 @@ final List<PostModel> demoOwnPosts = [
       likes: 56,
       views: 120,
     ),
+  // ── 24h Glimpse ────────────────────────────────────────────────────────
+  PostModel(
+    id: 'p_recent_glimpse',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.h24,
+    imagePaths: ['assets/test2.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(hours: 12)),
+    likes: 125,
+    views: 890,
+  ),
+
+  // ── Showcase (lifetime) glimpses ─────────────────────────────────────────
+  PostModel(
+    id: 'p_show_glimpse1',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test3.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(hours: 24)), // Shows in both Recents & Showcase
+    likes: 210,
+    views: 1200,
+  ),
+  PostModel(
+    id: 'p_show_glimpse2',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test4.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 4)), // Only in Showcase
+    likes: 450,
+    views: 2400,
+  ),
+  PostModel(
+    id: 'p_show_glimpse3',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test1.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 12)),
+    likes: 520,
+    views: 3100,
+  ),
+  PostModel(
+    id: 'p_show_glimpse4',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test2.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 18)),
+    likes: 315,
+    views: 1850,
+  ),
+  PostModel(
+    id: 'p_show_glimpse5',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test3.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 22)),
+    likes: 280,
+    views: 1900,
+  ),
+  PostModel(
+    id: 'p_show_glimpse6',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test1.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 35)),
+    likes: 670,
+    views: 4500,
+  ),
+
   // ── Showcase (lifetime) posts ────────────────────────────────────────────
   PostModel(
     id: 'p_show1',
@@ -202,17 +283,84 @@ List<PostModel> getDemoPostsForUser(String userId) {
   if (userId == 'leo01') return const [];
   if (userId == 'me') return demoOwnPosts;
   
+  final now = DateTime.now();
+  
+  if (userId == 'zayn01') {
+    // Only 1 lifetime glimpse. No recents. No normal posts.
+    return [
+      PostModel(
+        id: '${userId}_glimpse1',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test1.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(days: 10)),
+        likes: 120, views: 500,
+      ),
+    ];
+  }
+  
+  if (userId == 'justin01') {
+    // Only glimpses (1 lifetime, 1 24h). No normal dashboard posts.
+    return [
+      PostModel(
+        id: '${userId}_glimpse1',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test3.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(days: 5)),
+        likes: 300, views: 1000,
+      ),
+      PostModel(
+        id: '${userId}_glimpse2',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.h24,
+        imagePaths: ['assets/test2.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(hours: 5)),
+        likes: 150, views: 800,
+      ),
+    ];
+  }
+  
+  if (userId == 'suman01') {
+    // Showcase has exactly 1 glimpse and 1 post. No recents.
+    return [
+      PostModel(
+        id: '${userId}_glimpse1',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test4.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(days: 20)),
+        likes: 400, views: 1500,
+      ),
+      PostModel(
+        id: '${userId}_post1',
+        authorId: userId,
+        type: PostType.media,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test1.jpg'],
+        text: 'Just a single memory.',
+        createdAt: now.subtract(const Duration(days: 15)),
+        likes: 250, views: 900,
+      ),
+    ];
+  }
+
+  // Fallback for saptarshi01, arya01
   int seed;
   switch (userId) {
-    case 'zayn01': seed = 1; break;
-    case 'justin01': seed = 2; break;
-    case 'suman01': seed = 3; break;
     case 'saptarshi01': seed = 4; break;
     case 'arya01': seed = 5; break;
     default: seed = userId.hashCode.abs() % 10 + 1; break;
   }
   
-  final now = DateTime.now();
   const pool = [
     'assets/test1.jpg',
     'assets/test2.jpg',
@@ -228,7 +376,7 @@ List<PostModel> getDemoPostsForUser(String userId) {
     PostModel(
       id: '${userId}_glimpse',
       authorId: userId,
-      type: PostType.waves,
+      type: PostType.glimps,
       duration: PostDuration.h24,
       imagePaths: [second],
       text: 'Good vibes only ✨',
@@ -272,24 +420,13 @@ List<PostModel> getDemoPostsForUser(String userId) {
       likes: 120 + seed * 20,
       views: 800 + seed * 80,
     ),
-    PostModel(
-      id: '${userId}_show3',
-      authorId: userId,
-      type: PostType.media,
-      duration: PostDuration.lifetime,
-      imagePaths: [first, third, second],
-      text: 'This one hits different 🎯',
-      createdAt: now.subtract(Duration(days: 45 + seed * 7)),
-      likes: 200 + seed * 30,
-      views: 1200 + seed * 100,
-    ),
   ];
 }
 
 final List<PostModel> demoGlimpseFeed = [
-  ...getDemoPostsForUser('arya01').where((p) => p.type == PostType.waves),
-  ...getDemoPostsForUser('saptarshi01').where((p) => p.type == PostType.waves),
-  ...getDemoPostsForUser('justin01').where((p) => p.type == PostType.waves),
-  ...getDemoPostsForUser('suman01').where((p) => p.type == PostType.waves),
-  ...getDemoPostsForUser('zayn01').where((p) => p.type == PostType.waves),
+  ...getDemoPostsForUser('arya01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('saptarshi01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('justin01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('suman01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('zayn01').where((p) => p.type == PostType.glimps),
 ];
