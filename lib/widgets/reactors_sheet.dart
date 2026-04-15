@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../screens/profile/other_profile_screen.dart';
-import '../utils/haptic_helper.dart';class ReactorsSheet extends StatelessWidget {
+import '../utils/haptic_helper.dart';
+
+class ReactorsSheet extends StatelessWidget {
   final String postId;
+  final String? userReaction;
 
-  const ReactorsSheet({super.key, required this.postId});
+  const ReactorsSheet({super.key, required this.postId, this.userReaction});
 
-  static void show(BuildContext context, {required String postId}) {
+  static void show(BuildContext context, {required String postId, String? userReaction}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ReactorsSheet(postId: postId),
+      builder: (context) => ReactorsSheet(postId: postId, userReaction: userReaction),
     );
   }
 
@@ -24,6 +27,9 @@ import '../utils/haptic_helper.dart';class ReactorsSheet extends StatelessWidget
 
     // Dummy reactors for demo
     final List<Map<String, dynamic>> reactors = [
+      // Include current user at the top if they have reacted
+      if (userReaction != null)
+        {'user': demoOwnUser, 'reaction': userReaction},
       {'user': demoZaynMalik, 'reaction': '👍'},
       {'user': demoJustinBieber, 'reaction': '❤️'},
       {'user': demoSaptarshiNayak, 'reaction': '🔥'},
@@ -72,15 +78,17 @@ import '../utils/haptic_helper.dart';class ReactorsSheet extends StatelessWidget
                   onTap: () {
                     KnockHaptics.selection();
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OtherProfileScreen(
-                          user: user,
-                          posts: getDemoPostsForUser(user.id),
+                    if (!user.isOwnProfile) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => OtherProfileScreen(
+                            user: user,
+                            posts: getDemoPostsForUser(user.id),
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

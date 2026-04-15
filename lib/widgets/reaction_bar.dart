@@ -238,6 +238,7 @@ class _ReactionBarState extends State<ReactionBar>
                   views: widget.initialViews,
                   postId: widget.postId,
                   isDark: isDark,
+                  userReaction: _selectedEmoji,
                 )
               else
                 const SizedBox.shrink(),
@@ -468,12 +469,14 @@ class _ReactionSummary extends StatelessWidget {
   final int views;
   final String postId;
   final bool isDark;
+  final String? userReaction;
 
   const _ReactionSummary({
     required this.likes,
     required this.views,
     required this.postId,
     required this.isDark,
+    this.userReaction,
   });
 
   String _formatLikes(int count) {
@@ -495,7 +498,7 @@ class _ReactionSummary extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         KnockHaptics.selection();
-        ReactorsSheet.show(context, postId: postId);
+        ReactorsSheet.show(context, postId: postId, userReaction: userReaction);
       },
       behavior: HitTestBehavior.opaque,
       child: Padding(
