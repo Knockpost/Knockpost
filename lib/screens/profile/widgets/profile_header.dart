@@ -4,7 +4,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
@@ -96,23 +95,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     }
   }
 
-  IconData _socialIcon(String key) {
-    switch (key) {
-      case 'instagram': return CupertinoIcons.camera;
-      case 'youtube': return CupertinoIcons.play_rectangle;
-      case 'linkedin': return CupertinoIcons.briefcase;
-      case 'x': return CupertinoIcons.at;
-      default: return CupertinoIcons.link;
-    }
-  }
 
-  String _socialLabel(String key, String value) {
-    switch (key) {
-      case 'instagram': return '@$value';
-      case 'x': return '@$value';
-      default: return value;
-    }
-  }
 
   String _socialDisplayUrl(String key, String value) {
     switch (key) {
@@ -923,57 +906,3 @@ class _BlurMenuButton extends StatelessWidget {
   }
 }
 
-class _SocialLinkChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool isDark;
-  final Color textColor;
-
-  const _SocialLinkChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.isDark,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Premium Instagram-style blue link color
-    final blueColor = isDark ? const Color(0xFF3797EF) : const Color(0xFF0095F6);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: blueColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: blueColor.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: blueColor,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: blueColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
