@@ -343,6 +343,7 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 likes: post.likes,
                 views: post.views,
                 disableProfileNavigation: false,
+                timestamp: post.timestampText,
               )
             : PostCard(
                 imagePaths: post.imagePaths,
@@ -356,6 +357,7 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 likes: post.likes,
                 views: post.views,
                 disableProfileNavigation: false,
+                timestamp: post.timestampText,
               ),
         if (isLast) divider,
       ],

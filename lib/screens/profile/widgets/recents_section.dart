@@ -108,6 +108,7 @@ class RecentsSection extends StatelessWidget {
                       views: post.views,
                       postId: post.id,
                       disableProfileNavigation: true,
+                      timestamp: post.timestampText,
                     );
                   } else {
                     content = ThoughtCard(
@@ -117,6 +118,7 @@ class RecentsSection extends StatelessWidget {
                       views: post.views,
                       postId: post.id,
                       disableProfileNavigation: true,
+                      timestamp: post.timestampText,
                     );
                   }
 

@@ -77,6 +77,7 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                     text: widget.post.text,
                     likes: widget.post.likes,
                     views: widget.post.views,
+                    timestamp: widget.post.timestampText,
                   )
                 : PostCard(
                     imagePaths: widget.post.imagePaths,
@@ -84,6 +85,7 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                     caption: widget.post.text,
                     likes: widget.post.likes,
                     views: widget.post.views,
+                    timestamp: widget.post.timestampText,
                   ),
           ],
         ),

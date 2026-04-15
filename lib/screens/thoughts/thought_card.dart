@@ -11,6 +11,7 @@ class ThoughtCard extends StatefulWidget {
   final int views;
   final String? postId;
   final bool disableProfileNavigation;
+  final String? timestamp;
 
   const ThoughtCard({
     super.key,
@@ -20,6 +21,7 @@ class ThoughtCard extends StatefulWidget {
     this.views = 0,
     this.postId,
     this.disableProfileNavigation = false,
+    this.timestamp,
   });
 
   @override
@@ -53,6 +55,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
             user: widget.user,
             postId: widget.postId,
             disableProfileNavigation: widget.disableProfileNavigation,
+            timestamp: widget.timestamp,
           ),
         ),
 
@@ -88,6 +91,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
             initialViews: widget.views,
             shareUsername: widget.user.username,
             shareCaption: widget.text,
+            timestamp: widget.timestamp,
           ),
         ),
 

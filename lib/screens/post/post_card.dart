@@ -19,6 +19,7 @@ class PostCard extends StatefulWidget {
   final int? musicTrimStart;
   final bool isVideoPost;
   final bool disableProfileNavigation;
+  final String? timestamp;
 
   const PostCard({
     super.key,
@@ -34,6 +35,7 @@ class PostCard extends StatefulWidget {
     this.musicTrimStart,
     this.isVideoPost = false,
     this.disableProfileNavigation = false,
+    this.timestamp,
   });
 
   @override
@@ -99,6 +101,7 @@ class _PostCardState extends State<PostCard> {
             user: widget.user,
             postId: widget.postId,
             disableProfileNavigation: widget.disableProfileNavigation,
+            timestamp: widget.timestamp,
           ),
         ),
 
@@ -187,6 +190,7 @@ class _PostCardState extends State<PostCard> {
             initialViews: widget.views,
             shareUsername: widget.user.username,
             shareCaption: widget.caption,
+            timestamp: widget.timestamp,
           ),
         ),
 

@@ -70,6 +70,20 @@ class PostModel {
     return '${diff.inDays}d';
   }
 
+  /// Formatted timestamp for post cards
+  String get timestampText {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago'; // e.g. 15m ago
+    if (diff.inHours < 24) return '${diff.inHours}h ago'; // exactly as user requested
+    if (diff.inDays < 7) return '${diff.inDays}d ago'; // e.g. 1d ago
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago'; // e.g. 1w ago
+    
+    // Older than ~a month, show date
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[createdAt.month - 1]} ${createdAt.day}, ${createdAt.year}';
+  }
+
   PostModel copyWith({
     bool? isLikedByMe,
     int? likes,

@@ -650,6 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         likes: post.likes,
                                         views: post.views,
                                         postId: post.id,
+                                        timestamp: post.timestampText,
                                       );
                                     } else {
                                       card = PostCard(
@@ -659,6 +660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         likes: post.likes,
                                         views: post.views,
                                         postId: post.id,
+                                        timestamp: post.timestampText,
                                       );
                                     }
 

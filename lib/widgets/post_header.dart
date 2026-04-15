@@ -12,12 +12,14 @@ class PostHeader extends StatefulWidget {
   final UserModel user;
   final String? postId;
   final bool disableProfileNavigation;
+  final String? timestamp;
 
   const PostHeader({
     super.key,
     required this.user,
     this.postId,
     this.disableProfileNavigation = false,
+    this.timestamp,
   });
 
   @override
@@ -193,24 +195,41 @@ class _PostHeaderState extends State<PostHeader> {
                 ),
                 const SizedBox(width: 10),
                 Flexible(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Flexible(
-                        child: Text(
-                          user.username,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15.75,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.username,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15.5,
+                              ),
+                            ),
+                          ),
+                          if (isCreator) ...[
+                            const SizedBox(width: 5),
+                            CreatorRankBadge(rank: user.rank, mini: true),
+                          ],
+                        ],
+                      ),
+                      if (widget.timestamp != null && user.isOwnProfile)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Text(
+                            widget.timestamp!,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.white54 : Colors.black54,
+                            ),
                           ),
                         ),
-                      ),
-                      if (isCreator) ...[
-                        const SizedBox(width: 5),
-                        CreatorRankBadge(rank: user.rank, mini: true),
-                      ],
                     ],
                   ),
                 ),
