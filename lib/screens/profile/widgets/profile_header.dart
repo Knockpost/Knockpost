@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../models/user_model.dart';
+import '../../../models/post_model.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../discover/discover_people_screen.dart';
 import '../connections_screen.dart';
+import '../other_profile_screen.dart';
 import 'creator_rank_badge.dart';
 import 'knock_button.dart';
 
@@ -531,29 +533,240 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     final shown = avatars.length > 3 ? avatars.sublist(0, 3) : avatars;
     final stackWidth = 16.0 * (shown.length - 1) + 26;
 
-    return Row(
-      children: [
-        SizedBox(
-          width: stackWidth,
-          height: 26,
-          child: Stack(
-            children: [
-              for (int i = 0; i < shown.length; i++)
-                _friendPreviewAvatar(shown[i], i * 16.0, isDark),
-            ],
+    return GestureDetector(
+      onTap: () {
+        KnockHaptics.selection();
+        _showFriendsKnockedSheet(context, user, isDark);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          SizedBox(
+            width: stackWidth,
+            height: 26,
+            child: Stack(
+              children: [
+                for (int i = 0; i < shown.length; i++)
+                  _friendPreviewAvatar(shown[i], i * 16.0, isDark),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Some friends knocked',
-          style: TextStyle(
-            fontSize: 14.5,
-            color: textColor,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+          const SizedBox(width: 8),
+          Text(
+            'Some people knocked',
+            style: TextStyle(
+              fontSize: 14.5,
+              color: textColor,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.1,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  void _showFriendsKnockedSheet(BuildContext context, UserModel user, bool isDark) {
+    final bg = isDark ? const Color(0xFF171717) : Colors.white;
+    final divColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEAEAEA);
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subColor = isDark ? Colors.white54 : Colors.black54;
+
+    // Map avatar assets to demo users for display
+    final List<UserModel> friendsList = [];
+    for (final avatar in user.mutualFriendsWhoKnocked) {
+      // Find a demo user matching this avatar
+      final match = allDemoUsers.where((u) => u.avatarAsset == avatar).toList();
+      if (match.isNotEmpty && !friendsList.any((f) => f.id == match.first.id)) {
+        friendsList.add(match.first);
+      } else {
+        // Fallback: create a placeholder user from the avatar
+        friendsList.add(UserModel(
+          id: 'friend_${friendsList.length}',
+          displayName: 'KnockPost User',
+          username: 'user.${friendsList.length + 1}',
+          avatarAsset: avatar,
+        ));
+      }
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.55,
+            ),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: divColor),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
+                    children: [
+                      Text(
+                        'People who knocked',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${friendsList.length}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: subColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Divider(height: 1, color: divColor),
+                Flexible(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    shrinkWrap: true,
+                    itemCount: friendsList.length,
+                    itemBuilder: (ctx, index) {
+                      final friend = friendsList[index];
+                      return InkWell(
+                        onTap: () {
+                          KnockHaptics.tap();
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OtherProfileScreen(
+                                user: friend,
+                                posts: getDemoPostsForUser(friend.id),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          child: Row(
+                            children: [
+                              // Avatar
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white12
+                                        : Colors.black.withValues(alpha: 0.08),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: isDark
+                                      ? const Color(0xFF2A2A2A)
+                                      : const Color(0xFFEEEEEE),
+                                  backgroundImage: friend.avatarAsset != null
+                                      ? (friend.avatarAsset!.startsWith('assets/')
+                                          ? AssetImage(friend.avatarAsset!) as ImageProvider
+                                          : FileImage(File(friend.avatarAsset!)))
+                                      : null,
+                                  child: friend.avatarAsset == null
+                                      ? Icon(Icons.person, size: 20, color: Colors.grey.shade500)
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Name + username
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            friend.username,
+                                            style: TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: textColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (friend.accountType == AccountType.creator) ...[
+                                          const SizedBox(width: 5),
+                                          CreatorRankBadge(rank: friend.rank, mini: true),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      friend.displayName,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: subColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Arrow indicator
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 20,
+                                color: isDark ? Colors.white24 : Colors.black26,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
