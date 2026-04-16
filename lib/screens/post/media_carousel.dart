@@ -29,7 +29,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
   Timer? _hideTimer;
   bool _showIndicator = true;
   bool _isZoomInteractionActive = false;
-  ScrollHoldController? _pageHoldController;
   int _activeCarouselTouchCount = 0;
   bool _isParentPageSwipeLocked = false;
   PostPageSwipeLockController? _pageSwipeLockController;
@@ -66,7 +65,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
   @override
   void dispose() {
     _hideTimer?.cancel();
-    _releasePageHold();
     _unlockParentPageSwipe();
     _pageController.dispose();
     super.dispose();
@@ -76,14 +74,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
 
   void _handleZoomInteractionChanged(bool isActive) {
     if (_isZoomInteractionActive == isActive) return;
-
-    if (isActive) {
-      if (_pageController.hasClients) {
-        _pageHoldController ??= _pageController.position.hold(_releasePageHold);
-      }
-    } else {
-      _releasePageHold();
-    }
 
     setState(() => _isZoomInteractionActive = isActive);
   }
@@ -116,11 +106,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
     if (!_isParentPageSwipeLocked) return;
     _isParentPageSwipeLocked = false;
     _pageSwipeLockController?.unlock();
-  }
-
-  void _releasePageHold() {
-    _pageHoldController?.cancel();
-    _pageHoldController = null;
   }
 
   @override

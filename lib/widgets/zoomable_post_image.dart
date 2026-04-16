@@ -58,6 +58,7 @@ class _ZoomablePostImageState extends State<ZoomablePostImage>
 
   Rect? _overlayRect;
   OverlayEntry? _overlayEntry;
+  Size? _cachedViewportSize;
 
   PostScrollLockController? _scrollLockController;
   PostPageSwipeLockController? _pageSwipeLockController;
@@ -332,6 +333,8 @@ class _ZoomablePostImageState extends State<ZoomablePostImage>
       return;
     }
 
+    _cachedViewportSize = renderBox.size;
+
     final topLeft = overlayBox.globalToLocal(
       renderBox.localToGlobal(Offset.zero),
     );
@@ -526,9 +529,13 @@ class _ZoomablePostImageState extends State<ZoomablePostImage>
         child: RepaintBoundary(
           child: _showInlineSource
               ? widget.child
-              : ColoredBox(
-                  color: placeholderColor,
-                  child: const SizedBox.expand(),
+              : SizedBox(
+                  width: _cachedViewportSize?.width ?? _viewportSize.width,
+                  height: _cachedViewportSize?.height ?? _viewportSize.height,
+                  child: ColoredBox(
+                    color: placeholderColor,
+                    child: const SizedBox.expand(),
+                  ),
                 ),
         ),
       ),
