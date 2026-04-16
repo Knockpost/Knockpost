@@ -661,10 +661,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       .compareTo(a.createdAt),
                                                 );
 
-                                          return ListView.builder(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 90,
-                                            ),
+                                          return PostInnerScrollLockRegistrar(
+                                            child: ListView.builder(
+                                              physics: isScrollLocked
+                                                  ? const NeverScrollableScrollPhysics()
+                                                  : null,
+                                              padding: const EdgeInsets.only(
+                                                bottom: 90,
+                                              ),
                                             itemCount: activePosts.length + 2,
                                             itemBuilder: (context, index) {
                                               const glimpseStripIndex = 1;
@@ -748,9 +752,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ],
                                               );
                                             },
-                                          );
-                                        },
-                                      ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                     );
                                   },
                                 ),

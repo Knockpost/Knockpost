@@ -132,3 +132,51 @@ class PostPageSwipeLockScope extends InheritedWidget {
     return controller != oldWidget.controller;
   }
 }
+
+class PostInnerScrollLockRegistrar extends StatefulWidget {
+  final Widget child;
+
+  const PostInnerScrollLockRegistrar({
+    super.key,
+    required this.child,
+  });
+
+  @override
+  State<PostInnerScrollLockRegistrar> createState() =>
+      _PostInnerScrollLockRegistrarState();
+}
+
+class _PostInnerScrollLockRegistrarState
+    extends State<PostInnerScrollLockRegistrar> {
+  ScrollController? _controller;
+  PostScrollLockController? _lockController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newController = PrimaryScrollController.maybeOf(context);
+    final newLockController = PostScrollLockScope.maybeOf(context);
+
+    if (_controller != newController || _lockController != newLockController) {
+      if (_controller != null) {
+        _lockController?.unregister(_controller!);
+      }
+      _controller = newController;
+      _lockController = newLockController;
+      if (_controller != null) {
+        _lockController?.register(_controller!);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_controller != null) {
+      _lockController?.unregister(_controller!);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
