@@ -369,7 +369,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 18),
                       if (user.isOwnProfile)
                         _buildOwnFriendsRow(context, textColor, isDark)
                       else if (user.mutualFriendsWhoKnocked.isNotEmpty)

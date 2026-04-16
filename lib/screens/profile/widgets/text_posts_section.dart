@@ -81,6 +81,7 @@ class TextPostsSection extends StatelessWidget {
                     views: post.views,
                     postId: post.id,
                     disableProfileNavigation: true,
+                    timestamp: post.timestampText,
                   ),
                   if (isLast) divider,
                 ],

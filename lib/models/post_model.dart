@@ -312,6 +312,15 @@ List<PostModel> getDemoPostsForUser(String userId) {
         createdAt: now.subtract(const Duration(days: 10)),
         likes: 120, views: 500,
       ),
+      PostModel(
+        id: '${userId}_thought1',
+        authorId: userId,
+        type: PostType.text,
+        duration: PostDuration.h24,
+        text: 'Sometimes quiet days are exactly what we need. 🌧️☕',
+        createdAt: now.subtract(const Duration(hours: 3)),
+        likes: 450, views: 2500,
+      ),
     ];
   }
   
@@ -338,6 +347,15 @@ List<PostModel> getDemoPostsForUser(String userId) {
         createdAt: now.subtract(const Duration(hours: 5)),
         likes: 150, views: 800,
       ),
+      PostModel(
+        id: '${userId}_thought1',
+        authorId: userId,
+        type: PostType.text,
+        duration: PostDuration.lifetime,
+        text: 'New music coming soon... maybe? 🎵🤷‍♂️',
+        createdAt: now.subtract(const Duration(days: 12)),
+        likes: 1200, views: 8500,
+      ),
     ];
   }
   
@@ -363,6 +381,15 @@ List<PostModel> getDemoPostsForUser(String userId) {
         text: 'Just a single memory.',
         createdAt: now.subtract(const Duration(days: 15)),
         likes: 250, views: 900,
+      ),
+      PostModel(
+        id: '${userId}_thought1',
+        authorId: userId,
+        type: PostType.text,
+        duration: PostDuration.h24,
+        text: 'The code is compiling. Don\'t move anything. 💻😅',
+        createdAt: now.subtract(const Duration(hours: 1)),
+        likes: 180, views: 650,
       ),
     ];
   }
@@ -433,6 +460,18 @@ List<PostModel> getDemoPostsForUser(String userId) {
       createdAt: now.subtract(Duration(days: 25 + seed * 5)),
       likes: 120 + seed * 20,
       views: 800 + seed * 80,
+    ),
+    PostModel(
+      id: '${userId}_thought1',
+      authorId: userId,
+      type: PostType.text,
+      duration: PostDuration.h24,
+      text: seed == 4 
+          ? 'What an incredibly long day! So ready for the weekend. 🙌'
+          : 'Can\'t believe how fast this month went by! ⏳',
+      createdAt: now.subtract(Duration(hours: 5 + seed)),
+      likes: 40 + seed * 6,
+      views: 180 + seed * 20,
     ),
   ];
 }
