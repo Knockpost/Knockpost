@@ -52,7 +52,7 @@ class _PostCardState extends State<PostCard> {
     super.initState();
     if (widget.musicUrl != null && widget.musicUrl!.isNotEmpty) {
       _audioPlayer = AudioPlayer();
-      
+
       final start = widget.musicTrimStart ?? 0;
       final uri = Uri.parse(widget.musicUrl!);
       final source = ClippingAudioSource(
@@ -60,7 +60,7 @@ class _PostCardState extends State<PostCard> {
         start: Duration(seconds: start),
         end: Duration(seconds: start + 15),
       );
-      
+
       _audioPlayer!.setAudioSource(source).then((_) {
         _audioPlayer!.setLoopMode(LoopMode.one);
         _audioPlayer!.play();
@@ -112,24 +112,18 @@ class _PostCardState extends State<PostCard> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Text(
               widget.caption,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.4,
-              ),
+              style: const TextStyle(fontSize: 15, height: 1.4),
             ),
           ),
 
         const SizedBox(height: 14),
 
-        // Double-tap on image triggers reaction
         Stack(
           children: [
-            GestureDetector(
+            MediaCarousel(
+              imagePaths: widget.imagePaths,
+              isVideoPost: widget.isVideoPost,
               onDoubleTap: _onDoubleTap,
-              child: MediaCarousel(
-                imagePaths: widget.imagePaths,
-                isVideoPost: widget.isVideoPost,
-              ),
             ),
             if (widget.musicUrl != null && widget.musicUrl!.isNotEmpty)
               Positioned(
@@ -145,7 +139,10 @@ class _PostCardState extends State<PostCard> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(16),

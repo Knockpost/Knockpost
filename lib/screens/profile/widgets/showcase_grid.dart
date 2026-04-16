@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
+import '../../../widgets/post_scroll_lock_scope.dart';
 import '../../../widgets/system_nav_bar_fill.dart';
 import '../../post/post_card.dart';
 import '../../thoughts/thought_card.dart';
@@ -31,13 +32,23 @@ class ShowcaseGrid extends StatelessWidget {
 
   List<PostModel> get _showcaseGridPosts =>
       posts
-          .where((p) => p.isInShowcase && (p.type == PostType.media || p.type == PostType.waves) && p.imagePaths.isNotEmpty)
+          .where(
+            (p) =>
+                p.isInShowcase &&
+                (p.type == PostType.media || p.type == PostType.waves) &&
+                p.imagePaths.isNotEmpty,
+          )
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   List<PostModel> get _showcaseGlimpses =>
       posts
-          .where((p) => p.isInShowcase && p.type == PostType.glimps && p.imagePaths.isNotEmpty)
+          .where(
+            (p) =>
+                p.isInShowcase &&
+                p.type == PostType.glimps &&
+                p.imagePaths.isNotEmpty,
+          )
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -47,8 +58,12 @@ class ShowcaseGrid extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
-        final gridPosts = _showcaseGridPosts.where((p) => !deletedIds.contains(p.id)).toList();
-        final glimpses = _showcaseGlimpses.where((p) => !deletedIds.contains(p.id)).toList();
+        final gridPosts = _showcaseGridPosts
+            .where((p) => !deletedIds.contains(p.id))
+            .toList();
+        final glimpses = _showcaseGlimpses
+            .where((p) => !deletedIds.contains(p.id))
+            .toList();
 
         if (gridPosts.isEmpty && glimpses.isEmpty) {
           return ProfileEmptySection(
@@ -129,7 +144,9 @@ class ShowcaseGrid extends StatelessWidget {
                 itemBuilder: (context, i) {
                   final post = gridPosts[i];
                   return StaggeredEntryAnimation(
-                    index: i % 12, // Repeat animation for extremely large grids to prevent huge delays
+                    index:
+                        i %
+                        12, // Repeat animation for extremely large grids to prevent huge delays
                     delay: const Duration(milliseconds: 40),
                     child: GestureDetector(
                       onTap: () => _openShowcaseDetail(context, gridPosts, i),
@@ -146,7 +163,10 @@ class ShowcaseGrid extends StatelessWidget {
   }
 
   void _openShowcaseDetail(
-      BuildContext context, List<PostModel> posts, int startIndex) {
+    BuildContext context,
+    List<PostModel> posts,
+    int startIndex,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -168,11 +188,15 @@ class _GridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if ((post.type == PostType.media || post.type == PostType.waves) && post.imagePaths.isNotEmpty) {
+    if ((post.type == PostType.media || post.type == PostType.waves) &&
+        post.imagePaths.isNotEmpty) {
       final imagePath = post.imagePaths.first;
-      final hasVideoExtension = imagePath.toLowerCase().endsWith('.mp4') || imagePath.toLowerCase().endsWith('.mov') || imagePath.toLowerCase().endsWith('.mkv');
+      final hasVideoExtension =
+          imagePath.toLowerCase().endsWith('.mp4') ||
+          imagePath.toLowerCase().endsWith('.mov') ||
+          imagePath.toLowerCase().endsWith('.mkv');
       final isVideo = hasVideoExtension || post.type == PostType.waves;
-      
+
       Widget imageWidget;
       if (isVideo) {
         imageWidget = _VideoThumbnail(path: imagePath);
@@ -241,7 +265,7 @@ class _GridTile extends StatelessWidget {
 
 class _VideoThumbnail extends StatefulWidget {
   final String path;
-  
+
   const _VideoThumbnail({required this.path});
 
   @override
@@ -258,12 +282,15 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
     _controller = widget.path.startsWith('assets/')
         ? VideoPlayerController.asset(widget.path)
         : VideoPlayerController.file(File(widget.path));
-        
-    _controller.initialize().then((_) {
-      if (mounted) setState(() => _initialized = true);
-    }).catchError((_) {
-      // Ignored for thumbnail
-    });
+
+    _controller
+        .initialize()
+        .then((_) {
+          if (mounted) setState(() => _initialized = true);
+        })
+        .catchError((_) {
+          // Ignored for thumbnail
+        });
   }
 
   @override
@@ -282,7 +309,7 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
         ),
       );
     }
-    
+
     return FittedBox(
       fit: BoxFit.cover,
       child: SizedBox(
@@ -293,7 +320,6 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full-screen scrollable detail view — Instagram-style PostCard list
@@ -316,10 +342,19 @@ class _ShowcaseDetailScreen extends StatefulWidget {
 
 class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
   final ScrollController _scrollController = ScrollController();
+  late final PostScrollLockController _postScrollLockController;
   late final Key _centerKey = const ValueKey('center');
 
   @override
+  void initState() {
+    super.initState();
+    _postScrollLockController = PostScrollLockController()
+      ..register(_scrollController);
+  }
+
+  @override
   void dispose() {
+    _postScrollLockController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -374,8 +409,9 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: bg,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Stack(
         children: [
@@ -389,8 +425,11 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               leadingWidth: 46,
               leading: IconButton(
                 padding: const EdgeInsets.only(left: 8),
-                icon: Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: isDark ? Colors.white : Colors.black),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
@@ -403,32 +442,40 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 ),
               ),
             ),
-            body: CustomScrollView(
-              controller: _scrollController,
-              center: _centerKey,
-              slivers: [
-                if (widget.startIndex > 0)
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final actualIndex = widget.startIndex - 1 - index;
-                        return _buildPostItem(actualIndex, isDark);
-                      },
-                      childCount: widget.startIndex,
-                    ),
-                  ),
-                SliverList(
-                  key: _centerKey,
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final actualIndex = widget.startIndex + index;
-                      return _buildPostItem(actualIndex, isDark);
-                    },
-                    childCount: widget.posts.length - widget.startIndex,
-                  ),
-                ),
-                const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
-              ],
+            body: PostScrollLockScope(
+              controller: _postScrollLockController,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _postScrollLockController,
+                builder: (context, isScrollLocked, _) {
+                  return CustomScrollView(
+                    controller: _scrollController,
+                    physics: isScrollLocked
+                        ? const NeverScrollableScrollPhysics()
+                        : null,
+                    center: _centerKey,
+                    slivers: [
+                      if (widget.startIndex > 0)
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final actualIndex = widget.startIndex - 1 - index;
+                            return _buildPostItem(actualIndex, isDark);
+                          }, childCount: widget.startIndex),
+                        ),
+                      SliverList(
+                        key: _centerKey,
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final actualIndex = widget.startIndex + index;
+                          return _buildPostItem(actualIndex, isDark);
+                        }, childCount: widget.posts.length - widget.startIndex),
+                      ),
+                      const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
           SystemNavBarFill(color: bg),

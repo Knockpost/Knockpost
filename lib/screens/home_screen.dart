@@ -27,6 +27,7 @@ import 'waves/waves_feed_screen.dart';
 import 'search/search_screen.dart';
 import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
+import '../widgets/post_scroll_lock_scope.dart';
 import '../widgets/system_nav_bar_fill.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -38,6 +39,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  late final PostScrollLockController _postScrollLockController;
+  late final PostPageSwipeLockController _postPageSwipeLockController;
   late final PageController _pageController;
   late final ValueNotifier<int> _navIndexNotifier;
   double _scrollDelta = 0;
@@ -47,7 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _postScrollLockController = PostScrollLockController()
+      ..register(_scrollController);
     _pageController = PageController(initialPage: _currentNavIndex);
+    _postPageSwipeLockController = PostPageSwipeLockController()
+      ..register(_pageController);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
   }
 
@@ -64,6 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _postScrollLockController.dispose();
+    _postPageSwipeLockController.dispose();
     _navIndexNotifier.dispose();
     _pageController.dispose();
     _scrollController.dispose();
@@ -87,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _setCurrentNavIndex(index);
     _pageController.jumpToPage(index);
   }
-
 
   /// Handle scroll notifications from the feed (Twitter/X behavior)
   /// Hides bars after scrolling down ~50px, shows immediately on scroll up.
@@ -240,7 +248,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   context,
                                   isGlimpse: false,
                                 );
-                                if (settings == null || !context.mounted) return;
+                                if (settings == null || !context.mounted) {
+                                  return;
+                                }
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -340,7 +350,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.pop(ctx);
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Glimpse composer coming soon!')),
+                      const SnackBar(
+                        content: Text('Glimpse composer coming soon!'),
+                      ),
                     );
                   },
                 ),
@@ -509,7 +521,8 @@ class _HomeScreenState extends State<HomeScreen> {
               extendBody: true,
 
               // ── FAB (X/Twitter-style fade + scale) ──────────────────
-              floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
+              floatingActionButton:
+                  (_currentNavIndex == 0 || _currentNavIndex == 4)
                   ? AnimatedOpacity(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeOut,
@@ -529,7 +542,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               textColor,
                             );
                           },
-                          child: const Icon(Icons.add, color: Colors.white, size: 26),
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                         ),
                       ),
                     )
@@ -539,172 +556,239 @@ class _HomeScreenState extends State<HomeScreen> {
               body: SafeArea(
                 top: !(isReelsTab || isProfileTab),
                 bottom: false,
-                child: PageView(
-                  controller: _pageController,
-                  allowImplicitScrolling: true,
-                  onPageChanged: _setCurrentNavIndex,
-                    children: [
-                      _KeepAlivePage(
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: _onScrollNotification,
-                          child: NestedScrollView(
-                            physics: const ClampingScrollPhysics(),
-                            controller: _scrollController,
-                            headerSliverBuilder: (context, innerBoxIsScrolled) {
-                              return [
-                                SliverAppBar(
-                                  backgroundColor: bgColor,
-                                  surfaceTintColor: bgColor,
-                                  elevation: 0,
-                                  floating: true,
-                                  snap: true,
-                                  titleSpacing: 20,
-                                  centerTitle: false,
-                                  title: Text(
-                                    "KnockPost",
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 21,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  actions: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.notifications_none,
-                                        color: textColor,
+                child: PostPageSwipeLockScope(
+                  controller: _postPageSwipeLockController,
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _postPageSwipeLockController,
+                    builder: (context, isPageSwipeLocked, _) {
+                      return PageView(
+                        controller: _pageController,
+                        physics: isPageSwipeLocked
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        allowImplicitScrolling: true,
+                        onPageChanged: _setCurrentNavIndex,
+                        children: [
+                          _KeepAlivePage(
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: _onScrollNotification,
+                              child: PostScrollLockScope(
+                                controller: _postScrollLockController,
+                                child: ValueListenableBuilder<bool>(
+                                  valueListenable: _postScrollLockController,
+                                  builder: (context, isScrollLocked, _) {
+                                    return NestedScrollView(
+                                      physics: isScrollLocked
+                                          ? const NeverScrollableScrollPhysics()
+                                          : const ClampingScrollPhysics(),
+                                      controller: _scrollController,
+                                      headerSliverBuilder:
+                                          (context, innerBoxIsScrolled) {
+                                            return [
+                                              SliverAppBar(
+                                                backgroundColor: bgColor,
+                                                surfaceTintColor: bgColor,
+                                                elevation: 0,
+                                                floating: true,
+                                                snap: true,
+                                                titleSpacing: 20,
+                                                centerTitle: false,
+                                                title: Text(
+                                                  "KnockPost",
+                                                  style: TextStyle(
+                                                    color: textColor,
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 21,
+                                                    letterSpacing: -0.5,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.notifications_none,
+                                                      color: textColor,
+                                                    ),
+                                                    onPressed: () {
+                                                      KnockHaptics.tap();
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              const NotificationsScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ];
+                                          },
+                                      body: ValueListenableBuilder<Set<String>>(
+                                        valueListenable:
+                                            GlobalPostState.deletedPostIds,
+                                        builder: (context, deletedIds, _) {
+                                          // For the demo, let's combine some posts for the home feed
+                                          // Only show the latest own post in Recents
+                                          final ownPostsSorted =
+                                              [...demoOwnPosts]..sort(
+                                                (a, b) => b.createdAt.compareTo(
+                                                  a.createdAt,
+                                                ),
+                                              );
+                                          final latestOwnPost =
+                                              ownPostsSorted.isNotEmpty
+                                              ? [ownPostsSorted.first]
+                                              : <PostModel>[];
+
+                                          final allDemoPosts = [
+                                            ...latestOwnPost,
+                                            ...getDemoPostsForUser('zayn01'),
+                                            ...getDemoPostsForUser(
+                                              'saptarshi01',
+                                            ),
+                                          ];
+
+                                          final activePosts =
+                                              allDemoPosts
+                                                  .where(
+                                                    (p) => !deletedIds.contains(
+                                                      p.id,
+                                                    ),
+                                                  )
+                                                  .toList()
+                                                ..sort(
+                                                  (a, b) => b.createdAt
+                                                      .compareTo(a.createdAt),
+                                                );
+
+                                          return ListView.builder(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 90,
+                                            ),
+                                            itemCount: activePosts.length + 2,
+                                            itemBuilder: (context, index) {
+                                              const glimpseStripIndex = 1;
+                                              const peopleStripIndex = 3;
+                                              final totalItems =
+                                                  activePosts.length + 2;
+                                              final isLast =
+                                                  index == totalItems - 1;
+
+                                              if (index == glimpseStripIndex) {
+                                                return GlimpsStrip(
+                                                  glimpses: demoGlimpseFeed,
+                                                );
+                                              }
+                                              if (index == peopleStripIndex) {
+                                                return const PeopleSuggestionStrip();
+                                              }
+
+                                              int postIndex = index;
+                                              if (index > peopleStripIndex) {
+                                                postIndex -= 2;
+                                              } else if (index >
+                                                  glimpseStripIndex) {
+                                                postIndex -= 1;
+                                              }
+
+                                              if (postIndex >=
+                                                  activePosts.length) {
+                                                return const SizedBox.shrink();
+                                              }
+
+                                              final post =
+                                                  activePosts[postIndex];
+                                              final author =
+                                                  post.authorId == 'me'
+                                                  ? demoOwnUser
+                                                  : findDemoUserByUsername(
+                                                          post.authorId ==
+                                                                  'zayn01'
+                                                              ? 'zayn.malik'
+                                                              : 'saptarshi.nayak',
+                                                        ) ??
+                                                        demoOwnUser;
+
+                                              final dividerColor = isDark
+                                                  ? const Color(0xFF2A2A2A)
+                                                  : const Color(0xFFE8E8E8);
+                                              final divider = Divider(
+                                                height: 1,
+                                                thickness: 1,
+                                                color: dividerColor,
+                                              );
+
+                                              Widget card;
+                                              if (post.type == PostType.text) {
+                                                card = ThoughtCard(
+                                                  user: author,
+                                                  text: post.text,
+                                                  likes: post.likes,
+                                                  views: post.views,
+                                                  postId: post.id,
+                                                  timestamp: post.timestampText,
+                                                );
+                                              } else {
+                                                card = PostCard(
+                                                  imagePaths: post.imagePaths,
+                                                  user: author,
+                                                  caption: post.text,
+                                                  likes: post.likes,
+                                                  views: post.views,
+                                                  postId: post.id,
+                                                  timestamp: post.timestampText,
+                                                );
+                                              }
+
+                                              return Column(
+                                                children: [
+                                                  divider,
+                                                  card,
+                                                  if (isLast) divider,
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        },
                                       ),
-                                      onPressed: () {
-                                        KnockHaptics.tap();
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ];
-                            },
-                            body: ValueListenableBuilder<Set<String>>(
-                              valueListenable: GlobalPostState.deletedPostIds,
-                              builder: (context, deletedIds, _) {
-                                // For the demo, let's combine some posts for the home feed
-                                // Only show the latest own post in Recents
-                                final ownPostsSorted = [...demoOwnPosts]
-                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-                                final latestOwnPost = ownPostsSorted.isNotEmpty
-                                    ? [ownPostsSorted.first]
-                                    : <PostModel>[];
-
-                                final allDemoPosts = [
-                                  ...latestOwnPost,
-                                  ...getDemoPostsForUser('zayn01'),
-                                  ...getDemoPostsForUser('saptarshi01'),
-                                ];
-                                
-                                final activePosts = allDemoPosts
-                                    .where((p) => !deletedIds.contains(p.id))
-                                    .toList()
-                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-                                return ListView.builder(
-                                  padding: const EdgeInsets.only(bottom: 90),
-                                  itemCount: activePosts.length + 2,
-                                  itemBuilder: (context, index) {
-                                    const glimpseStripIndex = 1;
-                                    const peopleStripIndex = 3;
-                                    final totalItems = activePosts.length + 2;
-                                    final isLast = index == totalItems - 1;
-                                    
-                                    if (index == glimpseStripIndex) {
-                                      return GlimpsStrip(glimpses: demoGlimpseFeed);
-                                    }
-                                    if (index == peopleStripIndex) {
-                                      return const PeopleSuggestionStrip();
-                                    }
-
-                                    int postIndex = index;
-                                    if (index > peopleStripIndex) {
-                                      postIndex -= 2;
-                                    } else if (index > glimpseStripIndex) {
-                                      postIndex -= 1;
-                                    }
-                                    
-                                    if (postIndex >= activePosts.length) return const SizedBox.shrink();
-                                    
-                                    final post = activePosts[postIndex];
-                                    final author = post.authorId == 'me' ? demoOwnUser : findDemoUserByUsername(post.authorId == 'zayn01' ? 'zayn.malik' : 'saptarshi.nayak') ?? demoOwnUser;
-
-                                    final dividerColor = isDark
-                                        ? const Color(0xFF2A2A2A)
-                                        : const Color(0xFFE8E8E8);
-                                    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
-
-                                    Widget card;
-                                    if (post.type == PostType.text) {
-                                      card = ThoughtCard(
-                                        user: author,
-                                        text: post.text,
-                                        likes: post.likes,
-                                        views: post.views,
-                                        postId: post.id,
-                                        timestamp: post.timestampText,
-                                      );
-                                    } else {
-                                      card = PostCard(
-                                        imagePaths: post.imagePaths,
-                                        user: author,
-                                        caption: post.text,
-                                        likes: post.likes,
-                                        views: post.views,
-                                        postId: post.id,
-                                        timestamp: post.timestampText,
-                                      );
-                                    }
-
-                                    return Column(
-                                      children: [
-                                        divider,
-                                        card,
-                                        if (isLast) divider,
-                                      ],
                                     );
                                   },
-                                );
-                              },
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const _KeepAlivePage(child: SearchScreen()),
-                      ValueListenableBuilder<int>(
-                        valueListenable: _navIndexNotifier,
-                        builder: (context, currentIndex, _) {
-                          return _KeepAlivePage(
-                            child: WavesFeedScreen(isVisible: currentIndex == 2),
-                          );
-                        },
-                      ),
-                      const _KeepAlivePage(child: MessagesScreen()),
-                      _KeepAlivePage(
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: _onScrollNotification,
-                          child: ValueListenableBuilder<List<PostModel>>(
-                            valueListenable: demoOwnPostsNotifier,
-                            builder: (context, currentPosts, child) {
-                              return ProfileScreen(
-                                user: demoOwnUser,
-                                posts: currentPosts,
+                          const _KeepAlivePage(child: SearchScreen()),
+                          ValueListenableBuilder<int>(
+                            valueListenable: _navIndexNotifier,
+                            builder: (context, currentIndex, _) {
+                              return _KeepAlivePage(
+                                child: WavesFeedScreen(
+                                  isVisible: currentIndex == 2,
+                                ),
                               );
                             },
                           ),
-                        ),
-                      ),
-                    ],
+                          const _KeepAlivePage(child: MessagesScreen()),
+                          _KeepAlivePage(
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: _onScrollNotification,
+                              child: ValueListenableBuilder<List<PostModel>>(
+                                valueListenable: demoOwnPostsNotifier,
+                                builder: (context, currentPosts, child) {
+                                  return ProfileScreen(
+                                    user: demoOwnUser,
+                                    posts: currentPosts,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
+              ),
 
               // ── BOTTOM NAV BAR ──────────────────────────────────────────
               // ClipRect ensures the nav is clipped as it slides out of view
