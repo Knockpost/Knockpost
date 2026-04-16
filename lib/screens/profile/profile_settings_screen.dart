@@ -63,7 +63,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Stack(
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            Navigator.pop(context, _user);
+          }
+        },
+        child: Stack(
         children: [
           Scaffold(
         backgroundColor: bg,
@@ -363,6 +370,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       ),
           SystemNavBarFill(color: bg),
         ],
+      ),
       ),
     );
   }

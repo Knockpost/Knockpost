@@ -1,16 +1,18 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'social_links_screen.dart';
-import 'widgets/profile_ui_helpers.dart';
 
-/// Edit Profile — edit name, username, bio, avatar, Open/Private toggle
+/// Edit Profile — edit name, username, bio, avatar and cover photos.
 class EditProfileScreen extends StatefulWidget {
   final UserModel user;
 
@@ -29,6 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _coverImageAsset;
 
   bool _hasChanges = false;
+  bool _isSaving = false;
   final ImagePicker _picker = ImagePicker();
 
   int get _bioWordCount => _bioCtrl.text
@@ -37,82 +40,119 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       .where((e) => e.isNotEmpty)
       .length;
 
+  String get _normalizedName => _nameCtrl.text.trim();
+
+  String get _normalizedUsername => _usernameCtrl.text
+      .trim()
+      .replaceFirst(RegExp(r'^@+'), '')
+      .replaceAll(RegExp(r'\s+'), '')
+      .toLowerCase();
+
+  String get _normalizedBio => _bioCtrl.text.trim();
+
+  bool get _isNameValid => _normalizedName.isNotEmpty;
+
+  bool get _isUsernameValid => _normalizedUsername.isNotEmpty;
+
   bool get _canSave {
-    if (!_hasChanges) return false;
+    if (!_hasChanges || _isSaving) return false;
+    if (!_isNameValid || !_isUsernameValid) return false;
     if (_bioWordCount > 40) return false;
     return true;
   }
 
+
+
+  void _handleFieldChanged() {
+    _syncHasChanges();
+  }
+
+  void _syncHasChanges() {
+    final hasChanges =
+        _normalizedName != widget.user.displayName.trim() ||
+        _normalizedUsername != widget.user.username.trim().toLowerCase() ||
+        _normalizedBio != (widget.user.bio ?? '').trim() ||
+        _avatarAsset != widget.user.avatarAsset ||
+        _coverImageAsset != widget.user.coverImageAsset ||
+        !mapEquals(_socialLinks, widget.user.socialLinks);
+
+    if (_hasChanges != hasChanges && mounted) {
+      setState(() => _hasChanges = hasChanges);
+    }
+  }
+
   Future<void> _pickAvatar(ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source);
-    if (image != null) {
-      final CroppedFile? croppedFile = await ImageCropper().cropImage(
-        sourcePath: image.path,
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Profile Photo',
-            toolbarColor: Colors.black,
-            toolbarWidgetColor: Colors.white,
-            backgroundColor: Colors.black,
-            activeControlsWidgetColor: Colors.white,
-            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
-            cropFrameColor: Colors.white,
-            cropGridColor: Colors.white24,
-            initAspectRatio: CropAspectRatioPreset.square,
-            lockAspectRatio: true,
-            hideBottomControls: false,
-          ),
-          IOSUiSettings(
-            title: 'Crop Profile Photo',
-            aspectRatioLockEnabled: true,
-            resetButtonHidden: true,
-          ),
-        ],
-      );
-      if (croppedFile != null) {
-        setState(() {
-          _avatarAsset = croppedFile.path;
-          _hasChanges = true;
-        });
-      }
-    }
+    if (image == null) return;
+
+    final CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Profile Photo',
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          backgroundColor: Colors.black,
+          activeControlsWidgetColor: Colors.white,
+          dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+          cropFrameColor: Colors.white,
+          cropGridColor: Colors.white24,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Profile Photo',
+          aspectRatioLockEnabled: true,
+          resetButtonHidden: true,
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    setState(() {
+      _avatarAsset = croppedFile.path;
+    });
+    _syncHasChanges();
   }
 
   Future<void> _pickCover(ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source);
-    if (image != null) {
-      final CroppedFile? croppedFile = await ImageCropper().cropImage(
-        sourcePath: image.path,
-        aspectRatio: const CropAspectRatio(ratioX: 2, ratioY: 1),
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Cover Photo',
-            toolbarColor: Colors.black,
-            toolbarWidgetColor: Colors.white,
-            backgroundColor: Colors.black,
-            activeControlsWidgetColor: Colors.white,
-            dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
-            cropFrameColor: Colors.white,
-            cropGridColor: Colors.white24,
-            initAspectRatio: CropAspectRatioPreset.ratio3x2,
-            lockAspectRatio: true,
-            hideBottomControls: false,
-          ),
-          IOSUiSettings(
-            title: 'Crop Cover Photo',
-            aspectRatioLockEnabled: true,
-            resetButtonHidden: true,
-          ),
-        ],
-      );
-      if (croppedFile != null) {
-        setState(() {
-          _coverImageAsset = croppedFile.path;
-          _hasChanges = true;
-        });
-      }
-    }
+    if (image == null) return;
+
+    final CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(ratioX: 2, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Cover Photo',
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          backgroundColor: Colors.black,
+          activeControlsWidgetColor: Colors.white,
+          dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+          cropFrameColor: Colors.white,
+          cropGridColor: Colors.white24,
+          initAspectRatio: CropAspectRatioPreset.ratio3x2,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Cover Photo',
+          aspectRatioLockEnabled: true,
+          resetButtonHidden: true,
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    setState(() {
+      _coverImageAsset = croppedFile.path;
+    });
+    _syncHasChanges();
   }
 
   void _showImageSourceBottomSheet({required bool isAvatar}) {
@@ -194,17 +234,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(context);
-                    if (isAvatar) {
-                      setState(() {
+                    setState(() {
+                      if (isAvatar) {
                         _avatarAsset = null;
-                        _hasChanges = true;
-                      });
-                    } else {
-                      setState(() {
+                      } else {
                         _coverImageAsset = null;
-                        _hasChanges = true;
-                      });
-                    }
+                      }
+                    });
+                    _syncHasChanges();
                   },
                 ),
               ],
@@ -220,36 +257,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.user.displayName);
     _usernameCtrl = TextEditingController(text: widget.user.username);
-    _bioCtrl = TextEditingController(text: widget.user.bio);
+    _bioCtrl = TextEditingController(text: widget.user.bio ?? '');
     _socialLinks = Map.from(widget.user.socialLinks);
     _avatarAsset = widget.user.avatarAsset;
     _coverImageAsset = widget.user.coverImageAsset;
- 
+
     for (final ctrl in [_nameCtrl, _usernameCtrl, _bioCtrl]) {
-      ctrl.addListener(() => setState(() => _hasChanges = true));
+      ctrl.addListener(_handleFieldChanged);
     }
   }
 
   @override
   void dispose() {
+    for (final ctrl in [_nameCtrl, _usernameCtrl, _bioCtrl]) {
+      ctrl.removeListener(_handleFieldChanged);
+    }
     _nameCtrl.dispose();
     _usernameCtrl.dispose();
     _bioCtrl.dispose();
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (!_canSave) return;
+
+    FocusScope.of(context).unfocus();
     KnockHaptics.impact();
+    setState(() => _isSaving = true);
+
     final updated = widget.user.copyWith(
-      displayName: _nameCtrl.text.trim(),
-      username: _usernameCtrl.text.trim(),
-      bio: _bioCtrl.text.trim(),
+      displayName: _normalizedName,
+      username: _normalizedUsername,
+      bio: _normalizedBio,
       avatarAsset: _avatarAsset,
       clearAvatar: _avatarAsset == null,
       coverImageAsset: _coverImageAsset,
       clearCover: _coverImageAsset == null,
       socialLinks: _socialLinks,
     );
+
+    if (!mounted) return;
     Navigator.pop(context, updated);
   }
 
@@ -269,303 +316,380 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: bg,
-        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Stack(
         children: [
           Scaffold(
-        backgroundColor: bg,
-        appBar: AppBar(
-          backgroundColor: bg,
-          elevation: 0,
-          leading: TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w500,
-                fontSize: 15,
+            backgroundColor: bg,
+            appBar: AppBar(
+              backgroundColor: bg,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.close_rounded, size: 22, color: textColor),
+                onPressed: _isSaving ? null : () => Navigator.pop(context),
               ),
-            ),
-          ),
-          leadingWidth: 80,
-          centerTitle: true,
-          title: Text(
-            'Edit Profile',
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: _canSave ? _save : null,
-              child: Text(
-                'Save',
+              centerTitle: true,
+              title: Text(
+                'Edit Profile',
                 style: TextStyle(
-                  color: _canSave ? textColor : subColor,
+                  color: textColor,
                   fontWeight: FontWeight.w700,
-                  fontSize: 15,
+                  fontSize: 16,
                 ),
               ),
+              actions: const [SizedBox(width: 48)],
             ),
-          ],
-        ),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          children: [
-            // ── Cover & Avatar Stack ───────────────────────────────────────
-            SizedBox(
-              height: 176,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Cover Photo Background
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: GestureDetector(
-                      onTap: () => _showImageSourceBottomSheet(isAvatar: false),
-                      child: Container(
-                        height: 140,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                      color: fieldBg,
-                      borderRadius: BorderRadius.circular(16),
-                      image: _coverImageAsset != null
-                          ? DecorationImage(
-                              image: _coverImageAsset!.startsWith('assets/')
-                                  ? AssetImage(_coverImageAsset!)
-                                        as ImageProvider
-                                  : FileImage(File(_coverImageAsset!)),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-                ),
-                // Cover Photo Camera Button
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: GestureDetector(
-                    onTap: () => _showImageSourceBottomSheet(isAvatar: false),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                // Overlapping Avatar (Bottom Right)
-                Positioned(
-                  bottom: 0,
-                  right: 16,
-                  child: Stack(
+            body: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                     children: [
-                      GestureDetector(
-                        onTap: () =>
-                            _showImageSourceBottomSheet(isAvatar: true),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: bg,
-                            border: Border.all(color: bg, width: 4),
-                          ),
-                          child: CircleAvatar(
-                            radius: 44,
-                            backgroundColor: fieldBg,
-                            backgroundImage: _avatarAsset != null
-                                ? (_avatarAsset!.startsWith('assets/')
-                                          ? AssetImage(_avatarAsset!)
-                                          : FileImage(File(_avatarAsset!)))
-                                      as ImageProvider
-                                : null,
-                            child: _avatarAsset == null
-                                ? Icon(
-                                    Icons.person_rounded,
-                                    size: 56,
-                                    color: isDark ? Colors.white54 : Colors.black45,
-                                  )
-                                : null,
-                          ),
-                        ),
+                      _buildMediaSection(
+                        bg: bg,
+                        fieldBg: fieldBg,
+                        textColor: textColor,
+                        isDark: isDark,
                       ),
-                      // Avatar Camera Button
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: () =>
-                              _showImageSourceBottomSheet(isAvatar: true),
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: textColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: bg, width: 2),
-                            ),
-                            child: Icon(
-                              Icons.camera_alt_rounded,
-                              size: 14,
-                              color: bg,
-                            ),
+                      const SizedBox(height: 24),
+                      _FieldLabel('Display Name', subColor),
+                      _EditField(
+                        controller: _nameCtrl,
+                        hint: 'Your name',
+                        bg: fieldBg,
+                        borderColor: borderColor,
+                        textColor: textColor,
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                      const SizedBox(height: 16),
+                      _FieldLabel('Username', subColor),
+                      _EditField(
+                        controller: _usernameCtrl,
+                        hint: 'your.username',
+                        bg: fieldBg,
+                        borderColor: borderColor,
+                        textColor: textColor,
+                        prefixText: '@',
+                        textCapitalization: TextCapitalization.none,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _FieldLabel('Bio', subColor),
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _bioCtrl,
+                        builder: (context, value, child) {
+                          final wordCount = value.text
+                              .trim()
+                              .split(RegExp(r'\s+'))
+                              .where((e) => e.isNotEmpty)
+                              .length;
+                          final isOver = wordCount > 40;
+                          return Stack(
+                            children: [
+                              _EditField(
+                                controller: _bioCtrl,
+                                hint: 'A little something about you...',
+                                bg: fieldBg,
+                                borderColor: isOver
+                                    ? Colors.red.withValues(alpha: 0.5)
+                                    : borderColor,
+                                textColor: textColor,
+                                maxLines: 4,
+                                contentPadding: const EdgeInsets.only(
+                                  left: 14,
+                                  right: 14,
+                                  top: 12,
+                                  bottom: 30,
+                                ),
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                right: 12,
+                                child: Text(
+                                  '$wordCount/40',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isOver ? Colors.red : subColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      _FieldLabel('Links', subColor),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () async {
+                          KnockHaptics.selection();
+                          final result =
+                              await Navigator.push<Map<String, String>>(
+                                context,
+                                CupertinoPageRoute(
+                                  builder: (_) => SocialLinksScreen(
+                                    initialLinks: _socialLinks,
+                                  ),
+                                ),
+                              );
+                          if (result != null) {
+                            setState(() {
+                              _socialLinks = result;
+                            });
+                            _syncHasChanges();
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: fieldBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.link_rounded,
+                                size: 20,
+                                color: textColor.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _socialLinks.isEmpty
+                                      ? 'Add social links'
+                                      : '${_socialLinks.length} link${_socialLinks.length > 1 ? 's' : ''} added',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    color: _socialLinks.isEmpty
+                                        ? textColor.withValues(alpha: 0.35)
+                                        : textColor,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 22,
+                                color: textColor.withValues(alpha: 0.3),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                _buildBottomActionBar(
+                  bg: bg,
+                  fieldBg: fieldBg,
+                  textColor: textColor,
+                  subColor: subColor,
+                  borderColor: borderColor,
+                  isDark: isDark,
+                ),
               ],
             ),
-            ),
-            const SizedBox(height: 24),
+          ),
+          SystemNavBarFill(color: bg),
+        ],
+      ),
+    );
+  }
 
-            // ── Fields ───────────────────────────────────────────────────────
-            _FieldLabel('Display Name', subColor),
-            _EditField(
-              controller: _nameCtrl,
-              hint: 'Your name',
-              bg: fieldBg,
-              borderColor: borderColor,
-              textColor: textColor,
-            ),
-            const SizedBox(height: 16),
-
-            _FieldLabel('Username', subColor),
-            _EditField(
-              controller: _usernameCtrl,
-              hint: 'your.username',
-              bg: fieldBg,
-              borderColor: borderColor,
-              textColor: textColor,
-              prefixText: '@',
-            ),
-            const SizedBox(height: 16),
-
-            _FieldLabel('Bio', subColor),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _bioCtrl,
-              builder: (context, value, child) {
-                final wordCount = value.text
-                    .trim()
-                    .split(RegExp(r'\s+'))
-                    .where((e) => e.isNotEmpty)
-                    .length;
-                final isOver = wordCount > 40;
-                return Stack(
-                  children: [
-                    _EditField(
-                      controller: _bioCtrl,
-                      hint: 'A little something about you...',
-                      bg: fieldBg,
-                      borderColor: isOver
-                          ? Colors.red.withValues(alpha: 0.5)
-                          : borderColor,
-                      textColor: textColor,
-                      maxLines: 4,
-                      contentPadding: const EdgeInsets.only(
-                        left: 14,
-                        right: 14,
-                        top: 12,
-                        bottom: 30, // Extra space at bottom to avoid overlap
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      right: 12,
-                      child: Text(
-                        '$wordCount/40',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isOver ? Colors.red : subColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-
-            _FieldLabel('Links', subColor),
-            const SizedBox(height: 6),
-            GestureDetector(
-              onTap: () async {
-                KnockHaptics.selection();
-                final result = await Navigator.push<Map<String, String>>(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (_) => SocialLinksScreen(
-                      initialLinks: _socialLinks,
-                    ),
-                  ),
-                );
-                if (result != null) {
-                  setState(() {
-                    _socialLinks = result;
-                    _hasChanges = true;
-                  });
-                }
-              },
+  Widget _buildMediaSection({
+    required Color bg,
+    required Color fieldBg,
+    required Color textColor,
+    required bool isDark,
+  }) {
+    return SizedBox(
+      height: 176,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: GestureDetector(
+              onTap: () => _showImageSourceBottomSheet(isAvatar: false),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
-                ),
+                height: 140,
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: fieldBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.link_rounded,
-                      size: 20,
-                      color: textColor.withValues(alpha: 0.5),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _socialLinks.isEmpty
-                            ? 'Add social links'
-                            : '${_socialLinks.length} link${_socialLinks.length > 1 ? 's' : ''} added',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          color: _socialLinks.isEmpty
-                              ? textColor.withValues(alpha: 0.35)
-                              : textColor,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 22,
-                      color: textColor.withValues(alpha: 0.3),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(16),
+                  image: _coverImageAsset != null
+                      ? DecorationImage(
+                          image: _coverImageAsset!.startsWith('assets/')
+                              ? AssetImage(_coverImageAsset!) as ImageProvider
+                              : FileImage(File(_coverImageAsset!)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: GestureDetector(
+              onTap: () => _showImageSourceBottomSheet(isAvatar: false),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.camera_alt_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 16,
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () => _showImageSourceBottomSheet(isAvatar: true),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: bg,
+                      border: Border.all(color: bg, width: 4),
+                    ),
+                    child: CircleAvatar(
+                      radius: 44,
+                      backgroundColor: fieldBg,
+                      backgroundImage: _avatarAsset != null
+                          ? (_avatarAsset!.startsWith('assets/')
+                                    ? AssetImage(_avatarAsset!)
+                                    : FileImage(File(_avatarAsset!)))
+                                as ImageProvider
+                          : null,
+                      child: _avatarAsset == null
+                          ? Icon(
+                              Icons.person_rounded,
+                              size: 56,
+                              color: isDark ? Colors.white54 : Colors.black45,
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: () => _showImageSourceBottomSheet(isAvatar: true),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: textColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: bg, width: 2),
+                      ),
+                      child: Icon(
+                        Icons.camera_alt_rounded,
+                        size: 14,
+                        color: bg,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomActionBar({
+    required Color bg,
+    required Color fieldBg,
+    required Color textColor,
+    required Color subColor,
+    required Color borderColor,
+    required bool isDark,
+  }) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border(top: BorderSide(color: borderColor)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
+              blurRadius: 24,
+              offset: const Offset(0, -8),
+            ),
           ],
         ),
-      ),
-          SystemNavBarFill(color: bg),
-        ],
+        child: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _BottomActionButton(
+                      label: 'Cancel',
+                      backgroundColor: fieldBg,
+                      foregroundColor: textColor,
+                      borderColor: borderColor,
+                      onTap: _isSaving
+                          ? null
+                          : () {
+                              KnockHaptics.selection();
+                              Navigator.pop(context);
+                            },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _BottomActionButton(
+                      label: _isSaving ? 'Saving...' : 'Save',
+                      backgroundColor: _canSave
+                          ? textColor
+                          : textColor.withValues(alpha: isDark ? 0.18 : 0.12),
+                      foregroundColor: _canSave ? bg : subColor,
+                      borderColor: Colors.transparent,
+                      onTap: _canSave ? _save : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -602,6 +726,8 @@ class _EditField extends StatelessWidget {
   final int maxLines;
   final String? prefixText;
   final EdgeInsetsGeometry? contentPadding;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
 
   const _EditField({
     required this.controller,
@@ -612,6 +738,8 @@ class _EditField extends StatelessWidget {
     this.maxLines = 1,
     this.prefixText,
     this.contentPadding,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.sentences,
   });
 
   @override
@@ -625,7 +753,10 @@ class _EditField extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        inputFormatters: inputFormatters,
+        textCapitalization: textCapitalization,
         style: TextStyle(fontSize: 14.5, color: textColor),
+        onTapOutside: (_) => FocusScope.of(context).unfocus(),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
@@ -642,6 +773,52 @@ class _EditField extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: InputBorder.none,
           counterText: '',
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomActionButton extends StatelessWidget {
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final Color borderColor;
+  final VoidCallback? onTap;
+
+  const _BottomActionButton({
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          height: 52,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: foregroundColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ),
     );
