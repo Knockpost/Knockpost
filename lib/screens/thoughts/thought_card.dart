@@ -89,6 +89,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
             isPostOwner: widget.user.isOwnProfile,
             initialLikes: widget.likes,
             initialViews: widget.views,
+            postAuthor: widget.user,
             shareUsername: widget.user.username,
             shareCaption: widget.text,
             timestamp: widget.timestamp,

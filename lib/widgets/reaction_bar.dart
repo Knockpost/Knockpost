@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import '../models/user_model.dart';
 import '../utils/haptic_helper.dart';
 import 'comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
@@ -31,6 +32,7 @@ class ReactionBar extends StatefulWidget {
   final bool isPostOwner;
   final int initialLikes;
   final int initialViews;
+  final UserModel postAuthor;
   final String? shareUsername;
   final String? shareCaption;
   final String? timestamp;
@@ -43,6 +45,7 @@ class ReactionBar extends StatefulWidget {
     this.isPostOwner = false,
     this.initialLikes = 0,
     this.initialViews = 0,
+    required this.postAuthor,
     this.shareUsername,
     this.shareCaption,
     this.timestamp,
@@ -332,6 +335,7 @@ class _ReactionBarState extends State<ReactionBar>
                       CommentSheet.show(
                         context,
                         postId: widget.postId,
+                        postAuthor: widget.postAuthor,
                         isPostOwner: widget.isPostOwner,
                       );
                     },

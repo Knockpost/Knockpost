@@ -185,6 +185,7 @@ class _PostCardState extends State<PostCard> {
             isPostOwner: widget.user.isOwnProfile,
             initialLikes: widget.likes,
             initialViews: widget.views,
+            postAuthor: widget.user,
             shareUsername: widget.user.username,
             shareCaption: widget.caption,
             timestamp: widget.timestamp,

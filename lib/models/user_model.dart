@@ -336,6 +336,14 @@ const List<UserModel> allDemoUsers = [
   demoLeonardoDiCaprio,
 ];
 
+UserModel? findDemoUserById(String id) {
+  if (demoOwnUser.id == id) return demoOwnUser;
+  for (final u in allDemoUsers) {
+    if (u.id == id) return u;
+  }
+  return null;
+}
+
 /// Find a full demo UserModel by username. Returns null if not found.
 UserModel? findDemoUserByUsername(String username) {
   for (final u in allDemoUsers) {

@@ -34,7 +34,12 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
       ..register(_scrollController);
     if (widget.autoOpenComments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        CommentSheet.show(context, postId: widget.post.id, isPostOwner: false);
+        CommentSheet.show(
+          context,
+          postId: widget.post.id,
+          postAuthor: widget.author,
+          isPostOwner: false,
+        );
       });
     }
   }
