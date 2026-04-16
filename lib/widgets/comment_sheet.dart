@@ -229,7 +229,7 @@ class _CommentSheetState extends State<CommentSheet> {
                     Align(
                       alignment: Alignment.center,
                       child: Text(
-                        'Private comments',
+                        'Private Replies',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -255,42 +255,15 @@ class _CommentSheetState extends State<CommentSheet> {
 
               // ── Private Notice ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Column(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        border: Border.all(color: subtleColor.withValues(alpha: 0.2)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Only you and the creator can see what you write here. No one else can view these comments.',
-                        style: TextStyle(
-                          color: textColor.withValues(alpha: 0.8),
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: inputBg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'Your comments stay visible only to you and this creator.',
-                        style: TextStyle(
-                          color: textColor.withValues(alpha: 0.7),
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                    Icon(Icons.lock_outline_rounded, size: 14, color: subtleColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Only you and the author can view these replies.',
+                      style: TextStyle(color: subtleColor, fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -440,7 +413,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           focusNode: _focusNode,
                           style: TextStyle(fontSize: 14, color: textColor),
                           decoration: InputDecoration(
-                            hintText: 'Send a private comment...',
+                            hintText: 'Send a private reply...',
                             hintStyle: TextStyle(
                               fontSize: 14,
                               color: subtleColor,
@@ -643,7 +616,7 @@ class _CommentSheetState extends State<CommentSheet> {
       ), // GestureDetector
     ); // Padding
   }
-  
+
   void _showCommentOptions(BuildContext context, Offset position, Comment comment, bool isMe) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xff2A2A2A) : Colors.white;
@@ -736,7 +709,7 @@ class _CommentSheetState extends State<CommentSheet> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No comments yet',
+            'No replies yet',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
