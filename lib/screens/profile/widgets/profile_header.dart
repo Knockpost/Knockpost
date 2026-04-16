@@ -849,20 +849,129 @@ class _ZoomableAvatar extends StatefulWidget {
   State<_ZoomableAvatar> createState() => _ZoomableAvatarState();
 }
 
-class _ZoomableAvatarState extends State<_ZoomableAvatar>
-    with SingleTickerProviderStateMixin {
-  OverlayEntry? _overlayEntry;
+class _ZoomableAvatarState extends State<_ZoomableAvatar> {
+  final GlobalKey _avatarKey = GlobalKey();
+  Timer? _pressTimer;
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    super.dispose();
+  }
+
+  void _showZoom() {
+    final renderBox = _avatarKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    HapticFeedback.mediumImpact();
+
+    final avatarSize = renderBox.size;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final avatarCenter = Offset(
+      offset.dx + avatarSize.width / 2,
+      offset.dy + avatarSize.height / 2,
+    );
+
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.transparent,
+      fullscreenDialog: true,
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _ZoomOverlay(
+          avatarCenter: avatarCenter,
+          avatarSize: avatarSize,
+          user: widget.user,
+          isDark: widget.isDark,
+          bg: widget.bg,
+          radius: widget.radius,
+        );
+      },
+    ));
+  }
+
+  Widget _buildAvatarContent() {
+    final user = widget.user;
+    final isCreator = user.accountType == AccountType.creator;
+    final borderWidth = isCreator ? 3.0 : 4.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: widget.bg,
+        border: Border.all(
+          color: widget.bg,
+          width: borderWidth,
+        ),
+      ),
+      child: CircleAvatar(
+        radius: widget.radius,
+        backgroundColor: widget.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+        backgroundImage: user.avatarAsset != null
+            ? (user.avatarAsset!.startsWith('assets/')
+                  ? AssetImage(user.avatarAsset!) as ImageProvider
+                  : FileImage(File(user.avatarAsset!)))
+            : null,
+        child: user.avatarAsset == null
+            ? Text(
+                user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
+                style: TextStyle(
+                  fontSize: widget.radius * 0.74,
+                  fontWeight: FontWeight.w700,
+                  color: widget.isDark ? Colors.white70 : Colors.black54,
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      key: _avatarKey,
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) {
+        _pressTimer?.cancel();
+        _pressTimer = Timer(const Duration(milliseconds: 250), () {
+          _showZoom();
+        });
+      },
+      onPointerUp: (_) => _pressTimer?.cancel(),
+      onPointerCancel: (_) => _pressTimer?.cancel(),
+      child: _buildAvatarContent(),
+    );
+  }
+}
+
+class _ZoomOverlay extends StatefulWidget {
+  final Offset avatarCenter;
+  final Size avatarSize;
+  final UserModel user;
+  final bool isDark;
+  final Color bg;
+  final double radius;
+
+  const _ZoomOverlay({
+    required this.avatarCenter,
+    required this.avatarSize,
+    required this.user,
+    required this.isDark,
+    required this.bg,
+    required this.radius,
+  });
+
+  @override
+  State<_ZoomOverlay> createState() => _ZoomOverlayState();
+}
+
+class _ZoomOverlayState extends State<_ZoomOverlay> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  final GlobalKey _avatarKey = GlobalKey();
-  Offset? _avatarCenter;
-  Size? _avatarSize;
-  bool _isClosing = false;
-  Timer? _pressTimer;
+  
   double _userScale = 1.0;
-  Offset _userOffset = Offset.zero;
   double _baseScale = 1.0;
+  bool _isClosing = false;
 
   @override
   void initState() {
@@ -886,129 +995,23 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
         reverseCurve: Curves.easeIn,
       ),
     );
-    _controller.addListener(() {
-      _overlayEntry?.markNeedsBuild();
-    });
+    _controller.forward();
+    _controller.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
-    _pressTimer?.cancel();
-    _removeOverlayImmediate();
     _controller.dispose();
     super.dispose();
   }
 
-  /// Called on long press — opens the popup and it STAYS open.
-  void _showZoom() {
-    if (_overlayEntry != null) return;
-
-    final renderBox =
-        _avatarKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
-
-    HapticFeedback.mediumImpact();
-
-    _avatarSize = renderBox.size;
-    final offset = renderBox.localToGlobal(Offset.zero);
-    _avatarCenter = Offset(
-      offset.dx + _avatarSize!.width / 2,
-      offset.dy + _avatarSize!.height / 2,
-    );
-
-    _isClosing = false;
-    _userScale = 1.0;
-    _userOffset = Offset.zero;
-    _baseScale = 1.0;
-    _overlayEntry = OverlayEntry(builder: _buildOverlay);
-    Overlay.of(context).insert(_overlayEntry!);
-    _controller.forward(from: 0.0);
-    setState(() {});
-  }
-
-  /// Tap anywhere on the overlay to dismiss.
   void _dismissZoom() {
-    if (_overlayEntry == null || _isClosing) return;
+    if (_isClosing) return;
     _isClosing = true;
     HapticFeedback.lightImpact();
     _controller.reverse().then((_) {
-      _removeOverlayImmediate();
+      if (mounted) Navigator.of(context).pop();
     });
-  }
-
-  void _removeOverlayImmediate() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    _isClosing = false;
-    if (mounted) setState(() {});
-  }
-
-  Widget _buildOverlay(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final screenCenter = screenSize.center(Offset.zero);
-    final scale = _scaleAnimation.value;
-    final fade = _fadeAnimation.value;
-    // Use correct divisor so progress reaches 1.0 at max animation scale
-    final progress = ((scale - 1.0) / 1.72).clamp(0.0, 1.0);
-
-    final dx =
-        _avatarCenter!.dx + (screenCenter.dx - _avatarCenter!.dx) * progress;
-    final dy =
-        _avatarCenter!.dy + (screenCenter.dy - _avatarCenter!.dy) * progress;
-
-    final totalScale = scale * _userScale;
-
-    return Material(
-      type: MaterialType.transparency,
-      child: GestureDetector(
-        onTap: _dismissZoom,
-        onScaleStart: (details) {
-          _baseScale = _userScale;
-        },
-        onScaleUpdate: (details) {
-          _userScale = (_baseScale * details.scale).clamp(0.8, 2.0);
-          if (details.pointerCount >= 2) {
-            _userOffset += details.focalPointDelta;
-          }
-          _overlayEntry?.markNeedsBuild();
-        },
-        onScaleEnd: (_) {
-          // Always snap back to original size/position on release
-          _userScale = 1.0;
-          _userOffset = Offset.zero;
-          _overlayEntry?.markNeedsBuild();
-        },
-        behavior: HitTestBehavior.opaque,
-        child: Stack(
-          children: [
-            // Frosted glass blur background
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: fade * 8.0,
-                  sigmaY: fade * 8.0,
-                ),
-                child: Container(
-                  color: (widget.isDark ? Colors.black : Colors.white)
-                      .withValues(alpha: fade * 0.05),
-                ),
-              ),
-            ),
-            // Zoomed avatar centered on screen
-            Positioned(
-              left: dx - _avatarSize!.width / 2 + _userOffset.dx,
-              top: dy - _avatarSize!.height / 2 + _userOffset.dy,
-              width: _avatarSize!.width,
-              height: _avatarSize!.height,
-              child: Transform.scale(
-                scale: totalScale,
-                child: _buildAvatarContent(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildAvatarContent() {
@@ -1019,7 +1022,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: widget.bg,
+        color: widget.bg, 
         border: Border.all(
           color: widget.bg,
           width: borderWidth,
@@ -1027,9 +1030,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
       ),
       child: CircleAvatar(
         radius: widget.radius,
-        backgroundColor: widget.isDark
-            ? const Color(0xFF2A2A2A)
-            : const Color(0xFFEEEEEE),
+        backgroundColor: widget.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
         backgroundImage: user.avatarAsset != null
             ? (user.avatarAsset!.startsWith('assets/')
                   ? AssetImage(user.avatarAsset!) as ImageProvider
@@ -1037,9 +1038,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
             : null,
         child: user.avatarAsset == null
             ? Text(
-                user.displayName.isNotEmpty
-                    ? user.displayName[0].toUpperCase()
-                    : '?',
+                user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
                 style: TextStyle(
                   fontSize: widget.radius * 0.74,
                   fontWeight: FontWeight.w700,
@@ -1053,24 +1052,64 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar>
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      key: _avatarKey,
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) {
-        _pressTimer?.cancel();
-        _pressTimer = Timer(const Duration(milliseconds: 250), () {
-          _showZoom();
-        });
+    final screenSize = MediaQuery.of(context).size;
+    final screenCenter = screenSize.center(Offset.zero);
+    final scale = _scaleAnimation.value;
+    final fade = _fadeAnimation.value;
+    final progress = ((scale - 1.0) / 1.72).clamp(0.0, 1.0);
+
+    final dx = widget.avatarCenter.dx + (screenCenter.dx - widget.avatarCenter.dx) * progress;
+    final dy = widget.avatarCenter.dy + (screenCenter.dy - widget.avatarCenter.dy) * progress;
+    final totalScale = scale * _userScale;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _dismissZoom();
+        }
       },
-      onPointerUp: (_) {
-        _pressTimer?.cancel();
-      },
-      onPointerCancel: (_) {
-        _pressTimer?.cancel();
-      },
-      child: Opacity(
-        opacity: _overlayEntry != null ? 0.0 : 1.0,
-        child: _buildAvatarContent(),
+      child: Material(
+        type: MaterialType.transparency,
+        child: GestureDetector(
+          onTap: _dismissZoom,
+          onScaleStart: (details) {
+            _baseScale = _userScale;
+          },
+          onScaleUpdate: (details) {
+            setState(() {
+              _userScale = (_baseScale * details.scale).clamp(0.85, 1.5);
+            });
+          },
+          onScaleEnd: (_) {
+            setState(() {
+              _userScale = 1.0;
+            });
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: fade * 8.0, sigmaY: fade * 8.0),
+                  child: Container(
+                    color: (widget.isDark ? Colors.black : Colors.white).withValues(alpha: fade * 0.05),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: dx - widget.avatarSize.width / 2,
+                top: dy - widget.avatarSize.height / 2,
+                width: widget.avatarSize.width,
+                height: widget.avatarSize.height,
+                child: Transform.scale(
+                  scale: totalScale,
+                  child: _buildAvatarContent(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

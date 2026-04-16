@@ -112,7 +112,11 @@ class _ReactionBarState extends State<ReactionBar>
     super.didUpdateWidget(oldWidget);
     if (widget.doubleTapped && !oldWidget.doubleTapped) {
       _selectWithAnimation('❤');
-      widget.onDoubleTapHandled?.call();
+      if (widget.onDoubleTapHandled != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.onDoubleTapHandled!();
+        });
+      }
     }
   }
 
