@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import '../models/user_model.dart';
 import '../utils/haptic_helper.dart';
 import 'comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 import '../screens/waves/widgets/share_sheet.dart';
 import 'reactors_sheet.dart';
+
 /// Emoji data for the reaction popup
 class ReactionEmoji {
   final String emoji;
@@ -30,8 +32,10 @@ class ReactionBar extends StatefulWidget {
   final bool isPostOwner;
   final int initialLikes;
   final int initialViews;
+  final UserModel postAuthor;
   final String? shareUsername;
   final String? shareCaption;
+  final String? timestamp;
 
   const ReactionBar({
     super.key,
@@ -41,8 +45,10 @@ class ReactionBar extends StatefulWidget {
     this.isPostOwner = false,
     this.initialLikes = 0,
     this.initialViews = 0,
+    required this.postAuthor,
     this.shareUsername,
     this.shareCaption,
+    this.timestamp,
   });
 
   @override
@@ -91,13 +97,17 @@ class _ReactionBarState extends State<ReactionBar>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _heartScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(
-      CurvedAnimation(parent: _heartController, curve: Curves.easeInOutCubic),
-    );
+    _heartScale =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.95), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+        ]).animate(
+          CurvedAnimation(
+            parent: _heartController,
+            curve: Curves.easeInOutCubic,
+          ),
+        );
   }
 
   @override
@@ -105,7 +115,11 @@ class _ReactionBarState extends State<ReactionBar>
     super.didUpdateWidget(oldWidget);
     if (widget.doubleTapped && !oldWidget.doubleTapped) {
       _selectWithAnimation('❤');
-      widget.onDoubleTapHandled?.call();
+      if (widget.onDoubleTapHandled != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.onDoubleTapHandled!();
+        });
+      }
     }
   }
 
@@ -231,16 +245,32 @@ class _ReactionBarState extends State<ReactionBar>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // ── Left: Reaction Summary (Owner Only) ──
-              if (widget.isPostOwner)
-                _ReactionSummary(
-                  likes: _likesCount,
-                  views: widget.initialViews,
-                  postId: widget.postId,
-                  isDark: isDark,
-                )
-              else
-                const SizedBox.shrink(),
+              // ── Left: Timestamp and Reaction Summary ──
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.timestamp != null && !widget.isPostOwner)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Text(
+                        widget.timestamp!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white54 : Colors.black54,
+                        ),
+                      ),
+                    ),
+                  if (widget.isPostOwner)
+                    _ReactionSummary(
+                      likes: _likesCount,
+                      views: widget.initialViews,
+                      postId: widget.postId,
+                      isDark: isDark,
+                      userReaction: _selectedEmoji,
+                    ),
+                ],
+              ),
 
               // ── Right: Action Buttons ──
               Row(
@@ -282,7 +312,10 @@ class _ReactionBarState extends State<ReactionBar>
                         child: _selectedEmoji != null
                             ? ScaleTransition(
                                 scale: _heartScale,
-                                child: _buildSelectedWidget(_selectedEmoji!, 28),
+                                child: _buildSelectedWidget(
+                                  _selectedEmoji!,
+                                  28,
+                                ),
                               )
                             : Image.asset(
                                 isDark
@@ -302,6 +335,7 @@ class _ReactionBarState extends State<ReactionBar>
                       CommentSheet.show(
                         context,
                         postId: widget.postId,
+                        postAuthor: widget.postAuthor,
                         isPostOwner: widget.isPostOwner,
                       );
                     },
@@ -315,7 +349,9 @@ class _ReactionBarState extends State<ReactionBar>
                       child: Icon(
                         Icons.chat_bubble_outline,
                         size: 20,
-                        color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.75),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : Colors.black.withValues(alpha: 0.75),
                       ),
                     ),
                   ),
@@ -348,7 +384,9 @@ class _ReactionBarState extends State<ReactionBar>
                       child: Icon(
                         Icons.share_outlined,
                         size: 20,
-                        color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.75),
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : Colors.black.withValues(alpha: 0.75),
                       ),
                     ),
                   ),
@@ -406,22 +444,36 @@ class _ReactionBarState extends State<ReactionBar>
                         children: List.generate(_reactions.length, (index) {
                           final isHovered = _hoveredIndex == index;
                           final double staggerStart = index * 0.1;
-                          final double staggerEnd = (staggerStart + 0.6).clamp(0.0, 1.0);
+                          final double staggerEnd = (staggerStart + 0.6).clamp(
+                            0.0,
+                            1.0,
+                          );
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 5),
                             child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.5),
-                                end: Offset.zero,
-                              ).animate(CurvedAnimation(
-                                parent: _popupController,
-                                curve: Interval(staggerStart, staggerEnd, curve: Curves.easeOutBack),
-                              )),
+                              position:
+                                  Tween<Offset>(
+                                    begin: const Offset(0, 0.5),
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _popupController,
+                                      curve: Interval(
+                                        staggerStart,
+                                        staggerEnd,
+                                        curve: Curves.easeOutBack,
+                                      ),
+                                    ),
+                                  ),
                               child: ScaleTransition(
                                 scale: CurvedAnimation(
                                   parent: _popupController,
-                                  curve: Interval(staggerStart, staggerEnd, curve: Curves.easeOutBack),
+                                  curve: Interval(
+                                    staggerStart,
+                                    staggerEnd,
+                                    curve: Curves.easeOutBack,
+                                  ),
                                 ),
                                 child: SizedBox(
                                   width: 30,
@@ -431,16 +483,24 @@ class _ReactionBarState extends State<ReactionBar>
                                     maxWidth: 56,
                                     maxHeight: 76,
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 250),
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
                                       curve: Curves.easeOutBack,
                                       transform: isHovered
                                           ? (Matrix4.identity()
-                                              ..setTranslationRaw(0.0, -20.0, 0.0))
+                                              ..setTranslationRaw(
+                                                0.0,
+                                                -20.0,
+                                                0.0,
+                                              ))
                                           : Matrix4.identity(),
                                       transformAlignment: Alignment.center,
                                       child: AnimatedScale(
                                         scale: isHovered ? 1.7 : 1.0,
-                                        duration: const Duration(milliseconds: 250),
+                                        duration: const Duration(
+                                          milliseconds: 250,
+                                        ),
                                         curve: Curves.easeOutBack,
                                         child: _buildEmojiWidget(index, 28),
                                       ),
@@ -468,22 +528,36 @@ class _ReactionSummary extends StatelessWidget {
   final int views;
   final String postId;
   final bool isDark;
+  final String? userReaction;
 
   const _ReactionSummary({
     required this.likes,
     required this.views,
     required this.postId,
     required this.isDark,
+    this.userReaction,
   });
+
+  String _formatLikes(int count) {
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}k';
+    }
+    return count.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
     if (likes <= 0) return const SizedBox.shrink();
 
+    final emojisToShow = <String>[];
+    if (likes >= 1) emojisToShow.add('👍');
+    if (likes >= 2) emojisToShow.add('❤️');
+    if (likes >= 3) emojisToShow.add('🔥');
+
     return GestureDetector(
       onTap: () {
         KnockHaptics.selection();
-        ReactorsSheet.show(context, postId: postId);
+        ReactorsSheet.show(context, postId: postId, userReaction: userReaction);
       },
       behavior: HitTestBehavior.opaque,
       child: Padding(
@@ -493,19 +567,23 @@ class _ReactionSummary extends StatelessWidget {
           children: [
             // Overlapping reaction icons
             SizedBox(
-              width: 56,
-              height: 28,
+              width: 24.0 + (emojisToShow.length - 1) * 14.0,
+              height: 24,
               child: Stack(
-                children: [
-                  _miniEmoji('👍', 0),
-                  _miniEmoji('❤️', 16),
-                  _miniEmoji('🔥', 32),
-                ],
+                clipBehavior: Clip.none,
+                children: List.generate(emojisToShow.length, (index) {
+                  // Ensure left-most is on top
+                  final reversedIndex = emojisToShow.length - 1 - index;
+                  return _miniEmoji(
+                    emojisToShow[reversedIndex],
+                    reversedIndex * 14.0,
+                  );
+                }),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
-              likes.toString(),
+              _formatLikes(likes),
               style: TextStyle(
                 color: isDark ? Colors.white70 : Colors.black87,
                 fontSize: 15,
@@ -522,16 +600,25 @@ class _ReactionSummary extends StatelessWidget {
     return Positioned(
       left: left,
       child: Container(
-        padding: const EdgeInsets.all(2),
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
           shape: BoxShape.circle,
           border: Border.all(
             color: isDark ? Colors.black : Colors.white,
-            width: 1.5,
+            width: 2.0,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Text(emoji, style: const TextStyle(fontSize: 14)),
+        child: Text(emoji, style: const TextStyle(fontSize: 12, height: 1.1)),
       ),
     );
   }

@@ -10,6 +10,8 @@ class ThoughtCard extends StatefulWidget {
   final int likes;
   final int views;
   final String? postId;
+  final bool disableProfileNavigation;
+  final String? timestamp;
 
   const ThoughtCard({
     super.key,
@@ -18,6 +20,8 @@ class ThoughtCard extends StatefulWidget {
     this.likes = 0,
     this.views = 0,
     this.postId,
+    this.disableProfileNavigation = false,
+    this.timestamp,
   });
 
   @override
@@ -29,7 +33,9 @@ class _ThoughtCardState extends State<ThoughtCard> {
 
   void _onDoubleTap() {
     KnockHaptics.impact();
-    setState(() => _doubleTapped = true);
+    setState(() {
+      _doubleTapped = true;
+    });
   }
 
   void _onDoubleTapHandled() {
@@ -48,12 +54,14 @@ class _ThoughtCardState extends State<ThoughtCard> {
           child: PostHeader(
             user: widget.user,
             postId: widget.postId,
+            disableProfileNavigation: widget.disableProfileNavigation,
+            timestamp: widget.timestamp,
           ),
         ),
 
         const SizedBox(height: 12),
 
-        // Double-tap on the thought text triggers 👍 reaction
+        // Double-tap on the thought text triggers reaction
         GestureDetector(
           onDoubleTap: _onDoubleTap,
           child: Container(
@@ -81,8 +89,10 @@ class _ThoughtCardState extends State<ThoughtCard> {
             isPostOwner: widget.user.isOwnProfile,
             initialLikes: widget.likes,
             initialViews: widget.views,
+            postAuthor: widget.user,
             shareUsername: widget.user.username,
             shareCaption: widget.text,
+            timestamp: widget.timestamp,
           ),
         ),
 

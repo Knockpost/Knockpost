@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/haptic_helper.dart';
-import '../../services/auth_service.dart';
-import '../../services/database_service.dart';
+import '../services/auth_service.dart';
+import '../services/database_service.dart';
 import 'signup/signup_email_screen.dart';
 import 'signup/signup_username_screen.dart';
 import 'signup/signup_verification_screen.dart';
@@ -299,13 +299,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void login() async {
+  Future<void> login() async {
     final email = userController.text.trim();
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter both email and password")),
+        const SnackBar(content: Text('Please enter both email and password.')),
       );
       return;
     }
@@ -321,45 +322,44 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       final user = AuthService.instance.currentUser;
-      if (user != null) {
+      if (user != null && mounted) {
         final userProfile = await DatabaseService.instance.getUserProfile(user.uid);
 
-        if (mounted) {
-          if (!user.emailVerified) {
-            // For regular email/password login, unverified users MUST verify first
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SignupVerificationScreen(
-                  email: user.email ?? "",
-                ),
-              ),
-            );
-            return;
-          }
+        if (!mounted) return;
 
-          if (userProfile != null) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
-            );
-          } else {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SignupUsernameScreen(
-                  email: user.email ?? "",
-                  isGoogleSignup: true,
-                ),
+        if (!user.emailVerified) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SignupVerificationScreen(
+                email: user.email ?? "",
               ),
-              (route) => false,
-            );
-          }
+            ),
+          );
+          return;
+        }
+
+        if (userProfile != null) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SignupUsernameScreen(
+                email: user.email ?? "",
+                isGoogleSignup: true,
+              ),
+            ),
+            (route) => false,
+          );
         }
       }
     } catch (e) {
-      debugPrint("Generic Login Error: $e");
+      debugPrint("Login Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e")),

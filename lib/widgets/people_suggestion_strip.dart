@@ -176,6 +176,12 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
           child: Row(
             children: [
+              Icon(
+                Icons.person_add_rounded,
+                color: isDark ? Colors.white : Colors.black87,
+                size: 20,
+              ),
+              const SizedBox(width: 6),
               Text(
                 'People you may know',
                 style: TextStyle(
@@ -188,18 +194,21 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
               const Spacer(),
               GestureDetector(
                 onTap: () {
-                  KnockHaptics.impact();
+                  KnockHaptics.tap();
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
                   );
                 },
-                child: Text(
-                  'See all',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white54 : Colors.black45,
-                    fontWeight: FontWeight.w500,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                  child: Text(
+                    'See all',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -241,7 +250,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
       ],
     );
   }

@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../login_screen.dart';
 import 'edit_profile_screen.dart';
+import 'blocked_accounts_screen.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
 class ProfileSettingsScreen extends StatefulWidget {
@@ -62,7 +63,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Stack(
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            Navigator.pop(context, _user);
+          }
+        },
+        child: Stack(
         children: [
           Scaffold(
         backgroundColor: bg,
@@ -115,6 +123,23 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     }
                   },
                 ),
+                if (_user.accountType == AccountType.normal)
+                  ProfileSettingsRow(
+                    title: 'Private Account',
+                    subtitle: 'Only accepted Knocks can see your profile & posts.',
+                    trailing: Switch(
+                      value: _user.privacyType == PrivacyType.private,
+                      onChanged: (v) {
+                        KnockHaptics.selection();
+                        setState(() {
+                          _user = _user.copyWith(
+                            privacyType: v ? PrivacyType.private : PrivacyType.open,
+                          );
+                        });
+                      },
+                      activeThumbColor: textColor,
+                    ),
+                  ),
                 if (isPro)
                   ProfileSettingsRow(
                     title: 'Professional stats',
@@ -208,16 +233,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
-                  onTap: () {},
-                ),
-                ProfileSettingsRow(
-                  title: 'Knock requests',
-                  subtitle: 'Manage pending knocks',
-                  trailing: Icon(
-                    Icons.chevron_right_rounded,
-                    color: isDark ? Colors.white38 : Colors.black38,
-                  ),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BlockedAccountsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -347,6 +370,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       ),
           SystemNavBarFill(color: bg),
         ],
+      ),
       ),
     );
   }

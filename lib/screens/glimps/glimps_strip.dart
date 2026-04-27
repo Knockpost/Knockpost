@@ -27,7 +27,7 @@ class GlimpsStrip extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                Icons.play_circle_filled_rounded,
+                Icons.auto_awesome_rounded,
                 color: isDark ? Colors.white : Colors.black87,
                 size: 20,
               ),
@@ -40,12 +40,6 @@ class GlimpsStrip extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.5,
                 ),
-              ),
-              const Spacer(),
-              Icon(
-                Icons.more_horiz_rounded,
-                color: isDark ? Colors.white54 : Colors.black54,
-                size: 20,
               ),
             ],
           ),
@@ -74,7 +68,7 @@ class GlimpsStrip extends StatelessWidget {
           ),
         ),
         
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
       ],
     );
   }

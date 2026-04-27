@@ -7,18 +7,14 @@ class GlimpsCard extends StatelessWidget {
   final PostModel glimpse;
   final UserModel? user; // Passed in or looked up
 
-  const GlimpsCard({
-    super.key,
-    required this.glimpse,
-    required this.user,
-  });
+  const GlimpsCard({super.key, required this.glimpse, required this.user});
 
   @override
   Widget build(BuildContext context) {
     if (glimpse.imagePaths.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // We mock the video thumbnail with the first image path
     final thumbnailPath = glimpse.imagePaths.first;
 
@@ -38,7 +34,7 @@ class GlimpsCard extends StatelessWidget {
               color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
-            )
+            ),
           ],
         ),
         child: ClipRRect(
@@ -48,10 +44,7 @@ class GlimpsCard extends StatelessWidget {
             children: [
               // ── Background Thumbnail ──
               thumbnailPath.startsWith('assets/')
-                  ? Image.asset(
-                      thumbnailPath,
-                      fit: BoxFit.cover,
-                    )
+                  ? Image.asset(thumbnailPath, fit: BoxFit.cover)
                   : Image.network(
                       thumbnailPath, // Mock networking or file
                       fit: BoxFit.cover,
@@ -74,33 +67,6 @@ class GlimpsCard extends StatelessWidget {
                 ),
               ),
 
-              // ── Play Icon / View Count ──
-              Positioned(
-                top: 10,
-                left: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${glimpse.views >= 1000 ? '${(glimpse.views / 1000).toStringAsFixed(1)}k' : glimpse.views}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
 
               // ── User Info (Bottom) ──
               if (user != null)
@@ -120,11 +86,18 @@ class GlimpsCard extends StatelessWidget {
                             height: 28,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 1.5),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1.5,
+                              ),
                               image: DecorationImage(
-                                image: user!.avatarAsset != null && user!.avatarAsset!.isNotEmpty 
-                                    ? AssetImage(user!.avatarAsset!) 
-                                    : const AssetImage('assets/reaction_default.png'),
+                                image:
+                                    user!.avatarAsset != null &&
+                                        user!.avatarAsset!.isNotEmpty
+                                    ? AssetImage(user!.avatarAsset!)
+                                    : const AssetImage(
+                                        'assets/reaction_default.png',
+                                      ),
                                 fit: BoxFit.cover,
                               ),
                             ),

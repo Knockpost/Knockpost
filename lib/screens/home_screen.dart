@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 // ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -31,6 +30,7 @@ import 'waves/waves_feed_screen.dart';
 import 'search/search_screen.dart';
 import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
+import '../widgets/post_scroll_lock_scope.dart';
 import '../widgets/system_nav_bar_fill.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -42,9 +42,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  late final PostScrollLockController _postScrollLockController;
+  late final PostPageSwipeLockController _postPageSwipeLockController;
   late final PageController _pageController;
   late final ValueNotifier<int> _navIndexNotifier;
-  double _horizontalDragDistance = 0;
   double _scrollDelta = 0;
   bool _showBars = true;
   int _currentNavIndex = 0;
@@ -52,7 +53,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _postScrollLockController = PostScrollLockController()
+      ..register(_scrollController);
     _pageController = PageController(initialPage: _currentNavIndex);
+    _postPageSwipeLockController = PostPageSwipeLockController()
+      ..register(_pageController);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
   }
 
@@ -69,6 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _postScrollLockController.dispose();
+    _postPageSwipeLockController.dispose();
     _navIndexNotifier.dispose();
     _pageController.dispose();
     _scrollController.dispose();
@@ -89,37 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _animateToTab(int index) {
     if (index < 0 || index > 4 || _currentNavIndex == index) return;
 
-    final int diff = (index - _currentNavIndex).abs();
     _setCurrentNavIndex(index);
-
-    if (diff == 1) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-      );
-    } else {
-      _pageController.jumpToPage(index);
-    }
-  }
-
-  void _handleHorizontalSwipeEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    final hasStrongFling = velocity.abs() > 550;
-    final hasCommittedDrag = _horizontalDragDistance.abs() > 72;
-
-    if (!hasStrongFling && !hasCommittedDrag) {
-      _horizontalDragDistance = 0;
-      return;
-    }
-
-    if (velocity < 0 || _horizontalDragDistance < 0) {
-      _animateToTab(_currentNavIndex + 1);
-    } else if (velocity > 0 || _horizontalDragDistance > 0) {
-      _animateToTab(_currentNavIndex - 1);
-    }
-
-    _horizontalDragDistance = 0;
+    _pageController.jumpToPage(index);
   }
 
   /// Handle scroll notifications from the feed (Twitter/X behavior)
@@ -339,8 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => MediaEditorScreen(
                                     files: croppedFiles,
-                                    initialCaption: captionController.text
-                                        .trim(),
+                                    initialCaption: captionController.text.trim(),
                                     aspectRatio: aspectRatio,
                                   ),
                                 ),
@@ -361,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () async {
                     KnockHaptics.tap();
                     Navigator.pop(ctx);
-                                        if (!context.mounted) return;
+                    if (!context.mounted) return;
                     final result = await showModalBottomSheet<List<File>>(
                       context: context,
                       isScrollControlled: true,
@@ -376,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
 
                     if (result != null && result.isNotEmpty && context.mounted) {
-                      final isVideo = result.first.path.toLowerCase().endsWith('.mp4') || 
+                      final isVideo = result.first.path.toLowerCase().endsWith('.mp4') ||
                                       result.first.path.toLowerCase().endsWith('.mov') ||
                                       result.first.path.toLowerCase().endsWith('.mkv');
                       if (isVideo) {
@@ -607,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
           if (_currentNavIndex != 0) {
-            _animateToTab(0);
+            _pageController.jumpToPage(0);
           }
         },
         child: Stack(
@@ -630,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         curve: Curves.easeOut,
                         scale: _showBars ? 1.0 : 0.0,
                         child: FloatingActionButton(
-                          backgroundColor: textColor,
+                          backgroundColor: const Color(0xFF1B1D1F),
                           onPressed: () {
                             KnockHaptics.tap();
                             _showCreateMenu(
@@ -640,238 +617,275 @@ class _HomeScreenState extends State<HomeScreen> {
                               textColor,
                             );
                           },
-                          child: Icon(Icons.add, color: bgColor),
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                         ),
                       ),
                     )
                   : null,
 
               // ── BODY ────────────────────────────────────────────────────
-              body: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onHorizontalDragStart: (_) {
-                  _horizontalDragDistance = 0;
-                },
-                onHorizontalDragUpdate: (details) {
-                  _horizontalDragDistance += details.delta.dx;
-                },
-                onHorizontalDragEnd: _handleHorizontalSwipeEnd,
-                child: SafeArea(
-                  top: !(isReelsTab || isProfileTab),
-                  bottom: false,
-                  child: PageView(
-                    controller: _pageController,
-                    allowImplicitScrolling: true,
-                    dragStartBehavior: DragStartBehavior.down,
-                    physics: const NeverScrollableScrollPhysics(),
-                    onPageChanged: _setCurrentNavIndex,
-                    children: [
-                      _KeepAlivePage(
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: _onScrollNotification,
-                          child: NestedScrollView(
-                            physics: const ClampingScrollPhysics(),
-                            controller: _scrollController,
-                            headerSliverBuilder: (context, innerBoxIsScrolled) {
-                              return [
-                                SliverAppBar(
-                                  backgroundColor: bgColor,
-                                  surfaceTintColor: bgColor,
-                                  elevation: 0,
-                                  floating: true,
-                                  snap: true,
-                                  titleSpacing: 20,
-                                  centerTitle: false,
-                                  title: Text(
-                                    "KnockPost",
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 21,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  actions: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.notifications_none,
-                                        color: textColor,
-                                      ),
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const NotificationsScreen(),
+              body: SafeArea(
+                top: !(isReelsTab || isProfileTab),
+                bottom: false,
+                child: PostPageSwipeLockScope(
+                  controller: _postPageSwipeLockController,
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _postPageSwipeLockController,
+                    builder: (context, isPageSwipeLocked, _) {
+                      return PageView(
+                        controller: _pageController,
+                        physics: isPageSwipeLocked
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        allowImplicitScrolling: true,
+                        onPageChanged: _setCurrentNavIndex,
+                        children: [
+                          _KeepAlivePage(
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: _onScrollNotification,
+                              child: PostScrollLockScope(
+                                controller: _postScrollLockController,
+                                child: ValueListenableBuilder<bool>(
+                                  valueListenable: _postScrollLockController,
+                                  builder: (context, isScrollLocked, _) {
+                                    return NestedScrollView(
+                                      physics: isScrollLocked
+                                          ? const NeverScrollableScrollPhysics()
+                                          : const ClampingScrollPhysics(),
+                                      controller: _scrollController,
+                                      headerSliverBuilder:
+                                          (context, innerBoxIsScrolled) {
+                                            return [
+                                              SliverAppBar(
+                                                backgroundColor: bgColor,
+                                                surfaceTintColor: bgColor,
+                                                elevation: 0,
+                                                floating: true,
+                                                snap: true,
+                                                titleSpacing: 20,
+                                                centerTitle: false,
+                                                title: Text(
+                                                  "KnockPost",
+                                                  style: TextStyle(
+                                                    color: textColor,
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 21,
+                                                    letterSpacing: -0.5,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.notifications_none,
+                                                      color: textColor,
+                                                    ),
+                                                    onPressed: () {
+                                                      KnockHaptics.tap();
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              const NotificationsScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ];
+                                          },
+                                      body: ValueListenableBuilder<Set<String>>(
+                                        valueListenable:
+                                            GlobalPostState.deletedPostIds,
+                                        builder: (context, deletedIds, _) {
+                                          // For the demo, let's combine some posts for the home feed
+                                          // Only show the latest own post in Recents
+                                          final ownPostsSorted =
+                                              [...demoOwnPosts]..sort(
+                                                (a, b) => b.createdAt.compareTo(
+                                                  a.createdAt,
+                                                ),
+                                              );
+                                          final latestOwnPost =
+                                              ownPostsSorted.isNotEmpty
+                                              ? [ownPostsSorted.first]
+                                              : <PostModel>[];
+
+                                          final allDemoPosts = [
+                                            ...latestOwnPost,
+                                            ...getDemoPostsForUser('zayn01'),
+                                            ...getDemoPostsForUser(
+                                              'saptarshi01',
+                                            ),
+                                          ];
+
+                                          final activePosts =
+                                              allDemoPosts
+                                                  .where(
+                                                    (p) => !deletedIds.contains(
+                                                      p.id,
+                                                    ),
+                                                  )
+                                                  .toList()
+                                                ..sort(
+                                                  (a, b) => b.createdAt
+                                                      .compareTo(a.createdAt),
+                                                );
+
+                                          return PostInnerScrollLockRegistrar(
+                                            child: ListView.builder(
+                                              physics: isScrollLocked
+                                                  ? const NeverScrollableScrollPhysics()
+                                                  : null,
+                                              padding: const EdgeInsets.only(
+                                                bottom: 90,
+                                              ),
+                                            itemCount: activePosts.length + 2,
+                                            itemBuilder: (context, index) {
+                                              const glimpseStripIndex = 1;
+                                              const peopleStripIndex = 3;
+                                              final totalItems =
+                                                  activePosts.length + 2;
+                                              final isLast =
+                                                  index == totalItems - 1;
+
+                                              if (index == glimpseStripIndex) {
+                                                return GlimpsStrip(
+                                                  glimpses: demoGlimpseFeed,
+                                                );
+                                              }
+                                              if (index == peopleStripIndex) {
+                                                return const PeopleSuggestionStrip();
+                                              }
+
+                                              int postIndex = index;
+                                              if (index > peopleStripIndex) {
+                                                postIndex -= 2;
+                                              } else if (index >
+                                                  glimpseStripIndex) {
+                                                postIndex -= 1;
+                                              }
+
+                                              if (postIndex >=
+                                                  activePosts.length) {
+                                                return const SizedBox.shrink();
+                                              }
+
+                                              final post =
+                                                  activePosts[postIndex];
+                                              final author =
+                                                  post.authorId == 'me'
+                                                  ? demoOwnUser
+                                                  : findDemoUserByUsername(
+                                                          post.authorId ==
+                                                                  'zayn01'
+                                                              ? 'zayn.malik'
+                                                              : 'saptarshi.nayak',
+                                                        ) ??
+                                                        demoOwnUser;
+
+                                              final dividerColor = isDark
+                                                  ? const Color(0xFF2A2A2A)
+                                                  : const Color(0xFFE8E8E8);
+                                              final divider = Divider(
+                                                height: 1,
+                                                thickness: 1,
+                                                color: dividerColor,
+                                              );
+
+                                              Widget card;
+                                              if (post.type == PostType.text) {
+                                                card = ThoughtCard(
+                                                  user: author,
+                                                  text: post.text,
+                                                  likes: post.likes,
+                                                  views: post.views,
+                                                  postId: post.id,
+                                                  timestamp: post.timestampText,
+                                                );
+                                              } else {
+                                                card = PostCard(
+                                                  imagePaths: post.imagePaths,
+                                                  user: author,
+                                                  caption: post.text,
+                                                  likes: post.likes,
+                                                  views: post.views,
+                                                  postId: post.id,
+                                                  timestamp: post.timestampText,
+                                                  musicUrl: post.musicUrl,
+                                                  musicTitle: post.musicTitle,
+                                                  musicArtist: post.musicArtist,
+                                                  musicStyle: post.musicStyle,
+                                                  musicCoverUrl: post.musicCoverUrl,
+                                                  musicTrimStart: post.musicTrimStart,
+                                                  musicLyrics: post.musicLyrics,
+                                                  musicLyricsConfig: post.musicLyricsConfig,
+                                                  musicOverlayX: post.musicOverlayX,
+                                                  musicOverlayY: post.musicOverlayY,
+                                                  musicOverlayScale: post.musicOverlayScale,
+                                                  musicOverlayRotation: post.musicOverlayRotation,
+                                                  filterIndex: post.filterIndex,
+                                                  textOverlays: post.textOverlays,
+                                                  drawPaths: post.drawPaths,
+                                                  isVideoPost: post.isVideoPost || post.type == PostType.waves,
+                                                  videoHasSound: post.videoHasSound,
+                                                  coverImagePath: post.coverImagePath,
+                                                  mediaAspectRatio: post.mediaAspectRatio,
+                                                  mediaIsBaked: post.mediaIsBaked,
+                                                );
+                                              }
+
+                                              return Column(
+                                                children: [
+                                                  divider,
+                                                  card,
+                                                  if (isLast) divider,
+                                                ],
+                                              );
+                                            },
                                           ),
                                         );
                                       },
                                     ),
-                                  ],
-                                ),
-                              ];
-                            },
-                            body: ValueListenableBuilder<Set<String>>(
-                              valueListenable: GlobalPostState.deletedPostIds,
-                              builder: (context, deletedIds, _) {
-                                // For the demo, let's combine some posts for the home feed
-                                final allDemoPosts = [
-                                  ...getDemoPostsForUser('zayn01'),
-                                  ...getDemoPostsForUser('saptarshi01'),
-                                ];
-
-                                final activePosts =
-                                    allDemoPosts
-                                        .where(
-                                          (p) => !deletedIds.contains(p.id),
-                                        )
-                                        .toList()
-                                      ..sort(
-                                        (a, b) =>
-                                            b.createdAt.compareTo(a.createdAt),
-                                      );
-
-                                return ListView.builder(
-                                  padding: const EdgeInsets.only(bottom: 90),
-                                  itemCount: activePosts.length + 2,
-                                  itemBuilder: (context, index) {
-                                    const glimpseStripIndex = 1;
-                                    const peopleStripIndex = 3;
-                                    final totalItems = activePosts.length + 2;
-                                    final isLast = index == totalItems - 1;
-
-                                    if (index == glimpseStripIndex) {
-                                      return GlimpsStrip(
-                                        glimpses: demoGlimpseFeed,
-                                      );
-                                    }
-                                    if (index == peopleStripIndex) {
-                                      return const PeopleSuggestionStrip();
-                                    }
-
-                                    int postIndex = index;
-                                    if (index > peopleStripIndex) {
-                                      postIndex -= 2;
-                                    } else if (index > glimpseStripIndex) {
-                                      postIndex -= 1;
-                                    }
-
-                                    if (postIndex >= activePosts.length) {
-                                      return const SizedBox.shrink();
-                                    }
-
-                                    final post = activePosts[postIndex];
-                                    final author = post.authorId == 'me'
-                                        ? demoOwnUser
-                                        : findDemoUserByUsername(
-                                                post.authorId == 'zayn01'
-                                                    ? 'zayn.malik'
-                                                    : 'saptarshi.nayak',
-                                              ) ??
-                                              demoOwnUser;
-
-                                    final dividerColor = isDark
-                                        ? const Color(0xFF2A2A2A)
-                                        : const Color(0xFFE8E8E8);
-                                    final divider = Divider(
-                                      height: 1,
-                                      thickness: 1,
-                                      color: dividerColor,
-                                    );
-
-                                    Widget card;
-                                    if (post.type == PostType.text) {
-                                      card = ThoughtCard(
-                                        user: author,
-                                        text: post.text,
-                                        likes: post.likes,
-                                        views: post.views,
-                                        postId: post.id,
-                                      );
-                                    } else {
-                                      card = PostCard(
-                                        imagePaths: post.imagePaths,
-                                        user: author,
-                                        caption: post.text,
-                                        likes: post.likes,
-                                        views: post.views,
-                                        postId: post.id,
-                                        musicUrl: post.musicUrl,
-                                        musicTitle: post.musicTitle,
-                                        musicArtist: post.musicArtist,
-                                        musicStyle: post.musicStyle,
-                                        musicCoverUrl: post.musicCoverUrl,
-                                        musicTrimStart: post.musicTrimStart,
-                                        musicLyrics: post.musicLyrics,
-                                        musicLyricsConfig:
-                                            post.musicLyricsConfig,
-                                        musicOverlayX: post.musicOverlayX,
-                                        musicOverlayY: post.musicOverlayY,
-                                        musicOverlayScale:
-                                            post.musicOverlayScale,
-                                        musicOverlayRotation:
-                                            post.musicOverlayRotation,
-                                        filterIndex: post.filterIndex,
-                                        textOverlays: post.textOverlays,
-                                        drawPaths: post.drawPaths,
-                                        isVideoPost:
-                                            post.isVideoPost ||
-                                            post.type == PostType.waves,
-                                        videoHasSound: post.videoHasSound,
-                                        coverImagePath: post.coverImagePath,
-                                        mediaAspectRatio: post.mediaAspectRatio,
-                                        mediaIsBaked: post.mediaIsBaked,
-                                      );
-                                    }
-
-                                    return Column(
-                                      children: [
-                                        divider,
-                                        card,
-                                        if (isLast) divider,
-                                      ],
                                     );
                                   },
-                                );
-                              },
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const _KeepAlivePage(child: SearchScreen()),
-                      ValueListenableBuilder<int>(
-                        valueListenable: _navIndexNotifier,
-                        builder: (context, currentIndex, _) {
-                          return _KeepAlivePage(
-                            child: WavesFeedScreen(
-                              isVisible: currentIndex == 2,
-                            ),
-                          );
-                        },
-                      ),
-                      const _KeepAlivePage(child: MessagesScreen()),
-                      _KeepAlivePage(
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: _onScrollNotification,
-                          child: ValueListenableBuilder<List<PostModel>>(
-                            valueListenable: demoOwnPostsNotifier,
-                            builder: (context, currentPosts, child) {
-                              return ProfileScreen(
-                                user: demoOwnUser,
-                                posts: currentPosts,
+                          const _KeepAlivePage(child: SearchScreen()),
+                          ValueListenableBuilder<int>(
+                            valueListenable: _navIndexNotifier,
+                            builder: (context, currentIndex, _) {
+                              return _KeepAlivePage(
+                                child: WavesFeedScreen(
+                                  isVisible: currentIndex == 2,
+                                ),
                               );
                             },
                           ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.logout, color: textColor),
-                        onPressed: () {
-                          KnockHaptics.tap();
-                          logout(context);
-                        },
-                      ),
-                    ],
+                          const _KeepAlivePage(child: MessagesScreen()),
+                          _KeepAlivePage(
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: _onScrollNotification,
+                              child: ValueListenableBuilder<List<PostModel>>(
+                                valueListenable: demoOwnPostsNotifier,
+                                builder: (context, currentPosts, child) {
+                                  return ProfileScreen(
+                                    user: demoOwnUser,
+                                    posts: currentPosts,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -930,5 +944,3 @@ class _KeepAlivePageState extends State<_KeepAlivePage>
     return widget.child;
   }
 }
-
-
