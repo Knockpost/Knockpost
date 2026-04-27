@@ -244,12 +244,14 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
 
-                // ── Music Sticker chip (ONLY in sticker mode) ──
-                if (_isStickerMode)
+                // ── Music Sticker chip (sticker mode = full chip, lyrics mode = compact button) ──
+                if (_hasMusic)
                   Positioned(
                     bottom: 15,
                     left: 15,
-                    child: _buildMusicChip(),
+                    child: _isStickerMode
+                        ? _buildMusicChip()
+                        : _buildCompactMusicButton(),
                   ),
               ],
             );
@@ -312,6 +314,30 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Compact Music Button (Lyrics Mode) ──────────────────────────────────
+  Widget _buildCompactMusicButton() {
+    return GestureDetector(
+      onTap: _togglePlayback,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.15),
+            width: 0.5,
+          ),
+        ),
+        child: Icon(
+          _isPlaying ? Icons.music_note_rounded : Icons.music_off_rounded,
+          color: Colors.white,
+          size: 16,
         ),
       ),
     );
