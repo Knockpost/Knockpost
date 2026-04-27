@@ -1377,7 +1377,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                     ),
                   ),
                 ),
-                if (_selectedMusic != null && _selectedMusicStyle != null && _selectedMusicStyle != 0)
+                if (_selectedMusic != null && _selectedMusicStyle != null)
                   Positioned(
                     left: pos.dx,
                     top: pos.dy,

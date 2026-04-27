@@ -91,16 +91,8 @@ class _PostCardState extends State<PostCard> {
   bool _isPlaying = false;
   int _audioPositionMs = 0;
 
-  // ── Computed mode ──
   bool get _hasMusic =>
       widget.musicUrl != null && widget.musicUrl!.isNotEmpty;
-
-  /// styleIndex >= 1 means lyrics mode; 0 or null means sticker/chip mode
-  bool get _isLyricsMode =>
-      _hasMusic && (widget.musicStyle ?? 0) >= 1;
-
-  bool get _isStickerMode =>
-      _hasMusic && !_isLyricsMode;
 
   @override
   void initState() {
@@ -216,8 +208,8 @@ class _PostCardState extends State<PostCard> {
                   onDoubleTap: _onDoubleTap,
                 ),
 
-                // ── Lyrics overlay (ONLY in lyrics mode, NOT when media is baked) ──
-                if (_isLyricsMode && !widget.mediaIsBaked)
+                // ── Music overlay (sticker or lyrics — handled by MusicStyleOverlayWidget) ──
+                if (_hasMusic && widget.musicStyle != null && !widget.mediaIsBaked)
                   Positioned(
                     left: widget.musicOverlayX != null
                         ? widget.musicOverlayX! * boxWidth
@@ -244,14 +236,12 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
 
-                // ── Music Sticker chip (sticker mode = full chip, lyrics mode = compact button) ──
+                // ── Compact play/pause button ──
                 if (_hasMusic)
                   Positioned(
                     bottom: 15,
                     left: 15,
-                    child: _isStickerMode
-                        ? _buildMusicChip()
-                        : _buildCompactMusicButton(),
+                    child: _buildCompactMusicButton(),
                   ),
               ],
             );
@@ -281,45 +271,7 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ── Music Chip (Sticker Mode Only) ─────────────────────────────────────
-  Widget _buildMusicChip() {
-    return GestureDetector(
-      onTap: _togglePlayback,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black54,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _isPlaying ? Icons.music_note : Icons.music_off,
-              color: Colors.white,
-              size: 14,
-            ),
-            const SizedBox(width: 6),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 140),
-              child: Text(
-                widget.musicTitle ?? 'Music',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Compact Music Button (Lyrics Mode) ──────────────────────────────────
+  // ── Compact Music Button ─────────────────────────────────────────────────
   Widget _buildCompactMusicButton() {
     return GestureDetector(
       onTap: _togglePlayback,

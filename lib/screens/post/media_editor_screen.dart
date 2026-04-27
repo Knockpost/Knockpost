@@ -563,8 +563,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                               child: Image.file(file, fit: BoxFit.cover),
                             ),
                             if (_selectedMusic != null &&
-                                _selectedMusicStyle != null &&
-                                _selectedMusicStyle != 0)
+                                _selectedMusicStyle != null)
                               Positioned(
                                 left: pos.dx,
                                 top: pos.dy,
