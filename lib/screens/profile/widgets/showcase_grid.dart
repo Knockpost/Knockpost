@@ -35,7 +35,7 @@ class ShowcaseGrid extends StatelessWidget {
           .where(
             (p) =>
                 p.isInShowcase &&
-                (p.type == PostType.media || p.type == PostType.waves) &&
+                p.type == PostType.media &&
                 p.imagePaths.isNotEmpty,
           )
           .toList()
@@ -188,7 +188,7 @@ class _GridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if ((post.type == PostType.media || post.type == PostType.waves) &&
+    if (post.type == PostType.media &&
         post.imagePaths.isNotEmpty) {
       final imagePath = post.imagePaths.first;
       final hasVideoExtension =

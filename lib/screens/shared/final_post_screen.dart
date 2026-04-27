@@ -218,7 +218,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     _bgAudioPlayer.stop();
 
     final type = widget.isGlimpse
-        ? PostType.waves
+        ? PostType.glimps
         : (widget.files.isEmpty ? PostType.text : PostType.media);
 
     debugPrint(

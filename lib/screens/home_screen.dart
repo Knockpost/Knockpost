@@ -808,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   postId: post.id,
                                                   timestamp: post.timestampText,
                                                 );
-                                              } else if (post.type == PostType.waves) {
+                                              } else if (post.type == PostType.waves || post.type == PostType.glimps) {
                                                 card = WavesFeedCard(
                                                   post: post,
                                                   user: author,

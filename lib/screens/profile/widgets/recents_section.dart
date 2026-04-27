@@ -3,6 +3,7 @@ import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../post/post_card.dart';
 import '../../thoughts/thought_card.dart';
+import '../../waves/waves_feed_card.dart';
 import '../../../utils/global_post_state.dart';
 import '../../../widgets/staggered_entry_animation.dart';
 import 'profile_glimps_strip.dart';
@@ -28,7 +29,11 @@ class RecentsSection extends StatelessWidget {
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   List<PostModel> get _recentNormalPosts =>
-      posts.where((p) => p.isInRecentsWindow && p.type != PostType.glimps).toList()
+      posts.where((p) => p.isInRecentsWindow && p.type != PostType.glimps && p.type != PostType.waves).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  List<PostModel> get _recentWaves =>
+      posts.where((p) => p.isInRecentsWindow && p.type == PostType.waves && p.imagePaths.isNotEmpty).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   @override
@@ -39,8 +44,9 @@ class RecentsSection extends StatelessWidget {
       builder: (context, deletedIds, _) {
         final recentPosts = _recentNormalPosts.where((p) => !deletedIds.contains(p.id)).toList();
         final glimpses = _recentGlimpses.where((p) => !deletedIds.contains(p.id)).toList();
+        final waves = _recentWaves.where((p) => !deletedIds.contains(p.id)).toList();
 
-        if (recentPosts.isEmpty && glimpses.isEmpty) {
+        if (recentPosts.isEmpty && glimpses.isEmpty && waves.isEmpty) {
           return ProfileEmptySection(
             icon: Icons.history_rounded,
             message: 'No recent posts',
@@ -88,6 +94,35 @@ class RecentsSection extends StatelessWidget {
               ),
               ProfileGlimpsStrip(glimpses: glimpses, user: user),
             ],
+            // ── Waves Section ──
+            if (waves.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 20, bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.play_circle_outline_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Waves",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...waves.map((wavePost) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: WavesFeedCard(post: wavePost, user: user),
+              )),
+            ],
             if (recentPosts.isNotEmpty) ...[
               ListView.builder(
                 physics: const NeverScrollableScrollPhysics(),
@@ -99,7 +134,7 @@ class RecentsSection extends StatelessWidget {
                   final isLast = i == recentPosts.length - 1;
 
                   Widget content;
-                  if ((post.type == PostType.media || post.type == PostType.waves) && post.imagePaths.isNotEmpty) {
+                  if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
                     content = PostCard(
                       imagePaths: post.imagePaths,
                       user: user,
