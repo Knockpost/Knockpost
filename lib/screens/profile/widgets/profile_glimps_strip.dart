@@ -3,6 +3,7 @@ import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../../widgets/staggered_entry_animation.dart';
+import '../../glimps/glimpse_viewer_screen.dart';
 
 class ProfileGlimpsStrip extends StatelessWidget {
   final List<PostModel> glimpses;
@@ -36,6 +37,8 @@ class ProfileGlimpsStrip extends StatelessWidget {
               child: ProfileGlimpsCard(
                 glimpse: glimpse,
                 user: user,
+                allGlimpses: glimpses,
+                glimpseIndex: index,
               ),
             );
           },
@@ -48,8 +51,16 @@ class ProfileGlimpsStrip extends StatelessWidget {
 class ProfileGlimpsCard extends StatelessWidget {
   final PostModel glimpse;
   final UserModel user;
+  final List<PostModel> allGlimpses;
+  final int glimpseIndex;
 
-  const ProfileGlimpsCard({super.key, required this.glimpse, required this.user});
+  const ProfileGlimpsCard({
+    super.key,
+    required this.glimpse,
+    required this.user,
+    this.allGlimpses = const [],
+    this.glimpseIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +72,14 @@ class ProfileGlimpsCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         KnockHaptics.tap();
-        // Future: Play lifetime glimpse
+        final allG = allGlimpses.isNotEmpty ? allGlimpses : [glimpse];
+        openGlimpseViewer(
+          context,
+          glimpses: allG,
+          user: user,
+          initialIndex: glimpseIndex,
+          heroTag: 'profile_glimpse_${glimpse.id}',
+        );
       },
       child: Container(
         width: 145, // Substantially larger width

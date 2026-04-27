@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
+import 'glimpse_viewer_screen.dart';
 
 class GlimpsCard extends StatelessWidget {
   final PostModel glimpse;
-  final UserModel? user; // Passed in or looked up
+  final UserModel? user;
+  final List<PostModel> allGlimpses;
+  final int glimpseIndex;
 
-  const GlimpsCard({super.key, required this.glimpse, required this.user});
+  const GlimpsCard({
+    super.key,
+    required this.glimpse,
+    required this.user,
+    this.allGlimpses = const [],
+    this.glimpseIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +30,16 @@ class GlimpsCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         KnockHaptics.tap();
-        // Future: Navigate to full screen Glimpse player
+        if (user != null) {
+          final glimpses = allGlimpses.isNotEmpty ? allGlimpses : [glimpse];
+          openGlimpseViewer(
+            context,
+            glimpses: glimpses,
+            user: user!,
+            initialIndex: glimpseIndex,
+            heroTag: 'glimpse_${glimpse.id}',
+          );
+        }
       },
       child: Container(
         width: MediaQuery.sizeOf(context).width * 0.60,

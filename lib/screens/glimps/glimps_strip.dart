@@ -63,6 +63,8 @@ class GlimpsStrip extends StatelessWidget {
               return GlimpsCard(
                 glimpse: glimpse,
                 user: user,
+                allGlimpses: glimpses,
+                glimpseIndex: index,
               );
             },
           ),
