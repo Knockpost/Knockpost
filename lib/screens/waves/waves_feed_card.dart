@@ -22,11 +22,7 @@ class WavesFeedCard extends StatefulWidget {
   final PostModel post;
   final UserModel user;
 
-  const WavesFeedCard({
-    super.key,
-    required this.post,
-    required this.user,
-  });
+  const WavesFeedCard({super.key, required this.post, required this.user});
 
   @override
   State<WavesFeedCard> createState() => _WavesFeedCardState();
@@ -132,8 +128,8 @@ class _WavesFeedCardState extends State<WavesFeedCard>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Tall portrait card — 2:3 ratio in feed
-    final cardHeight = screenWidth * 1.5;
+    // Tall portrait card — 16:9 ratio in feed
+    final cardHeight = screenWidth * (16 / 9);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return VisibilityDetector(
@@ -174,18 +170,10 @@ class _WavesFeedCardState extends State<WavesFeedCard>
                   ),
 
                 // ── "WAVES" badge — top left ──
-                Positioned(
-                  top: 14,
-                  left: 14,
-                  child: _buildWavesBadge(),
-                ),
+                Positioned(top: 14, left: 14, child: _buildWavesBadge()),
 
                 // ── Mute toggle — top right ──
-                Positioned(
-                  top: 14,
-                  right: 14,
-                  child: _buildMuteButton(),
-                ),
+                Positioned(top: 14, right: 14, child: _buildMuteButton()),
 
                 // ── Bottom overlay: user + caption + reactions ──
                 Positioned(
@@ -225,7 +213,8 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     }
 
     // Fallback: thumbnail
-    final path = widget.post.coverImagePath ??
+    final path =
+        widget.post.coverImagePath ??
         (widget.post.imagePaths.isNotEmpty ? widget.post.imagePaths.first : '');
     if (path.isEmpty) {
       return Container(color: const Color(0xFF0A0A0A));
@@ -414,7 +403,11 @@ class _WavesFeedCardState extends State<WavesFeedCard>
                         : null,
                   ),
                   child: widget.user.avatarAsset == null
-                      ? const Icon(Icons.person, color: Colors.white54, size: 16)
+                      ? const Icon(
+                          Icons.person,
+                          color: Colors.white54,
+                          size: 16,
+                        )
                       : null,
                 ),
               ),

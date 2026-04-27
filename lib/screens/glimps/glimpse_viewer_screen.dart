@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
@@ -40,28 +41,28 @@ void openGlimpseViewer(
 // ── Custom Route with scale + fade transition ──────────────────────────────
 class _GlimpseViewerRoute extends PageRouteBuilder {
   _GlimpseViewerRoute({required Widget page})
-      : super(
-          transitionDuration: const Duration(milliseconds: 380),
-          reverseTransitionDuration: const Duration(milliseconds: 320),
-          opaque: false,
-          barrierColor: Colors.black87,
-          pageBuilder: (context, animation, secondaryAnimation) => page,
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
-            return FadeTransition(
-              opacity: curved,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved),
-                alignment: Alignment.center,
-                child: child,
-              ),
-            );
-          },
-        );
+    : super(
+        transitionDuration: const Duration(milliseconds: 380),
+        reverseTransitionDuration: const Duration(milliseconds: 320),
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (context, animation, secondaryAnimation) => page,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved),
+              alignment: Alignment.center,
+              child: child,
+            ),
+          );
+        },
+      );
 }
 
 // ── GlimpseViewerScreen ────────────────────────────────────────────────────
@@ -346,10 +347,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(3),
-              child: SizedBox(
-                height: 3,
-                child: _buildSingleBar(index),
-              ),
+              child: SizedBox(height: 3, child: _buildSingleBar(index)),
             ),
           ),
         );
@@ -363,9 +361,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(3),
-          gradient: const LinearGradient(
-            colors: [_accentColor, _accentGlow],
-          ),
+          gradient: const LinearGradient(colors: [_accentColor, _accentGlow]),
         ),
       );
     } else if (index == _currentIndex) {
@@ -508,9 +504,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.3,
-                      shadows: [
-                        Shadow(color: Colors.black54, blurRadius: 4),
-                      ],
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -573,21 +567,107 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
     );
   }
 
-  // ── Image Builder ──────────────────────────────────────────────────────
   Widget _buildGlimpseImage(String path, {Key? key}) {
-    Widget image;
-    if (path.startsWith('assets/')) {
-      image = Image.asset(path, fit: BoxFit.cover, key: key);
-    } else if (path.startsWith('http')) {
-      image = Image.network(path, fit: BoxFit.cover, key: key);
-    } else if (path.isNotEmpty) {
-      image = Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        key: key,
-      );
+    return _GlimpseMediaItem(
+      key: key,
+      path: path,
+      progressController: _progressController,
+    );
+  }
+}
+
+class _GlimpseMediaItem extends StatefulWidget {
+  final String path;
+  final AnimationController progressController;
+
+  const _GlimpseMediaItem({
+    super.key,
+    required this.path,
+    required this.progressController,
+  });
+
+  @override
+  State<_GlimpseMediaItem> createState() => _GlimpseMediaItemState();
+}
+
+class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
+  VideoPlayerController? _videoController;
+
+  @override
+  void initState() {
+    super.initState();
+    final pathLower = widget.path.toLowerCase();
+    final isVideo =
+        pathLower.endsWith('.mp4') ||
+        pathLower.endsWith('.mov') ||
+        pathLower.endsWith('.mkv') ||
+        pathLower.endsWith('.webm') ||
+        pathLower.endsWith('.avi');
+
+    if (isVideo) {
+      if (widget.path.startsWith('http')) {
+        _videoController = VideoPlayerController.networkUrl(
+          Uri.parse(widget.path),
+        );
+      } else if (widget.path.startsWith('assets/')) {
+        _videoController = VideoPlayerController.asset(widget.path);
+      } else {
+        _videoController = VideoPlayerController.file(File(widget.path));
+      }
+
+      // Pause progress while loading
+      widget.progressController.stop();
+
+      _videoController!.initialize().then((_) {
+        if (mounted) {
+          setState(() {});
+          _videoController!.setLooping(false);
+          _videoController!.setVolume(1.0);
+          _videoController!.play();
+
+          widget.progressController.duration = _videoController!.value.duration;
+          widget.progressController.forward(from: 0);
+        }
+      });
     } else {
-      return Container(key: key, color: Colors.black);
+      // It's an image, reset duration to 6 seconds
+      widget.progressController.duration = const Duration(seconds: 6);
+      widget.progressController.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_videoController != null) {
+      return _videoController!.value.isInitialized
+          ? SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoController!.value.size.width,
+                  height: _videoController!.value.size.height,
+                  child: VideoPlayer(_videoController!),
+                ),
+              ),
+            )
+          : Container(color: Colors.black);
+    }
+
+    Widget image;
+    if (widget.path.startsWith('assets/')) {
+      image = Image.asset(widget.path, fit: BoxFit.cover);
+    } else if (widget.path.startsWith('http')) {
+      image = Image.network(widget.path, fit: BoxFit.cover);
+    } else if (widget.path.isNotEmpty) {
+      image = Image.file(File(widget.path), fit: BoxFit.cover);
+    } else {
+      return Container(color: Colors.black);
     }
 
     return SizedBox.expand(child: image);
@@ -630,7 +710,9 @@ class _PulsingMusicIconState extends State<_PulsingMusicIcon>
           scale: 0.85 + (_controller.value * 0.2),
           child: Icon(
             Icons.music_note_rounded,
-            color: Colors.white.withValues(alpha: 0.7 + _controller.value * 0.3),
+            color: Colors.white.withValues(
+              alpha: 0.7 + _controller.value * 0.3,
+            ),
             size: 14,
           ),
         );

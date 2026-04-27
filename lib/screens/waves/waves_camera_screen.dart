@@ -330,9 +330,10 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => MediaEditorScreen(
+        builder: (_) => WavesEditorScreen(
           files: files,
           initialCaption: '',
+          isGlimpse: true,
         ),
       ),
     );

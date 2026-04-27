@@ -38,7 +38,12 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
   Future<void> _fetchMedia() async {
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
     if (!ps.isAuth && ps != PermissionState.limited) {
-      if (mounted) setState(() { _isLoading = false; _hasPermission = false; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasPermission = false;
+        });
+      }
       return;
     }
 
@@ -63,7 +68,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
     if (allAlbum != null) {
       final List<AssetEntity> recentAssets = await allAlbum.getAssetListPaged(
         page: 0,
-        size: 2000, 
+        size: 2000,
       );
       if (mounted) {
         setState(() {
@@ -73,7 +78,12 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
         });
       }
     } else {
-      if (mounted) setState(() { _isLoading = false; _hasPermission = true; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasPermission = true;
+        });
+      }
     }
   }
 
@@ -91,12 +101,14 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
   Future<void> _finishSelection() async {
     if (_selectedAssets.isEmpty) return;
     KnockHaptics.tap();
-    
+
     // We need to resolve AssetEntity to File before returning to the editor
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: _kAccentPrimary)),
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: _kAccentPrimary),
+      ),
     );
 
     List<File> files = [];
@@ -148,58 +160,83 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Option 1: Select more photos
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-                  title: const Text('Select more photos', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 0,
+                  ),
+                  title: const Text(
+                    'Select more photos',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
                   onTap: () async {
                     Navigator.pop(context); // Close manage sheet
-                    
+
                     // Native Android 14 call (only works if permission is explicitly 'Limited')
-                    PhotoManager.presentLimited(); 
-                    
+                    PhotoManager.presentLimited();
+
                     // Immediately show our flawless 1:1 replica of the Android 14 System Picker
                     // to satisfy the user who expects it even when Full permissions are granted natively.
-                    final result = await showModalBottomSheet<List<AssetEntity>>(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => FractionallySizedBox(
-                        heightFactor: 0.95,
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                          child: CustomAndroidPickerSheet(initialAssets: _assets),
-                        ),
-                      ),
-                    );
+                    final result =
+                        await showModalBottomSheet<List<AssetEntity>>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => FractionallySizedBox(
+                            heightFactor: 0.95,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(24),
+                              ),
+                              child: CustomAndroidPickerSheet(
+                                initialAssets: _assets,
+                              ),
+                            ),
+                          ),
+                        );
 
                     // Re-inject items if the user completed the custom multi-select flow
                     if (result != null && result.isNotEmpty && mounted) {
                       setState(() {
-                         _isMultiSelect = true;
-                         for(var a in result) {
-                             if(!_selectedAssets.contains(a)) _selectedAssets.add(a);
-                         }
+                        _isMultiSelect = true;
+                        for (var a in result) {
+                          if (!_selectedAssets.contains(a)) {
+                            _selectedAssets.add(a);
+                          }
+                        }
                       });
                     }
                   },
                 ),
-                
+
                 // Option 2: Change settings
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-                  title: const Text('Change settings', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 0,
+                  ),
+                  title: const Text(
+                    'Change settings',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     PhotoManager.openSetting(); // Explicitly open OS app settings
                   },
                 ),
-                
+
                 // Option 3: Cancel
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-                  title: const Text('Cancel', style: TextStyle(color: Colors.redAccent, fontSize: 16)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 0,
+                  ),
+                  title: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.redAccent, fontSize: 16),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                   },
@@ -228,7 +265,11 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ],
               ),
@@ -237,19 +278,42 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
             // ── INSTA-STYLE TOP ACTION ROW (only for Glimpse flow) ──
             if (widget.showCreativeTools)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _actionTopBtn('Templates', Icons.auto_awesome_mosaic_rounded, _kAccentPrimary, () {
-                      KnockHaptics.tap();
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const TemplatePickerScreen()));
-                    }),
+                    _actionTopBtn(
+                      'Templates',
+                      Icons.auto_awesome_mosaic_rounded,
+                      _kAccentPrimary,
+                      () {
+                        KnockHaptics.tap();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TemplatePickerScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(width: 32),
-                    _actionTopBtn('Collage', Icons.grid_view_rounded, _kAccentSecondary, () {
-                      KnockHaptics.tap();
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CollagePickerScreen()));
-                    }),
+                    _actionTopBtn(
+                      'Collage',
+                      Icons.grid_view_rounded,
+                      _kAccentSecondary,
+                      () {
+                        KnockHaptics.tap();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CollagePickerScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -271,10 +335,14 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.7), size: 20),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.white.withValues(alpha: 0.7),
+                        size: 20,
+                      ),
                     ],
                   ),
-                  
+
                   // MULTI-SELECT TOGGLE
                   GestureDetector(
                     onTap: () {
@@ -285,7 +353,10 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: _isMultiSelect ? Colors.white : Colors.white10,
                         borderRadius: BorderRadius.circular(16),
@@ -294,15 +365,17 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.copy_rounded, 
-                            color: _isMultiSelect ? Colors.black : Colors.white, 
+                            Icons.copy_rounded,
+                            color: _isMultiSelect ? Colors.black : Colors.white,
                             size: 14,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'Select',
                             style: TextStyle(
-                              color: _isMultiSelect ? Colors.black : Colors.white,
+                              color: _isMultiSelect
+                                  ? Colors.black
+                                  : Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -316,15 +389,23 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
             ),
 
             // ── PERMISSIONS TEXT (Mocked for reference) ──
-            if (_hasPermission && !Platform.isIOS) // Usually iOS has limited permission warnings natively
+            if (_hasPermission &&
+                !Platform
+                    .isIOS) // Usually iOS has limited permission warnings natively
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         "You've given Knockpost access to a select number of photos and videos.",
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -335,7 +416,11 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                       },
                       child: const Text(
                         "Manage",
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -345,173 +430,231 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
             // ── GRID GALLERY VIEW ──
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: _kAccentPrimary))
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _kAccentPrimary),
+                    )
                   : !_hasPermission
-                      ? Center(
-                          child: Text(
-                            'Please grant photo permissions\nin settings.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                          ),
-                        )
-                      : Stack(
-                          children: [
-                            GridView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  ? Center(
+                      child: Text(
+                        'Please grant photo permissions\nin settings.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    )
+                  : Stack(
+                      children: [
+                        GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 3,
                                 crossAxisSpacing: 2,
                                 mainAxisSpacing: 2,
                               ),
-                              itemCount: _assets.length + 1, // +1 for the camera button
-                              itemBuilder: (context, index) {
-                                if (index == 0) {
-                                  // CAMERA BUTTON TILE
-                                  return GestureDetector(
-                                    onTap: () => Navigator.pop(context), // Just go back to camera screen
-                                    child: Container(
-                                      color: const Color(0xFF1E1E1E),
-                                      child: const Center(
-                                        child: Icon(Icons.camera_alt_outlined, color: Colors.white, size: 30),
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final asset = _assets[index - 1];
-                                final isSelected = _selectedAssets.contains(asset);
-                                final selIndex = _selectedAssets.indexOf(asset) + 1;
-
-                                return GestureDetector(
-                                  onTap: () {
-                                    if (_isMultiSelect) {
-                                      _toggleSelection(asset);
-                                    } else {
-                                      _pickSingle(asset);
-                                    }
-                                  },
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      // Native Thumbnail
-                                      FutureBuilder<Uint8List?>(
-                                        future: asset.thumbnailDataWithSize(const ThumbnailSize.square(300)),
-                                        builder: (_, snapshot) {
-                                          if (snapshot.connectionState == ConnectionState.waiting) {
-                                            return Container(color: Colors.white10);
-                                          }
-                                          if (snapshot.hasData && snapshot.data != null) {
-                                            return Image.memory(
-                                              snapshot.data!,
-                                              fit: BoxFit.cover,
-                                              gaplessPlayback: true,
-                                            );
-                                          }
-                                          return Container(color: Colors.white10);
-                                        },
-                                      ),
-
-                                      // Video Duration Badge
-                                      if (asset.type == AssetType.video)
-                                        Positioned(
-                                          bottom: 4,
-                                          right: 6,
-                                          child: Text(
-                                            _formatDuration(asset.videoDuration),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12, // Slightly larger for readability
-                                              fontWeight: FontWeight.w600, // Distinct from iOS default
-                                              shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
-                                            ),
-                                          ),
-                                        ),
-
-                                      // Custom Checkbox Overlay
-                                      if (_isMultiSelect)
-                                        Positioned(
-                                          top: 6,
-                                          right: 6,
-                                          child: Container(
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isSelected ? _kAccentSecondary : Colors.black26,
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: 1.5,
-                                              ),
-                                            ),
-                                            child: isSelected
-                                                ? Center(
-                                                    child: Text(
-                                                      '$selIndex',
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  )
-                                                : null,
-                                          ),
-                                        ),
-                                        
-                                        // Dimmer selected overlay
-                                        if (isSelected)
-                                          Container(color: Colors.black.withValues(alpha: 0.3)),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                            
-                            // Bottom Action Bar when multi-selecting
-                            if (_isMultiSelect && _selectedAssets.isNotEmpty)
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
+                          itemCount:
+                              _assets.length + 1, // +1 for the camera button
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              // CAMERA BUTTON TILE
+                              return GestureDetector(
+                                onTap: () => Navigator.pop(
+                                  context,
+                                ), // Just go back to camera screen
                                 child: Container(
-                                  padding: EdgeInsets.only(
-                                    left: 16, right: 16, top: 12,
-                                    bottom: MediaQuery.of(context).padding.bottom + 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.85),
-                                    border: const Border(top: BorderSide(color: Colors.white10)),
-                                  ),
-                                  child: SafeArea(
-                                    top: false,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '${_selectedAssets.length} Selected',
-                                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                        ),
-                                        GestureDetector(
-                                          onTap: _finishSelection,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(24),
-                                            ),
-                                            child: const Text(
-                                              'Next',
-                                              style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w700),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                  color: const Color(0xFF1E1E1E),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.camera_alt_outlined,
+                                      color: Colors.white,
+                                      size: 30,
                                     ),
                                   ),
                                 ),
+                              );
+                            }
+
+                            final asset = _assets[index - 1];
+                            final isSelected = _selectedAssets.contains(asset);
+                            final selIndex = _selectedAssets.indexOf(asset) + 1;
+
+                            return GestureDetector(
+                              onTap: () {
+                                if (_isMultiSelect) {
+                                  if (asset.type == AssetType.video) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Cannot select videos in multi-select mode',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  _toggleSelection(asset);
+                                } else {
+                                  _pickSingle(asset);
+                                }
+                              },
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  // Native Thumbnail
+                                  FutureBuilder<Uint8List?>(
+                                    future: asset.thumbnailDataWithSize(
+                                      const ThumbnailSize.square(300),
+                                    ),
+                                    builder: (_, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Container(color: Colors.white10);
+                                      }
+                                      if (snapshot.hasData &&
+                                          snapshot.data != null) {
+                                        return Image.memory(
+                                          snapshot.data!,
+                                          fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                        );
+                                      }
+                                      return Container(color: Colors.white10);
+                                    },
+                                  ),
+
+                                  // Video Duration Badge
+                                  if (asset.type == AssetType.video)
+                                    Positioned(
+                                      bottom: 4,
+                                      right: 6,
+                                      child: Text(
+                                        _formatDuration(asset.videoDuration),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize:
+                                              12, // Slightly larger for readability
+                                          fontWeight: FontWeight
+                                              .w600, // Distinct from iOS default
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black87,
+                                              blurRadius: 4,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                  // Custom Checkbox Overlay
+                                  if (_isMultiSelect)
+                                    Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isSelected
+                                              ? _kAccentSecondary
+                                              : Colors.black26,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: isSelected
+                                            ? Center(
+                                                child: Text(
+                                                  '$selIndex',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+
+                                  // Dimmer selected overlay
+                                  if (isSelected)
+                                    Container(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                    ),
+                                ],
                               ),
-                          ],
+                            );
+                          },
                         ),
+
+                        // Bottom Action Bar when multi-selecting
+                        if (_isMultiSelect && _selectedAssets.isNotEmpty)
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: EdgeInsets.only(
+                                left: 16,
+                                right: 16,
+                                top: 12,
+                                bottom:
+                                    MediaQuery.of(context).padding.bottom + 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.85),
+                                border: const Border(
+                                  top: BorderSide(color: Colors.white10),
+                                ),
+                              ),
+                              child: SafeArea(
+                                top: false,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${_selectedAssets.length} Selected',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: _finishSelection,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Next',
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -530,7 +673,12 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
     return "${d.inMinutes}:$twoDigitSeconds"; // usually single digit minutes is preferred, but this matches Insta close enough
   }
 
-  Widget _actionTopBtn(String label, IconData icon, Color iconColor, VoidCallback onTap) {
+  Widget _actionTopBtn(
+    String label,
+    IconData icon,
+    Color iconColor,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
