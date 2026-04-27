@@ -137,7 +137,7 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return VisibilityDetector(
-      key: Key('wave_${widget.post.id}'),
+      key: Key('wave_${widget.post.id}_${hashCode}'),
       onVisibilityChanged: _onVisibilityChanged,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
