@@ -18,10 +18,13 @@ import 'thoughts/thought_card.dart';
 import 'package:image_picker/image_picker.dart';
 import 'glimps/glimps_strip.dart';
 import 'post/media_editor_screen.dart';
+import 'post/image_crop_screen.dart';
+import 'post/video_post_editor_screen.dart';
 import 'shared/final_post_screen.dart';
 import 'shared/post_settings_sheet.dart';
 import 'waves/waves_editor_screen.dart';
 import 'waves/waves_camera_screen.dart';
+import 'waves/waves_gallery_sheet.dart';
 
 import 'profile/profile_screen.dart';
 import 'waves/waves_feed_screen.dart';
@@ -88,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final int diff = (index - _currentNavIndex).abs();
     _setCurrentNavIndex(index);
-    
+
     if (diff == 1) {
       _pageController.animateToPage(
         index,
@@ -270,7 +273,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   context,
                                   isGlimpse: false,
                                 );
-                                if (settings == null || !context.mounted) return;
+                                if (settings == null || !context.mounted) {
+                                  return;
+                                }
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -325,9 +330,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => MediaEditorScreen(
+                          builder: (_) => ImageCropScreen(
                             files: [File(photo.path)],
                             initialCaption: captionController.text.trim(),
+                            onDone: (croppedFiles, aspectRatio) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MediaEditorScreen(
+                                    files: croppedFiles,
+                                    initialCaption: captionController.text
+                                        .trim(),
+                                    aspectRatio: aspectRatio,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       );
@@ -338,24 +356,64 @@ class _HomeScreenState extends State<HomeScreen> {
                 _createMenuItem(
                   icon: Icons.photo_library_rounded,
                   label: "Post",
-                  subtitle: "Choose from gallery",
+                  subtitle: "Choose photos or a video",
                   isDark: isDark,
                   onTap: () async {
                     KnockHaptics.tap();
                     Navigator.pop(ctx);
-                    final List<XFile> files = await _imagePicker.pickMultiImage(
-                      imageQuality: 80,
-                    );
-                    if (files.isNotEmpty && context.mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MediaEditorScreen(
-                            files: files.map((e) => File(e.path)).toList(),
-                            initialCaption: captionController.text.trim(),
-                          ),
+                                        if (!context.mounted) return;
+                    final result = await showModalBottomSheet<List<File>>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const FractionallySizedBox(
+                        heightFactor: 0.95,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          child: WavesGallerySheet(showCreativeTools: false),
                         ),
-                      );
+                      ),
+                    );
+
+                    if (result != null && result.isNotEmpty && context.mounted) {
+                      final isVideo = result.first.path.toLowerCase().endsWith('.mp4') || 
+                                      result.first.path.toLowerCase().endsWith('.mov') ||
+                                      result.first.path.toLowerCase().endsWith('.mkv');
+                      if (isVideo) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => VideoPostEditorScreen(
+                              videoFile: result.first,
+                              initialCaption: captionController.text.trim(),
+                              isGlimpse: false,
+                            ),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ImageCropScreen(
+                              files: result,
+                              initialCaption: captionController.text.trim(),
+                              isGlimpse: false,
+                              onDone: (croppedFiles, aspectRatio) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MediaEditorScreen(
+                                      files: croppedFiles,
+                                      initialCaption: captionController.text.trim(),
+                                      aspectRatio: aspectRatio,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
@@ -369,9 +427,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     KnockHaptics.tap();
                     Navigator.pop(ctx);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Glimpse composer coming soon!')),
+                    final result = await showModalBottomSheet<List<File>>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const FractionallySizedBox(
+                        heightFactor: 0.95,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          child: WavesGallerySheet(),
+                        ),
+                      ),
                     );
+
+                    if (result != null && result.isNotEmpty && context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => WavesEditorScreen(
+                            files: result,
+                            initialCaption: captionController.text.trim(),
+                            isGlimpse: true,
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
                 const SizedBox(height: 7),
@@ -539,7 +619,8 @@ class _HomeScreenState extends State<HomeScreen> {
               extendBody: true,
 
               // ── FAB (X/Twitter-style fade + scale) ──────────────────
-              floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
+              floatingActionButton:
+                  (_currentNavIndex == 0 || _currentNavIndex == 4)
                   ? AnimatedOpacity(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeOut,
@@ -619,7 +700,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       onPressed: () {
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const NotificationsScreen(),
+                                          ),
                                         );
                                       },
                                     ),
@@ -631,23 +715,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               valueListenable: GlobalPostState.deletedPostIds,
                               builder: (context, deletedIds, _) {
                                 // For the demo, let's combine some posts for the home feed
-                                // Only show the latest own post in Recents
-                                final ownPostsSorted = [...demoOwnPosts]
-                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-                                final latestOwnPost = ownPostsSorted.isNotEmpty
-                                    ? [ownPostsSorted.first]
-                                    : <PostModel>[];
-
                                 final allDemoPosts = [
-                                  ...latestOwnPost,
                                   ...getDemoPostsForUser('zayn01'),
                                   ...getDemoPostsForUser('saptarshi01'),
                                 ];
-                                
-                                final activePosts = allDemoPosts
-                                    .where((p) => !deletedIds.contains(p.id))
-                                    .toList()
-                                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+                                final activePosts =
+                                    allDemoPosts
+                                        .where(
+                                          (p) => !deletedIds.contains(p.id),
+                                        )
+                                        .toList()
+                                      ..sort(
+                                        (a, b) =>
+                                            b.createdAt.compareTo(a.createdAt),
+                                      );
 
                                 return ListView.builder(
                                   padding: const EdgeInsets.only(bottom: 90),
@@ -657,9 +739,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     const peopleStripIndex = 3;
                                     final totalItems = activePosts.length + 2;
                                     final isLast = index == totalItems - 1;
-                                    
+
                                     if (index == glimpseStripIndex) {
-                                      return GlimpsStrip(glimpses: demoGlimpseFeed);
+                                      return GlimpsStrip(
+                                        glimpses: demoGlimpseFeed,
+                                      );
                                     }
                                     if (index == peopleStripIndex) {
                                       return const PeopleSuggestionStrip();
@@ -671,16 +755,29 @@ class _HomeScreenState extends State<HomeScreen> {
                                     } else if (index > glimpseStripIndex) {
                                       postIndex -= 1;
                                     }
-                                    
-                                    if (postIndex >= activePosts.length) return const SizedBox.shrink();
-                                    
+
+                                    if (postIndex >= activePosts.length) {
+                                      return const SizedBox.shrink();
+                                    }
+
                                     final post = activePosts[postIndex];
-                                    final author = post.authorId == 'me' ? demoOwnUser : findDemoUserByUsername(post.authorId == 'zayn01' ? 'zayn.malik' : 'saptarshi.nayak') ?? demoOwnUser;
+                                    final author = post.authorId == 'me'
+                                        ? demoOwnUser
+                                        : findDemoUserByUsername(
+                                                post.authorId == 'zayn01'
+                                                    ? 'zayn.malik'
+                                                    : 'saptarshi.nayak',
+                                              ) ??
+                                              demoOwnUser;
 
                                     final dividerColor = isDark
                                         ? const Color(0xFF2A2A2A)
                                         : const Color(0xFFE8E8E8);
-                                    final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+                                    final divider = Divider(
+                                      height: 1,
+                                      thickness: 1,
+                                      color: dividerColor,
+                                    );
 
                                     Widget card;
                                     if (post.type == PostType.text) {
@@ -699,6 +796,31 @@ class _HomeScreenState extends State<HomeScreen> {
                                         likes: post.likes,
                                         views: post.views,
                                         postId: post.id,
+                                        musicUrl: post.musicUrl,
+                                        musicTitle: post.musicTitle,
+                                        musicArtist: post.musicArtist,
+                                        musicStyle: post.musicStyle,
+                                        musicCoverUrl: post.musicCoverUrl,
+                                        musicTrimStart: post.musicTrimStart,
+                                        musicLyrics: post.musicLyrics,
+                                        musicLyricsConfig:
+                                            post.musicLyricsConfig,
+                                        musicOverlayX: post.musicOverlayX,
+                                        musicOverlayY: post.musicOverlayY,
+                                        musicOverlayScale:
+                                            post.musicOverlayScale,
+                                        musicOverlayRotation:
+                                            post.musicOverlayRotation,
+                                        filterIndex: post.filterIndex,
+                                        textOverlays: post.textOverlays,
+                                        drawPaths: post.drawPaths,
+                                        isVideoPost:
+                                            post.isVideoPost ||
+                                            post.type == PostType.waves,
+                                        videoHasSound: post.videoHasSound,
+                                        coverImagePath: post.coverImagePath,
+                                        mediaAspectRatio: post.mediaAspectRatio,
+                                        mediaIsBaked: post.mediaIsBaked,
                                       );
                                     }
 
@@ -721,7 +843,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueListenable: _navIndexNotifier,
                         builder: (context, currentIndex, _) {
                           return _KeepAlivePage(
-                            child: WavesFeedScreen(isVisible: currentIndex == 2),
+                            child: WavesFeedScreen(
+                              isVisible: currentIndex == 2,
+                            ),
                           );
                         },
                       ),
@@ -806,3 +930,5 @@ class _KeepAlivePageState extends State<_KeepAlivePage>
     return widget.child;
   }
 }
+
+

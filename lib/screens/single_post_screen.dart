@@ -28,11 +28,7 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
     super.initState();
     if (widget.autoOpenComments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        CommentSheet.show(
-          context,
-          postId: widget.post.id,
-          isPostOwner: false,
-        );
+        CommentSheet.show(context, postId: widget.post.id, isPostOwner: false);
       });
     }
   }
@@ -47,7 +43,9 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: bg,
-        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: bg,
@@ -55,8 +53,11 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
           backgroundColor: bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: isDark ? Colors.white : Colors.black),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: isDark ? Colors.white : Colors.black,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(
@@ -84,6 +85,29 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                     caption: widget.post.text,
                     likes: widget.post.likes,
                     views: widget.post.views,
+                    postId: widget.post.id,
+                    musicUrl: widget.post.musicUrl,
+                    musicTitle: widget.post.musicTitle,
+                    musicArtist: widget.post.musicArtist,
+                    musicCoverUrl: widget.post.musicCoverUrl,
+                    musicStyle: widget.post.musicStyle,
+                    musicLyrics: widget.post.musicLyrics,
+                    musicLyricsConfig: widget.post.musicLyricsConfig,
+                    musicTrimStart: widget.post.musicTrimStart,
+                    musicOverlayX: widget.post.musicOverlayX,
+                    musicOverlayY: widget.post.musicOverlayY,
+                    musicOverlayScale: widget.post.musicOverlayScale,
+                    musicOverlayRotation: widget.post.musicOverlayRotation,
+                    filterIndex: widget.post.filterIndex,
+                    textOverlays: widget.post.textOverlays,
+                    drawPaths: widget.post.drawPaths,
+                    isVideoPost:
+                        widget.post.isVideoPost ||
+                        widget.post.type == PostType.waves,
+                    videoHasSound: widget.post.videoHasSound,
+                    coverImagePath: widget.post.coverImagePath,
+                    mediaAspectRatio: widget.post.mediaAspectRatio,
+                    mediaIsBaked: widget.post.mediaIsBaked,
                   ),
           ],
         ),

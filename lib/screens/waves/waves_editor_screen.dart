@@ -1,14 +1,17 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 import '../../models/post_model.dart';
 import '../shared/music_picker_screen.dart';
 import '../shared/music_editor_screen.dart';
 import '../shared/post_settings_sheet.dart';
 import '../shared/final_post_screen.dart';
+import 'package:colorfilter_generator/presets.dart';
 
 class WavesEditorScreen extends StatefulWidget {
   final List<File> files;
@@ -16,6 +19,7 @@ class WavesEditorScreen extends StatefulWidget {
   final double playbackSpeed;
   final MusicTrack? initialMusic;
   final int? trimStartSeconds;
+  final bool isGlimpse;
 
   const WavesEditorScreen({
     super.key,
@@ -24,6 +28,7 @@ class WavesEditorScreen extends StatefulWidget {
     this.playbackSpeed = 1.0,
     this.initialMusic,
     this.trimStartSeconds,
+    this.isGlimpse = true,
   });
 
   @override
@@ -82,13 +87,30 @@ class _DrawPainter extends CustomPainter {
 }
 
 class _WavesEditorScreenState extends State<WavesEditorScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TextEditingController _captionController;
   MusicTrack? _selectedMusic;
   int _selectedFilterIndex = 0;
   int _currentMediaIndex = 0;
   bool _showFilters = false;
   final AudioPlayer _bgAudioPlayer = AudioPlayer();
+  int _trimStartSeconds = 0;
+  int? _selectedMusicStyle;
+  Map<String, dynamic>? _selectedMusicLyricsConfig;
+  
+  // Music overlay dragging state
+  Offset? _musicOverlayPosition;
+  double _musicOverlayScale = 1.0;
+  double _musicOverlayRotation = 0.0;
+  double _baseMusicOverlayScale = 1.0;
+  double _baseMusicOverlayRotation = 0.0;
+  Offset? _dragStartFocalPoint;
+  Offset? _dragStartOverlayPos;
+  double _editorBoxWidth = 1080.0;
+  double _editorBoxHeight = 1920.0;
+
+  int _bgAudioPosMs = 0;
+  StreamSubscription<Duration>? _bgPosSub;
 
   // -- Video State --
   late List<VideoPlayerController?> _videoControllers;
@@ -120,185 +142,103 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     "🚀",
   ];
 
-  final List<String> _filterNames = [
-    "Original",
-    "Warm",
-    "Cool",
-    "Vintage",
-    "Noir",
-    "Fade",
-    "Cyber",
-    "Cinematic",
-    "Film",
-    "Sepia",
+  final List<Map<String, dynamic>> _carouselEffects = [
+    {'id': 'none', 'label': 'Normal'},
+    {'id': 'aesthetic', 'label': 'Paris'},
+    {'id': 'suave', 'label': 'Oslo'},
+    {'id': 'losangeles', 'label': 'L.A.'},
+    {'id': 'bw', 'label': 'Classic'},
+    {'id': 'zohan', 'label': 'Tokyo'},
+    {'id': 'lowlight', 'label': 'Melbourne'},
+    {'id': 'camcorder', 'label': 'VHS'},
+    {'id': 'vivid', 'label': 'Jakarta'},
+    {'id': 'vintage', 'label': 'Retro'},
+    {'id': 'noir', 'label': 'Noir'},
+    {'id': 'warm', 'label': 'Golden'},
+    {'id': 'cool', 'label': 'Moody'},
+    {'id': 'dream', 'label': 'Dream'},
+    {'id': 'cinematic', 'label': 'Cinema'},
+    {'id': 'fade', 'label': 'Lo-Fi'},
+    {'id': 'dramatic', 'label': 'Dramatic'},
+    {'id': 'sunset', 'label': 'Peach'},
   ];
-  final List<List<double>> _filterMatrices = [
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0], // Original
-    [1.2, 0, 0, 0, 10, 0, 1.1, 0, 0, 5, 0, 0, 0.9, 0, 0, 0, 0, 0, 1, 0], // Warm
-    [
-      0.9,
-      0,
-      0.1,
-      0,
-      0,
-      0,
-      1.0,
-      0.1,
-      0,
-      0,
-      0.1,
-      0,
-      1.2,
-      0,
-      10,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Cool
-    [
-      0.9,
-      0.2,
-      0.1,
-      0,
-      15,
-      0.1,
-      0.8,
-      0.1,
-      0,
-      10,
-      0.1,
-      0.1,
-      0.7,
-      0,
-      5,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Vintage
-    [
-      0.33,
-      0.33,
-      0.33,
-      0,
-      0,
-      0.33,
-      0.33,
-      0.33,
-      0,
-      0,
-      0.33,
-      0.33,
-      0.33,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Noir
-    [1, 0, 0, 0, 20, 0, 1, 0, 0, 20, 0, 0, 1, 0, 20, 0, 0, 0, 0.85, 0], // Fade
-    [
-      1.2,
-      0,
-      0.5,
-      0,
-      10,
-      0,
-      0.8,
-      0.5,
-      0,
-      0,
-      0.5,
-      0,
-      1.2,
-      0,
-      20,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Cyber
-    [
-      1.3,
-      0.1,
-      0,
-      0,
-      10,
-      0,
-      1.1,
-      0.1,
-      0,
-      5,
-      0,
-      0.2,
-      1.3,
-      0,
-      20,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Cinematic
-    [
-      1.05,
-      0.05,
-      0.05,
-      0,
-      8,
-      0.05,
-      1.0,
-      0.05,
-      0,
-      5,
-      0.05,
-      0.05,
-      0.95,
-      0,
-      3,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Film
-    [
-      0.39,
-      0.77,
-      0.19,
-      0,
-      0,
-      0.35,
-      0.69,
-      0.17,
-      0,
-      0,
-      0.27,
-      0.53,
-      0.13,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-    ], // Sepia
-  ];
+
+  ColorFilter _getActiveColorFilter(int index) {
+    if (index == 0) {
+      return const ColorFilter.matrix(<double>[
+        1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+      ]);
+    }
+    final effectId = _carouselEffects[index]['id'];
+    switch (effectId) {
+      case 'aesthetic': return ColorFilter.matrix(PresetFilters.reyes.matrix);
+      case 'suave': return ColorFilter.matrix(PresetFilters.slumber.matrix);
+      case 'losangeles': return ColorFilter.matrix(PresetFilters.valencia.matrix);
+      case 'bw': return ColorFilter.matrix(PresetFilters.willow.matrix);
+      case 'zohan': return ColorFilter.matrix(PresetFilters.juno.matrix);
+      case 'lowlight': return ColorFilter.matrix(PresetFilters.gingham.matrix);
+      case 'camcorder': return ColorFilter.matrix(PresetFilters.stinson.matrix);
+      case 'vivid': return ColorFilter.matrix(PresetFilters.clarendon.matrix);
+      case 'vintage': return ColorFilter.matrix(PresetFilters.maven.matrix);
+      case 'noir': return ColorFilter.matrix(PresetFilters.moon.matrix);
+      case 'warm': return ColorFilter.matrix(PresetFilters.rise.matrix);
+      case 'cool': return ColorFilter.matrix(PresetFilters.amaro.matrix);
+      case 'dream': return ColorFilter.matrix(PresetFilters.ludwig.matrix);
+      case 'cinematic': return ColorFilter.matrix(PresetFilters.xProII.matrix);
+      case 'fade': return ColorFilter.matrix(PresetFilters.brooklyn.matrix);
+      case 'dramatic': return ColorFilter.matrix(PresetFilters.mayfair.matrix);
+      case 'sunset': return ColorFilter.matrix(PresetFilters.aden.matrix);
+      default: return const ColorFilter.matrix(<double>[
+          1, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1, 0, 0,
+          0, 0, 0, 1, 0,
+        ]);
+    }
+  }
+
+  Map<String, dynamic> _getEffectLayers(int index) {
+    if (index == 0) {
+      return {'blur': 0.0, 'vignette': 0.0, 'blendColor': null, 'blendMode': null, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+    }
+    final effectId = _carouselEffects[index]['id'];
+    switch (effectId) {
+      case 'aesthetic': return {'blur': 0.4, 'vignette': 0.1, 'blendColor': const Color(0x1AFFA500), 'blendMode': BlendMode.softLight, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'suave': return {'blur': 0.8, 'vignette': 0.15, 'blendColor': const Color(0x22FFC0CB), 'blendMode': BlendMode.overlay, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'losangeles': return {'blur': 0.0, 'vignette': 0.15, 'blendColor': const Color(0x33FF8C00), 'blendMode': BlendMode.screen, 'tint': null, 'lightLeak': [const Color(0x22FF4500), Colors.transparent], 'vhsUI': false};
+      case 'zohan': return {'blur': 0.0, 'vignette': 0.25, 'blendColor': const Color(0x2200CED1), 'blendMode': BlendMode.hardLight, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'lowlight': return {'blur': 0.0, 'vignette': 0.0, 'blendColor': const Color(0x22FFFFFF), 'blendMode': BlendMode.screen, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'camcorder': return {'blur': 0.2, 'vignette': 0.6, 'blendColor': const Color(0x228B4513), 'blendMode': BlendMode.colorBurn, 'tint': null, 'lightLeak': [const Color(0x44FF0000), const Color(0x00FF0000)], 'vhsUI': true};
+      case 'dramatic': return {'blur': 0.0, 'vignette': 0.4, 'blendColor': const Color(0x44000000), 'blendMode': BlendMode.softLight, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'sunset': return {'blur': 0.0, 'vignette': 0.1, 'blendColor': const Color(0x22FF7F50), 'blendMode': BlendMode.overlay, 'tint': null, 'lightLeak': [const Color(0x33FFB6C1), Colors.transparent], 'vhsUI': false};
+      case 'vintage': return {'blur': 0.4, 'vignette': 0.5, 'blendColor': const Color(0x33A0522D), 'blendMode': BlendMode.exclusion, 'tint': null, 'lightLeak': [const Color(0x44FFA500), Colors.transparent], 'vhsUI': false};
+      case 'dream': return {'blur': 2.0, 'vignette': 0.0, 'blendColor': const Color(0x22E6E6FA), 'blendMode': BlendMode.lighten, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'noir': return {'blur': 0.0, 'vignette': 0.6, 'blendColor': const Color(0x66000000), 'blendMode': BlendMode.multiply, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      case 'fade': return {'blur': 0.0, 'vignette': 0.4, 'blendColor': const Color(0x33B0C4DE), 'blendMode': BlendMode.screen, 'tint': null, 'lightLeak': [const Color(0x228A2BE2), Colors.transparent], 'vhsUI': false};
+      case 'cinematic': return {'blur': 0.0, 'vignette': 0.5, 'blendColor': const Color(0x33004080), 'blendMode': BlendMode.overlay, 'tint': null, 'lightLeak': null, 'vhsUI': true};
+      case 'warm': return {'blur': 0.0, 'vignette': 0.2, 'blendColor': const Color(0x22FFD700), 'blendMode': BlendMode.softLight, 'tint': null, 'lightLeak': [const Color(0x33FFA500), Colors.transparent], 'vhsUI': false};
+      case 'cool': return {'blur': 0.0, 'vignette': 0.3, 'blendColor': const Color(0x1A0000FF), 'blendMode': BlendMode.overlay, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+      default: return {'blur': 0.0, 'vignette': 0.0, 'blendColor': null, 'blendMode': null, 'tint': null, 'lightLeak': null, 'vhsUI': false};
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    AudioLifecycleManager.instance.register(_bgAudioPlayer);
+
+    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
+      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
+    });
+
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
     _selectedMusic = widget.initialMusic;
+    _trimStartSeconds = widget.trimStartSeconds ?? 0;
     if (_selectedMusic != null) {
       _playSelectedMusic();
     }
@@ -332,12 +272,13 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
   }
 
   Future<void> _playSelectedMusic() async {
-    if (_selectedMusic == null) return;
+    if (_selectedMusic == null) {
+      await _bgAudioPlayer.stop();
+      return;
+    }
     try {
       await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
-      if (widget.initialMusic == _selectedMusic && widget.trimStartSeconds != null) {
-        await _bgAudioPlayer.seek(Duration(seconds: widget.trimStartSeconds!));
-      }
+      await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
       await _bgAudioPlayer.setLoopMode(LoopMode.one);
       await _bgAudioPlayer.play();
     } catch (e) {
@@ -347,10 +288,12 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
   @override
   void dispose() {
+    _bgPosSub?.cancel();
+    AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
+    _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     for (var ctrl in _videoControllers) {
       ctrl?.dispose();
     }
-    _bgAudioPlayer.dispose();
     _captionController.dispose();
     _textOverlayController.dispose();
     _textFocusNode.dispose();
@@ -362,12 +305,26 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     KnockHaptics.tap();
     final settings = await showPostSettingsSheet(
       context,
-      isGlimpse: true,
+      isGlimpse: widget.isGlimpse,
     );
     if (settings == null || !mounted) return;
 
     await _bgAudioPlayer.stop();
     if (!mounted) return;
+
+    final serializedTexts = _textOverlays.map((t) => {
+      'text': t.text,
+      'x': t.position.dx / _editorBoxWidth,
+      'y': t.position.dy / _editorBoxHeight,
+      'scale': t.scale,
+      'color': t.color.toARGB32(),
+    }).toList();
+
+    final serializedPaths = _drawPaths.map((p) => {
+      'color': p.color.toARGB32(),
+      'strokeWidth': p.strokeWidth,
+      'points': p.points.map((pt) => {'x': pt.dx / _editorBoxWidth, 'y': pt.dy / _editorBoxHeight}).toList(),
+    }).toList();
 
     Navigator.pushReplacement(
       context,
@@ -375,11 +332,22 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
         builder: (_) => FinalPostScreen(
           files: widget.files,
           initialCaption: _captionController.text.trim(),
-          isGlimpse: true,
+          isGlimpse: widget.isGlimpse,
           selectedDuration: settings.duration,
           selectedAudience: settings.audience,
           initialMusic: _selectedMusic,
-          initialTrimSeconds: widget.trimStartSeconds,
+          initialTrimSeconds: _trimStartSeconds,
+          initialMusicStyle: _selectedMusicStyle,
+          initialMusicCoverUrl: _selectedMusic?.coverUrl,
+          initialMusicLyrics: _selectedMusic?.syncedLyrics,
+          initialMusicLyricsConfig: _selectedMusicLyricsConfig,
+          initialMusicOverlayX: _musicOverlayPosition != null ? _musicOverlayPosition!.dx / _editorBoxWidth : null,
+          initialMusicOverlayY: _musicOverlayPosition != null ? _musicOverlayPosition!.dy / _editorBoxHeight : null,
+          initialMusicOverlayScale: _musicOverlayScale,
+          initialMusicOverlayRotation: _musicOverlayRotation,
+          initialFilterIndex: _selectedFilterIndex > 0 ? _selectedFilterIndex : null,
+          initialTextOverlays: serializedTexts.isEmpty ? null : serializedTexts,
+          initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
         ),
       ),
     );
@@ -398,38 +366,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
         children: [
           // ─── 1. FULL SCREEN MEDIA ───
           _buildMedia(size),
-
-          // ─── 2. DRAWING LAYER ───
-          if (_drawPaths.isNotEmpty ||
-              _currentDrawPath != null ||
-              _isDrawingMode)
-            _buildDrawingLayer(),
-
-          // ─── 3. TEXT & STICKER OVERLAYS ───
-          ..._textOverlays.map((overlay) {
-            return Positioned(
-              left: overlay.position.dx,
-              top: overlay.position.dy,
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  setState(() {
-                    overlay.position += details.delta;
-                  });
-                },
-                child: Text(
-                  overlay.text,
-                  style: TextStyle(
-                    color: overlay.color,
-                    fontSize: 32 * overlay.scale,
-                    fontWeight: FontWeight.bold,
-                    shadows: const [
-                      Shadow(color: Colors.black54, blurRadius: 8),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
 
           // ─── 4. GRADIENTS ───
           if (!_isDrawingMode && !_isAddingText)
@@ -561,7 +497,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                                       ),
                                     ),
                                     child: Text(
-                                      _filterNames[_selectedFilterIndex],
+                                      _carouselEffects[_selectedFilterIndex]['label'] as String,
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 11,
@@ -580,7 +516,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                     if (_showFilters && !_isDrawingMode)
                       _buildFiltersScroller(),
 
-                    if (_selectedMusic != null && !_isDrawingMode)
+                    if (_selectedMusic != null && !_isDrawingMode && (_selectedMusicStyle == null || _selectedMusicStyle == 0))
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                         child: ClipRRect(
@@ -733,9 +669,9 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      "WAVES",
-                      style: TextStyle(
+                    Text(
+                      widget.isGlimpse ? "GLIMPSE" : "WAVES",
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -1104,7 +1040,16 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                         
                         if (overlayResult != null && overlayResult is Map) {
                           // Once finished with overlay, set active music
-                          setState(() => _selectedMusic = overlayResult['track'] as MusicTrack);
+                          setState(() {
+                            _selectedMusic = overlayResult['track'] as MusicTrack;
+                            _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
+                            _selectedMusicStyle = overlayResult['styleIndex'] as int?;
+                            _selectedMusicLyricsConfig =
+                                (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
+                            _musicOverlayPosition = null;
+                            _musicOverlayScale = 1.0;
+                            _musicOverlayRotation = 0.0;
+                          });
                           _playSelectedMusic();
                         }
                       }
@@ -1169,6 +1114,159 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     );
   }
 
+  List<Widget> _buildEffectOverlayLayers(int index) {
+    if (index == 0) return [];
+    
+    final layers = _getEffectLayers(index);
+    final tint = layers['tint'] as Color?;
+    final vignetteIntensity = (layers['vignette'] as double?) ?? 0.0;
+    final lightLeak = layers['lightLeak'] as List<Color>?;
+    final vhsUI = (layers['vhsUI'] as bool?) ?? false;
+    
+    final List<Widget> overlays = [];
+
+    if (tint != null) {
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              color: tint,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (lightLeak != null && lightLeak.length == 2) {
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: const Alignment(0.2, 0.5),
+                  colors: lightLeak,
+                  stops: const [0.0, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomRight,
+                  end: const Alignment(0.5, 0.2),
+                  colors: [lightLeak[0].withValues(alpha: 0.05), Colors.transparent],
+                  stops: const [0.0, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (vignetteIntensity > 0) {
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 0.9,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: vignetteIntensity * 0.4),
+                    Colors.black.withValues(alpha: vignetteIntensity),
+                  ],
+                  stops: const [0.35, 0.8, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (vhsUI) {
+      final now = DateTime.now();
+      final dateStr = '${now.month.toString().padLeft(2, '0')}.${now.day.toString().padLeft(2, '0')}.${now.year}';
+      final formattedHour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
+      final timeStr = '${formattedHour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? "PM" : "AM"}';
+      
+      overlays.add(
+        Positioned.fill(
+          child: IgnorePointer(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Text(
+                          '• REC',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 18,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'Courier',
+                            shadows: [Shadow(color: Colors.red, blurRadius: 4)],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Courier',
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timeStr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Courier',
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return overlays;
+  }
+
   Widget _buildMedia(Size size) {
     if (widget.files.isEmpty) return const SizedBox.shrink();
     return PageView.builder(
@@ -1183,10 +1281,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           if (_videoControllers[j] != null) {
             if (j == i) {
               _videoControllers[j]!.play();
-              if (_selectedMusic != null) {
-                // Capped to 15 seconds if music is present
-                // Additional actual trimming logic would go here
-              }
             } else {
               _videoControllers[j]!.pause();
             }
@@ -1196,33 +1290,171 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
       itemBuilder: (context, i) {
         final vCtrl = _videoControllers[i];
         final isVideo = vCtrl != null;
+        
+        final layers = _getEffectLayers(_selectedFilterIndex);
+        final blurSigma = (layers['blur'] as double?) ?? 0.0;
+        final blendColor = layers['blendColor'] as Color?;
+        final blendMode = layers['blendMode'] as BlendMode?;
 
-        return InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 5.0,
-          child: Container(
-            color: Colors.black,
-            child: ColorFiltered(
-              colorFilter: ColorFilter.matrix(
-                _filterMatrices[_selectedFilterIndex]
-                    .map((e) => e.toDouble())
-                    .toList(),
-              ),
-              child: isVideo
-                  ? (vCtrl.value.isInitialized
-                        ? Center(
-                            child: AspectRatio(
-                              aspectRatio: vCtrl.value.aspectRatio,
-                              child: VideoPlayer(vCtrl),
-                            ),
-                          )
-                        : const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          ))
-                  : Image.file(widget.files[i], fit: BoxFit.cover),
+        Widget preview = isVideo
+            ? (vCtrl.value.isInitialized
+                  ? Center(
+                      child: AspectRatio(
+                        aspectRatio: vCtrl.value.aspectRatio,
+                        child: VideoPlayer(vCtrl),
+                      ),
+                    )
+                  : const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    ))
+            : Image.file(widget.files[i], fit: BoxFit.cover);
+
+        preview = ColorFiltered(
+          colorFilter: _getActiveColorFilter(_selectedFilterIndex),
+          child: preview,
+        );
+
+        if (blendColor != null && blendMode != null) {
+          preview = ColorFiltered(
+            colorFilter: ColorFilter.mode(blendColor, blendMode),
+            child: preview,
+          );
+        }
+
+        if (blurSigma > 0) {
+          preview = ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: blurSigma,
+              sigmaY: blurSigma,
+              tileMode: TileMode.clamp,
             ),
+            child: preview,
+          );
+        }
+
+        return Center(
+          child: AspectRatio(
+            aspectRatio: 9 / 16,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+            if (_editorBoxWidth != constraints.maxWidth || _editorBoxHeight != constraints.maxHeight) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && (_editorBoxWidth != constraints.maxWidth || _editorBoxHeight != constraints.maxHeight)) {
+                  setState(() {
+                    _editorBoxWidth = constraints.maxWidth;
+                    _editorBoxHeight = constraints.maxHeight;
+                  });
+                }
+              });
+            }
+
+            const double minScale = 0.20;
+            const double maxScale = 2.5;
+            final pos =
+                _musicOverlayPosition ??
+                defaultMusicLyricsOverlayOffset(
+                  frameWidth: constraints.maxWidth,
+                  frameHeight: constraints.maxHeight,
+                  lyricsConfigData: _selectedMusicLyricsConfig,
+                );
+
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: 5.0,
+                  child: Container(
+                    color: Colors.black,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        preview,
+                        ..._buildEffectOverlayLayers(_selectedFilterIndex),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_selectedMusic != null && _selectedMusicStyle != null && _selectedMusicStyle != 0)
+                  Positioned(
+                    left: pos.dx,
+                    top: pos.dy,
+                    child: GestureDetector(
+                      onScaleStart: (details) {
+                        _baseMusicOverlayScale = _musicOverlayScale;
+                        _baseMusicOverlayRotation = _musicOverlayRotation;
+                        _dragStartFocalPoint = details.focalPoint;
+                        _dragStartOverlayPos = pos;
+                      },
+                      onScaleUpdate: (details) {
+                        final delta = details.focalPoint - (_dragStartFocalPoint ?? details.focalPoint);
+                        final newScale = (_baseMusicOverlayScale * details.scale).clamp(minScale, maxScale);
+                        setState(() {
+                          _musicOverlayPosition = (_dragStartOverlayPos ?? pos) + delta;
+                          _musicOverlayScale = newScale;
+                          if (details.pointerCount >= 2) {
+                            _musicOverlayRotation =
+                                _baseMusicOverlayRotation + details.rotation;
+                          }
+                        });
+                      },
+                      child: Transform.rotate(
+                        angle: _musicOverlayRotation,
+                        alignment: Alignment.center,
+                        child: Transform.scale(
+                          scale: _musicOverlayScale,
+                          alignment: Alignment.center,
+                          child: RepaintBoundary(
+                            child: MusicStyleOverlayWidget(
+                              styleIndex: _selectedMusicStyle!,
+                              title: _selectedMusic!.title,
+                              artist: _selectedMusic!.artist,
+                              coverUrl: _selectedMusic!.coverUrl,
+                              lyricsLrc: _selectedMusic!.syncedLyrics,
+                              lyricsConfigData: _selectedMusicLyricsConfig,
+                              timelinePositionMs: _bgAudioPosMs,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // ─── DRAWING LAYER ───
+                if (_drawPaths.isNotEmpty || _currentDrawPath != null || _isDrawingMode)
+                  _buildDrawingLayer(),
+
+                // ─── TEXT & STICKER OVERLAYS ───
+                ..._textOverlays.map((overlay) {
+                  return Positioned(
+                    left: overlay.position.dx,
+                    top: overlay.position.dy,
+                    child: GestureDetector(
+                      onPanUpdate: (details) {
+                        setState(() {
+                          overlay.position += details.delta;
+                        });
+                      },
+                      child: Text(
+                        overlay.text,
+                        style: TextStyle(
+                          color: overlay.color,
+                          fontSize: 32 * overlay.scale,
+                          fontWeight: FontWeight.bold,
+                          shadows: const [
+                            Shadow(color: Colors.black54, blurRadius: 8),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            );
+          }
+        ),
           ),
         );
       },
@@ -1237,7 +1469,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _filterNames.length,
+        itemCount: _carouselEffects.length,
         itemBuilder: (context, i) {
           final isActive = i == _selectedFilterIndex;
           return GestureDetector(
@@ -1263,11 +1495,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                     child: widget.files.isNotEmpty
                         ? ClipOval(
                             child: ColorFiltered(
-                              colorFilter: ColorFilter.matrix(
-                                _filterMatrices[i]
-                                    .map((e) => e.toDouble())
-                                    .toList(),
-                              ),
+                              colorFilter: _getActiveColorFilter(i),
                               child: _videoControllers.first != null
                                   ? Container(
                                       color: Colors.black38,
@@ -1287,7 +1515,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _filterNames[i],
+                    _carouselEffects[i]['label'] as String,
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,

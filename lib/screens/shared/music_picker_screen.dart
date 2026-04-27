@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 
 class MusicTrack {
   final String title;
@@ -12,9 +13,10 @@ class MusicTrack {
   final String coverUrl;
   final String category;
   final String previewUrl;
+  String? syncedLyrics; // LRCLIB synced lyrics in LRC format
 
   MusicTrack(this.title, this.artist, this.duration, this.coverUrl,
-      this.category, this.previewUrl);
+      this.category, this.previewUrl, {this.syncedLyrics});
 }
 
 class MusicPickerScreen extends StatefulWidget {
@@ -25,7 +27,7 @@ class MusicPickerScreen extends StatefulWidget {
 }
 
 class _MusicPickerScreenState extends State<MusicPickerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -44,6 +46,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
   @override
   void initState() {
     super.initState();
+    AudioLifecycleManager.instance.register(_audioPlayer);
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
@@ -58,10 +61,11 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
 
   @override
   void dispose() {
+    AudioLifecycleManager.instance.unregister(_audioPlayer);
+    _audioPlayer.stop().whenComplete(() => _audioPlayer.dispose());
     _searchController.dispose();
     _tabController.dispose();
     _debounceTimer?.cancel();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -74,11 +78,11 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
     // Map category to a good iTunes search term
     String searchTerm = category;
     if (category == 'Trending') {
-      searchTerm = 'Top billboard hits';
+      searchTerm = 'popular hits';
     } else if (category == 'Chill') {
-      searchTerm = 'Lofi chillhop';
+      searchTerm = 'lofi chillhop';
     } else if (category == 'Bollywood') {
-      searchTerm = 'Bollywood latest hits';
+      searchTerm = 'bollywood';
     } else {
       searchTerm = '$category music';
     }
@@ -143,10 +147,27 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
     }
   }
 
-  void _onTrackTap(MusicTrack track) {
+  Future<void> _onTrackTap(MusicTrack track) async {
     KnockHaptics.tap();
     _audioPlayer.stop();
-    Navigator.pop(context, track);
+    setState(() => _isLoadingAudio = true); // use it as generic loader for tap feedback
+    
+    // Fetch lyrics from LRCLIB
+    try {
+      final uri = Uri.parse('https://lrclib.net/api/get?track_name=${Uri.encodeComponent(track.title)}&artist_name=${Uri.encodeComponent(track.artist)}');
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['syncedLyrics'] != null && data['syncedLyrics'].toString().isNotEmpty) {
+          track.syncedLyrics = data['syncedLyrics'];
+        }
+      }
+    } catch (e) {
+      debugPrint('LRCLIB Error: $e');
+    }
+
+    setState(() => _isLoadingAudio = false);
+    if (mounted) Navigator.pop(context, track);
   }
 
   Future<void> _stopAudio() async {

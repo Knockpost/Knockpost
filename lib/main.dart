@@ -6,9 +6,11 @@ import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'theme/theme_controller.dart';
+import 'utils/audio_lifecycle_manager.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  AudioLifecycleManager.instance.init();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

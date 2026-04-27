@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 import '../shared/music_picker_screen.dart';
 import '../shared/music_editor_screen.dart';
-import '../shared/post_settings_sheet.dart';
 import '../shared/final_post_screen.dart';
 
 // ─── Tool Modes ───────────────────────────────────────────────────────────────
@@ -17,11 +19,15 @@ enum _EditorTool { none, filter, adjust, text, overlay, edit }
 class MediaEditorScreen extends StatefulWidget {
   final List<File> files;
   final String? initialCaption;
+  final double aspectRatio;
+  final bool isGlimpse;
 
   const MediaEditorScreen({
     super.key,
     required this.files,
     this.initialCaption,
+    this.aspectRatio = 4 / 5,
+    this.isGlimpse = false,
   });
 
   @override
@@ -34,12 +40,29 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
   _EditorTool _activeTool = _EditorTool.none;
   int _selectedFilterIndex = 0;
   double _brightness = 0.0; // -1 to 1
-  double _contrast = 1.0;   // 0.5 to 1.5
+  double _contrast = 1.0; // 0.5 to 1.5
   double _saturation = 1.0; // 0 to 2
   MusicTrack? _selectedMusic;
+  int? _selectedMusicStyle;
+  Map<String, dynamic>? _selectedMusicLyricsConfig;
+
+  // Music overlay dragging state
+  Offset? _musicOverlayPosition;
+  double _musicOverlayScale = 1.0;
+  double _musicOverlayRotation = 0.0;
+  double _baseMusicOverlayScale = 1.0;
+  double _baseMusicOverlayRotation = 0.0;
+  Offset? _dragStartFocalPoint;
+  Offset? _dragStartOverlayPos;
+  double _editorBoxWidth = 1080.0;
+  double _editorBoxHeight = 1350.0;
+  final GlobalKey _previewBoundaryKey = GlobalKey();
+  bool _isExportingPreview = false;
 
   // Text overlay
   final List<_TextOverlay> _overlays = [];
+  _TextOverlay? _selectedOverlay;
+  double _textBaseScale = 1.0;
   bool _isAddingText = false;
   final TextEditingController _textInputCtrl = TextEditingController();
 
@@ -50,11 +73,21 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   final AudioPlayer _bgAudioPlayer = AudioPlayer();
   int _trimStartSeconds = 0;
+  int _bgAudioPosMs = 0;
+  StreamSubscription<Duration>? _bgPosSub;
 
   // ── Filter definitions ────────────────────────────────────────────────────
   final List<String> _filterNames = [
-    'Original', 'Vivid', 'Warm', 'Cool',
-    'Noir', 'Fade', 'Chrome', 'Sepia', 'Cinematic', 'Cyber',
+    'Original',
+    'Vivid',
+    'Warm',
+    'Cool',
+    'Noir',
+    'Fade',
+    'Chrome',
+    'Sepia',
+    'Cinematic',
+    'Cyber',
   ];
 
   List<double> get _activeMatrix {
@@ -75,73 +108,151 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     final sb = (1 - s) * 0.0820;
     final bv = b * 255;
     return [
-      sr + s * c, sg, sb, 0, bv,
-      sr, sg + s * c, sb, 0, bv,
-      sr, sg, sb + s * c, 0, bv,
-      0, 0, 0, 1, 0,
+      sr + s * c,
+      sg,
+      sb,
+      0,
+      bv,
+      sr,
+      sg + s * c,
+      sb,
+      0,
+      bv,
+      sr,
+      sg,
+      sb + s * c,
+      0,
+      bv,
+      0,
+      0,
+      0,
+      1,
+      0,
     ];
   }
 
   List<double> _combineMatrices(List<double> a, List<double> b) {
-    // Simple average blend for demo; real pipeline would multiply
-    return List.generate(20, (i) => (a[i] + b[i]) / 2);
+    List<double> result = List.filled(20, 0.0);
+    for (int r = 0; r < 4; r++) {
+      for (int c = 0; c < 5; c++) {
+        double val = 0.0;
+        for (int k = 0; k < 4; k++) {
+          val += a[r * 5 + k] * b[k * 5 + c];
+        }
+        if (c == 4) {
+          val += a[r * 5 + 4]; // add translation from matrix a
+        }
+        result[r * 5 + c] = val;
+      }
+    }
+    return result;
   }
 
   final List<List<double>> _filterMatrices = [
     // Original
-    [1,0,0,0,0, 0,1,0,0,0, 0,0,1,0,0, 0,0,0,1,0],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
     // Vivid
-    [1.3,0,0,0,0, 0,1.3,0,0,0, 0,0,1.2,0,0, 0,0,0,1,0],
+    [1.3, 0, 0, 0, 0, 0, 1.3, 0, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, 1, 0],
     // Warm
-    [1.2,0,0,0,10, 0,1.1,0,0,5, 0,0,0.9,0,0, 0,0,0,1,0],
+    [1.2, 0, 0, 0, 10, 0, 1.1, 0, 0, 5, 0, 0, 0.9, 0, 0, 0, 0, 0, 1, 0],
     // Cool
-    [0.9,0,0.1,0,0, 0,1.0,0.1,0,0, 0.1,0,1.2,0,10, 0,0,0,1,0],
+    [0.9, 0, 0.1, 0, 0, 0, 1.0, 0.1, 0, 0, 0.1, 0, 1.2, 0, 10, 0, 0, 0, 1, 0],
     // Noir
-    [0.33,0.33,0.33,0,0, 0.33,0.33,0.33,0,0, 0.33,0.33,0.33,0,0, 0,0,0,1,0],
+    [
+      0.33,
+      0.33,
+      0.33,
+      0,
+      0,
+      0.33,
+      0.33,
+      0.33,
+      0,
+      0,
+      0.33,
+      0.33,
+      0.33,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+    ],
     // Fade
-    [1,0,0,0,20, 0,1,0,0,20, 0,0,1,0,20, 0,0,0,0.85,0],
+    [1, 0, 0, 0, 20, 0, 1, 0, 0, 20, 0, 0, 1, 0, 20, 0, 0, 0, 0.85, 0],
     // Chrome
-    [1.3,0.1,0,0,0, 0,1.1,0.1,0,0, 0,0,1.2,0,0, 0,0,0,1,0],
+    [1.3, 0.1, 0, 0, 0, 0, 1.1, 0.1, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, 1, 0],
     // Sepia
-    [0.39,0.77,0.19,0,0, 0.35,0.69,0.17,0,0, 0.27,0.53,0.13,0,0, 0,0,0,1,0],
+    [
+      0.39,
+      0.77,
+      0.19,
+      0,
+      0,
+      0.35,
+      0.69,
+      0.17,
+      0,
+      0,
+      0.27,
+      0.53,
+      0.13,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+    ],
     // Cinematic
-    [1.3,0.1,0,0,10, 0,1.1,0.1,0,5, 0,0.2,1.3,0,20, 0,0,0,1,0],
+    [1.3, 0.1, 0, 0, 10, 0, 1.1, 0.1, 0, 5, 0, 0.2, 1.3, 0, 20, 0, 0, 0, 1, 0],
     // Cyber
-    [1.2,0,0.5,0,10, 0,0.8,0.5,0,0, 0.5,0,1.2,0,20, 0,0,0,1,0],
+    [1.2, 0, 0.5, 0, 10, 0, 0.8, 0.5, 0, 0, 0.5, 0, 1.2, 0, 20, 0, 0, 0, 1, 0],
   ];
 
-  // ── Colors per filter ─────────────────────────────────────────────────────
-  final List<Color> _filterAccents = [
-    Colors.white, const Color(0xFFFF6B6B), const Color(0xFFFFBE0B),
-    const Color(0xFF60A5FA), Colors.grey, const Color(0xFFD4D4D4),
-    const Color(0xFFC084FC), const Color(0xFFB45309), const Color(0xFF1D4ED8),
-    const Color(0xFF06B6D4),
-  ];
+  // ── Monochrome Knockpost dark premium theme ─────────────────────────────────
 
   @override
   void initState() {
     super.initState();
+    AudioLifecycleManager.instance.register(_bgAudioPlayer);
+    _editorBoxHeight = _editorBoxWidth / widget.aspectRatio;
+
+    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
+      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
+    });
 
     _toolbarAnimCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 300),
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
-    _toolbarAnim = CurvedAnimation(parent: _toolbarAnimCtrl, curve: Curves.easeOut);
+    _toolbarAnim = CurvedAnimation(
+      parent: _toolbarAnimCtrl,
+      curve: Curves.easeOut,
+    );
     _toolbarAnimCtrl.forward();
 
     _sheetAnimCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 300),
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
-    _sheetSlide = Tween<Offset>(
-      begin: const Offset(0, 1), end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _sheetAnimCtrl, curve: Curves.easeOutCubic));
+    _sheetSlide = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _sheetAnimCtrl, curve: Curves.easeOutCubic),
+        );
   }
 
   @override
   void dispose() {
+    _bgPosSub?.cancel();
+    AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
+    _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     _toolbarAnimCtrl.dispose();
     _sheetAnimCtrl.dispose();
     _textInputCtrl.dispose();
-    _bgAudioPlayer.dispose();
     super.dispose();
   }
 
@@ -155,25 +266,139 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     }
   }
 
+  Future<void> _waitForPreviewFrame() async {
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+  }
+
+  Future<File> _capturePreviewToFile(Directory tempDir, int index) async {
+    final boundaryContext = _previewBoundaryKey.currentContext;
+    if (boundaryContext == null) {
+      throw StateError('Preview boundary is not ready.');
+    }
+
+    final boundary =
+        boundaryContext.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) {
+      throw StateError('Preview boundary render object is missing.');
+    }
+
+    final double pixelRatio = _editorBoxWidth > 0
+        ? (1080 / _editorBoxWidth)
+        : (1080 / MediaQuery.sizeOf(context).width.clamp(1.0, 1080.0));
+
+    final image = await boundary.toImage(pixelRatio: pixelRatio);
+    try {
+      final byteData = await image.toByteData(format: ImageByteFormat.png);
+      if (byteData == null) {
+        throw StateError('Failed to encode edited image.');
+      }
+
+      final outputFile = File(
+        '${tempDir.path}/edited_${index}_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await outputFile.writeAsBytes(byteData.buffer.asUint8List());
+      return outputFile;
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<List<File>> _exportProcessedImages() async {
+    final tempDir = await Directory.systemTemp.createTemp('knockpost_media_');
+    final originalIndex = _currentIndex;
+
+    setState(() {
+      _selectedOverlay = null;
+      _activeTool = _EditorTool.none;
+      _isExportingPreview = true;
+    });
+    _sheetAnimCtrl.reverse();
+
+    final List<File> exportedFiles = [];
+
+    try {
+      for (int i = 0; i < widget.files.length; i++) {
+        if (_currentIndex != i) {
+          setState(() => _currentIndex = i);
+        }
+        await _waitForPreviewFrame();
+        exportedFiles.add(await _capturePreviewToFile(tempDir, i));
+      }
+      return exportedFiles;
+    } finally {
+      if (mounted && _currentIndex != originalIndex) {
+        setState(() => _currentIndex = originalIndex);
+      }
+      if (mounted) {
+        setState(() => _isExportingPreview = false);
+      }
+    }
+  }
+
   Future<void> _onNext() async {
+    if (_isExportingPreview) return;
     KnockHaptics.tap();
-    final settings = await showPostSettingsSheet(context, isGlimpse: false);
-    if (settings == null || !mounted) return;
-    
     await _bgAudioPlayer.stop();
+    if (!mounted) return;
+
+    late final List<File> processedFiles;
+    try {
+      processedFiles = await _exportProcessedImages();
+    } catch (e) {
+      debugPrint('Media export error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not export the edited images. Please try again.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final serializedTexts = _overlays
+        .map(
+          (t) => {
+            'text': t.text,
+            'x': t.position.dx / _editorBoxWidth,
+            'y': t.position.dy / _editorBoxHeight,
+            'scale': t.scale,
+            'color': t.color.toARGB32(),
+          },
+        )
+        .toList();
+
     if (!mounted) return;
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => FinalPostScreen(
-          files: widget.files,
+          files: processedFiles,
           initialCaption: widget.initialCaption,
-          isGlimpse: false,
-          selectedDuration: settings.duration,
-          selectedAudience: settings.audience,
+          isGlimpse: widget.isGlimpse,
+          mediaAspectRatio: widget.aspectRatio,
+          mediaIsBaked: true,
           initialMusic: _selectedMusic,
           initialTrimSeconds: _trimStartSeconds,
+          initialMusicStyle: _selectedMusicStyle,
+          initialMusicCoverUrl: _selectedMusic?.coverUrl,
+          initialMusicLyrics: _selectedMusic?.syncedLyrics,
+          initialMusicLyricsConfig: _selectedMusicLyricsConfig,
+          initialMusicOverlayX: _musicOverlayPosition != null
+              ? _musicOverlayPosition!.dx / _editorBoxWidth
+              : null,
+          initialMusicOverlayY: _musicOverlayPosition != null
+              ? _musicOverlayPosition!.dy / _editorBoxHeight
+              : null,
+          initialMusicOverlayScale: _musicOverlayScale,
+          initialMusicOverlayRotation: _musicOverlayRotation,
+          initialFilterIndex: _selectedFilterIndex > 0
+              ? _selectedFilterIndex
+              : null,
+          initialTextOverlays: serializedTexts.isEmpty ? null : serializedTexts,
         ),
       ),
     );
@@ -185,29 +410,51 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
       MaterialPageRoute(builder: (_) => const MusicPickerScreen()),
     );
     if (result != null && result is MusicTrack && mounted) {
-      final isVideo = widget.files.isNotEmpty &&
+      final isVideo =
+          widget.files.isNotEmpty &&
           (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
-           widget.files.first.path.toLowerCase().endsWith('.mov'));
+              widget.files.first.path.toLowerCase().endsWith('.mov'));
 
       final overlayResult = await Navigator.push(
         context,
         PageRouteBuilder(
           opaque: false,
-          pageBuilder: (_, __, ___) => MusicOverlayScreen(
-            track: result,
-            isVideo: isVideo,
-          ),
+          pageBuilder: (_, __, ___) =>
+              MusicOverlayScreen(track: result, isVideo: isVideo),
         ),
       );
 
       if (overlayResult != null && overlayResult is Map && mounted) {
+        debugPrint('[MediaEditor] overlayResult keys: ${overlayResult.keys}');
+        debugPrint(
+          '[MediaEditor] styleIndex from overlay: ${overlayResult['styleIndex']}',
+        );
         setState(() {
           _selectedMusic = overlayResult['track'] as MusicTrack;
           _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
+          _selectedMusicStyle = overlayResult['styleIndex'] as int?;
+          _selectedMusicLyricsConfig =
+              (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
+          _musicOverlayPosition = null;
+          _musicOverlayScale = 1.0;
+          _musicOverlayRotation = 0.0;
           _activeTool = _EditorTool.none;
         });
+        debugPrint(
+          '[MediaEditor] _selectedMusicStyle after setState: $_selectedMusicStyle',
+        );
+        debugPrint(
+          '[MediaEditor] _selectedMusic title: ${_selectedMusic?.title}',
+        );
+        debugPrint(
+          '[MediaEditor] _selectedMusic coverUrl: ${_selectedMusic?.coverUrl}',
+        );
         _sheetAnimCtrl.reverse();
         _playSelectedMusic();
+      } else {
+        debugPrint(
+          '[MediaEditor] overlayResult was null or not a Map: $overlayResult',
+        );
       }
     }
   }
@@ -231,10 +478,12 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     if (text.trim().isEmpty) return;
     final size = MediaQuery.sizeOf(context);
     setState(() {
-      _overlays.add(_TextOverlay(
-        text: text.trim(),
-        position: Offset(size.width / 2 - 80, size.height / 2 - 100),
-      ));
+      _overlays.add(
+        _TextOverlay(
+          text: text.trim(),
+          position: Offset(size.width / 2 - 80, size.height / 2 - 100),
+        ),
+      );
       _isAddingText = false;
     });
     _textInputCtrl.clear();
@@ -248,188 +497,207 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: false,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // ── 1. Image with ColorFilter ─────────────────────────────────
-          ColorFiltered(
-            colorFilter: ColorFilter.matrix(_activeMatrix),
-            child: Image.file(
-              file,
-              width: size.width,
-              height: size.height,
-              fit: BoxFit.contain,
-            ),
-          ),
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // ── 1. The Media + Overlay (Confined to 4:5 ratio) ─────────────
+            Center(
+              child: AspectRatio(
+                aspectRatio: widget.aspectRatio,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (_editorBoxWidth != constraints.maxWidth ||
+                        _editorBoxHeight != constraints.maxHeight) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          setState(() {
+                            _editorBoxWidth = constraints.maxWidth;
+                            _editorBoxHeight = constraints.maxHeight;
+                          });
+                        }
+                      });
+                    }
 
-          // ── 2. Top gradient ──────────────────────────────────────────
-          Positioned(
-            top: 0, left: 0, right: 0, height: 140,
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.75),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+                    const double minScale = 0.20;
+                    const double maxScale = 2.5;
+                    final pos =
+                        _musicOverlayPosition ??
+                        defaultMusicLyricsOverlayOffset(
+                          frameWidth: constraints.maxWidth,
+                          frameHeight: constraints.maxHeight,
+                          lyricsConfigData: _selectedMusicLyricsConfig,
+                        );
 
-          // ── 3. Bottom gradient ───────────────────────────────────────
-          Positioned(
-            bottom: 0, left: 0, right: 0, height: 300,
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.9),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+                    return RepaintBoundary(
+                      key: _previewBoundaryKey,
+                      child: GestureDetector(
+                        // Pinch anywhere on the media to resize selected text
+                        onScaleStart: _selectedOverlay != null
+                            ? (details) {
+                                _textBaseScale = _selectedOverlay!.scale;
+                              }
+                            : null,
+                        onScaleUpdate: _selectedOverlay != null
+                            ? (details) {
+                                if (details.pointerCount >= 2) {
+                                  setState(() {
+                                    _selectedOverlay!.scale =
+                                        (_textBaseScale * details.scale)
+                                            .clamp(0.4, 4.0)
+                                            .toDouble();
+                                  });
+                                }
+                              }
+                            : null,
+                        onTap: () {
+                          if (_selectedOverlay != null) {
+                            setState(() => _selectedOverlay = null);
+                          }
+                        },
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ColorFiltered(
+                              colorFilter: ColorFilter.matrix(_activeMatrix),
+                              child: Image.file(file, fit: BoxFit.cover),
+                            ),
+                            if (_selectedMusic != null &&
+                                _selectedMusicStyle != null &&
+                                _selectedMusicStyle != 0)
+                              Positioned(
+                                left: pos.dx,
+                                top: pos.dy,
+                                child: GestureDetector(
+                                  onScaleStart: (details) {
+                                    _baseMusicOverlayScale = _musicOverlayScale;
+                                    _baseMusicOverlayRotation =
+                                        _musicOverlayRotation;
+                                    _dragStartFocalPoint = details.focalPoint;
+                                    _dragStartOverlayPos = pos;
+                                  },
+                                  onScaleUpdate: (details) {
+                                    final delta =
+                                        details.focalPoint -
+                                        (_dragStartFocalPoint ??
+                                            details.focalPoint);
+                                    final newScale =
+                                        (_baseMusicOverlayScale * details.scale)
+                                            .clamp(minScale, maxScale)
+                                            .toDouble();
+                                    setState(() {
+                                      _musicOverlayPosition =
+                                          (_dragStartOverlayPos ?? pos) + delta;
+                                      _musicOverlayScale = newScale;
+                                      if (details.pointerCount >= 2) {
+                                        _musicOverlayRotation =
+                                            _baseMusicOverlayRotation +
+                                            details.rotation;
+                                      }
+                                    });
+                                  },
+                                  child: Transform.rotate(
+                                    angle: _musicOverlayRotation,
+                                    alignment: Alignment.center,
+                                    child: Transform.scale(
+                                      scale: _musicOverlayScale,
+                                      alignment: Alignment.center,
+                                      child: RepaintBoundary(
+                                        child: MusicStyleOverlayWidget(
+                                          styleIndex: _selectedMusicStyle!,
+                                          title: _selectedMusic!.title,
+                                          artist: _selectedMusic!.artist,
+                                          coverUrl: _selectedMusic!.coverUrl,
+                                          lyricsLrc: _selectedMusic!.syncedLyrics,
+                                          lyricsConfigData:
+                                              _selectedMusicLyricsConfig,
+                                          timelinePositionMs: _bgAudioPosMs,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
 
-          // ── 4. Text overlays (draggable) ─────────────────────────────
-          ..._overlays.map((ov) => Positioned(
-            left: ov.position.dx,
-            top: ov.position.dy,
-            child: GestureDetector(
-              onPanUpdate: (d) => setState(() => ov.position += d.delta),
-              onDoubleTap: () => setState(() => _overlays.remove(ov)),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                ),
-                child: Text(
-                  ov.text,
-                  style: TextStyle(
-                    color: ov.color,
-                    fontSize: 28 * ov.scale,
-                    fontWeight: FontWeight.bold,
-                    shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
-                  ),
-                ),
-              ),
-            ),
-          )),
-
-          // ── 5. Multi-image strip (top left) ──────────────────────────
-          if (widget.files.length > 1)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16, top: 60),
-                child: Row(
-                  children: List.generate(widget.files.length, (i) {
-                    final isActive = i == _currentIndex;
-                    return GestureDetector(
-                      onTap: () => setState(() => _currentIndex = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: isActive ? 36 : 28,
-                        height: isActive ? 36 : 28,
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isActive ? Colors.white : Colors.white38,
-                            width: isActive ? 2 : 1,
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: Image.file(widget.files[i], fit: BoxFit.cover),
+                            // ── TEXT OVERLAYS ──
+                            ..._overlays.map((ov) {
+                              final isSelected = ov == _selectedOverlay;
+                              return Positioned(
+                                left: ov.position.dx,
+                                top: ov.position.dy,
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _selectedOverlay = isSelected ? null : ov;
+                                  }),
+                                  onPanUpdate: (d) =>
+                                      setState(() => ov.position += d.delta),
+                                  onLongPress: () => setState(() {
+                                    if (_selectedOverlay == ov) {
+                                      _selectedOverlay = null;
+                                    }
+                                    _overlays.remove(ov);
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.45,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.white.withValues(
+                                                alpha: 0.2,
+                                              ),
+                                        width: isSelected ? 2.0 : 1.0,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      ov.text,
+                                      style: TextStyle(
+                                        color: ov.color,
+                                        fontSize: 28 * ov.scale,
+                                        fontWeight: FontWeight.bold,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 10,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
                         ),
                       ),
                     );
-                  }),
+                  },
                 ),
               ),
             ),
 
-          // ── 6. Music chip ─────────────────────────────────────────────
-          if (_selectedMusic != null && !_isAddingText)
+            // ── 2. Top gradient ──────────────────────────────────────────
             Positioned(
-              bottom: 200,
-              left: 16,
-              right: 16,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFFA855F7)],
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.music_note_rounded,
-                              color: Colors.white, size: 18),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _selectedMusic!.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                _selectedMusic!.artist,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            KnockHaptics.tap();
-                            setState(() {
-                              _selectedMusic = null;
-                            });
-                            _bgAudioPlayer.stop();
-                          },
-                          child: Icon(
-                            Icons.close_rounded,
-                            color: Colors.white.withValues(alpha: 0.7),
-                            size: 18,
-                          ),
-                        ),
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 140,
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.75),
+                        Colors.transparent,
                       ],
                     ),
                   ),
@@ -437,30 +705,94 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
               ),
             ),
 
-          // ── 7. Main UI overlay ────────────────────────────────────────
-          if (!_isAddingText)
-            SafeArea(
-              child: Column(
-                children: [
-                  // TOP BAR
-                  _buildTopBar(),
-                  const Spacer(),
-                  // TOOL SHEET (filter / adjust / text / music)
-                  if (_activeTool != _EditorTool.none)
-                    SlideTransition(
-                      position: _sheetSlide,
-                      child: _buildToolSheet(),
+            // ── 3. Bottom gradient ───────────────────────────────────────
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 300,
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.9),
+                        Colors.transparent,
+                      ],
                     ),
-                  // BOTTOM TOOLBAR
-                  FadeTransition(opacity: _toolbarAnim, child: _buildBottomBar()),
-                  const SizedBox(height: 8),
-                ],
+                  ),
+                ),
               ),
             ),
 
-          // ── 8. Full-screen text input overlay ────────────────────────
-          if (_isAddingText) _buildTextInputOverlay(size),
-        ],
+            // ── Bottom gradient etc ────────────────────────────────────────
+
+            // ── 5. Multi-image strip (top left) ──────────────────────────
+            if (widget.files.length > 1)
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 60),
+                  child: Row(
+                    children: List.generate(widget.files.length, (i) {
+                      final isActive = i == _currentIndex;
+                      return GestureDetector(
+                        onTap: () => setState(() => _currentIndex = i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: isActive ? 36 : 28,
+                          height: isActive ? 36 : 28,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isActive ? Colors.white : Colors.white38,
+                              width: isActive ? 2 : 1,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: Image.file(
+                              widget.files[i],
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+
+            // ── 7. Main UI overlay ────────────────────────────────────────
+            if (!_isAddingText)
+              SafeArea(
+                child: Column(
+                  children: [
+                    // TOP BAR
+                    _buildTopBar(),
+                    const Spacer(),
+                    // TOOL SHEET (filter / adjust / text / music)
+                    if (_activeTool != _EditorTool.none)
+                      SlideTransition(
+                        position: _sheetSlide,
+                        child: _buildToolSheet(),
+                      ),
+                    // BOTTOM TOOLBAR
+                    FadeTransition(
+                      opacity: _toolbarAnim,
+                      child: _buildBottomBar(),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+
+            // ── 8. Full-screen text input overlay ────────────────────────
+            if (_isAddingText) _buildTextInputOverlay(size),
+          ],
+        ),
       ),
     );
   }
@@ -474,8 +806,11 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
         children: [
           // Back
           _glassButton(
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white, size: 18),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
             onTap: () => Navigator.pop(context),
           ),
           const Spacer(),
@@ -485,11 +820,16 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: const Text(
                   'EDIT PHOTO',
@@ -506,21 +846,30 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
           const Spacer(),
           // Next
           GestureDetector(
-            onTap: _onNext,
+            onTap: _isExportingPreview ? null : _onNext,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: const Text(
-                'Next',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
+              child: _isExportingPreview
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                  : const Text(
+                      'Next',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -550,20 +899,23 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  _toolBtn(Icons.layers_rounded, 'Overlay',
-                      _EditorTool.overlay, const Color(0xFFE879F9)),
+                  _toolBtn(
+                    Icons.layers_rounded,
+                    'Overlay',
+                    _EditorTool.overlay,
+                  ),
                   const SizedBox(width: 12),
-                  _toolBtn(Icons.crop_rotate_rounded, 'Edit',
-                      _EditorTool.edit, const Color(0xFFF472B6)),
+                  _toolBtn(Icons.crop_rotate_rounded, 'Edit', _EditorTool.edit),
                   const SizedBox(width: 12),
-                  _toolBtn(Icons.auto_awesome_rounded, 'Filter',
-                      _EditorTool.filter, const Color(0xFFFBBF24)),
+                  _toolBtn(
+                    Icons.auto_awesome_rounded,
+                    'Filter',
+                    _EditorTool.filter,
+                  ),
                   const SizedBox(width: 12),
-                  _toolBtn(Icons.tune_rounded, 'Adjust',
-                      _EditorTool.adjust, const Color(0xFF60A5FA)),
+                  _toolBtn(Icons.tune_rounded, 'Adjust', _EditorTool.adjust),
                   const SizedBox(width: 12),
-                  _toolBtn(Icons.text_fields_rounded, 'Text',
-                      _EditorTool.text, const Color(0xFF34D399)),
+                  _toolBtn(Icons.text_fields_rounded, 'Text', _EditorTool.text),
                   const SizedBox(width: 12),
                   _musicToolBtn(),
                 ],
@@ -575,7 +927,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     );
   }
 
-  Widget _toolBtn(IconData icon, String label, _EditorTool tool, Color accent) {
+  Widget _toolBtn(IconData icon, String label, _EditorTool tool) {
     final isActive = _activeTool == tool;
     return GestureDetector(
       onTap: () {
@@ -595,27 +947,34 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
-              ? accent.withValues(alpha: 0.18)
+              ? Colors.white.withValues(alpha: 0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isActive
-                ? accent.withValues(alpha: 0.45)
+                ? Colors.white.withValues(alpha: 0.3)
                 : Colors.transparent,
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 22,
-                color: isActive ? accent : Colors.white.withValues(alpha: 0.75)),
+            Icon(
+              icon,
+              size: 22,
+              color: isActive
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.6),
+            ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: isActive ? accent : Colors.white.withValues(alpha: 0.55),
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.45),
                 letterSpacing: 0.3,
               ),
             ),
@@ -627,7 +986,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   Widget _musicToolBtn() {
     final hasMusic = _selectedMusic != null;
-    const accent = Color(0xFFA855F7);
     return GestureDetector(
       onTap: () {
         KnockHaptics.tap();
@@ -637,10 +995,14 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
         duration: const Duration(milliseconds: 220),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: hasMusic ? accent.withValues(alpha: 0.18) : Colors.transparent,
+          color: hasMusic
+              ? Colors.white.withValues(alpha: 0.15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: hasMusic ? accent.withValues(alpha: 0.45) : Colors.transparent,
+            color: hasMusic
+                ? Colors.white.withValues(alpha: 0.3)
+                : Colors.transparent,
           ),
         ),
         child: Column(
@@ -649,15 +1011,19 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
             Icon(
               hasMusic ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
               size: 22,
-              color: hasMusic ? accent : Colors.white.withValues(alpha: 0.75),
+              color: hasMusic
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 4),
             Text(
               hasMusic ? 'Music ✓' : 'Music',
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: hasMusic ? accent : Colors.white.withValues(alpha: 0.55),
+                fontWeight: hasMusic ? FontWeight.w700 : FontWeight.w500,
+                color: hasMusic
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.45),
                 letterSpacing: 0.3,
               ),
             ),
@@ -688,7 +1054,10 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     return Container(
       height: 100,
       alignment: Alignment.center,
-      child: Text(text, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white54, fontSize: 13),
+      ),
     );
   }
 
@@ -702,7 +1071,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
         itemCount: _filterNames.length,
         itemBuilder: (context, i) {
           final isSelected = _selectedFilterIndex == i;
-          final accent = _filterAccents[i];
           return GestureDetector(
             onTap: () {
               KnockHaptics.tap();
@@ -720,12 +1088,11 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSelected ? accent : Colors.transparent,
-                        width: 2.5,
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.1),
+                        width: isSelected ? 2.5 : 1,
                       ),
-                      boxShadow: isSelected
-                          ? [BoxShadow(color: accent.withValues(alpha: 0.4), blurRadius: 10)]
-                          : [],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -745,8 +1112,12 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                      color: isSelected ? accent : Colors.white60,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.45),
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -767,23 +1138,23 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildSlider(
-            label: 'Brightness', icon: Icons.brightness_6_rounded,
+            label: 'Brightness',
+            icon: Icons.brightness_6_rounded,
             value: (_brightness + 1) / 2,
-            accent: const Color(0xFFFBBF24),
             onChanged: (v) => setState(() => _brightness = v * 2 - 1),
           ),
           const SizedBox(height: 14),
           _buildSlider(
-            label: 'Contrast', icon: Icons.contrast_rounded,
+            label: 'Contrast',
+            icon: Icons.contrast_rounded,
             value: (_contrast - 0.5) / 1.0,
-            accent: const Color(0xFF60A5FA),
             onChanged: (v) => setState(() => _contrast = v + 0.5),
           ),
           const SizedBox(height: 14),
           _buildSlider(
-            label: 'Saturation', icon: Icons.palette_rounded,
+            label: 'Saturation',
+            icon: Icons.palette_rounded,
             value: _saturation / 2,
-            accent: const Color(0xFF34D399),
             onChanged: (v) => setState(() => _saturation = v * 2),
           ),
         ],
@@ -795,24 +1166,26 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     required String label,
     required IconData icon,
     required double value,
-    required Color accent,
     required ValueChanged<double> onChanged,
   }) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: accent),
+        Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.7)),
         const SizedBox(width: 10),
         Expanded(
           child: SliderTheme(
             data: SliderThemeData(
               trackHeight: 2.5,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              activeTrackColor: accent,
+              activeTrackColor: Colors.white,
               inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
               thumbColor: Colors.white,
-              overlayColor: accent.withValues(alpha: 0.2),
+              overlayColor: Colors.white.withValues(alpha: 0.1),
             ),
-            child: Slider(value: value.clamp(0.0, 1.0), onChanged: onChanged),
+            child: Slider(
+              value: value.clamp(0.0, 1.0).toDouble(),
+              onChanged: onChanged,
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -856,7 +1229,9 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: TextField(
                         controller: _textInputCtrl,
@@ -889,15 +1264,20 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                         setState(() => _isAddingText = false);
                         _textInputCtrl.clear();
                       },
-                      child: const Icon(Icons.close_rounded,
-                          color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     GestureDetector(
                       onTap: () => _addTextOverlay(_textInputCtrl.text),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 10),
+                          horizontal: 24,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(22),
@@ -954,8 +1334,10 @@ class _TextOverlay {
   double scale = 1.0;
   Color color = Colors.white;
 
-  _TextOverlay({
-    required this.text,
-    required this.position,
-  });
+  // Gesture tracking (survives setState rebuilds)
+  double gestureBaseScale = 1.0;
+  Offset gestureStartFocal = Offset.zero;
+  Offset gestureStartPos = Offset.zero;
+
+  _TextOverlay({required this.text, required this.position});
 }

@@ -31,7 +31,9 @@ class RecentsSection extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
-        final recentPosts = _recentPosts.where((p) => !deletedIds.contains(p.id)).toList();
+        final recentPosts = _recentPosts
+            .where((p) => !deletedIds.contains(p.id))
+            .toList();
 
         if (recentPosts.isEmpty) {
           return ProfileEmptySection(
@@ -62,7 +64,8 @@ class RecentsSection extends StatelessWidget {
             final isLast = i == recentPosts.length - 1;
 
             Widget content;
-            if ((post.type == PostType.media || post.type == PostType.waves) && post.imagePaths.isNotEmpty) {
+            if ((post.type == PostType.media || post.type == PostType.waves) &&
+                post.imagePaths.isNotEmpty) {
               content = PostCard(
                 imagePaths: post.imagePaths,
                 user: user,
@@ -70,6 +73,26 @@ class RecentsSection extends StatelessWidget {
                 likes: post.likes,
                 views: post.views,
                 postId: post.id,
+                musicUrl: post.musicUrl,
+                musicTitle: post.musicTitle,
+                musicArtist: post.musicArtist,
+                musicCoverUrl: post.musicCoverUrl,
+                musicStyle: post.musicStyle,
+                musicLyrics: post.musicLyrics,
+                musicLyricsConfig: post.musicLyricsConfig,
+                musicTrimStart: post.musicTrimStart,
+                musicOverlayX: post.musicOverlayX,
+                musicOverlayY: post.musicOverlayY,
+                musicOverlayScale: post.musicOverlayScale,
+                musicOverlayRotation: post.musicOverlayRotation,
+                filterIndex: post.filterIndex,
+                textOverlays: post.textOverlays,
+                drawPaths: post.drawPaths,
+                isVideoPost: post.isVideoPost || post.type == PostType.waves,
+                videoHasSound: post.videoHasSound,
+                coverImagePath: post.coverImagePath,
+                mediaAspectRatio: post.mediaAspectRatio,
+                mediaIsBaked: post.mediaIsBaked,
               );
             } else {
               content = ThoughtCard(
@@ -81,17 +104,10 @@ class RecentsSection extends StatelessWidget {
               );
             }
 
-            return Column(
-              children: [
-                divider,
-                content,
-                if (isLast) divider,
-              ],
-            );
+            return Column(children: [divider, content, if (isLast) divider]);
           },
         );
       },
     );
   }
 }
-

@@ -14,7 +14,8 @@ const _kAccentPurple = Color(0xFF9B5DE5);
 const _kAccentBlue = Color(0xFF4361EE);
 
 class WavesGallerySheet extends StatefulWidget {
-  const WavesGallerySheet({super.key});
+  final bool showCreativeTools;
+  const WavesGallerySheet({super.key, this.showCreativeTools = true});
 
   @override
   State<WavesGallerySheet> createState() => _WavesGallerySheetState();
@@ -233,24 +234,25 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
               ),
             ),
 
-            // ── INSTA-STYLE TOP ACTION ROW ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _actionTopBtn('Templates', Icons.auto_awesome_mosaic_rounded, const Color(0xFFF15BB5), () {
-                    KnockHaptics.tap();
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TemplatePickerScreen()));
-                  }),
-                  const SizedBox(width: 32),
-                  _actionTopBtn('Collage', Icons.grid_view_rounded, _kAccentBlue, () {
-                    KnockHaptics.tap();
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CollagePickerScreen()));
-                  }),
-                ],
+            // ── INSTA-STYLE TOP ACTION ROW (only for Glimpse flow) ──
+            if (widget.showCreativeTools)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _actionTopBtn('Templates', Icons.auto_awesome_mosaic_rounded, const Color(0xFFF15BB5), () {
+                      KnockHaptics.tap();
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const TemplatePickerScreen()));
+                    }),
+                    const SizedBox(width: 32),
+                    _actionTopBtn('Collage', Icons.grid_view_rounded, _kAccentBlue, () {
+                      KnockHaptics.tap();
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CollagePickerScreen()));
+                    }),
+                  ],
+                ),
               ),
-            ),
 
             // ── RECENTS DROPDOWN & SELECT MODE ROW ──
             Padding(

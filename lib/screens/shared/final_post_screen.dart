@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 import 'music_editor_screen.dart';
 import 'music_picker_screen.dart';
 import 'post_settings_sheet.dart';
@@ -20,6 +21,23 @@ class FinalPostScreen extends StatefulWidget {
   final PostAudience selectedAudience;
   final MusicTrack? initialMusic;
   final int? initialTrimSeconds;
+  final int? initialMusicStyle;
+  final String? initialMusicCoverUrl;
+  final String? initialMusicLyrics;
+  final Map<String, dynamic>? initialMusicLyricsConfig;
+  final double? initialMusicOverlayX;
+  final double? initialMusicOverlayY;
+  final double? initialMusicOverlayScale;
+  final double? initialMusicOverlayRotation;
+  final double? mediaAspectRatio;
+  final bool mediaIsBaked;
+  final bool isVideoPost;
+  final bool videoHasSound;
+  final File? coverImageFile;
+
+  final int? initialFilterIndex;
+  final List<Map<String, dynamic>>? initialTextOverlays;
+  final List<Map<String, dynamic>>? initialDrawPaths;
 
   const FinalPostScreen({
     super.key,
@@ -30,6 +48,22 @@ class FinalPostScreen extends StatefulWidget {
     this.selectedAudience = PostAudience.myFriends,
     this.initialMusic,
     this.initialTrimSeconds,
+    this.initialMusicStyle,
+    this.initialMusicCoverUrl,
+    this.initialMusicLyrics,
+    this.initialMusicLyricsConfig,
+    this.initialMusicOverlayX,
+    this.initialMusicOverlayY,
+    this.initialMusicOverlayScale,
+    this.initialMusicOverlayRotation,
+    this.mediaAspectRatio,
+    this.mediaIsBaked = false,
+    this.isVideoPost = false,
+    this.videoHasSound = false,
+    this.coverImageFile,
+    this.initialFilterIndex,
+    this.initialTextOverlays,
+    this.initialDrawPaths,
   });
 
   @override
@@ -37,13 +71,17 @@ class FinalPostScreen extends StatefulWidget {
 }
 
 class _FinalPostScreenState extends State<FinalPostScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final AudioRecorder _recorder = AudioRecorder();
 
   late TextEditingController _captionController;
   late PostDuration _selectedDuration;
   late PostAudience _selectedAudience;
   MusicTrack? _selectedMusic;
+  int? _selectedMusicStyle;
+  String? _selectedMusicCoverUrl;
+  String? _selectedMusicLyrics;
+  Map<String, dynamic>? _selectedMusicLyricsConfig;
 
   bool isRecording = false;
   String? recordingPath;
@@ -57,6 +95,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
   @override
   void initState() {
     super.initState();
+    AudioLifecycleManager.instance.register(_bgAudioPlayer);
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
@@ -66,10 +105,14 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-    
+
     _selectedMusic = widget.initialMusic;
     _trimStartSeconds = widget.initialTrimSeconds ?? 0;
-    if (_selectedMusic != null) {
+    _selectedMusicStyle = widget.initialMusicStyle;
+    _selectedMusicCoverUrl = widget.initialMusicCoverUrl;
+    _selectedMusicLyrics = widget.initialMusicLyrics;
+    _selectedMusicLyricsConfig = widget.initialMusicLyricsConfig;
+    if (_selectedMusic != null && !widget.isVideoPost) {
       _playSelectedMusic();
     }
   }
@@ -91,11 +134,12 @@ class _FinalPostScreenState extends State<FinalPostScreen>
 
   @override
   void dispose() {
+    AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
+    _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     _captionController.dispose();
     _pulseController.dispose();
     _recordingTimer?.cancel();
     _recorder.dispose();
-    _bgAudioPlayer.dispose();
     super.dispose();
   }
 
@@ -169,11 +213,17 @@ class _FinalPostScreenState extends State<FinalPostScreen>
   void _postContent() {
     KnockHaptics.tap();
 
+    // ── STOP ALL AUDIO IMMEDIATELY ──
+    AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
+    _bgAudioPlayer.stop();
+
     final type = widget.isGlimpse
         ? PostType.waves
         : (widget.files.isEmpty ? PostType.text : PostType.media);
 
-    debugPrint('[_postContent] Creating post: type=$type, files=${widget.files.length}, isGlimpse=${widget.isGlimpse}');
+    debugPrint(
+      '[_postContent] Creating post: type=$type, files=${widget.files.length}, isGlimpse=${widget.isGlimpse}',
+    );
     for (final f in widget.files) {
       debugPrint('[_postContent] File path: ${f.path}');
     }
@@ -184,10 +234,27 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       type: type,
       duration: _selectedDuration,
       imagePaths: widget.files.map((f) => f.path).toList(),
+      mediaAspectRatio: widget.mediaAspectRatio,
+      mediaIsBaked: widget.mediaIsBaked,
+      isVideoPost: widget.isVideoPost,
+      videoHasSound: widget.videoHasSound,
+      coverImagePath: widget.coverImageFile?.path,
       text: _captionController.text.trim(),
       musicUrl: _selectedMusic?.previewUrl,
       musicTitle: _selectedMusic?.title,
       musicArtist: _selectedMusic?.artist,
+      musicCoverUrl: _selectedMusicCoverUrl ?? _selectedMusic?.coverUrl,
+      musicStyle: _selectedMusicStyle,
+      musicLyrics: _selectedMusicLyrics ?? _selectedMusic?.syncedLyrics,
+      musicLyricsConfig: _selectedMusicLyricsConfig,
+      musicTrimStart: _trimStartSeconds,
+      musicOverlayX: widget.initialMusicOverlayX,
+      musicOverlayY: widget.initialMusicOverlayY,
+      musicOverlayScale: widget.initialMusicOverlayScale,
+      musicOverlayRotation: widget.initialMusicOverlayRotation,
+      filterIndex: widget.initialFilterIndex,
+      textOverlays: widget.initialTextOverlays,
+      drawPaths: widget.initialDrawPaths,
       createdAt: DateTime.now(),
       likes: 0,
       views: 0,
@@ -195,11 +262,27 @@ class _FinalPostScreenState extends State<FinalPostScreen>
 
     // Add to the front of our global mock list so it shows up in Recents/Profile
     demoOwnPosts.insert(0, newPost);
-    debugPrint('[_postContent] demoOwnPosts now has ${demoOwnPosts.length} items');
+    debugPrint(
+      '[_postContent] demoOwnPosts now has ${demoOwnPosts.length} items',
+    );
     demoOwnPostsNotifier.value = List.from(demoOwnPosts);
     debugPrint('[_postContent] Notifier updated. Popping to first route...');
 
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Future<void> _editPostSettings() async {
+    final result = await showPostSettingsSheet(
+      context,
+      isGlimpse: widget.isGlimpse,
+      initialDuration: _selectedDuration,
+      initialAudience: _selectedAudience,
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _selectedDuration = result.duration;
+      _selectedAudience = result.audience;
+    });
   }
 
   String _durationLabel(PostDuration d) {
@@ -213,6 +296,152 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     }
   }
 
+  Widget _buildMusicSelectionTile(bool isDark) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Icon(
+        _selectedMusic != null ? Icons.graphic_eq : Icons.music_note_outlined,
+        size: 24,
+        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+      ),
+      title: Text(
+        _selectedMusic != null ? _selectedMusic!.title : "Add Music",
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: _selectedMusic != null
+              ? Colors.blue
+              : (isDark ? Colors.white : Colors.black),
+        ),
+      ),
+      subtitle: _selectedMusic != null
+          ? Text(
+              "${_selectedMusic!.artist} • ${_selectedMusic!.duration}",
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+              ),
+            )
+          : null,
+      trailing: _selectedMusic != null
+          ? IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+              onPressed: () {
+                KnockHaptics.tap();
+                setState(() {
+                  _selectedMusic = null;
+                  _selectedMusicStyle = null;
+                  _selectedMusicLyrics = null;
+                  _selectedMusicLyricsConfig = null;
+                  _bgAudioPlayer.stop();
+                });
+              },
+            )
+          : Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+            ),
+      onTap: () async {
+        KnockHaptics.tap();
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MusicPickerScreen()),
+        );
+        if (result != null && result is MusicTrack) {
+          if (!mounted) return;
+          final isVideo =
+              widget.files.isNotEmpty &&
+              (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
+                  widget.files.first.path.toLowerCase().endsWith('.mov'));
+
+          if (!mounted) return;
+          final overlayResult = await Navigator.push(
+            context,
+            PageRouteBuilder(
+              opaque: false,
+              pageBuilder: (_, __, ___) =>
+                  MusicOverlayScreen(track: result, isVideo: isVideo),
+            ),
+          );
+
+          if (overlayResult != null && overlayResult is Map) {
+            setState(() {
+              _selectedMusic = overlayResult['track'] as MusicTrack;
+              _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
+              _selectedMusicStyle = overlayResult['styleIndex'] as int?;
+              _selectedMusicCoverUrl = _selectedMusic?.coverUrl;
+              _selectedMusicLyrics = _selectedMusic?.syncedLyrics;
+              _selectedMusicLyricsConfig =
+                  (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
+            });
+            _playSelectedMusic();
+          }
+        }
+      },
+    );
+  }
+
+  Widget _buildComposerPreviewThumb(bool isDark) {
+    if (widget.isVideoPost) {
+      final previewFile = widget.coverImageFile;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            Container(
+              width: 84,
+              height: 112,
+              color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF2F2F2),
+              child: previewFile != null
+                  ? Image.file(previewFile, fit: BoxFit.cover)
+                  : const Center(
+                      child: Icon(Icons.videocam_rounded, color: Colors.white),
+                    ),
+            ),
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  widget.videoHasSound
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_off_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (widget.isGlimpse) {
+      return Container(
+        width: 80,
+        height: 120,
+        color: Colors.grey.shade800,
+        child: const Center(child: Icon(Icons.videocam, color: Colors.white)),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.file(
+        widget.files.first,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
   // ─── BUILD ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -223,8 +452,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon:
-              Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : Colors.black,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -243,8 +474,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               child: GestureDetector(
                 onTap: _postContent,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue,
                     borderRadius: BorderRadius.circular(20),
@@ -271,31 +504,15 @@ class _FinalPostScreenState extends State<FinalPostScreen>
             children: [
               // 📸 MEDIA PREVIEW ROW
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (widget.files.isNotEmpty) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: widget.isGlimpse
-                            ? Container(
-                                width: 80,
-                                height: 120,
-                                color: Colors.grey.shade800,
-                                child: const Center(
-                                  child: Icon(Icons.videocam,
-                                      color: Colors.white),
-                                ),
-                              )
-                            : Image.file(
-                                widget.files.first,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                              ),
-                      ),
+                      _buildComposerPreviewThumb(isDark),
                       const SizedBox(width: 16),
                     ],
                     Expanded(
@@ -326,153 +543,255 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               ),
 
               Divider(
-                  height: 1,
-                  color: isDark
-                      ? Colors.grey.shade800
-                      : const Color(0xFFEEEEEE)),
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
+              ),
 
               // ⚙️ POST SETTINGS SUMMARY (Duration + Audience)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Row(
                   children: [
                     _buildSettingChip(
                       icon: Icons.timer_outlined,
                       label: _durationLabel(_selectedDuration),
                       isDark: isDark,
+                      onTap: _editPostSettings,
                     ),
                     const SizedBox(width: 10),
                     _buildSettingChip(
                       icon: _selectedAudience.icon,
                       label: _selectedAudience.label,
                       isDark: isDark,
+                      onTap: _editPostSettings,
                     ),
                   ],
                 ),
               ),
 
               Divider(
-                  height: 1,
-                  color: isDark
-                      ? Colors.grey.shade800
-                      : const Color(0xFFEEEEEE)),
-
-              // 🎵 MUSIC / AUDIO OPTION
-              ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                leading: Icon(
-                  _selectedMusic != null
-                      ? Icons.graphic_eq
-                      : Icons.music_note_outlined,
-                  size: 24,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                ),
-                title: Text(
-                  _selectedMusic != null ? _selectedMusic!.title : "Add Music",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: _selectedMusic != null
-                        ? Colors.blue
-                        : (isDark ? Colors.white : Colors.black),
-                  ),
-                ),
-                subtitle: _selectedMusic != null
-                    ? Text(
-                        "${_selectedMusic!.artist} • ${_selectedMusic!.duration}",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? Colors.grey.shade500
-                              : Colors.grey.shade600,
-                        ),
-                      )
-                    : null,
-                trailing: _selectedMusic != null
-                    ? IconButton(
-                        icon: const Icon(Icons.close, size: 18,
-                            color: Colors.grey),
-                        onPressed: () {
-                          KnockHaptics.tap();
-                          setState(() {
-                            _selectedMusic = null;
-                            _bgAudioPlayer.stop();
-                          });
-                        },
-                      )
-                    : Icon(Icons.arrow_forward_ios,
-                        size: 14,
-                        color: isDark
-                            ? Colors.grey.shade600
-                            : Colors.grey.shade400),
-                onTap: () async {
-                  KnockHaptics.tap();
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const MusicPickerScreen()),
-                  );
-                  if (result != null && result is MusicTrack) {
-                    if (!context.mounted) return;
-                    final isVideo = widget.files.isNotEmpty &&
-                        (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
-                         widget.files.first.path.toLowerCase().endsWith('.mov'));
-
-                    if (!context.mounted) return;
-                    final overlayResult = await Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        opaque: false,
-                        pageBuilder: (_, __, ___) => MusicOverlayScreen(
-                          track: result,
-                          isVideo: isVideo,
-                        ),
-                      ),
-                    );
-
-                    if (overlayResult != null && overlayResult is Map) {
-                      setState(() {
-                        _selectedMusic = overlayResult['track'] as MusicTrack;
-                        _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
-                      });
-                      _playSelectedMusic();
-                    }
-                  }
-                },
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
               ),
 
-              Divider(
+              if (widget.isVideoPost)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
+                  leading: Icon(
+                    widget.videoHasSound
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
+                    size: 24,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                  title: Text(
+                    widget.videoHasSound
+                        ? "Audio ready"
+                        : "Posted without sound",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  subtitle: Text(
+                    widget.videoHasSound
+                        ? "Your video audio was finalized in the editor so the export matches the preview."
+                        : "This export was finalized without audio in the editor.",
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                )
+              else
+                _buildMusicSelectionTile(isDark),
+
+              /*
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
+                  leading: Icon(
+                    _selectedMusic != null
+                        ? Icons.graphic_eq
+                        : Icons.music_note_outlined,
+                    size: 24,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                  title: Text(
+                    _selectedMusic != null
+                        ? _selectedMusic!.title
+                        : "Add Music",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: _selectedMusic != null
+                          ? Colors.blue
+                          : (isDark ? Colors.white : Colors.black),
+                    ),
+                  ),
+                  subtitle: _selectedMusic != null
+                      ? Text(
+                          "${_selectedMusic!.artist} • ${_selectedMusic!.duration}",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark
+                                ? Colors.grey.shade500
+                                : Colors.grey.shade600,
+                          ),
+                        )
+                      : null,
+                  trailing: _selectedMusic != null
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            KnockHaptics.tap();
+                            setState(() {
+                              _selectedMusic = null;
+                              _bgAudioPlayer.stop();
+                            });
+                          },
+                        )
+                      : Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: isDark
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade400,
+                        ),
+                  onTap: () async {
+                    KnockHaptics.tap();
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MusicPickerScreen(),
+                      ),
+                    );
+                    if (result != null && result is MusicTrack) {
+                      if (!context.mounted) return;
+                      final isVideo =
+                          widget.files.isNotEmpty &&
+                          (widget.files.first.path.toLowerCase().endsWith(
+                                '.mp4',
+                              ) ||
+                              widget.files.first.path.toLowerCase().endsWith(
+                                '.mov',
+                              ));
+
+                      if (!context.mounted) return;
+                      final overlayResult = await Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          opaque: false,
+                          pageBuilder: (_, __, ___) => MusicOverlayScreen(
+                            track: result,
+                            isVideo: isVideo,
+                          ),
+                        ),
+                      );
+
+                      if (overlayResult != null && overlayResult is Map) {
+                        setState(() {
+                          _selectedMusic = overlayResult['track'] as MusicTrack;
+                          _trimStartSeconds =
+                              overlayResult['trimStartSeconds'] as int;
+                          _selectedMusicStyle =
+                              overlayResult['styleIndex'] as int?;
+                          _selectedMusicCoverUrl = _selectedMusic?.coverUrl;
+                          _selectedMusicLyrics = _selectedMusic?.syncedLyrics;
+                        });
+                        _playSelectedMusic();
+                      }
+                    }
+                  },
+                ),
+
+              if (widget.isVideoPost && _selectedMusic != null)
+                Divider(
                   height: 1,
                   color: isDark
                       ? Colors.grey.shade800
-                      : const Color(0xFFEEEEEE)),
+                      : const Color(0xFFEEEEEE),
+                ),
+              */
+              if (widget.isVideoPost && _selectedMusic != null)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
+                  leading: Icon(
+                    Icons.music_note_rounded,
+                    size: 24,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                  title: Text(
+                    _selectedMusic!.title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${_selectedMusic!.artist} • Included in exported video',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+
+              Divider(
+                height: 1,
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
+              ),
 
               // 🎙️ VOICE RECORDING OPTION
               ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                leading: Icon(Icons.mic_none_outlined,
-                    size: 24,
-                    color:
-                        isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
+                leading: Icon(
+                  Icons.mic_none_outlined,
+                  size: 24,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                ),
                 title: Text(
                   recordingPath != null
                       ? "Voice Note Recorded"
                       : "Record Voice Note",
                   style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white : Colors.black),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
                 trailing: recordingPath != null
                     ? null
-                    : Icon(Icons.arrow_forward_ios,
+                    : Icon(
+                        Icons.arrow_forward_ios,
                         size: 14,
                         color: isDark
                             ? Colors.grey.shade600
-                            : Colors.grey.shade400),
+                            : Colors.grey.shade400,
+                      ),
                 onTap: isRecording || recordingPath != null
                     ? null
                     : () {
@@ -497,39 +816,47 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     required String label,
     required bool isDark,
     Color? accentColor,
+    VoidCallback? onTap,
   }) {
     final color = accentColor ?? (isDark ? Colors.white70 : Colors.black54);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accentColor != null
-            ? accentColor.withValues(alpha: 0.1)
-            : (isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.05)),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
           color: accentColor != null
-              ? accentColor.withValues(alpha: 0.35)
+              ? accentColor.withValues(alpha: 0.1)
               : (isDark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.1)),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.05)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: accentColor != null
+                ? accentColor.withValues(alpha: 0.35)
+                : (isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black.withValues(alpha: 0.1)),
           ),
-        ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.expand_more_rounded, size: 15, color: color),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -571,7 +898,8 @@ class _FinalPostScreenState extends State<FinalPostScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(18, (i) {
-                final height = 6.0 +
+                final height =
+                    6.0 +
                     (isRecording
                         ? (((i * 7 + recordingSeconds * 3) % 11) * 1.8)
                         : 0.0);
@@ -594,8 +922,11 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               KnockHaptics.tap();
               cancelRecording();
             },
-            child:
-                Icon(Icons.delete_outline, color: Colors.grey.shade600, size: 22),
+            child: Icon(
+              Icons.delete_outline,
+              color: Colors.grey.shade600,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           GestureDetector(
@@ -607,7 +938,9 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               width: 34,
               height: 34,
               decoration: const BoxDecoration(
-                  color: Colors.red, shape: BoxShape.circle),
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
               child: const Icon(Icons.stop, color: Colors.white, size: 18),
             ),
           ),
@@ -639,8 +972,11 @@ class _FinalPostScreenState extends State<FinalPostScreen>
               color: isDark ? Colors.white : Colors.black,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.play_arrow,
-                color: isDark ? Colors.black : Colors.white, size: 20),
+            child: Icon(
+              Icons.play_arrow,
+              color: isDark ? Colors.black : Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

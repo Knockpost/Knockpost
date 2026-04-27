@@ -22,11 +22,29 @@ class PostModel {
   final PostDuration duration;
 
   final List<String> imagePaths; // empty for text posts
+  final double? mediaAspectRatio;
+  final bool mediaIsBaked;
+  final bool isVideoPost;
+  final bool videoHasSound;
+  final String? coverImagePath;
   final String text; // empty for media-only posts
 
   final String? musicUrl;
   final String? musicTitle;
   final String? musicArtist;
+  final String? musicCoverUrl;
+  final int? musicStyle;
+  final String? musicLyrics;
+  final Map<String, dynamic>? musicLyricsConfig;
+  final int? musicTrimStart;
+  final double? musicOverlayX;
+  final double? musicOverlayY;
+  final double? musicOverlayScale;
+  final double? musicOverlayRotation;
+
+  final int? filterIndex;
+  final List<Map<String, dynamic>>? textOverlays;
+  final List<Map<String, dynamic>>? drawPaths;
 
   final DateTime createdAt;
   final int likes;
@@ -39,10 +57,27 @@ class PostModel {
     required this.type,
     required this.duration,
     this.imagePaths = const [],
+    this.mediaAspectRatio,
+    this.mediaIsBaked = false,
+    this.isVideoPost = false,
+    this.videoHasSound = false,
+    this.coverImagePath,
     this.text = '',
     this.musicUrl,
     this.musicTitle,
     this.musicArtist,
+    this.musicCoverUrl,
+    this.musicStyle,
+    this.musicLyrics,
+    this.musicLyricsConfig,
+    this.musicTrimStart,
+    this.musicOverlayX,
+    this.musicOverlayY,
+    this.musicOverlayScale,
+    this.musicOverlayRotation,
+    this.filterIndex,
+    this.textOverlays,
+    this.drawPaths,
     required this.createdAt,
     this.likes = 0,
     this.views = 0,
@@ -74,9 +109,26 @@ class PostModel {
     bool? isLikedByMe,
     int? likes,
     int? views,
+    double? mediaAspectRatio,
+    bool? mediaIsBaked,
+    bool? isVideoPost,
+    bool? videoHasSound,
+    String? coverImagePath,
     String? musicUrl,
     String? musicTitle,
     String? musicArtist,
+    String? musicCoverUrl,
+    int? musicStyle,
+    String? musicLyrics,
+    Map<String, dynamic>? musicLyricsConfig,
+    int? musicTrimStart,
+    double? musicOverlayX,
+    double? musicOverlayY,
+    double? musicOverlayScale,
+    double? musicOverlayRotation,
+    int? filterIndex,
+    List<Map<String, dynamic>>? textOverlays,
+    List<Map<String, dynamic>>? drawPaths,
   }) {
     return PostModel(
       id: id,
@@ -84,10 +136,27 @@ class PostModel {
       type: type,
       duration: duration,
       imagePaths: imagePaths,
+      mediaAspectRatio: mediaAspectRatio ?? this.mediaAspectRatio,
+      mediaIsBaked: mediaIsBaked ?? this.mediaIsBaked,
+      isVideoPost: isVideoPost ?? this.isVideoPost,
+      videoHasSound: videoHasSound ?? this.videoHasSound,
+      coverImagePath: coverImagePath ?? this.coverImagePath,
       text: text,
       musicUrl: musicUrl ?? this.musicUrl,
       musicTitle: musicTitle ?? this.musicTitle,
       musicArtist: musicArtist ?? this.musicArtist,
+      musicCoverUrl: musicCoverUrl ?? this.musicCoverUrl,
+      musicStyle: musicStyle ?? this.musicStyle,
+      musicLyrics: musicLyrics ?? this.musicLyrics,
+      musicLyricsConfig: musicLyricsConfig ?? this.musicLyricsConfig,
+      musicTrimStart: musicTrimStart ?? this.musicTrimStart,
+      musicOverlayX: musicOverlayX ?? this.musicOverlayX,
+      musicOverlayY: musicOverlayY ?? this.musicOverlayY,
+      musicOverlayScale: musicOverlayScale ?? this.musicOverlayScale,
+      musicOverlayRotation: musicOverlayRotation ?? this.musicOverlayRotation,
+      filterIndex: filterIndex ?? this.filterIndex,
+      textOverlays: textOverlays ?? this.textOverlays,
+      drawPaths: drawPaths ?? this.drawPaths,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       views: views ?? this.views,
@@ -99,7 +168,8 @@ class PostModel {
 // ─── Demo posts ──────────────────────────────────────────────────────────────
 final now = DateTime.now();
 
-final ValueNotifier<List<PostModel>> demoOwnPostsNotifier = ValueNotifier<List<PostModel>>(demoOwnPosts);
+final ValueNotifier<List<PostModel>> demoOwnPostsNotifier =
+    ValueNotifier<List<PostModel>>(demoOwnPosts);
 
 final List<PostModel> demoOwnPosts = [
   // Recents — 24h media post (still fresh)
@@ -115,31 +185,32 @@ final List<PostModel> demoOwnPosts = [
     views: 210,
     isLikedByMe: false,
   ),
-    // Recents — 36h media post
-    PostModel(
-      id: 'p2',
-      authorId: 'me',
-      type: PostType.media,
-      duration: PostDuration.h36,
-      imagePaths: ['assets/test3.jpg'],
-      text: 'Morning run hits different 🏃',
-      createdAt: now.subtract(const Duration(hours: 10)),
-      likes: 18,
-      views: 95,
-      isLikedByMe: true,
-    ),
-    // Recents — 24h text-only post (Thought)
-    PostModel(
-      id: 'p3',
-      authorId: 'me',
-      type: PostType.text,
-      duration: PostDuration.h24,
-      imagePaths: const [],
-      text: 'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
-      createdAt: now.subtract(const Duration(hours: 15)),
-      likes: 56,
-      views: 120,
-    ),
+  // Recents — 36h media post
+  PostModel(
+    id: 'p2',
+    authorId: 'me',
+    type: PostType.media,
+    duration: PostDuration.h36,
+    imagePaths: ['assets/test3.jpg'],
+    text: 'Morning run hits different 🏃',
+    createdAt: now.subtract(const Duration(hours: 10)),
+    likes: 18,
+    views: 95,
+    isLikedByMe: true,
+  ),
+  // Recents — 24h text-only post (Thought)
+  PostModel(
+    id: 'p3',
+    authorId: 'me',
+    type: PostType.text,
+    duration: PostDuration.h24,
+    imagePaths: const [],
+    text:
+        'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
+    createdAt: now.subtract(const Duration(hours: 15)),
+    likes: 56,
+    views: 120,
+  ),
   // ── Showcase (lifetime) posts ────────────────────────────────────────────
   PostModel(
     id: 'p_show1',
@@ -174,44 +245,56 @@ final List<PostModel> demoOwnPosts = [
     likes: 540,
     views: 3200,
   ),
-    PostModel(
-      id: 'p_show4',
-      authorId: 'me',
-      type: PostType.media,
-      duration: PostDuration.lifetime,
-      imagePaths: ['assets/test1.jpg'],
-      text: 'First post on KnockPost 🚀',
-      createdAt: now.subtract(const Duration(days: 120)),
-      likes: 870,
-      views: 5100,
-    ),
-    PostModel(
-      id: 'p_show5',
-      authorId: 'me',
-      type: PostType.text,
-      duration: PostDuration.lifetime,
-      imagePaths: const [],
-      text: 'Dreaming big since day one. 💭',
-      createdAt: now.subtract(const Duration(days: 150)),
-      likes: 310,
-      views: 1400,
-    ),
-  ];
+  PostModel(
+    id: 'p_show4',
+    authorId: 'me',
+    type: PostType.media,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test1.jpg'],
+    text: 'First post on KnockPost 🚀',
+    createdAt: now.subtract(const Duration(days: 120)),
+    likes: 870,
+    views: 5100,
+  ),
+  PostModel(
+    id: 'p_show5',
+    authorId: 'me',
+    type: PostType.text,
+    duration: PostDuration.lifetime,
+    imagePaths: const [],
+    text: 'Dreaming big since day one. 💭',
+    createdAt: now.subtract(const Duration(days: 150)),
+    likes: 310,
+    views: 1400,
+  ),
+];
 
 List<PostModel> getDemoPostsForUser(String userId) {
   if (userId == 'leo01') return const [];
   if (userId == 'me') return demoOwnPosts;
-  
+
   int seed;
   switch (userId) {
-    case 'zayn01': seed = 1; break;
-    case 'justin01': seed = 2; break;
-    case 'suman01': seed = 3; break;
-    case 'saptarshi01': seed = 4; break;
-    case 'arya01': seed = 5; break;
-    default: seed = userId.hashCode.abs() % 10 + 1; break;
+    case 'zayn01':
+      seed = 1;
+      break;
+    case 'justin01':
+      seed = 2;
+      break;
+    case 'suman01':
+      seed = 3;
+      break;
+    case 'saptarshi01':
+      seed = 4;
+      break;
+    case 'arya01':
+      seed = 5;
+      break;
+    default:
+      seed = userId.hashCode.abs() % 10 + 1;
+      break;
   }
-  
+
   final now = DateTime.now();
   const pool = [
     'assets/test1.jpg',

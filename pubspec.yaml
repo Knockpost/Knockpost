@@ -13,6 +13,7 @@ dependencies:
 
 
   video_player: ^2.8.0
+  ffmpeg_kit_flutter_new: ^4.1.0
   share_plus: ^10.1.4
 
   cupertino_icons: ^1.0.8
@@ -34,6 +35,8 @@ dependencies:
   photo_manager: ^3.9.0
   http: ^1.6.0
   colorfilter_generator: ^0.0.8
+  visibility_detector: ^0.4.0+2
+  video_thumbnail: ^0.5.6
 
 dev_dependencies:
   flutter_test:
@@ -45,6 +48,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  shaders:
+    - shaders/los_angeles_effect.frag
+    - shaders/aesthetic_blur_effect.frag
+    - shaders/low_light_effect.frag
+    - shaders/black_white_effect.frag
+    - shaders/ultra_hd_effect.frag
 
   assets:
     - assets/icon.png

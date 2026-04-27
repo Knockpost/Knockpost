@@ -11,8 +11,10 @@ import 'package:just_audio/just_audio.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 import 'waves_editor_screen.dart';
+import '../post/media_editor_screen.dart';
 import 'waves_gallery_sheet.dart';
 import '../shared/music_picker_screen.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 
 class WavesCameraScreen extends StatefulWidget {
   const WavesCameraScreen({super.key});
@@ -22,7 +24,7 @@ class WavesCameraScreen extends StatefulWidget {
 }
 
 class _WavesCameraScreenState extends State<WavesCameraScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   CameraController? _ctrl;
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
@@ -180,6 +182,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
   @override
   void initState() {
     super.initState();
+    AudioLifecycleManager.instance.register(_audioPlayer);
     _carouselController = PageController(viewportFraction: 0.22);
     _pulseAnim = AnimationController(
       vsync: this,
@@ -324,21 +327,13 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
   }
 
   void _goToEditor(List<File> files) {
-    final speedMultiplier =
-        double.tryParse(
-          _speedOptions[_selectedSpeedIndex].replaceAll('x', ''),
-        ) ??
-        1.0;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            WavesEditorScreen(
-              files: files, 
-              playbackSpeed: speedMultiplier,
-              initialMusic: _selectedMusic,
-              trimStartSeconds: _trimStartSeconds,
-            ),
+        builder: (_) => MediaEditorScreen(
+          files: files,
+          initialCaption: '',
+        ),
       ),
     );
   }
@@ -349,7 +344,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent, // Fully controlled by sheet
-      builder: (_) => const WavesGallerySheet(),
+      builder: (_) => const WavesGallerySheet(showCreativeTools: false),
     );
     if (result != null && result is List<File> && mounted) {
       _goToEditor(result);
@@ -373,9 +368,10 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
 
   @override
   void dispose() {
+    AudioLifecycleManager.instance.unregister(_audioPlayer);
+    _audioPlayer.stop().whenComplete(() => _audioPlayer.dispose());
     _ctrl?.dispose();
     _timer?.cancel();
-    _audioPlayer.dispose();
     _carouselController.dispose();
     _pulseAnim.dispose();
     _tagController.dispose();

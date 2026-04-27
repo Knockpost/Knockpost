@@ -28,7 +28,12 @@ class ShowcaseGrid extends StatelessWidget {
 
   List<PostModel> get _showcasePosts =>
       posts
-          .where((p) => p.isInShowcase && (p.type == PostType.media || p.type == PostType.waves) && p.imagePaths.isNotEmpty)
+          .where(
+            (p) =>
+                p.isInShowcase &&
+                (p.type == PostType.media || p.type == PostType.waves) &&
+                p.imagePaths.isNotEmpty,
+          )
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -38,7 +43,9 @@ class ShowcaseGrid extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
-        final showcasePosts = _showcasePosts.where((p) => !deletedIds.contains(p.id)).toList();
+        final showcasePosts = _showcasePosts
+            .where((p) => !deletedIds.contains(p.id))
+            .toList();
 
         if (showcasePosts.isEmpty) {
           return ProfileEmptySection(
@@ -77,7 +84,10 @@ class ShowcaseGrid extends StatelessWidget {
   }
 
   void _openShowcaseDetail(
-      BuildContext context, List<PostModel> posts, int startIndex) {
+    BuildContext context,
+    List<PostModel> posts,
+    int startIndex,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -99,14 +109,26 @@ class _GridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if ((post.type == PostType.media || post.type == PostType.waves) && post.imagePaths.isNotEmpty) {
+    if ((post.type == PostType.media || post.type == PostType.waves) &&
+        post.imagePaths.isNotEmpty) {
       final imagePath = post.imagePaths.first;
-      final hasVideoExtension = imagePath.toLowerCase().endsWith('.mp4') || imagePath.toLowerCase().endsWith('.mov') || imagePath.toLowerCase().endsWith('.mkv');
-      final isVideo = hasVideoExtension || post.type == PostType.waves;
-      
+      final coverPath = post.coverImagePath;
+      final hasVideoExtension =
+          imagePath.toLowerCase().endsWith('.mp4') ||
+          imagePath.toLowerCase().endsWith('.mov') ||
+          imagePath.toLowerCase().endsWith('.mkv');
+      final isVideo =
+          post.isVideoPost || hasVideoExtension || post.type == PostType.waves;
+
       Widget imageWidget;
       if (isVideo) {
-        imageWidget = _VideoThumbnail(path: imagePath);
+        if (coverPath != null && coverPath.isNotEmpty) {
+          imageWidget = coverPath.startsWith('assets/')
+              ? Image.asset(coverPath, fit: BoxFit.cover)
+              : Image.file(File(coverPath), fit: BoxFit.cover);
+        } else {
+          imageWidget = _VideoThumbnail(path: imagePath);
+        }
       } else {
         imageWidget = imagePath.startsWith('assets/')
             ? Image.asset(imagePath, fit: BoxFit.cover)
@@ -117,7 +139,7 @@ class _GridTile extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           imageWidget,
-          if (post.type == PostType.waves)
+          if (isVideo)
             Positioned.fill(
               child: Container(
                 color: Colors.black26,
@@ -172,7 +194,7 @@ class _GridTile extends StatelessWidget {
 
 class _VideoThumbnail extends StatefulWidget {
   final String path;
-  
+
   const _VideoThumbnail({required this.path});
 
   @override
@@ -189,12 +211,15 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
     _controller = widget.path.startsWith('assets/')
         ? VideoPlayerController.asset(widget.path)
         : VideoPlayerController.file(File(widget.path));
-        
-    _controller.initialize().then((_) {
-      if (mounted) setState(() => _initialized = true);
-    }).catchError((_) {
-      // Ignored for thumbnail
-    });
+
+    _controller
+        .initialize()
+        .then((_) {
+          if (mounted) setState(() => _initialized = true);
+        })
+        .catchError((_) {
+          // Ignored for thumbnail
+        });
   }
 
   @override
@@ -213,7 +238,7 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
         ),
       );
     }
-    
+
     return FittedBox(
       fit: BoxFit.cover,
       child: SizedBox(
@@ -224,7 +249,6 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full-screen scrollable detail view — Instagram-style PostCard list
@@ -291,8 +315,9 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: bg,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: Stack(
         children: [
@@ -306,8 +331,11 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               leadingWidth: 20,
               leading: IconButton(
                 padding: EdgeInsets.zero,
-                icon: Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 20, color: isDark ? Colors.white : Colors.black),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white : Colors.black,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               title: Text(
@@ -329,17 +357,18 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 final dividerColor = isDark
                     ? const Color(0xFF2A2A2A)
                     : const Color(0xFFE8E8E8);
-                final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+                final divider = Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: dividerColor,
+                );
 
                 return Column(
                   key: _itemKeys[i],
                   children: [
                     divider,
                     post.imagePaths.isEmpty
-                        ? ThoughtCard(
-                            user: widget.user,
-                            text: post.text,
-                          )
+                        ? ThoughtCard(user: widget.user, text: post.text)
                         : PostCard(
                             imagePaths: post.imagePaths,
                             user: widget.user,
@@ -350,7 +379,24 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                             musicUrl: post.musicUrl,
                             musicTitle: post.musicTitle,
                             musicArtist: post.musicArtist,
-                            isVideoPost: post.type == PostType.waves,
+                            musicCoverUrl: post.musicCoverUrl,
+                            musicStyle: post.musicStyle,
+                            musicLyrics: post.musicLyrics,
+                            musicLyricsConfig: post.musicLyricsConfig,
+                            musicTrimStart: post.musicTrimStart,
+                            musicOverlayX: post.musicOverlayX,
+                            musicOverlayY: post.musicOverlayY,
+                            musicOverlayScale: post.musicOverlayScale,
+                            musicOverlayRotation: post.musicOverlayRotation,
+                            filterIndex: post.filterIndex,
+                            textOverlays: post.textOverlays,
+                            drawPaths: post.drawPaths,
+                            isVideoPost:
+                                post.isVideoPost || post.type == PostType.waves,
+                            videoHasSound: post.videoHasSound,
+                            coverImagePath: post.coverImagePath,
+                            mediaAspectRatio: post.mediaAspectRatio,
+                            mediaIsBaked: post.mediaIsBaked,
                           ),
                     if (isLast) divider,
                   ],
