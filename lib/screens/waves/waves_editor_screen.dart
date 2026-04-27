@@ -264,11 +264,17 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           pathLower.contains('video');
       debugPrint('[WavesEditor] File[$i]: ${file.path} isVideo=$isVideo');
       if (isVideo) {
-        final ctrl = VideoPlayerController.file(file);
+        final ctrl = VideoPlayerController.file(
+          file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
         ctrl.initialize().then((_) async {
           if (mounted) setState(() {});
           await ctrl.setPlaybackSpeed(widget.playbackSpeed);
           await ctrl.setLooping(true);
+          if (_selectedMusic != null) {
+            await ctrl.setVolume(0.0);
+          }
           // Auto-play first video
           if (i == 0) await ctrl.play();
         });
@@ -280,10 +286,20 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
   Future<void> _playSelectedMusic() async {
     if (_selectedMusic == null) {
+      for (final ctrl in _videoControllers) {
+        if (ctrl != null && ctrl.value.isInitialized) {
+          await ctrl.setVolume(1.0);
+        }
+      }
       await _bgAudioPlayer.stop();
       return;
     }
     try {
+      for (final ctrl in _videoControllers) {
+        if (ctrl != null && ctrl.value.isInitialized) {
+          await ctrl.setVolume(0.0);
+        }
+      }
       await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
       await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
       await _bgAudioPlayer.setLoopMode(LoopMode.one);
@@ -581,7 +597,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                                     onTap: () {
                                       KnockHaptics.tap();
                                       setState(() => _selectedMusic = null);
-                                      _bgAudioPlayer.stop();
+                                      _playSelectedMusic();
                                     },
                                     child: Icon(
                                       Icons.close_rounded,
