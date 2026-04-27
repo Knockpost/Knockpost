@@ -729,7 +729,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   .where(
                                                     (p) => !deletedIds.contains(
                                                       p.id,
-                                                    ),
+                                                    ) && p.type != PostType.glimps,
                                                   )
                                                   .toList()
                                                 ..sort(
@@ -808,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   postId: post.id,
                                                   timestamp: post.timestampText,
                                                 );
-                                              } else if (post.type == PostType.waves || post.type == PostType.glimps) {
+                                              } else if (post.type == PostType.waves) {
                                                 card = WavesFeedCard(
                                                   post: post,
                                                   user: author,
