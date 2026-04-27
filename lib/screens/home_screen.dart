@@ -14,6 +14,7 @@ import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import 'post/post_card.dart';
 import 'thoughts/thought_card.dart';
+import 'waves/waves_feed_card.dart';
 import 'package:image_picker/image_picker.dart';
 import 'glimps/glimps_strip.dart';
 import 'post/media_editor_screen.dart';
@@ -806,6 +807,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   views: post.views,
                                                   postId: post.id,
                                                   timestamp: post.timestampText,
+                                                );
+                                              } else if (post.type == PostType.waves) {
+                                                card = WavesFeedCard(
+                                                  post: post,
+                                                  user: author,
                                                 );
                                               } else {
                                                 card = PostCard(
