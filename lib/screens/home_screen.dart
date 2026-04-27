@@ -724,18 +724,32 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                           ];
 
-                                          final activePosts =
-                                              allDemoPosts
-                                                  .where(
-                                                    (p) => !deletedIds.contains(
-                                                      p.id,
-                                                    ) && p.type != PostType.glimps,
-                                                  )
-                                                  .toList()
-                                                ..sort(
-                                                  (a, b) => b.createdAt
-                                                      .compareTo(a.createdAt),
-                                                );
+                                          final sortedPosts = allDemoPosts
+                                              .where((p) =>
+                                                  !deletedIds.contains(p.id) &&
+                                                  p.type != PostType.glimps)
+                                              .toList()
+                                            ..sort((a, b) => b.createdAt
+                                                .compareTo(a.createdAt));
+
+                                          final activePosts = <PostModel>[];
+                                          final pendingWaves = <PostModel>[];
+                                          for (final p in sortedPosts) {
+                                            if (p.type == PostType.waves) {
+                                              if (activePosts.isNotEmpty &&
+                                                  activePosts.last.type ==
+                                                      PostType.waves) {
+                                                pendingWaves.add(p);
+                                              } else {
+                                                activePosts.add(p);
+                                              }
+                                            } else {
+                                              activePosts.add(p);
+                                              if (pendingWaves.isNotEmpty) {
+                                                activePosts.add(pendingWaves.removeAt(0));
+                                              }
+                                            }
+                                          }
 
                                           return PostInnerScrollLockRegistrar(
                                             child: ListView.builder(

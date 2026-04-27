@@ -132,12 +132,12 @@ class _WavesFeedCardState extends State<WavesFeedCard>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Tall portrait card — 4:5 ratio in feed (not full 9:16 to keep scrollable)
-    final cardHeight = screenWidth * 1.25;
+    // Tall portrait card — 2:3 ratio in feed
+    final cardHeight = screenWidth * 1.5;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return VisibilityDetector(
-      key: Key('wave_${widget.post.id}_${hashCode}'),
+      key: Key('wave_${widget.post.id}_$hashCode'),
       onVisibilityChanged: _onVisibilityChanged,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
