@@ -43,9 +43,8 @@ class _WavesFeedCardState extends State<WavesFeedCard>
 
   late final AnimationController _pulseController;
 
-  // Knockpost wave accent
-  static const Color _waveAccent = Color(0xFF00D4AA);
-  static const Color _waveGlow = Color(0xFF00F0C8);
+  // Knockpost monochrome style
+  static const Color _waveAccent = Color(0xFFFFFFFF);
 
   @override
   void initState() {
@@ -398,7 +397,7 @@ class _WavesFeedCardState extends State<WavesFeedCard>
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [_waveAccent, _waveGlow, Color(0xFF00B4D8)],
+                    colors: [Colors.white70, Colors.white54, Colors.white38],
                   ),
                 ),
                 child: Container(

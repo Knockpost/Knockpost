@@ -9,9 +9,9 @@ import '../shared/music_picker_screen.dart';
 import '../post/template_picker_screen.dart';
 import '../post/custom_android_picker_sheet.dart';
 
-// Brand colors (imported for consistency)
-const _kAccentPurple = Color(0xFF9B5DE5);
-const _kAccentBlue = Color(0xFF4361EE);
+// Knockpost brand colors – monochrome dark premium
+const _kAccentPrimary = Color(0xFFFFFFFF); // Clean white
+const _kAccentSecondary = Color(0xFFE0E0E0); // Subtle grey
 
 class WavesGallerySheet extends StatefulWidget {
   final bool showCreativeTools;
@@ -96,7 +96,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: _kAccentPurple)),
+      builder: (_) => const Center(child: CircularProgressIndicator(color: _kAccentPrimary)),
     );
 
     List<File> files = [];
@@ -241,12 +241,12 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _actionTopBtn('Templates', Icons.auto_awesome_mosaic_rounded, const Color(0xFFF15BB5), () {
+                    _actionTopBtn('Templates', Icons.auto_awesome_mosaic_rounded, _kAccentPrimary, () {
                       KnockHaptics.tap();
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const TemplatePickerScreen()));
                     }),
                     const SizedBox(width: 32),
-                    _actionTopBtn('Collage', Icons.grid_view_rounded, _kAccentBlue, () {
+                    _actionTopBtn('Collage', Icons.grid_view_rounded, _kAccentSecondary, () {
                       KnockHaptics.tap();
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const CollagePickerScreen()));
                     }),
@@ -345,7 +345,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
             // ── GRID GALLERY VIEW ──
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: _kAccentPurple))
+                  ? const Center(child: CircularProgressIndicator(color: _kAccentPrimary))
                   : !_hasPermission
                       ? Center(
                           child: Text(
@@ -437,7 +437,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                                             height: 24,
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: isSelected ? _kAccentBlue : Colors.black26,
+                                              color: isSelected ? _kAccentSecondary : Colors.black26,
                                               border: Border.all(
                                                 color: Colors.white,
                                                 width: 1.5,

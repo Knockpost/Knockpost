@@ -254,9 +254,16 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     _videoControllers = List.generate(widget.files.length, (i) {
       final file = widget.files[i];
       final pathLower = file.path.toLowerCase();
-      if (pathLower.endsWith('.mp4') ||
+      final isVideo = pathLower.endsWith('.mp4') ||
           pathLower.endsWith('.mov') ||
-          pathLower.endsWith('.mkv')) {
+          pathLower.endsWith('.mkv') ||
+          pathLower.endsWith('.avi') ||
+          pathLower.endsWith('.webm') ||
+          pathLower.endsWith('.3gp') ||
+          pathLower.endsWith('.m4v') ||
+          pathLower.contains('video');
+      debugPrint('[WavesEditor] File[$i]: ${file.path} isVideo=$isVideo');
+      if (isVideo) {
         final ctrl = VideoPlayerController.file(file);
         ctrl.initialize().then((_) async {
           if (mounted) setState(() {});
@@ -1298,10 +1305,14 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
         Widget preview = isVideo
             ? (vCtrl.value.isInitialized
-                  ? Center(
-                      child: AspectRatio(
-                        aspectRatio: vCtrl.value.aspectRatio,
-                        child: VideoPlayer(vCtrl),
+                  ? SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: vCtrl.value.size.width,
+                          height: vCtrl.value.size.height,
+                          child: VideoPlayer(vCtrl),
+                        ),
                       ),
                     )
                   : const Center(
