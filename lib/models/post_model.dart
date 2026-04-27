@@ -373,6 +373,18 @@ List<PostModel> getDemoPostsForUser(String userId) {
     // Only 1 lifetime glimpse. No recents. No normal posts.
     return [
       PostModel(
+        id: '${userId}_wave1',
+        authorId: userId,
+        type: PostType.waves,
+        duration: PostDuration.lifetime,
+        imagePaths: ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'],
+        text: 'Vibin in the studio 🎤🔥',
+        createdAt: now.subtract(const Duration(hours: 5)),
+        likes: 2400, views: 18000,
+        isVideoPost: true,
+        coverImagePath: 'assets/test3.jpg',
+      ),
+      PostModel(
         id: '${userId}_glimpse1',
         authorId: userId,
         type: PostType.glimps,
@@ -482,6 +494,19 @@ List<PostModel> getDemoPostsForUser(String userId) {
   final third = pool[(seed + 2) % pool.length];
 
   return [
+    // Waves (short video)
+    PostModel(
+      id: '${userId}_wave1',
+      authorId: userId,
+      type: PostType.waves,
+      duration: PostDuration.lifetime,
+      imagePaths: ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'],
+      text: 'Quick edit from today 🎬',
+      createdAt: now.subtract(Duration(hours: 2 + seed)),
+      likes: 980 + seed * 50, views: 6500 + seed * 200,
+      isVideoPost: true,
+      coverImagePath: first,
+    ),
     // Glimpse (24h)
     PostModel(
       id: '${userId}_glimpse',
