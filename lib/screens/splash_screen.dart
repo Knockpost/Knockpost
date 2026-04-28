@@ -11,6 +11,7 @@ import 'login_screen.dart';
 import 'home_screen.dart';
 import 'signup/signup_verification_screen.dart';
 import 'signup/signup_username_screen.dart';
+import '../../services/current_user_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -56,6 +57,7 @@ class _SplashScreenState extends State<SplashScreen> {
       // ⚡ ULTRA-FAST BYPASS: If we already confirmed they're registered before, skip Firestore!
       final isRegistered = prefs.getBool('is_registered') ?? false;
       if (isRegistered) {
+        await CurrentUserService.instance.loadCurrentUser();
         _navigate(const HomeScreen());
         return;
       }
@@ -70,10 +72,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (mounted) {
         if (userProfile != null) {
-          await prefs.setBool(
-            'is_registered',
-            true,
-          ); // Save for next ultra-fast launch
+          await prefs.setBool('is_registered', true);
+          await CurrentUserService.instance.loadCurrentUser();
           _navigate(const HomeScreen());
         } else {
           _navigate(

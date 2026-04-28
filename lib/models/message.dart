@@ -32,4 +32,25 @@ class ReplyMessage {
       timestamp: timestamp ?? this.timestamp,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'postId': postId,
+      'text': text,
+      'timestamp': timestamp,
+    };
+  }
+
+  factory ReplyMessage.fromMap(Map<String, dynamic> map, String documentId) {
+    return ReplyMessage(
+      id: documentId,
+      senderId: map['senderId'] ?? '',
+      receiverId: map['receiverId'] ?? '',
+      postId: map['postId'] ?? '',
+      text: map['text'] ?? '',
+      timestamp: (map['timestamp'] as dynamic)?.toDate() ?? DateTime.now(),
+    );
+  }
 }

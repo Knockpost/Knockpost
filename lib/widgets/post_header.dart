@@ -13,6 +13,7 @@ class PostHeader extends StatefulWidget {
   final String? postId;
   final bool disableProfileNavigation;
   final String? timestamp;
+  final String postTypeName;
 
   const PostHeader({
     super.key,
@@ -20,6 +21,7 @@ class PostHeader extends StatefulWidget {
     this.postId,
     this.disableProfileNavigation = false,
     this.timestamp,
+    this.postTypeName = "Post",
   });
 
   @override
@@ -113,6 +115,7 @@ class _PostHeaderState extends State<PostHeader> {
           postId: widget.postId,
           isReel: false,
           isOwner: widget.user.isOwnProfile,
+          postTypeName: widget.postTypeName,
         );
       },
     );

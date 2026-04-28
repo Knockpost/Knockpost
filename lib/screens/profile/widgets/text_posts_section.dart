@@ -23,7 +23,7 @@ class TextPostsSection extends StatelessWidget {
   });
 
   List<PostModel> get _textPosts =>
-      posts.where((p) => p.type == PostType.text).toList()
+      posts.where((p) => p.type == PostType.text && p.duration == PostDuration.lifetime).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   @override

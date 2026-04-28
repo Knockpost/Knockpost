@@ -9,7 +9,9 @@ import '../screens/profile/other_profile_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/reply_chat_screen.dart';
 import '../screens/reply_list_screen.dart';
-import '../services/private_reply_demo_store.dart';
+import '../services/comment_service.dart';
+import '../services/current_user_service.dart';
+import '../models/message.dart';
 import '../utils/haptic_helper.dart';
 
 class CommentSheet extends StatefulWidget {
@@ -48,37 +50,12 @@ class CommentSheet extends StatefulWidget {
 }
 
 class _CommentSheetState extends State<CommentSheet> {
-  final PrivateReplyDemoStore _store = PrivateReplyDemoStore.instance;
   final PageController _pageController = PageController();
 
   String? _selectedThreadUserId;
   bool _showChatPage = false;
 
-  UserModel get _viewer => widget.isPostOwner ? widget.postAuthor : demoOwnUser;
-
-  List<ReplyThread> get _threads => _store.threadsForPost(
-        postId: widget.postId,
-        authorId: widget.postAuthor.id,
-      );
-
-  ReplyThread get _activeThread {
-    if (widget.isPostOwner) {
-      return _threads.firstWhere((thread) => thread.userId == _selectedThreadUserId);
-    }
-
-    return _store.ensureThread(
-      postId: widget.postId,
-      authorId: widget.postAuthor.id,
-      userId: _viewer.id,
-    );
-  }
-
-  UserModel get _activePartner {
-    if (widget.isPostOwner) {
-      return _resolveUser(_activeThread.userId);
-    }
-    return widget.postAuthor;
-  }
+  UserModel get _viewer => CurrentUserService.instance.currentUser ?? demoOwnUser;
 
   @override
   void initState() {
@@ -104,8 +81,12 @@ class _CommentSheetState extends State<CommentSheet> {
     setState(() {
       _selectedThreadUserId = thread.userId;
       _showChatPage = true;
-      _store.markThreadRead(thread);
     });
+    
+    CommentService.instance.markThreadRead(
+      postId: widget.postId,
+      threadUserId: thread.userId,
+    );
 
     await _pageController.animateToPage(
       1,
@@ -126,15 +107,14 @@ class _CommentSheetState extends State<CommentSheet> {
     setState(() => _selectedThreadUserId = null);
   }
 
-  void _sendMessage(String text) {
-    final updatedThread = _store.sendMessage(
-      thread: _activeThread,
+  void _sendMessage(String text, String threadUserId) {
+    CommentService.instance.sendMessage(
+      postId: widget.postId,
+      postAuthorId: widget.postAuthor.id,
       senderId: _viewer.id,
+      threadUserId: threadUserId,
       text: text,
     );
-    setState(() {
-      _selectedThreadUserId = updatedThread.userId;
-    });
   }
 
   void _openProfile(UserModel user) {
@@ -149,6 +129,36 @@ class _CommentSheetState extends State<CommentSheet> {
             ? ProfileScreen(user: resolvedUser, posts: posts)
             : OtherProfileScreen(user: resolvedUser, posts: posts),
       ),
+    );
+  }
+
+  Widget _buildChatPage(String threadUserId, ReplyThread? activeThread) {
+    // We create a fallback thread if it doesn't exist yet
+    final thread = activeThread ?? ReplyThread(
+      postId: widget.postId,
+      authorId: widget.postAuthor.id,
+      userId: threadUserId,
+      lastMessage: '',
+      lastTimestamp: DateTime.now(),
+    );
+
+    return StreamBuilder<List<ReplyMessage>>(
+      stream: CommentService.instance.getMessagesForThread(
+        postId: widget.postId,
+        threadUserId: threadUserId,
+      ),
+      builder: (context, snapshot) {
+        final messages = snapshot.data ?? [];
+        return ReplyChatScreen(
+          thread: thread,
+          author: widget.postAuthor,
+          currentViewer: _viewer,
+          threadUser: _resolveUser(threadUserId),
+          messages: messages,
+          onSend: (text) => _sendMessage(text, threadUserId),
+          onOpenProfile: _openProfile,
+        );
+      },
     );
   }
 
@@ -173,60 +183,69 @@ class _CommentSheetState extends State<CommentSheet> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               border: Border(top: BorderSide(color: borderColor)),
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 42,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF3A3A3A) : const Color(0xFFDADADA),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _SheetHeader(
-                  showListHeader: widget.isPostOwner && !_showChatPage,
-                  participant: _showChatPage ? _activePartner : null,
-                  onParticipantTap: _showChatPage ? () => _openProfile(_activePartner) : null,
-                  onBack: widget.isPostOwner && _showChatPage ? _closeThread : null,
-                ),
-                Divider(height: 1, color: borderColor),
-                Expanded(
-                  child: widget.isPostOwner
-                      ? PageView(
-                          controller: _pageController,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            ReplyListScreen(
-                              threads: _threads,
-                              resolveUser: _resolveUser,
-                              onThreadTap: _openThread,
-                            ),
-                            _selectedThreadUserId == null
-                                ? const SizedBox.shrink()
-                                : ReplyChatScreen(
-                                    thread: _activeThread,
-                                    author: widget.postAuthor,
-                                    currentViewer: _viewer,
-                                    threadUser: _resolveUser(_activeThread.userId),
-                                    messages: _store.messagesForThread(_activeThread),
-                                    onSend: _sendMessage,
-                                    onOpenProfile: _openProfile,
-                                  ),
-                          ],
-                        )
-                      : ReplyChatScreen(
-                          thread: _activeThread,
-                          author: widget.postAuthor,
-                          currentViewer: _viewer,
-                          threadUser: _resolveUser(_activeThread.userId),
-                          messages: _store.messagesForThread(_activeThread),
-                          onSend: _sendMessage,
-                          onOpenProfile: _openProfile,
-                        ),
-                ),
-              ],
+            child: StreamBuilder<List<ReplyThread>>(
+              stream: CommentService.instance.getThreadsForPost(
+                postId: widget.postId,
+                currentUserId: _viewer.id,
+                isPostOwner: widget.isPostOwner,
+              ),
+              builder: (context, snapshot) {
+                final threads = snapshot.data ?? [];
+                
+                ReplyThread? activeThread;
+                if (_selectedThreadUserId != null) {
+                  try {
+                    activeThread = threads.firstWhere((t) => t.userId == _selectedThreadUserId);
+                  } catch (e) {
+                    activeThread = null;
+                  }
+                }
+
+                UserModel? activePartner;
+                if (_showChatPage && _selectedThreadUserId != null) {
+                  activePartner = widget.isPostOwner ? _resolveUser(_selectedThreadUserId!) : widget.postAuthor;
+                }
+
+                return Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF3A3A3A) : const Color(0xFFDADADA),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _SheetHeader(
+                      showListHeader: widget.isPostOwner && !_showChatPage,
+                      participant: _showChatPage ? activePartner : null,
+                      onParticipantTap: _showChatPage && activePartner != null ? () => _openProfile(activePartner!) : null,
+                      onBack: widget.isPostOwner && _showChatPage ? _closeThread : null,
+                    ),
+                    Divider(height: 1, color: borderColor),
+                    Expanded(
+                      child: widget.isPostOwner
+                          ? PageView(
+                              controller: _pageController,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                ReplyListScreen(
+                                  threads: threads,
+                                  resolveUser: _resolveUser,
+                                  onThreadTap: _openThread,
+                                ),
+                                _selectedThreadUserId == null
+                                    ? const SizedBox.shrink()
+                                    : _buildChatPage(_selectedThreadUserId!, activeThread),
+                              ],
+                            )
+                          : _buildChatPage(_viewer.id, activeThread),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

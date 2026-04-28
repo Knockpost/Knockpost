@@ -7,6 +7,7 @@ import 'media_carousel.dart';
 import '../../widgets/reaction_bar.dart';
 import '../shared/music_editor_screen.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PostCard — Unified post rendering with proper music mode separation
@@ -90,6 +91,7 @@ class _PostCardState extends State<PostCard> {
   AudioPlayer? _audioPlayer;
   bool _isPlaying = false;
   int _audioPositionMs = 0;
+  bool _isVisible = false;
 
   bool get _hasMusic =>
       widget.musicUrl != null && widget.musicUrl!.isNotEmpty;
@@ -117,7 +119,10 @@ class _PostCardState extends State<PostCard> {
 
       await _audioPlayer!.setAudioSource(source);
       _audioPlayer!.setLoopMode(LoopMode.one);
-      _audioPlayer!.play();
+      
+      if (_isVisible && !AudioLifecycleManager.instance.isGlobalMuted) {
+        _audioPlayer!.play();
+      }
 
       _audioPlayer!.playingStream.listen((playing) {
         if (mounted) setState(() => _isPlaying = playing);
@@ -157,14 +162,35 @@ class _PostCardState extends State<PostCard> {
     KnockHaptics.tap();
     if (_isPlaying) {
       _audioPlayer?.pause();
+      AudioLifecycleManager.instance.isGlobalMuted = true;
     } else {
       _audioPlayer?.play();
+      AudioLifecycleManager.instance.isGlobalMuted = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return VisibilityDetector(
+      key: Key('post_card_${widget.postId ?? widget.hashCode}'),
+      onVisibilityChanged: (info) {
+        if (!mounted) return;
+        final visibleFraction = info.visibleFraction;
+        _isVisible = visibleFraction > 0.4; // Consider visible if 40% is on screen
+
+        if (_audioPlayer != null) {
+          if (!_isVisible) {
+            if (_isPlaying) {
+              _audioPlayer?.pause();
+            }
+          } else {
+            if (!AudioLifecycleManager.instance.isGlobalMuted) {
+              _audioPlayer?.play();
+            }
+          }
+        }
+      },
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
@@ -236,11 +262,10 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
 
-                // ── Compact play/pause button ──
                 if (_hasMusic)
                   Positioned(
                     bottom: 15,
-                    left: 15,
+                    right: 15,
                     child: _buildCompactMusicButton(),
                   ),
               ],
@@ -268,6 +293,7 @@ class _PostCardState extends State<PostCard> {
 
         const SizedBox(height: 10),
       ],
+    ),
     );
   }
 

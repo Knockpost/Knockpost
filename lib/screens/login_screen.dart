@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/current_user_service.dart';
 import 'signup/signup_email_screen.dart';
 import 'signup/signup_username_screen.dart';
 import 'signup/signup_verification_screen.dart';
@@ -340,6 +341,8 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (userProfile != null) {
+          await CurrentUserService.instance.loadCurrentUser();
+          if (!mounted) return;
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -389,6 +392,8 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           // Google users are pre-verified, so we skip SignupVerificationScreen entirely
           if (userProfile != null) {
+            await CurrentUserService.instance.loadCurrentUser();
+            if (!mounted) return;
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),

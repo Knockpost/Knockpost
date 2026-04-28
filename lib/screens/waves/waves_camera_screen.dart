@@ -333,7 +333,8 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
         builder: (_) => WavesEditorScreen(
           files: files,
           initialCaption: '',
-          isGlimpse: true,
+          isGlimpse: false,
+          isWaves: true,
         ),
       ),
     );

@@ -20,6 +20,7 @@ class WavesEditorScreen extends StatefulWidget {
   final MusicTrack? initialMusic;
   final int? trimStartSeconds;
   final bool isGlimpse;
+  final bool isWaves;
 
   const WavesEditorScreen({
     super.key,
@@ -29,6 +30,7 @@ class WavesEditorScreen extends StatefulWidget {
     this.initialMusic,
     this.trimStartSeconds,
     this.isGlimpse = true,
+    this.isWaves = false,
   });
 
   @override
@@ -356,6 +358,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           files: widget.files,
           initialCaption: _captionController.text.trim(),
           isGlimpse: widget.isGlimpse,
+          isWaves: widget.isWaves,
           selectedDuration: settings.duration,
           selectedAudience: settings.audience,
           initialMusic: _selectedMusic,
@@ -371,6 +374,8 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           initialFilterIndex: _selectedFilterIndex > 0 ? _selectedFilterIndex : null,
           initialTextOverlays: serializedTexts.isEmpty ? null : serializedTexts,
           initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
+          isVideoPost: true,
+          videoHasSound: _selectedMusic == null,
         ),
       ),
     );
@@ -1634,9 +1639,9 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    "Post Glimpse",
-                    style: TextStyle(
+                  Text(
+                    widget.isWaves ? "Post Wave" : "Post Glimpse",
+                    style: const TextStyle(
                       color: Colors.black,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,

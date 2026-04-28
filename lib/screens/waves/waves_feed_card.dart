@@ -7,6 +7,9 @@ import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/reaction_bar.dart';
+import '../../services/current_user_service.dart';
+import '../profile/other_profile_screen.dart';
+import 'widgets/more_options_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WavesFeedCard — Premium video-first card for Waves content in Home Feed
@@ -21,8 +24,15 @@ import '../../widgets/reaction_bar.dart';
 class WavesFeedCard extends StatefulWidget {
   final PostModel post;
   final UserModel user;
+  /// Tap করলে এই callback call হবে (Waves tab-এ navigate করতে)
+  final VoidCallback? onTap;
 
-  const WavesFeedCard({super.key, required this.post, required this.user});
+  const WavesFeedCard({
+    super.key,
+    required this.post,
+    required this.user,
+    this.onTap,
+  });
 
   @override
   State<WavesFeedCard> createState() => _WavesFeedCardState();
@@ -103,16 +113,21 @@ class _WavesFeedCardState extends State<WavesFeedCard>
 
   void _onTap() {
     KnockHaptics.tap();
-    // Toggle play/pause with visual feedback
-    if (_controller?.value.isPlaying == true) {
-      _controller?.pause();
-      setState(() => _showPlayIcon = true);
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) setState(() => _showPlayIcon = false);
-      });
+    if (widget.onTap != null) {
+      // Waves tab-এ navigate করো
+      widget.onTap!();
     } else {
-      _controller?.play();
-      setState(() => _showPlayIcon = false);
+      // Fallback: play/pause toggle
+      if (_controller?.value.isPlaying == true) {
+        _controller?.pause();
+        setState(() => _showPlayIcon = true);
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _showPlayIcon = false);
+        });
+      } else {
+        _controller?.play();
+        setState(() => _showPlayIcon = false);
+      }
     }
   }
 
@@ -123,6 +138,21 @@ class _WavesFeedCardState extends State<WavesFeedCard>
 
   void _onDoubleTapHandled() {
     setState(() => _doubleTapped = false);
+  }
+
+  /// Avatar বা নাম tap করলে সেই user-এর profile খুলবে
+  void _openProfile() {
+    if (widget.user.isOwnProfile) return; // নিজের profile navigate করে না
+    KnockHaptics.tap();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OtherProfileScreen(
+          user: widget.user,
+          posts: getDemoPostsForUser(widget.user.id),
+        ),
+      ),
+    );
   }
 
   @override
@@ -169,27 +199,40 @@ class _WavesFeedCardState extends State<WavesFeedCard>
                     ),
                   ),
 
-                // ── "WAVES" badge — top left ──
-                Positioned(top: 14, left: 14, child: _buildWavesBadge()),
-
-                // ── Mute toggle — top right ──
-                Positioned(top: 14, right: 14, child: _buildMuteButton()),
-
-                // ── Bottom overlay: user + caption + reactions ──
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildBottomOverlay(isDark),
-                ),
-
-                // ── Tap handler (full card) ──
+                // ── Tap handler — video area এ tap করলে Waves tab-এ যাবে ──
+                // Bottom overlay-এর আগে রাখা হয়েছে যাতে buttons নিজে tap নিতে পারে
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onTap: _onTap,
                     onDoubleTap: _onDoubleTap,
                   ),
+                ),
+
+                // ── "WAVES" badge — top left ──
+                Positioned(top: 14, left: 14, child: _buildWavesBadge()),
+
+                // ── Top Right Buttons ──
+                Positioned(
+                  top: 14,
+                  right: 14,
+                  child: Row(
+                    children: [
+                      _buildMoreOptionsButton(),
+                      const SizedBox(width: 10),
+                      _buildMuteButton(),
+                    ],
+                  ),
+                ),
+
+                // ── Bottom overlay: user + caption + reactions ──
+                // Stack-এর শেষে রাখা হয়েছে তাই এটা সবার উপরে থাকবে
+                // এর ভেতরের comment/share buttons সরাসরি tap পাবে
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomOverlay(isDark),
                 ),
               ],
             ),
@@ -361,6 +404,56 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     );
   }
 
+  // ── More Options Button ────────────────────────────────────────────────
+  Widget _buildMoreOptionsButton() {
+    return GestureDetector(
+      onTap: () {
+        KnockHaptics.tap();
+        final currentUser = CurrentUserService.instance.currentUser;
+        final isOwner = currentUser != null && widget.post.authorId == currentUser.id;
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) {
+            return MoreOptionsSheet(
+              userId: widget.user.id,
+              username: widget.user.username,
+              postId: widget.post.id,
+              isReel: true,
+              isOwner: isOwner,
+              postTypeName: 'Wave',
+            );
+          },
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 0.5,
+              ),
+            ),
+            child: const Icon(
+              Icons.more_horiz_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Bottom Overlay ─────────────────────────────────────────────────────
   Widget _buildBottomOverlay(bool isDark) {
     return Padding(
@@ -377,61 +470,65 @@ class _WavesFeedCardState extends State<WavesFeedCard>
               child: _buildMusicRow(),
             ),
 
-          // User row
-          Row(
-            children: [
-              // Avatar with wave ring
-              Container(
-                padding: const EdgeInsets.all(1.5),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Colors.white70, Colors.white54, Colors.white38],
-                  ),
-                ),
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
+          // User row — tap করলে profile খুলবে
+          GestureDetector(
+            onTap: _openProfile,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                // Avatar with wave ring
+                Container(
+                  padding: const EdgeInsets.all(1.5),
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black, width: 1.5),
-                    image: widget.user.avatarAsset != null
-                        ? DecorationImage(
-                            image: AssetImage(widget.user.avatarAsset!),
-                            fit: BoxFit.cover,
+                    gradient: LinearGradient(
+                      colors: [Colors.white70, Colors.white54, Colors.white38],
+                    ),
+                  ),
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.black, width: 1.5),
+                      image: widget.user.avatarAsset != null
+                          ? DecorationImage(
+                              image: AssetImage(widget.user.avatarAsset!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: widget.user.avatarAsset == null
+                        ? const Icon(
+                            Icons.person,
+                            color: Colors.white54,
+                            size: 16,
                           )
                         : null,
                   ),
-                  child: widget.user.avatarAsset == null
-                      ? const Icon(
-                          Icons.person,
-                          color: Colors.white54,
-                          size: 16,
-                        )
-                      : null,
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                widget.user.displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
+                const SizedBox(width: 8),
+                Text(
+                  widget.user.displayName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                widget.post.relativeTime,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
+                const SizedBox(width: 6),
+                Text(
+                  widget.post.relativeTime,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
 

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/current_user_service.dart';
 import '../home_screen.dart';
 import '../login_screen.dart';
 
@@ -107,6 +108,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       );
 
       if (mounted) {
+        await CurrentUserService.instance.loadCurrentUser();
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),

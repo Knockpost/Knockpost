@@ -9,6 +9,8 @@ import 'package:record/record.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/audio_lifecycle_manager.dart';
+import '../../services/post_service.dart';
+import '../../services/current_user_service.dart';
 import 'music_editor_screen.dart';
 import 'music_picker_screen.dart';
 import 'post_settings_sheet.dart';
@@ -17,6 +19,7 @@ class FinalPostScreen extends StatefulWidget {
   final List<File> files;
   final String? initialCaption;
   final bool isGlimpse;
+  final bool isWaves;
   final PostDuration selectedDuration;
   final PostAudience selectedAudience;
   final MusicTrack? initialMusic;
@@ -44,6 +47,7 @@ class FinalPostScreen extends StatefulWidget {
     required this.files,
     this.initialCaption,
     this.isGlimpse = false,
+    this.isWaves = false,
     this.selectedDuration = PostDuration.h24,
     this.selectedAudience = PostAudience.myFriends,
     this.initialMusic,
@@ -84,6 +88,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
   Map<String, dynamic>? _selectedMusicLyricsConfig;
 
   bool isRecording = false;
+  bool _isPosting = false;
   String? recordingPath;
   int recordingSeconds = 0;
   Timer? _recordingTimer;
@@ -210,35 +215,48 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     return '$m:$s';
   }
 
-  void _postContent() {
+  Future<void> _postContent() async {
+    if (_isPosting) return;
+
+    final currentUser = CurrentUserService.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to post.')),
+      );
+      return;
+    }
+
+    setState(() => _isPosting = true);
     KnockHaptics.tap();
+
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
     // ── STOP ALL AUDIO IMMEDIATELY ──
     AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
     _bgAudioPlayer.stop();
 
-    final type = widget.isGlimpse
-        ? PostType.glimps
-        : (widget.files.isEmpty ? PostType.text : PostType.media);
-
-    debugPrint(
-      '[_postContent] Creating post: type=$type, files=${widget.files.length}, isGlimpse=${widget.isGlimpse}',
-    );
-    for (final f in widget.files) {
-      debugPrint('[_postContent] File path: ${f.path}');
-    }
+    final type = widget.isWaves
+        ? PostType.waves
+        : (widget.isGlimpse
+            ? PostType.glimps
+            : (widget.files.isEmpty ? PostType.text : PostType.media));
 
     final newPost = PostModel(
-      id: 'p_${DateTime.now().millisecondsSinceEpoch}',
-      authorId: 'me',
+      id: 'p_${DateTime.now().millisecondsSinceEpoch}_${currentUser.id}',
+      authorId: currentUser.id,
       type: type,
       duration: _selectedDuration,
-      imagePaths: widget.files.map((f) => f.path).toList(),
+      imagePaths: [], // Will be updated in PostService
       mediaAspectRatio: widget.mediaAspectRatio,
       mediaIsBaked: widget.mediaIsBaked,
       isVideoPost: widget.isVideoPost,
       videoHasSound: widget.videoHasSound,
-      coverImagePath: widget.coverImageFile?.path,
+      coverImagePath: null, // Will be updated in PostService
       text: _captionController.text.trim(),
       musicUrl: _selectedMusic?.previewUrl,
       musicTitle: _selectedMusic?.title,
@@ -258,17 +276,32 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       createdAt: DateTime.now(),
       likes: 0,
       views: 0,
+      isLikedByMe: false,
     );
 
-    // Add to the front of our global mock list so it shows up in Recents/Profile
-    demoOwnPosts.insert(0, newPost);
-    debugPrint(
-      '[_postContent] demoOwnPosts now has ${demoOwnPosts.length} items',
-    );
-    demoOwnPostsNotifier.value = List.from(demoOwnPosts);
-    debugPrint('[_postContent] Notifier updated. Popping to first route...');
+    try {
+      await PostService.instance.createPost(
+        post: newPost,
+        mediaFiles: widget.files,
+        coverFile: widget.coverImageFile,
+      );
 
-    Navigator.of(context).popUntil((route) => route.isFirst);
+      if (mounted) {
+        // Pop loading dialog
+        Navigator.pop(context);
+        // Pop back to home screen
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPosting = false);
+        // Pop loading dialog
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create post: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _editPostSettings() async {

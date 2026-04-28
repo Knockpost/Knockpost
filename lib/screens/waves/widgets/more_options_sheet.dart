@@ -9,6 +9,7 @@ class MoreOptionsSheet extends StatelessWidget {
   final String? postId;
   final bool isReel;
   final bool isOwner;
+  final String postTypeName;
 
   const MoreOptionsSheet({
     super.key,
@@ -17,6 +18,7 @@ class MoreOptionsSheet extends StatelessWidget {
     this.postId,
     this.isReel = false,
     this.isOwner = false,
+    this.postTypeName = "Post",
   });
 
   @override
@@ -56,7 +58,7 @@ class MoreOptionsSheet extends StatelessWidget {
                   // Simple management for owner
                   _OptionTile(
                     icon: Icons.edit_note_rounded,
-                    label: "Edit Post",
+                    label: "Edit $postTypeName",
                     onTap: () {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +68,7 @@ class MoreOptionsSheet extends StatelessWidget {
                   ),
                   _OptionTile(
                     icon: Icons.delete_outline_rounded,
-                    label: "Delete Post",
+                    label: "Delete $postTypeName",
                     isDestructive: true,
                     onTap: () {
                       Navigator.pop(context);
@@ -82,7 +84,7 @@ class MoreOptionsSheet extends StatelessWidget {
                   ),
                   _OptionTile(
                     icon: Icons.visibility_off_outlined,
-                    label: "Hide this post",
+                    label: "Hide this ${postTypeName.toLowerCase()}",
                     onTap: () => Navigator.pop(context),
                   ),
                   _OptionTile(
@@ -140,9 +142,9 @@ class MoreOptionsSheet extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1C1C1C) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Delete post?", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        title: Text("Delete ${postTypeName.toLowerCase()}?", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
         content: Text(
-          "Are you sure you want to delete this post? This action cannot be undone.",
+          "Are you sure you want to delete this ${postTypeName.toLowerCase()}? This action cannot be undone.",
           style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
         ),
         actions: [
@@ -157,7 +159,7 @@ class MoreOptionsSheet extends StatelessWidget {
               }
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Post deleted")),
+                SnackBar(content: Text("$postTypeName deleted")),
               );
             },
             child: const Text("Delete", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),

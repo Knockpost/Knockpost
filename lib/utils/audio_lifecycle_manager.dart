@@ -12,6 +12,10 @@ class AudioLifecycleManager with WidgetsBindingObserver {
   bool _initialized = false;
   final Set<AudioPlayer> _players = {};
 
+  /// Global state to track if feed posts should auto-play audio.
+  /// If true, new posts will not auto-play until the user explicitly un-mutes.
+  bool isGlobalMuted = true;
+
   /// Call once from main() after WidgetsFlutterBinding.ensureInitialized()
   void init() {
     if (_initialized) return;

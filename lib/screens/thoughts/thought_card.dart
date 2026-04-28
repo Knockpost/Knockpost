@@ -56,6 +56,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
             postId: widget.postId,
             disableProfileNavigation: widget.disableProfileNavigation,
             timestamp: widget.timestamp,
+            postTypeName: 'Thought',
           ),
         ),
 

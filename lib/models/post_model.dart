@@ -1,10 +1,11 @@
-// KnockPost — Post Model
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum PostDuration {
-  h24, // 24-hour post — stays in Recents for 3 days then disappears
-  h36, // 36-hour post — stays in Recents for 3 days then disappears
-  lifetime, // Lifetime post — stays in Recents for 3 days AND always in Showcase
+  h24,      // ২৪ ঘণ্টা — শুধু Recents-এ ২৪ ঘণ্টা, তারপর সব জায়গা থেকে চলে যায়
+  h36,      // ৩৬ ঘণ্টা — শুধু Recents-এ ৩৬ ঘণ্টা, তারপর সব জায়গা থেকে চলে যায়
+  lifetime, // Lifetime — Recents-এ ৩ দিন (৭২ ঘণ্টা) থাকে, তারপর Recents থেকে উঠে যায়
+            //            কিন্তু Showcase-এ সবসময় থাকে (কখনো সরে না)
 }
 
 enum PostType {
@@ -85,15 +86,24 @@ class PostModel {
   });
 
   /// Whether this post is currently in the "Recents" window.
-  /// All post types stay in Recents for 3 days (72 hours).
+  /// h24  → ২৪ ঘণ্টার মধ্যে থাকলে Recents-এ দেখায়
+  /// h36  → ৩৬ ঘণ্টার মধ্যে থাকলে Recents-এ দেখায়
+  /// lifetime → ৩ দিন (৭২ ঘণ্টা) পর্যন্ত Recents-এ থাকে, তারপর শুধু Showcase-এ
   bool get isInRecentsWindow {
     final age = DateTime.now().difference(createdAt);
-    return age.inHours < 72; // 3-day window for all post types
+    switch (duration) {
+      case PostDuration.h24:
+        return age.inHours < 24;
+      case PostDuration.h36:
+        return age.inHours < 36;
+      case PostDuration.lifetime:
+        return age.inHours < 72; // ৩ দিন পর Recents থেকে সরে, Showcase-এ থাকে
+    }
   }
 
   /// Whether this post belongs in the Showcase section.
-  /// Only lifetime posts belong in Showcase — they appear here permanently.
-  /// Dynamic-time posts (24h / 36h) never go to Showcase.
+  /// Lifetime posts সবসময় Showcase-এ থাকে — Recents থেকে সরে গেলেও।
+  /// h24 / h36 posts কখনো Showcase-এ যায় না।
   bool get isInShowcase => duration == PostDuration.lifetime;
 
   /// Friendly relative time label
@@ -128,6 +138,7 @@ class PostModel {
     bool? isVideoPost,
     bool? videoHasSound,
     String? coverImagePath,
+    List<String>? imagePaths,
     String? musicUrl,
     String? musicTitle,
     String? musicArtist,
@@ -149,7 +160,7 @@ class PostModel {
       authorId: authorId,
       type: type,
       duration: duration,
-      imagePaths: imagePaths,
+      imagePaths: imagePaths ?? this.imagePaths,
       mediaAspectRatio: mediaAspectRatio ?? this.mediaAspectRatio,
       mediaIsBaked: mediaIsBaked ?? this.mediaIsBaked,
       isVideoPost: isVideoPost ?? this.isVideoPost,
@@ -175,6 +186,86 @@ class PostModel {
       likes: likes ?? this.likes,
       views: views ?? this.views,
       isLikedByMe: isLikedByMe ?? this.isLikedByMe,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'authorId': authorId,
+      'type': type.name,
+      'duration': duration.name,
+      'imagePaths': imagePaths,
+      'mediaAspectRatio': mediaAspectRatio,
+      'mediaIsBaked': mediaIsBaked,
+      'isVideoPost': isVideoPost,
+      'videoHasSound': videoHasSound,
+      'coverImagePath': coverImagePath,
+      'text': text,
+      'musicUrl': musicUrl,
+      'musicTitle': musicTitle,
+      'musicArtist': musicArtist,
+      'musicCoverUrl': musicCoverUrl,
+      'musicStyle': musicStyle,
+      'musicLyrics': musicLyrics,
+      'musicLyricsConfig': musicLyricsConfig,
+      'musicTrimStart': musicTrimStart,
+      'musicOverlayX': musicOverlayX,
+      'musicOverlayY': musicOverlayY,
+      'musicOverlayScale': musicOverlayScale,
+      'musicOverlayRotation': musicOverlayRotation,
+      'filterIndex': filterIndex,
+      'textOverlays': textOverlays,
+      'drawPaths': drawPaths,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'likes': likes,
+      'views': views,
+    };
+  }
+
+  factory PostModel.fromMap(Map<String, dynamic> map, String documentId) {
+    return PostModel(
+      id: documentId,
+      authorId: map['authorId'] ?? '',
+      type: PostType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => PostType.media,
+      ),
+      duration: PostDuration.values.firstWhere(
+        (e) => e.name == map['duration'],
+        orElse: () => PostDuration.h24,
+      ),
+      imagePaths: List<String>.from(map['imagePaths'] ?? []),
+      mediaAspectRatio: map['mediaAspectRatio']?.toDouble(),
+      mediaIsBaked: map['mediaIsBaked'] ?? false,
+      isVideoPost: map['isVideoPost'] ?? false,
+      videoHasSound: map['videoHasSound'] ?? false,
+      coverImagePath: map['coverImagePath'],
+      text: map['text'] ?? '',
+      musicUrl: map['musicUrl'],
+      musicTitle: map['musicTitle'],
+      musicArtist: map['musicArtist'],
+      musicCoverUrl: map['musicCoverUrl'],
+      musicStyle: map['musicStyle'],
+      musicLyrics: map['musicLyrics'],
+      musicLyricsConfig: map['musicLyricsConfig'] != null 
+          ? Map<String, dynamic>.from(map['musicLyricsConfig']) 
+          : null,
+      musicTrimStart: map['musicTrimStart'],
+      musicOverlayX: map['musicOverlayX']?.toDouble(),
+      musicOverlayY: map['musicOverlayY']?.toDouble(),
+      musicOverlayScale: map['musicOverlayScale']?.toDouble(),
+      musicOverlayRotation: map['musicOverlayRotation']?.toDouble(),
+      filterIndex: map['filterIndex'],
+      textOverlays: map['textOverlays'] != null 
+          ? List<Map<String, dynamic>>.from(map['textOverlays']) 
+          : null,
+      drawPaths: map['drawPaths'] != null 
+          ? List<Map<String, dynamic>>.from(map['drawPaths']) 
+          : null,
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      likes: map['likes'] ?? 0,
+      views: map['views'] ?? 0,
+      isLikedByMe: false, // This is determined client-side usually
     );
   }
 }

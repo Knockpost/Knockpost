@@ -33,6 +33,9 @@ import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
 import '../widgets/post_scroll_lock_scope.dart';
 import '../widgets/system_nav_bar_fill.dart';
+import '../utils/waves_feed_state.dart';
+import '../services/current_user_service.dart';
+import '../services/post_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -64,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
+    CurrentUserService.instance.clear();
     if (context.mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -699,38 +703,31 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                             ];
                                           },
-                                      body: ValueListenableBuilder<Set<String>>(
-                                        valueListenable:
-                                            GlobalPostState.deletedPostIds,
-                                        builder: (context, deletedIds, _) {
-                                          // For the demo, let's combine some posts for the home feed
-                                          // Only show the latest own post in Recents
-                                          final ownPostsSorted =
-                                              [...demoOwnPosts]..sort(
-                                                (a, b) => b.createdAt.compareTo(
-                                                  a.createdAt,
-                                                ),
-                                              );
-                                          final latestOwnPost =
-                                              ownPostsSorted.isNotEmpty
-                                              ? [ownPostsSorted.first]
-                                              : <PostModel>[];
+                                      body: StreamBuilder<List<PostModel>>(
+                                        stream: PostService.instance.getFeedPosts(),
+                                        builder: (context, snapshot) {
+                                          if (!snapshot.hasData) {
+                                            return const Center(child: CircularProgressIndicator());
+                                          }
+                                          final realPosts = snapshot.data!;
 
-                                          final allDemoPosts = [
-                                            ...latestOwnPost,
-                                            ...getDemoPostsForUser('zayn01'),
-                                            ...getDemoPostsForUser(
-                                              'saptarshi01',
-                                            ),
-                                          ];
+                                          return ValueListenableBuilder<Set<String>>(
+                                            valueListenable:
+                                                GlobalPostState.deletedPostIds,
+                                            builder: (context, deletedIds, _) {
+                                              // Combine real posts from Firestore with some demo posts for testing other users' content
+                                              final allDemoPosts = [
+                                                ...getDemoPostsForUser('zayn01'),
+                                                ...getDemoPostsForUser('saptarshi01'),
+                                              ];
 
-                                          final sortedPosts = allDemoPosts
-                                              .where((p) =>
-                                                  !deletedIds.contains(p.id) &&
-                                                  p.type != PostType.glimps)
-                                              .toList()
-                                            ..sort((a, b) => b.createdAt
-                                                .compareTo(a.createdAt));
+                                              final sortedPosts = [...realPosts, ...allDemoPosts]
+                                                  .where((p) =>
+                                                      !deletedIds.contains(p.id) &&
+                                                      p.type != PostType.glimps)
+                                                  .toList()
+                                                ..sort((a, b) => b.createdAt
+                                                    .compareTo(a.createdAt));
 
                                           final activePosts = <PostModel>[];
                                           final pendingWaves = <PostModel>[];
@@ -792,9 +789,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                               final post =
                                                   activePosts[postIndex];
+                                              final currentUser = CurrentUserService.instance.currentUser;
                                               final author =
-                                                  post.authorId == 'me'
-                                                  ? demoOwnUser
+                                                  (post.authorId == 'me' || post.authorId == currentUser?.id)
+                                                  ? (currentUser ?? demoOwnUser)
                                                   : findDemoUserByUsername(
                                                           post.authorId ==
                                                                   'zayn01'
@@ -826,6 +824,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 card = WavesFeedCard(
                                                   post: post,
                                                   user: author,
+                                                  // Tap করলে সেই video URL সেট করি, তারপর Waves tab (index 2)-এ যাও
+                                                  onTap: () {
+                                                    final videoUrl = post.imagePaths.isNotEmpty
+                                                        ? post.imagePaths.first
+                                                        : null;
+                                                    if (videoUrl != null) {
+                                                      WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                                    }
+                                                    _animateToTab(2);
+                                                  },
                                                 );
                                               } else {
                                                 card = PostCard(
@@ -870,13 +878,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         );
                                       },
-                                    ),
                                     );
                                   },
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
+                        ),
+                      ),
+                    ),
                           const _KeepAlivePage(child: SearchScreen()),
                           ValueListenableBuilder<int>(
                             valueListenable: _navIndexNotifier,
@@ -892,12 +902,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           _KeepAlivePage(
                             child: NotificationListener<ScrollNotification>(
                               onNotification: _onScrollNotification,
-                              child: ValueListenableBuilder<List<PostModel>>(
-                                valueListenable: demoOwnPostsNotifier,
-                                builder: (context, currentPosts, child) {
-                                  return ProfileScreen(
-                                    user: demoOwnUser,
-                                    posts: currentPosts,
+                              child: ValueListenableBuilder<UserModel?>(
+                                valueListenable: CurrentUserService.instance.userNotifier,
+                                builder: (context, liveUser, child) {
+                                  // real user load হলে show করো, নাহলে demo fallback
+                                  final user = liveUser ?? demoOwnUser;
+                                  return StreamBuilder<List<PostModel>>(
+                                    stream: PostService.instance.getUserPosts(user.id),
+                                    builder: (context, snapshot) {
+                                      final currentPosts = snapshot.data ?? [];
+                                      return ProfileScreen(
+                                        user: user,
+                                        posts: currentPosts,
+                                      );
+                                    },
                                   );
                                 },
                               ),

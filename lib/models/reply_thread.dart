@@ -34,4 +34,26 @@ class ReplyThread {
       unreadCount: unreadCount ?? this.unreadCount,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'postId': postId,
+      'authorId': authorId,
+      'userId': userId,
+      'lastMessage': lastMessage,
+      'lastTimestamp': lastTimestamp,
+      'unreadCount': unreadCount,
+    };
+  }
+
+  factory ReplyThread.fromMap(Map<String, dynamic> map) {
+    return ReplyThread(
+      postId: map['postId'] ?? '',
+      authorId: map['authorId'] ?? '',
+      userId: map['userId'] ?? '',
+      lastMessage: map['lastMessage'] ?? '',
+      lastTimestamp: (map['lastTimestamp'] as dynamic)?.toDate() ?? DateTime.now(),
+      unreadCount: map['unreadCount'] ?? 0,
+    );
+  }
 }

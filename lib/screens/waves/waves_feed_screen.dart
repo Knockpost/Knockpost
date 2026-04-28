@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'wave_item.dart';
 import 'waves_camera_screen.dart';
+import '../../utils/waves_feed_state.dart';
+import '../../models/post_model.dart';
+import '../../models/user_model.dart';
+import '../../services/post_service.dart';
+import '../../services/current_user_service.dart';
 
 class WavesFeedScreen extends StatefulWidget {
   final bool isVisible;
@@ -23,31 +28,14 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
     systemNavigationBarDividerColor: Colors.transparent,
   );
 
-  final List<Map<String, String>> reels = [
-    {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      "username": "knockpost_official",
-      "caption": "Building KnockPost — the future of social 🚀",
-    },
-    {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-      "username": "design_daily",
-      "caption": "Clean UI is everything ✨ #design #flutter",
-    },
-    {
-      "url":
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      "username": "dev_community",
-      "caption": "Drop a 🔥 if you love Flutter!",
-    },
-  ];
+  // The reels list is now managed dynamically via StreamBuilder in the build method.
 
   @override
   void initState() {
     super.initState();
     _syncSystemUi();
+    // Home feed-এ wave tap করলে সেই video-তে jump করার listener
+    WavesFeedState.requestedVideoUrl.addListener(_onVideoRequested);
   }
 
   @override
@@ -62,8 +50,16 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
     }
   }
 
+  /// Home feed-এ Wave card tap হলে এই function call হয়।
+  /// Navigation logic is now handled inside the StreamBuilder 
+  /// using WidgetsBinding.instance.addPostFrameCallback.
+  void _onVideoRequested() {
+    // Intentionally empty, StreamBuilder handles navigation
+  }
+
   @override
   void dispose() {
+    WavesFeedState.requestedVideoUrl.removeListener(_onVideoRequested);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     SystemChrome.setSystemUIOverlayStyle(
       (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
@@ -94,28 +90,78 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
         body: Stack(
           children: [
             /// 🎬 REEL PAGES (vertical scroll)
-            PageView.builder(
-              controller: _pageController,
-              scrollDirection: Axis.vertical,
-              itemCount: reels.length,
-              pageSnapping: true,
-              physics: const _FastReelsPagePhysics(
-                parent: BouncingScrollPhysics(
-                  decelerationRate: ScrollDecelerationRate.fast,
-                ),
-              ),
-              onPageChanged: (index) {
-                setState(() {
-                  currentIndex = index;
+            StreamBuilder<List<PostModel>>(
+              stream: PostService.instance.getWavesStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('Error loading waves.', style: TextStyle(color: Colors.white)),
+                  );
+                }
+
+                final waves = snapshot.data ?? [];
+                
+                if (waves.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No waves yet.\nBe the first to post!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54, fontSize: 16),
+                    ),
+                  );
+                }
+
+                // If a specific video was requested via home feed, handle navigation
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final url = WavesFeedState.requestedVideoUrl.value;
+                  if (url != null) {
+                    final idx = waves.indexWhere((p) => p.imagePaths.isNotEmpty && p.imagePaths.first == url);
+                    if (idx != -1 && _pageController.hasClients && _pageController.page?.round() != idx) {
+                      _pageController.jumpToPage(idx);
+                      WavesFeedState.requestedVideoUrl.value = null;
+                    }
+                  }
                 });
-              },
-              itemBuilder: (context, index) {
-                return WaveItem(
-                  videoUrl: reels[index]["url"]!,
-                  username: reels[index]["username"]!,
-                  caption: reels[index]["caption"]!,
-                  isActive: index == currentIndex && widget.isVisible,
-                  bottomPadding: bottomNavHeight,
+
+                return PageView.builder(
+                  controller: _pageController,
+                  scrollDirection: Axis.vertical,
+                  itemCount: waves.length,
+                  pageSnapping: true,
+                  physics: const _FastReelsPagePhysics(
+                    parent: BouncingScrollPhysics(
+                      decelerationRate: ScrollDecelerationRate.fast,
+                    ),
+                  ),
+                  onPageChanged: (index) {
+                    setState(() {
+                      currentIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final post = waves[index];
+                    final currentUser = CurrentUserService.instance.currentUser;
+                    final isOwnPost = post.authorId == 'me' || post.authorId == currentUser?.id;
+                    final authorUsername = isOwnPost
+                        ? (currentUser?.username ?? 'you')
+                        : (findDemoUserByUsername(
+                                post.authorId == 'zayn01' ? 'zayn.malik' : 'saptarshi.nayak'
+                            )?.username ?? post.authorId);
+
+                    return WaveItem(
+                      videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
+                      username: authorUsername,
+                      caption: post.text,
+                      isActive: index == currentIndex && widget.isVisible,
+                      bottomPadding: bottomNavHeight,
+                    );
+                  },
                 );
               },
             ),

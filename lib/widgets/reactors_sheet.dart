@@ -4,6 +4,9 @@ import '../models/post_model.dart';
 import '../screens/profile/other_profile_screen.dart';
 import '../utils/haptic_helper.dart';
 
+import '../services/like_service.dart';
+import '../services/current_user_service.dart';
+
 class ReactorsSheet extends StatelessWidget {
   final String postId;
   final String? userReaction;
@@ -24,18 +27,6 @@ class ReactorsSheet extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-
-    // Dummy reactors for demo
-    final List<Map<String, dynamic>> reactors = [
-      // Include current user at the top if they have reacted
-      if (userReaction != null)
-        {'user': demoOwnUser, 'reaction': userReaction},
-      {'user': demoZaynMalik, 'reaction': '👍'},
-      {'user': demoJustinBieber, 'reaction': '❤️'},
-      {'user': demoSaptarshiNayak, 'reaction': '🔥'},
-      {'user': demoAryaLayek, 'reaction': '🥰'},
-      {'user': demoLeonardoDiCaprio, 'reaction': '😮'},
-    ];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.55,
@@ -66,115 +57,148 @@ class ReactorsSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: reactors.length,
-              itemBuilder: (context, index) {
-                final reactor = reactors[index];
-                final UserModel user = reactor['user'];
-                final String reaction = reactor['reaction'];
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: LikeService.instance.getPostReactions(postId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final reactors = snapshot.data ?? [];
+                
+                if (reactors.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "No reactions yet",
+                      style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+                    ),
+                  );
+                }
 
-                return InkWell(
-                  onTap: () {
-                    KnockHaptics.selection();
-                    Navigator.pop(context);
-                    if (!user.isOwnProfile) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OtherProfileScreen(
-                            user: user,
-                            posts: getDemoPostsForUser(user.id),
-                          ),
-                        ),
+                final currentUser = CurrentUserService.instance.currentUser;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: reactors.length,
+                  itemBuilder: (context, index) {
+                    final reactor = reactors[index];
+                    final String userId = reactor['userId'];
+                    final String reaction = reactor['reaction'] ?? '❤';
+                    
+                    UserModel user;
+                    if (userId == currentUser?.id) {
+                      user = currentUser!;
+                    } else {
+                      user = findDemoUserById(userId) ?? UserModel(
+                        id: userId,
+                        username: 'user_${userId.substring(0, 4)}',
+                        displayName: 'Knockpost User',
                       );
                     }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Row(
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundImage: user.avatarAsset != null
-                                  ? AssetImage(user.avatarAsset!)
-                                  : null,
-                              child: user.avatarAsset == null
-                                  ? const Icon(Icons.person)
-                                  : null,
+
+                    return InkWell(
+                      onTap: () {
+                        KnockHaptics.selection();
+                        Navigator.pop(context);
+                        if (!user.isOwnProfile) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OtherProfileScreen(
+                                user: user,
+                                posts: getDemoPostsForUser(user.id),
+                              ),
                             ),
-                            Positioned(
-                              right: -4,
-                              bottom: -2,
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: bgColor, width: 2.2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
-                                      blurRadius: 2,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
+                          );
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        child: Row(
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundImage: user.avatarAsset != null
+                                      ? AssetImage(user.avatarAsset!)
+                                      : null,
+                                  child: user.avatarAsset == null
+                                      ? const Icon(Icons.person)
+                                      : null,
                                 ),
-                                child: Text(
-                                  reaction,
-                                  style: const TextStyle(fontSize: 12, height: 1.1),
+                                Positioned(
+                                  right: -4,
+                                  bottom: -2,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: bgColor, width: 2.2),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.1),
+                                          blurRadius: 2,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      reaction,
+                                      style: const TextStyle(fontSize: 12, height: 1.1),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user.username,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    user.displayName,
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white54 : Colors.black54,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "Profile",
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.5,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.username,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                user.displayName,
-                                style: TextStyle(
-                                  color: isDark ? Colors.white54 : Colors.black54,
-                                  fontSize: 13.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            "Profile",
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),

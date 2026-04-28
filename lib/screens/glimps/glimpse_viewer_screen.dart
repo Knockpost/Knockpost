@@ -7,6 +7,9 @@ import 'package:video_player/video_player.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/reaction_bar.dart';
+import '../../services/current_user_service.dart';
+import '../waves/widgets/more_options_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GlimpseViewerScreen — Premium full-screen story viewer
@@ -221,7 +224,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
     final thumbnailPath = glimpse.imagePaths.isNotEmpty
         ? glimpse.imagePaths.first
         : '';
-
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     final dismissOpacity = (1.0 - (_dragOffsetY / 300)).clamp(0.0, 1.0);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -240,100 +243,125 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
             ..setTranslationRaw(0.0, _dragOffsetY, 0.0),
           child: Opacity(
             opacity: dismissOpacity,
-            child: GestureDetector(
-              onTapDown: _onTapDown,
-              onTapUp: _onTapUp,
-              onLongPressStart: _onLongPressStart,
-              onLongPressEnd: _onLongPressEnd,
-              onVerticalDragStart: _onVerticalDragStart,
-              onVerticalDragUpdate: _onVerticalDragUpdate,
-              onVerticalDragEnd: _onVerticalDragEnd,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // ── Background Image ──
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    child: _buildGlimpseImage(
-                      thumbnailPath,
-                      key: ValueKey('glimpse_$_currentIndex'),
-                    ),
-                  ),
+            // Outer Stack: gesture detector নিচে, action buttons উপরে
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── Full-screen tap/swipe handler ──
+                GestureDetector(
+                  onTapDown: _onTapDown,
+                  onTapUp: _onTapUp,
+                  onLongPressStart: _onLongPressStart,
+                  onLongPressEnd: _onLongPressEnd,
+                  onVerticalDragStart: _onVerticalDragStart,
+                  onVerticalDragUpdate: _onVerticalDragUpdate,
+                  onVerticalDragEnd: _onVerticalDragEnd,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // ── Background Image ──
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        child: _buildGlimpseImage(
+                          thumbnailPath,
+                          key: ValueKey('glimpse_$_currentIndex'),
+                        ),
+                      ),
 
-                  // ── Top gradient for progress bars ──
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 140,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.6),
-                            Colors.transparent,
+                      // ── Top gradient ──
+                      Positioned(
+                        top: 0, left: 0, right: 0, height: 140,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.6),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ── Bottom gradient ──
+                      Positioned(
+                        bottom: 0, left: 0, right: 0, height: 260,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.85),
+                                Colors.black.withValues(alpha: 0.3),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.55, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // ── Progress Bars ──
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 12,
+                        left: 12, right: 12,
+                        child: _buildProgressBars(),
+                      ),
+
+                      // ── Top Right Buttons ──
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 32,
+                        right: 16,
+                        child: Row(
+                          children: [
+                            _buildMoreOptionsButton(),
+                            const SizedBox(width: 12),
+                            _buildCloseButton(),
                           ],
                         ),
                       ),
-                    ),
-                  ),
 
-                  // ── Bottom gradient for info overlay ──
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 220,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.75),
-                            Colors.black.withValues(alpha: 0.3),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                        ),
+                      // ── User info (bottom) ──
+                      Positioned(
+                        bottom: bottomPad + 76, // ReactionBar-এর উপরে
+                        left: 20,
+                        right: 20,
+                        child: _buildUserOverlay(glimpse),
                       ),
-                    ),
+                    ],
                   ),
+                ),
 
-                  // ── Progress Bars ──
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 12,
-                    left: 12,
-                    right: 12,
-                    child: _buildProgressBars(),
-                  ),
-
-                  // ── Close Button ──
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 32,
-                    right: 16,
-                    child: _buildCloseButton(),
-                  ),
-
-                  // ── User Info Overlay (Bottom) ──
-                  Positioned(
-                    bottom: MediaQuery.of(context).padding.bottom + 24,
-                    left: 20,
-                    right: 20,
-                    child: _buildUserOverlay(glimpse),
-                  ),
-                ],
-              ),
-            ),
+                 // ── ReactionBar (Like + Comment) — GestureDetector-এর উপরে ──
+                 // Post section-এর মতো same buttons, same like count
+                 Positioned(
+                   bottom: bottomPad + 16,
+                   left: 16,
+                   right: 16,
+                   child: ReactionBar(
+                     key: ValueKey('reaction_$_currentIndex'),
+                     postId: glimpse.id,
+                     postAuthor: widget.user,
+                     isPostOwner: widget.user.isOwnProfile,
+                     initialLikes: glimpse.likes,
+                     initialViews: glimpse.views,
+                     timestamp: glimpse.relativeTime,
+                     showShare: false,
+                   ),
+                 ),
+               ],
+             ),
           ),
         ),
       ),
     );
   }
+
 
   // ── Progress Bars ──────────────────────────────────────────────────────
   Widget _buildProgressBars() {
@@ -437,6 +465,61 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
             ),
             child: const Icon(
               Icons.close_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── More Options Button ────────────────────────────────────────────────
+  Widget _buildMoreOptionsButton() {
+    return GestureDetector(
+      onTap: () {
+        KnockHaptics.tap();
+        _progressController.stop();
+        
+        final glimpse = widget.glimpses[_currentIndex];
+        final currentUser = CurrentUserService.instance.currentUser;
+        final isOwner = currentUser != null && glimpse.authorId == currentUser.id;
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) {
+            return MoreOptionsSheet(
+              userId: glimpse.authorId,
+              username: isOwner ? currentUser.username : '',
+              postId: glimpse.id,
+              isReel: false,
+              isOwner: isOwner,
+              postTypeName: 'Glimpse',
+            );
+          },
+        ).then((_) {
+          if (mounted) _progressController.forward();
+        });
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 0.5,
+              ),
+            ),
+            child: const Icon(
+              Icons.more_horiz_rounded,
               color: Colors.white,
               size: 18,
             ),
@@ -717,6 +800,80 @@ class _PulsingMusicIconState extends State<_PulsingMusicIcon>
           ),
         );
       },
+    );
+  }
+}
+
+// ── Glassmorphic action button for Glimpse viewer ────────────────────────────
+class _GlimpseActionButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _GlimpseActionButton({required this.onTap, required this.child});
+
+  @override
+  State<_GlimpseActionButton> createState() => _GlimpseActionButtonState();
+}
+
+class _GlimpseActionButtonState extends State<_GlimpseActionButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bounce;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.75), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.75, end: 1.15), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 20),
+    ]).animate(CurvedAnimation(parent: _bounce, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        _bounce.reset();
+        _bounce.forward();
+        widget.onTap();
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value,
+          child: child,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  width: 0.6,
+                ),
+              ),
+              child: Center(child: widget.child),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

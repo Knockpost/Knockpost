@@ -6,6 +6,9 @@ import 'comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 import '../screens/waves/widgets/share_sheet.dart';
 import 'reactors_sheet.dart';
+import '../services/like_service.dart';
+import '../services/current_user_service.dart';
+import 'dart:async';
 
 /// Emoji data for the reaction popup
 class ReactionEmoji {
@@ -36,6 +39,8 @@ class ReactionBar extends StatefulWidget {
   final String? shareUsername;
   final String? shareCaption;
   final String? timestamp;
+  /// false হলে Share button দেখায়েবে না (Glimpse-এ ব্যবহার হয়)
+  final bool showShare;
 
   const ReactionBar({
     super.key,
@@ -49,6 +54,7 @@ class ReactionBar extends StatefulWidget {
     this.shareUsername,
     this.shareCaption,
     this.timestamp,
+    this.showShare = true,
   });
 
   @override
@@ -58,6 +64,7 @@ class ReactionBar extends StatefulWidget {
 class _ReactionBarState extends State<ReactionBar>
     with TickerProviderStateMixin {
   String? _selectedEmoji;
+  StreamSubscription<String?>? _likeSub;
 
   // ── Popup state ──
   bool _showPopup = false;
@@ -79,6 +86,17 @@ class _ReactionBarState extends State<ReactionBar>
   void initState() {
     super.initState();
     _likesCount = widget.initialLikes;
+
+    final currentUser = CurrentUserService.instance.currentUser;
+    if (currentUser != null && widget.postId != 'demo_post') {
+      _likeSub = LikeService.instance.userReaction(widget.postId, currentUser.id).listen((reaction) {
+        if (mounted) {
+          setState(() {
+            _selectedEmoji = reaction;
+          });
+        }
+      });
+    }
 
     // Popup open/close animation
     _popupController = AnimationController(
@@ -114,7 +132,19 @@ class _ReactionBarState extends State<ReactionBar>
   void didUpdateWidget(covariant ReactionBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.doubleTapped && !oldWidget.doubleTapped) {
-      _selectWithAnimation('❤');
+      if (_selectedEmoji == null) {
+        _selectWithAnimation('❤');
+        setState(() => _likesCount++);
+
+        final currentUser = CurrentUserService.instance.currentUser;
+        if (currentUser != null && widget.postId != 'demo_post') {
+          LikeService.instance.toggleLike(
+            postId: widget.postId,
+            userId: currentUser.id,
+            isLiking: true,
+          );
+        }
+      }
       if (widget.onDoubleTapHandled != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           widget.onDoubleTapHandled!();
@@ -125,6 +155,7 @@ class _ReactionBarState extends State<ReactionBar>
 
   @override
   void dispose() {
+    _likeSub?.cancel();
     _popupController.dispose();
     _heartController.dispose();
     super.dispose();
@@ -133,15 +164,27 @@ class _ReactionBarState extends State<ReactionBar>
   /// Tap on reaction button → toggle ❤️
   void _onTapReaction() {
     KnockHaptics.tap();
-    if (_selectedEmoji != null) {
+    final isLiking = _selectedEmoji == null;
+
+    if (isLiking) {
+      _selectWithAnimation('❤');
+      setState(() => _likesCount++);
+    } else {
       // Already reacted → un-react
       setState(() {
         _selectedEmoji = null;
         _likesCount--;
       });
-    } else {
-      _selectWithAnimation('❤');
-      setState(() => _likesCount++);
+    }
+
+    final currentUser = CurrentUserService.instance.currentUser;
+    if (currentUser != null && widget.postId != 'demo_post') {
+      LikeService.instance.toggleLike(
+        postId: widget.postId,
+        userId: currentUser.id,
+        isLiking: isLiking,
+        reactionType: _selectedEmoji ?? '❤',
+      );
     }
   }
 
@@ -222,6 +265,16 @@ class _ReactionBarState extends State<ReactionBar>
       _selectWithAnimation(_reactions[_hoveredIndex].emoji);
       if (!hadReaction) {
         setState(() => _likesCount++);
+      }
+
+      final currentUser = CurrentUserService.instance.currentUser;
+      if (currentUser != null && widget.postId != 'demo_post') {
+        LikeService.instance.toggleLike(
+          postId: widget.postId,
+          userId: currentUser.id,
+          isLiking: true,
+          reactionType: _reactions[_hoveredIndex].emoji,
+        );
       }
     }
     setState(() {
@@ -359,6 +412,7 @@ class _ReactionBarState extends State<ReactionBar>
                   const SizedBox(width: 14),
 
                   // Share button
+                  if (widget.showShare)
                   GestureDetector(
                     onTap: () {
                       KnockHaptics.tap();
@@ -549,50 +603,72 @@ class _ReactionSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     if (likes <= 0) return const SizedBox.shrink();
 
-    final emojisToShow = <String>[];
-    if (likes >= 1) emojisToShow.add('👍');
-    if (likes >= 2) emojisToShow.add('❤️');
-    if (likes >= 3) emojisToShow.add('🔥');
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: LikeService.instance.getPostReactions(postId),
+      builder: (context, snapshot) {
+        final emojisToShow = <String>[];
+        
+        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+          final Set<String> uniqueEmojis = {};
+          for (final reactor in snapshot.data!) {
+            final emoji = reactor['reaction'] as String? ?? '❤';
+            if (uniqueEmojis.add(emoji)) {
+              emojisToShow.add(emoji);
+              if (emojisToShow.length == 3) break;
+            }
+          }
+        } else {
+          // Fallback while loading
+          if (userReaction != null) {
+            emojisToShow.add(userReaction!);
+          } else {
+            emojisToShow.add('👍');
+            if (likes >= 2) emojisToShow.add('❤');
+            if (likes >= 3) emojisToShow.add('🔥');
+          }
+        }
 
-    return GestureDetector(
-      onTap: () {
-        KnockHaptics.selection();
-        ReactorsSheet.show(context, postId: postId, userReaction: userReaction);
+        return GestureDetector(
+          onTap: () {
+            KnockHaptics.selection();
+            ReactorsSheet.show(context, postId: postId, userReaction: userReaction);
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Overlapping reaction icons
+                SizedBox(
+                  width: 24.0 + (emojisToShow.length - 1) * 14.0,
+                  height: 24,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: List.generate(emojisToShow.length, (index) {
+                      // Ensure left-most is on top
+                      final reversedIndex = emojisToShow.length - 1 - index;
+                      return _miniEmoji(
+                        emojisToShow[reversedIndex],
+                        reversedIndex * 14.0,
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _formatLikes(likes),
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Overlapping reaction icons
-            SizedBox(
-              width: 24.0 + (emojisToShow.length - 1) * 14.0,
-              height: 24,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: List.generate(emojisToShow.length, (index) {
-                  // Ensure left-most is on top
-                  final reversedIndex = emojisToShow.length - 1 - index;
-                  return _miniEmoji(
-                    emojisToShow[reversedIndex],
-                    reversedIndex * 14.0,
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _formatLikes(likes),
-              style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.black87,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
