@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../utils/global_dismiss_state.dart';
 import '../../../utils/global_post_state.dart';
 import '../../../utils/haptic_helper.dart';
+import '../../../services/post_service.dart';
 
 class MoreOptionsSheet extends StatelessWidget {
   final String userId;
@@ -156,6 +157,7 @@ class MoreOptionsSheet extends StatelessWidget {
             onPressed: () {
               if (postId != null) {
                 GlobalPostState.delete(postId!);
+                PostService.instance.deletePost(postId!);
               }
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(

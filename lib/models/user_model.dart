@@ -223,12 +223,12 @@ class UserModel {
 
 const demoOwnUser = UserModel(
   id: 'me',
-  displayName: 'Arjun Nayak',
-  username: 'arjun.nayak',
-  bio: 'Building things 🛠 | Coffee addict ☕ | Kolkata',
-  avatarAsset: 'assets/test1.jpg',
-  coverImageAsset: 'assets/test2.jpg',
-  friendsCount: 1200,
+  displayName: 'User',
+  username: 'user',
+  bio: '',
+  avatarAsset: null,
+  coverImageAsset: null,
+  friendsCount: 0,
   accountType: AccountType.normal,
   privacyType: PrivacyType.open,
   isOwnProfile: true,
@@ -329,14 +329,7 @@ const demoLeonardoDiCaprio = UserModel(
 );
 
 /// All demo users for easy lookup
-const List<UserModel> allDemoUsers = [
-  demoZaynMalik,
-  demoJustinBieber,
-  demoSumanPatra,
-  demoSaptarshiNayak,
-  demoAryaLayek,
-  demoLeonardoDiCaprio,
-];
+const List<UserModel> allDemoUsers = [];
 
 UserModel? findDemoUserById(String id) {
   if (demoOwnUser.id == id) return demoOwnUser;

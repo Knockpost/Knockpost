@@ -5,6 +5,8 @@ import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
+import '../../services/connection_service.dart';
+import '../../services/database_service.dart';
 import 'other_profile_screen.dart';
 import 'widgets/creator_rank_badge.dart';
 import '../messages/chat_screen.dart';
@@ -31,30 +33,13 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   // Entrance animation
   late AnimationController _listAnimController;
 
-  // Demo data — people the user has knocked
-  final List<UserModel> _youKnocked = const [
-    demoZaynMalik,
-    demoJustinBieber,
-    demoSaptarshiNayak,
-    demoAryaLayek,
-  ];
-
-  // Demo data — people who knocked you AND you knocked back (mutual)
-  final List<UserModel> _knockedYouMutual = const [
-    demoJustinBieber,
-    demoSaptarshiNayak,
-  ];
-
-  // Demo data — people who knocked you but you HAVEN'T knocked back yet (pending requests)
-  final List<UserModel> _knockedYouPending = const [
-    demoLeonardoDiCaprio,
-    demoSumanPatra,
-  ];
+  // Real-time stream data (loaded from Firestore)
+  List<UserModel> _youKnockedReal = [];
+  List<UserModel> _incomingPendingReal = [];
+  List<UserModel> _mutualReal = [];
 
   // Track which users have been dismissed from the lists
   final Set<String> _dismissedIds = {};
-
-  // Listeners for global knock state changes (for two-way sync)
   final Map<String, VoidCallback> _knockListeners = {};
 
   @override
@@ -69,18 +54,33 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    // Start the staggered entrance
     Future.microtask(() => _listAnimController.forward());
 
-    // Listen to GlobalKnockState for each pending user (two-way sync)
-    for (final user in _knockedYouPending) {
-      final notifier = GlobalKnockState.getNotifier(user.id, KnockStatus.theyKnockedYou);
-      void listener() {
-        if (mounted) setState(() {}); // Rebuild when status changes from profile
-      }
-      notifier.addListener(listener);
-      _knockListeners[user.id] = listener;
+    // Subscribe to real knock streams
+    ConnectionService.instance.streamSentKnockUids().listen((uids) {
+      _loadUsersFromUids(uids).then((users) {
+        if (mounted) setState(() => _youKnockedReal = users);
+      });
+    });
+    ConnectionService.instance.streamIncomingPendingKnockUids().listen((uids) {
+      _loadUsersFromUids(uids).then((users) {
+        if (mounted) setState(() => _incomingPendingReal = users);
+      });
+    });
+    ConnectionService.instance.streamMutualConnectionUids().listen((uids) {
+      _loadUsersFromUids(uids).then((users) {
+        if (mounted) setState(() => _mutualReal = users);
+      });
+    });
+  }
+
+  Future<List<UserModel>> _loadUsersFromUids(List<String> uids) async {
+    final users = <UserModel>[];
+    for (final uid in uids) {
+      final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
+      if (data != null) users.add(UserModel.fromMap(data, uid));
     }
+    return users;
   }
 
   @override
@@ -88,12 +88,6 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     _searchController.dispose();
     _listAnimController.dispose();
     _pageController.dispose();
-    // Remove listeners
-    for (final user in _knockedYouPending) {
-      final notifier = GlobalKnockState.getNotifier(user.id, KnockStatus.theyKnockedYou);
-      final listener = _knockListeners[user.id];
-      if (listener != null) notifier.removeListener(listener);
-    }
     _knockListeners.clear();
     super.dispose();
   }
@@ -113,10 +107,14 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     return status == KnockStatus.mutualKnocked || status == KnockStatus.knocked;
   }
 
-  int get _totalKnockedYou =>
-      _knockedYouPending.length + _knockedYouMutual.length;
+  List<UserModel> get _allYouKnocked => _youKnockedReal;
+  List<UserModel> get _allIncomingPending => _incomingPendingReal;
+  List<UserModel> get _allKnockedYouMutual => _mutualReal;
 
-  int get _totalConnections => _youKnocked.length + _totalKnockedYou;
+  int get _totalKnockedYou =>
+      _allIncomingPending.length + _allKnockedYouMutual.length;
+
+  int get _totalConnections => _allYouKnocked.length + _totalKnockedYou;
 
   /// Compact number: 999 → '999', 1200 → '1.2k', 52400 → '52.4k', 1000000 → '1m'
   static String _formatCount(int n) {
@@ -132,10 +130,12 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   void _onKnockBack(String userId) {
     KnockHaptics.impact();
-    // Update global knock state — this is the single source of truth
-    // Both the connections screen and profile screen read from this
     GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYou).value =
         KnockStatus.mutualKnocked;
+    // Persist to Firestore
+    ConnectionService.instance.acceptKnock(userId).catchError(
+      (e) => debugPrint('ConnectionsScreen._onKnockBack error: $e'),
+    );
   }
 
   void _onDismiss(String userId) {
@@ -151,9 +151,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          userName: user.displayName,
-          userAvatar: user.avatarAsset ?? 'assets/test1.jpg',
-          userUsername: user.username,
+          otherUser: user,
         ),
       ),
     );
@@ -247,7 +245,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
                   // ── Tab toggle with sliding pill ──
                   _KnockpostPillToggle(
                     labels: [
-                      'You Knocked (${_formatCount(_youKnocked.length)})',
+                      'You Knocked (${_formatCount(_allYouKnocked.length)})',
                       'Knocked You (${_formatCount(_totalKnockedYou)})',
                     ],
                     activeIndex: _activeSegment,
@@ -294,7 +292,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   // ── You Knocked tab ──
   Widget _buildYouKnockedList(bool isDark, Color textColor) {
-    final users = _filter(_youKnocked);
+    final users = _filter(_allYouKnocked);
 
     if (users.isEmpty) {
       return _buildEmptyState(
@@ -326,7 +324,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   // ── Knocked You tab ──
   Widget _buildKnockedYouList(bool isDark, Color textColor) {
     // Build entries from pending list preserving original order
-    final pendingEntries = _filter(_knockedYouPending).map((u) {
+    final pendingEntries = _filter(_allIncomingPending).map((u) {
       final knockedBack = _isKnockedBack(u.id);
       return _KnockedYouEntry(
         u,
@@ -335,7 +333,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     }).toList();
 
     // Mutual connections always show with message action
-    final mutualEntries = _filter(_knockedYouMutual)
+    final mutualEntries = _filter(_allKnockedYouMutual)
         .map((u) => _KnockedYouEntry(u, _CardAction.message))
         .toList();
 
@@ -413,7 +411,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
       MaterialPageRoute(
         builder: (_) => OtherProfileScreen(
           user: user,
-          posts: getDemoPostsForUser(user.id),
+          posts: const [],
         ),
       ),
     );
@@ -736,6 +734,16 @@ class _ConnectionCardState extends State<_ConnectionCard>
   }
 
   Widget _buildAvatar(UserModel user, bool isDark) {
+    ImageProvider? img;
+    if (user.avatarAsset != null && user.avatarAsset!.isNotEmpty) {
+      if (user.avatarAsset!.startsWith('http')) {
+        img = NetworkImage(user.avatarAsset!);
+      } else if (user.avatarAsset!.startsWith('assets/')) {
+        img = AssetImage(user.avatarAsset!);
+      } else {
+        img = FileImage(File(user.avatarAsset!));
+      }
+    }
     return Container(
       width: 52,
       height: 52,
@@ -752,12 +760,8 @@ class _ConnectionCardState extends State<_ConnectionCard>
         radius: 25,
         backgroundColor:
             isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-        backgroundImage: user.avatarAsset != null
-            ? (user.avatarAsset!.startsWith('assets/')
-                ? AssetImage(user.avatarAsset!) as ImageProvider
-                : FileImage(File(user.avatarAsset!)))
-            : null,
-        child: user.avatarAsset == null
+        backgroundImage: img,
+        child: img == null
             ? Icon(Icons.person, size: 22, color: Colors.grey.shade500)
             : null,
       ),

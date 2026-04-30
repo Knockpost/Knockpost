@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 import '../../widgets/people_suggestion_strip.dart';
 import '../../widgets/system_nav_bar_fill.dart';
+import '../../services/post_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../../utils/global_dismiss_state.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/image_helper.dart';
 import '../profile/other_profile_screen.dart';
 import '../profile/widgets/knock_button.dart';
 
@@ -18,10 +22,28 @@ class DiscoverPeopleScreen extends StatefulWidget {
 }
 
 class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
+  List<UserModel> _users = [];
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
+    _fetchUsers();
     GlobalDismissState.dismissedUserIds.addListener(_rebuild);
+  }
+
+  Future<void> _fetchUsers() async {
+    final currentUserId = CurrentUserService.instance.currentUser?.id;
+    final fetchedUsers = await DatabaseService.instance.getSuggestedUsers(
+      excludeUid: currentUserId,
+      limitCount: 50,
+    );
+    if (mounted) {
+      setState(() {
+        _users = fetchedUsers;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -39,7 +61,7 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
 
     // Filter out dismissed users
-    final users = demoSuggestedUsers
+    final filteredUsers = _users
         .where((u) => !GlobalDismissState.isDismissed(u.id))
         .toList();
 
@@ -76,26 +98,28 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
                 ),
               ),
             ),
-            body: users.isEmpty
-                ? _buildEmptyState(isDark)
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    itemCount: users.length,
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    cacheExtent: 600,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      thickness: 0.5,
-                      indent: 72,
-                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                    ),
-                    itemBuilder: (context, index) {
-                      final user = users[index];
-                      return _DiscoverUserTile(user: user);
-                    },
-                  ),
+            body: _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : filteredUsers.isEmpty
+                    ? _buildEmptyState(isDark)
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        itemCount: filteredUsers.length,
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        cacheExtent: 600,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          indent: 72,
+                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                        ),
+                        itemBuilder: (context, index) {
+                          final user = filteredUsers[index];
+                          return _DiscoverUserTile(user: user);
+                        },
+                      ),
           ),
           SystemNavBarFill(color: bgColor),
         ],
@@ -152,7 +176,11 @@ class _DiscoverUserTile extends StatelessWidget {
             // Avatar
             CircleAvatar(
               radius: 28,
-              backgroundImage: AssetImage(user.avatarAsset ?? 'assets/test1.jpg'),
+              backgroundImage: ImageHelper.resolveImage(user.avatarAsset),
+              backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+              child: user.avatarAsset == null
+                  ? Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black38)
+                  : null,
             ),
             const SizedBox(width: 12),
 
@@ -218,9 +246,14 @@ class _DiscoverUserTile extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => OtherProfileScreen(
-          user: user,
-          posts: getDemoPostsForUser(user.id),
+        builder: (_) => StreamBuilder<List<PostModel>>(
+          stream: PostService.instance.getUserPosts(user.id),
+          builder: (context, snapshot) {
+            return OtherProfileScreen(
+              user: user,
+              posts: snapshot.data ?? [],
+            );
+          },
         ),
       ),
     );

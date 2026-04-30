@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
+import 'dart:io';
+import 'package:video_player/video_player.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../../widgets/staggered_entry_animation.dart';
+import '../../../utils/image_helper.dart';
 import '../../glimps/glimpse_viewer_screen.dart';
 
 class ProfileGlimpsStrip extends StatelessWidget {
@@ -67,7 +70,16 @@ class ProfileGlimpsCard extends StatelessWidget {
     if (glimpse.imagePaths.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final thumbnailPath = glimpse.imagePaths.first;
+    
+    // For video posts or glimpses that have a cover, prefer the cover image
+    String thumbnailPath = glimpse.coverImagePath ?? '';
+    if (thumbnailPath.isEmpty) {
+      thumbnailPath = glimpse.imagePaths.first;
+    }
+
+    final hasVideoExtension = thumbnailPath.toLowerCase().endsWith('.mp4') ||
+        thumbnailPath.toLowerCase().endsWith('.mov') ||
+        thumbnailPath.toLowerCase().endsWith('.mkv');
 
     return GestureDetector(
       onTap: () {
@@ -105,16 +117,82 @@ class ProfileGlimpsCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // Background Thumbnail
-              thumbnailPath.startsWith('assets/')
-                  ? Image.asset(thumbnailPath, fit: BoxFit.cover)
-                  : Image.network(
-                      thumbnailPath,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.error, size: 24),
-                    ),
+              Builder(
+                builder: (context) {
+                  if (hasVideoExtension) {
+                    return _GlimpseVideoThumbnail(path: thumbnailPath);
+                  }
+                  final provider = ImageHelper.resolveImage(thumbnailPath);
+                  return provider != null
+                      ? Image(image: provider, fit: BoxFit.cover)
+                      : const Icon(Icons.error, size: 24);
+                },
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GlimpseVideoThumbnail extends StatefulWidget {
+  final String path;
+
+  const _GlimpseVideoThumbnail({required this.path});
+
+  @override
+  State<_GlimpseVideoThumbnail> createState() => _GlimpseVideoThumbnailState();
+}
+
+class _GlimpseVideoThumbnailState extends State<_GlimpseVideoThumbnail> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.path.startsWith('http')) {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.path));
+    } else if (widget.path.startsWith('assets/')) {
+      _controller = VideoPlayerController.asset(widget.path);
+    } else {
+      _controller = VideoPlayerController.file(File(widget.path));
+    }
+
+    _controller
+        .initialize()
+        .then((_) {
+          if (mounted) setState(() => _initialized = true);
+        })
+        .catchError((_) {
+          // Ignored for thumbnail
+        });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return Container(
+        color: Colors.black12,
+        child: const Center(
+          child: Icon(Icons.videocam, color: Colors.white54, size: 32),
+        ),
+      );
+    }
+
+    return FittedBox(
+      fit: BoxFit.cover,
+      child: SizedBox(
+        width: _controller.value.size.width,
+        height: _controller.value.size.height,
+        child: VideoPlayer(_controller),
       ),
     );
   }

@@ -41,6 +41,8 @@ dependencies:
   font_awesome_flutter: ^11.0.0
   pinch_zoom: ^2.0.1
   extended_image: ^10.0.1
+  firebase_messaging: ^15.2.10
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
@@ -68,10 +70,6 @@ flutter:
     - assets/reaction_default_dark.png
     - assets/icon(light backgroud).png
     - assets/icon(drak background).png
-    - assets/test1.jpg
-    - assets/test2.jpg
-    - assets/test3.jpg
-    - assets/test4.jpg
 flutter_launcher_icons:
   android: true
   ios: false

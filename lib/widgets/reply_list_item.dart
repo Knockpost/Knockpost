@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/reply_thread.dart';
 import '../models/user_model.dart';
+import '../utils/image_helper.dart';
 
 class ReplyListItem extends StatelessWidget {
   final ReplyThread thread;
@@ -42,11 +43,7 @@ class ReplyListItem extends StatelessWidget {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-                backgroundImage: user.avatarAsset != null
-                    ? (user.avatarAsset!.startsWith('assets/')
-                          ? AssetImage(user.avatarAsset!) as ImageProvider
-                          : FileImage(File(user.avatarAsset!)))
-                    : null,
+                backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
                 child: user.avatarAsset == null
                     ? Icon(Icons.person_rounded, color: subtleColor, size: 22)
                     : null,

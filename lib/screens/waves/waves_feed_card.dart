@@ -6,9 +6,12 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/image_helper.dart';
 import '../../widgets/reaction_bar.dart';
 import '../../services/current_user_service.dart';
+import '../../services/post_service.dart';
 import '../profile/other_profile_screen.dart';
+import '../profile/profile_screen.dart';
 import 'widgets/more_options_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,17 +143,33 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     setState(() => _doubleTapped = false);
   }
 
-  /// Avatar বা নাম tap করলে সেই user-এর profile খুলবে
   void _openProfile() {
-    if (widget.user.isOwnProfile) return; // নিজের profile navigate করে না
     KnockHaptics.tap();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => OtherProfileScreen(
-          user: widget.user,
-          posts: getDemoPostsForUser(widget.user.id),
-        ),
+        builder: (context) {
+          Widget buildScreen(List<PostModel> currentPosts) {
+            if (widget.user.isOwnProfile) {
+              return ProfileScreen(
+                user: widget.user,
+                posts: currentPosts,
+              );
+            } else {
+              return OtherProfileScreen(
+                user: widget.user,
+                posts: currentPosts,
+              );
+            }
+          }
+
+          return StreamBuilder<List<PostModel>>(
+            stream: PostService.instance.getUserPosts(widget.user.id),
+            builder: (context, snapshot) {
+              return buildScreen(snapshot.data ?? []);
+            },
+          );
+        },
       ),
     );
   }
@@ -255,10 +274,8 @@ class _WavesFeedCardState extends State<WavesFeedCard>
       );
     }
 
-    // Fallback: thumbnail
-    final path =
-        widget.post.coverImagePath ??
-        (widget.post.imagePaths.isNotEmpty ? widget.post.imagePaths.first : '');
+    // Fallback: thumbnail (only use coverImagePath, since imagePaths.first is a video)
+    final path = widget.post.coverImagePath ?? '';
     if (path.isEmpty) {
       return Container(color: const Color(0xFF0A0A0A));
     }
@@ -267,9 +284,17 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     if (path.startsWith('assets/')) {
       image = Image.asset(path, fit: BoxFit.cover);
     } else if (path.startsWith('http')) {
-      image = Image.network(path, fit: BoxFit.cover);
+      image = Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF0A0A0A)),
+      );
     } else {
-      image = Image.file(File(path), fit: BoxFit.cover);
+      image = Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF0A0A0A)),
+      );
     }
 
     return SizedBox.expand(child: image);
@@ -493,7 +518,7 @@ class _WavesFeedCardState extends State<WavesFeedCard>
                       border: Border.all(color: Colors.black, width: 1.5),
                       image: widget.user.avatarAsset != null
                           ? DecorationImage(
-                              image: AssetImage(widget.user.avatarAsset!),
+                              image: ImageHelper.resolveImage(widget.user.avatarAsset)!,
                               fit: BoxFit.cover,
                             )
                           : null,

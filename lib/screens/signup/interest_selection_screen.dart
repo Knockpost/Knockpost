@@ -94,7 +94,10 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
 
       // 2. Upload Image to Storage (if selected)
       if (widget.profileImage != null) {
-        profileImageUrl = await StorageService.instance.uploadProfileImage(uid, widget.profileImage!);
+        profileImageUrl = await StorageService.instance.uploadProfilePicture(
+          userId: uid,
+          file: widget.profileImage!,
+        );
       }
 
       // 3. Save Profile to Firestore

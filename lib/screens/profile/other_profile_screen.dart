@@ -88,9 +88,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          userName: _user.displayName,
-          userAvatar: _user.avatarAsset ?? 'assets/test1.jpg',
-          userUsername: _user.username,
+          otherUser: _user,
         ),
       ),
     );

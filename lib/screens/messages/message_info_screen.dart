@@ -3,6 +3,7 @@ import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../widgets/people_suggestion_strip.dart';
 import '../profile/other_profile_screen.dart';
+import '../../services/post_service.dart';
 
 class MessageInfoScreen extends StatelessWidget {
   final String userName;
@@ -40,29 +41,23 @@ class MessageInfoScreen extends StatelessWidget {
             /// USER PROFILE — tappable to open full profile
             GestureDetector(
               onTap: () {
-                // Look up from the same demoSuggestedUsers used by "People you may know"
-                UserModel? found;
-                for (int i = 0; i < demoSuggestedUsers.length; i++) {
-                  if (demoSuggestedUsers[i].username == userUsername) {
-                    found = demoSuggestedUsers[i];
-                    break;
-                  }
-                }
-                // Fallback to findDemoUserByUsername if not in suggestions
-                final userModel = found ??
-                    findDemoUserByUsername(userUsername) ??
-                    UserModel(
-                      id: userUsername,
-                      displayName: userName,
-                      username: userUsername,
-                      avatarAsset: userAvatar,
-                    );
+                final userModel = UserModel(
+                  id: userUsername,
+                  displayName: userName,
+                  username: userUsername,
+                  avatarAsset: userAvatar,
+                );
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OtherProfileScreen(
-                      user: userModel,
-                      posts: getDemoPostsForUser(userModel.id),
+                    builder: (_) => StreamBuilder<List<PostModel>>(
+                      stream: PostService.instance.getUserPosts(userModel.id),
+                      builder: (context, snapshot) {
+                        return OtherProfileScreen(
+                          user: userModel,
+                          posts: snapshot.data ?? [],
+                        );
+                      },
                     ),
                   ),
                 );

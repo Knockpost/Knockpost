@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/message.dart';
 import '../models/reply_thread.dart';
+import 'notification_service.dart';
+import '../models/notification_model.dart';
 
 class CommentService {
   CommentService._internal();
@@ -103,6 +105,31 @@ class CommentService {
           'unreadCount': newUnreadCount,
         }, SetOptions(merge: true));
       });
+
+      // Send Notification (if not sending to self)
+      if (senderId != receiverId) {
+        // Fetch post thumbnail to include in notification
+        String? postThumbnailUrl;
+        try {
+          final postDoc = await _firestore.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            final data = postDoc.data()!;
+            final paths = data['imagePaths'] as List<dynamic>?;
+            if (paths != null && paths.isNotEmpty) {
+              postThumbnailUrl = paths.first as String;
+            }
+          }
+        } catch (_) {}
+
+        NotificationService.instance.sendNotification(
+          receiverUid: receiverId,
+          type: NotificationType.comment,
+          postId: postId,
+          commentSnippet: text,
+          postThumbnailUrl: postThumbnailUrl,
+        );
+      }
+
     } catch (e) {
       debugPrint("Error sending message: $e");
       rethrow;

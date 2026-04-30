@@ -6,6 +6,7 @@ import '../utils/haptic_helper.dart';
 
 import '../services/like_service.dart';
 import '../services/current_user_service.dart';
+import '../utils/image_helper.dart';
 
 class ReactorsSheet extends StatelessWidget {
   final String postId;
@@ -89,9 +90,9 @@ class ReactorsSheet extends StatelessWidget {
                     if (userId == currentUser?.id) {
                       user = currentUser!;
                     } else {
-                      user = findDemoUserById(userId) ?? UserModel(
+                      user = UserModel(
                         id: userId,
-                        username: 'user_${userId.substring(0, 4)}',
+                        username: 'user_${userId.length > 4 ? userId.substring(0, 4) : userId}',
                         displayName: 'Knockpost User',
                       );
                     }
@@ -106,7 +107,7 @@ class ReactorsSheet extends StatelessWidget {
                             MaterialPageRoute(
                               builder: (context) => OtherProfileScreen(
                                 user: user,
-                                posts: getDemoPostsForUser(user.id),
+                                posts: const [],
                               ),
                             ),
                           );
@@ -121,9 +122,7 @@ class ReactorsSheet extends StatelessWidget {
                               children: [
                                 CircleAvatar(
                                   radius: 24,
-                                  backgroundImage: user.avatarAsset != null
-                                      ? AssetImage(user.avatarAsset!)
-                                      : null,
+                                  backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
                                   child: user.avatarAsset == null
                                       ? const Icon(Icons.person)
                                       : null,

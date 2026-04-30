@@ -249,6 +249,18 @@ class _MediaCarouselState extends State<MediaCarousel> {
   }
 
   Widget _buildImage(String path) {
+    final pathLower = path.toLowerCase();
+    final isVideo = widget.isVideoPost ||
+        pathLower.contains('.mp4') ||
+        pathLower.contains('.mov') ||
+        pathLower.contains('.mkv') ||
+        pathLower.contains('.webm') ||
+        pathLower.contains('.avi');
+
+    if (isVideo) {
+      return _VideoItem(path: path, isAsset: path.startsWith('assets/'));
+    }
+
     if (path.startsWith('/') ||
         path.startsWith('file://') ||
         path.startsWith('C:') ||
@@ -257,12 +269,14 @@ class _MediaCarouselState extends State<MediaCarousel> {
         File(path),
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
       );
     } else if (path.startsWith('http')) {
       return Image.network(
         path,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
       );
     }
 
@@ -270,6 +284,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
       path,
       fit: BoxFit.cover,
       filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
     );
   }
 }
@@ -291,15 +306,22 @@ class _VideoItemState extends State<_VideoItem> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.isAsset
-        ? VideoPlayerController.asset(
-            widget.path,
-            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-          )
-        : VideoPlayerController.file(
-            File(widget.path),
-            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-          );
+    if (widget.path.startsWith('http')) {
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    } else if (widget.isAsset || widget.path.startsWith('assets/')) {
+      _controller = VideoPlayerController.asset(
+        widget.path,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    } else {
+      _controller = VideoPlayerController.file(
+        File(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    }
 
     _controller.initialize().then((_) {
       _controller.setVolume(0);
@@ -322,41 +344,69 @@ class _VideoItemState extends State<_VideoItem> {
   @override
   Widget build(BuildContext context) {
     if (_initialized) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _controller.value.size.width,
-              height: _controller.value.size.height,
-              child: VideoPlayer(_controller),
-            ),
-          ),
-          Positioned(
-            top: 10,
-            left: 10,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
+      return AspectRatio(
+        aspectRatio: _controller.value.aspectRatio,
+        child: GestureDetector(
+          onTap: () {
+            setState(() {
+              if (_controller.value.isPlaying) {
+                _controller.pause();
+              } else {
+                _controller.play();
+              }
+            });
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller.value.size.width,
+                  height: _controller.value.size.height,
+                  child: VideoPlayer(_controller),
+                ),
               ),
-              child: const Icon(Icons.videocam, color: Colors.white, size: 16),
-            ),
+              if (!_controller.value.isPlaying)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: const Center(
+                    child: Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 64,
+                    ),
+                  ),
+                ),
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.videocam, color: Colors.white, size: 16),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       );
     }
-    return Container(
-      color: Colors.black,
-      child: const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            color: Colors.white54,
-            strokeWidth: 2,
+    return AspectRatio(
+      aspectRatio: 4 / 5,
+      child: Container(
+        color: Colors.black,
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              color: Colors.white54,
+              strokeWidth: 2,
+            ),
           ),
         ),
       ),

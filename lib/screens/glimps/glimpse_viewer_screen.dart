@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/reaction_bar.dart';
 import '../../services/current_user_service.dart';
+import '../../utils/image_helper.dart';
 import '../waves/widgets/more_options_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -564,7 +565,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
                   border: Border.all(color: Colors.black, width: 2),
                   image: widget.user.avatarAsset != null
                       ? DecorationImage(
-                          image: AssetImage(widget.user.avatarAsset!),
+                          image: ImageHelper.resolveImage(widget.user.avatarAsset)!,
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -681,11 +682,11 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
     super.initState();
     final pathLower = widget.path.toLowerCase();
     final isVideo =
-        pathLower.endsWith('.mp4') ||
-        pathLower.endsWith('.mov') ||
-        pathLower.endsWith('.mkv') ||
-        pathLower.endsWith('.webm') ||
-        pathLower.endsWith('.avi');
+        pathLower.contains('.mp4') ||
+        pathLower.contains('.mov') ||
+        pathLower.contains('.mkv') ||
+        pathLower.contains('.webm') ||
+        pathLower.contains('.avi');
 
     if (isVideo) {
       if (widget.path.startsWith('http')) {

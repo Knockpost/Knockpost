@@ -11,6 +11,9 @@ import '../../utils/haptic_helper.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../../services/post_service.dart';
 import '../../services/current_user_service.dart';
+import '../../models/user_model.dart';
+import '../../utils/image_helper.dart';
+import '../profile/profile_screen.dart';
 import 'music_editor_screen.dart';
 import 'music_picker_screen.dart';
 import 'post_settings_sheet.dart';
@@ -544,6 +547,45 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    GestureDetector(
+                      onTap: () {
+                        final currentUser = CurrentUserService.instance.currentUser;
+                        if (currentUser != null) {
+                          KnockHaptics.tap();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) {
+                                Widget buildScreen(List<PostModel> currentPosts) {
+                                  return ProfileScreen(
+                                    user: currentUser,
+                                    posts: currentPosts,
+                                  );
+                                }
+
+                                return StreamBuilder<List<PostModel>>(
+                                  stream: PostService.instance.getUserPosts(currentUser.id),
+                                  builder: (context, snapshot) {
+                                    return buildScreen(snapshot.data ?? []);
+                                  },
+                                );
+                              },
+                            ),
+                          );
+                        }
+                      },
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+                        backgroundImage: CurrentUserService.instance.currentUser?.avatarAsset != null
+                            ? ImageHelper.resolveAvatar(CurrentUserService.instance.currentUser!.avatarAsset)
+                            : null,
+                        child: CurrentUserService.instance.currentUser?.avatarAsset == null
+                            ? Icon(Icons.person, size: 20, color: isDark ? Colors.white54 : Colors.black54)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     if (widget.files.isNotEmpty) ...[
                       _buildComposerPreviewThumb(isDark),
                       const SizedBox(width: 16),

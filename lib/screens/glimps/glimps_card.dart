@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
+import '../../../services/database_service.dart';
 import 'glimpse_viewer_screen.dart';
 
 class GlimpsCard extends StatelessWidget {
@@ -20,12 +21,12 @@ class GlimpsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (glimpse.imagePaths.isEmpty) return const SizedBox.shrink();
+    if (glimpse.imagePaths.isEmpty && glimpse.coverImagePath == null) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // We mock the video thumbnail with the first image path
-    final thumbnailPath = glimpse.imagePaths.first;
+    // Prioritize coverImagePath (for video glimpses) to avoid crashing on .mp4 URLs
+    final thumbnailPath = glimpse.coverImagePath ?? (glimpse.imagePaths.isNotEmpty ? glimpse.imagePaths.first : '');
 
     return GestureDetector(
       onTap: () {
@@ -64,9 +65,12 @@ class GlimpsCard extends StatelessWidget {
               thumbnailPath.startsWith('assets/')
                   ? Image.asset(thumbnailPath, fit: BoxFit.cover)
                   : Image.network(
-                      thumbnailPath, // Mock networking or file
+                      thumbnailPath,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.error),
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade900,
+                        child: const Center(child: Icon(Icons.error, color: Colors.white54)),
+                      ),
                     ),
 
               // ── Gradient Overlay ──
@@ -85,67 +89,83 @@ class GlimpsCard extends StatelessWidget {
                 ),
               ),
 
-
               // ── User Info (Bottom) ──
-              if (user != null)
-                Positioned(
-                  bottom: 12,
-                  left: 10,
-                  right: 10,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          // Avatar
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image:
-                                    user!.avatarAsset != null &&
-                                        user!.avatarAsset!.isNotEmpty
-                                    ? AssetImage(user!.avatarAsset!)
-                                    : const AssetImage(
-                                        'assets/reaction_default.png',
-                                      ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          // Name
-                          Expanded(
-                            child: Text(
-                              user!.displayName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                shadows: [
-                                  Shadow(color: Colors.black87, blurRadius: 4),
-                                ],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+              Positioned(
+                bottom: 12,
+                left: 10,
+                right: 10,
+                child: user != null
+                    ? _buildUserInfo(user!)
+                    : FutureBuilder<Map<String, dynamic>?>(
+                        future: DatabaseService.instance.getUserProfile(glimpse.authorId, useCache: true),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) return const SizedBox.shrink();
+                          final realUser = UserModel.fromMap(snapshot.data!, glimpse.authorId);
+                          return _buildUserInfo(realUser);
+                        },
                       ),
-                    ],
-                  ),
-                ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildUserInfo(UserModel u) {
+    ImageProvider avatarProvider;
+    if (u.avatarAsset != null && u.avatarAsset!.isNotEmpty) {
+      if (u.avatarAsset!.startsWith('http')) {
+        avatarProvider = NetworkImage(u.avatarAsset!);
+      } else {
+        avatarProvider = AssetImage(u.avatarAsset!);
+      }
+    } else {
+      avatarProvider = const AssetImage('assets/reaction_default.png');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            // Avatar
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 1.5,
+                ),
+                image: DecorationImage(
+                  image: avatarProvider,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Name
+            Expanded(
+              child: Text(
+                u.displayName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  shadows: [
+                    Shadow(color: Colors.black87, blurRadius: 4),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

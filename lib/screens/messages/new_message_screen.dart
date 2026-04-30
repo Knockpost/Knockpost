@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/image_helper.dart';
 import 'chat_screen.dart';
 
 class NewMessageScreen extends StatefulWidget {
@@ -134,11 +135,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final user = filtered[index];
-                      return _UserTile(
-                        name: user.displayName,
-                        username: user.username,
-                        avatarAsset: user.avatarAsset ?? '',
-                      );
+                      return _UserTile(user: user);
                     },
                   ),
           ),
@@ -149,14 +146,10 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 }
 
 class _UserTile extends StatelessWidget {
-  final String name;
-  final String username;
-  final String avatarAsset;
+  final UserModel user;
 
   const _UserTile({
-    required this.name,
-    required this.username,
-    required this.avatarAsset,
+    required this.user,
   });
 
   @override
@@ -171,9 +164,7 @@ class _UserTile extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => ChatScreen(
-              userName: name,
-              userAvatar: avatarAsset,
-              userUsername: username,
+              otherUser: user,
             ),
           ),
         );
@@ -183,16 +174,20 @@ class _UserTile extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              radius: 24,
-              backgroundImage: AssetImage(avatarAsset),
+              radius: 26,
+              backgroundImage: ImageHelper.resolveImage(user.avatarAsset),
+              backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+              child: user.avatarAsset == null
+                  ? Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black38)
+                  : null,
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    user.displayName,
                     style: TextStyle(
                       color: textColor,
                       fontWeight: FontWeight.w600,
@@ -201,7 +196,7 @@ class _UserTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "@$username",
+                    "@${user.username}",
                     style: TextStyle(
                       color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                       fontSize: 13,

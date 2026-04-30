@@ -7,65 +7,45 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../../models/chat_model.dart';
+import '../../models/user_model.dart';
+import '../../services/auth_service.dart';
+import '../../services/chat_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
 import 'media_preview_screen.dart';
 
 // ─────────────────────────────────────────────
-// Data Model
-// ─────────────────────────────────────────────
-
-class _ChatMessage {
-  final String id;
-  final String text;
-  final bool isMe;
-  final String? replyToId;
-  final Uint8List? imageBytes;
-  final DateTime timestamp;
-  bool seen;
-
-  _ChatMessage({
-    required this.id,
-    required this.text,
-    required this.isMe,
-    this.replyToId,
-    this.imageBytes,
-    DateTime? timestamp,
-    this.seen = false,
-  }) : timestamp = timestamp ?? DateTime.now();
-
-  _ChatMessage copyWith({String? text}) {
-    return _ChatMessage(
-      id: id,
-      text: text ?? this.text,
-      isMe: isMe,
-      replyToId: replyToId,
-      imageBytes: imageBytes,
-      timestamp: timestamp,
-      seen: seen,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────
 
 class ChatScreen extends StatefulWidget {
-  final String userName;
-  final String userAvatar;
-  final String userUsername;
+  final UserModel otherUser;
 
   const ChatScreen({
     super.key,
-    required this.userName,
-    required this.userAvatar,
-    required this.userUsername,
+    required this.otherUser,
   });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _LocalImageMessage {
+  final String id;
+  final Uint8List bytes;
+  final String caption;
+  _LocalImageMessage({required this.id, required this.bytes, required this.caption});
+}
+
+class _ChatListItem {
+  final _LocalImageMessage? localImage;
+  final ChatMessage? firestore;
+  _ChatListItem._({this.localImage, this.firestore});
+  factory _ChatListItem.localImage(_LocalImageMessage m) => _ChatListItem._(localImage: m);
+  factory _ChatListItem.firestore(ChatMessage m) => _ChatListItem._(firestore: m);
+  bool get isLocalImage => localImage != null;
 }
 
 class _ChatScreenState extends State<ChatScreen> {
@@ -86,30 +66,28 @@ class _ChatScreenState extends State<ChatScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  late List<_ChatMessage> _messages;
+  // Real-time messages from Firestore
+  List<ChatMessage> _firestoreMessages = [];
+
+  // Local-only list for optimistic image sends (not yet uploaded)
+  final List<_LocalImageMessage> _localImages = [];
+
+  late final String _chatId;
+  late final String _myUid;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _messages = [
-      _ChatMessage(id: '1', text: "Yes sure!", isMe: true, seen: true,
-          timestamp: now.subtract(const Duration(minutes: 5))),
-      _ChatMessage(id: '2', text: "Are we meeting tomorrow?", isMe: false,
-          timestamp: now.subtract(const Duration(minutes: 12))),
-      _ChatMessage(id: '3', text: "I'm good! You?", isMe: true, seen: true,
-          timestamp: now.subtract(const Duration(minutes: 18))),
-      _ChatMessage(id: '4', text: "Hi! How are you?", isMe: false,
-          timestamp: now.subtract(const Duration(minutes: 24))),
-    ];
+    _myUid = AuthService.instance.currentUser?.uid ?? '';
+    _chatId = ChatService.instance.getChatId(_myUid, widget.otherUser.id);
 
     _messageController.addListener(() {
       final hasText = _messageController.text.trim().isNotEmpty;
       if (hasText != _hasText) setState(() => _hasText = hasText);
     });
 
-    // No longer auto-close attachment drawer when keyboard appears
-    // so the drawer can sit between the input bar and keyboard.
+    // Mark as read when the chat is opened
+    ChatService.instance.markChatAsRead(_chatId);
   }
 
   @override
@@ -132,9 +110,32 @@ class _ChatScreenState extends State<ChatScreen> {
     return '${diff.inDays}d ago';
   }
 
-  List<_ChatMessage> get _filteredMessages {
-    if (_searchQuery.isEmpty) return _messages;
-    return _messages.where((m) =>
+  Widget _buildAvatar(String url, {required double radius}) {
+    ImageProvider? img;
+    if (url.isNotEmpty) {
+      if (url.startsWith('http')) {
+        img = NetworkImage(url);
+      } else if (url.startsWith('assets/')) {
+        img = AssetImage(url);
+      } else {
+        img = FileImage(File(url));
+      }
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF2A2A2A)
+          : const Color(0xFFEEEEEE),
+      backgroundImage: img,
+      child: img == null
+          ? Icon(Icons.person, size: radius * 1.5, color: Colors.grey.shade500)
+          : null,
+    );
+  }
+
+  List<ChatMessage> get _filteredMessages {
+    if (_searchQuery.isEmpty) return _firestoreMessages;
+    return _firestoreMessages.where((m) =>
         m.text.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
   }
 
@@ -144,35 +145,40 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
     KnockHaptics.impact();
+    final replyId = _replyingToId;
     setState(() {
-      if (_editingMessageId != null) {
-        final index = _messages.indexWhere((m) => m.id == _editingMessageId);
-        if (index != -1) _messages[index] = _messages[index].copyWith(text: text);
-        _editingMessageId = null;
-      } else {
-        _messages.insert(0, _ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          text: text,
-          isMe: true,
-          replyToId: _replyingToId,
-        ));
-      }
-      _messageController.clear();
       _replyingToId = null;
+      _editingMessageId = null;
     });
-    _scrollController.animateTo(0.0,
-        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    _messageController.clear();
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(0.0,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+    ChatService.instance.sendMessage(
+      otherUid: widget.otherUser.id,
+      text: text,
+      replyToId: replyId,
+    ).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send message')),
+        );
+      }
+    });
   }
 
   void _sendImageMessage(Uint8List bytes, String caption) {
+    // Store locally while upload happens (future: upload to Storage)
     KnockHaptics.impact();
     setState(() {
-      _messages.insert(0, _ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        text: caption,
-        isMe: true,
-        imageBytes: bytes,
-      ));
+      _localImages.insert(
+          0,
+          _LocalImageMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            bytes: bytes,
+            caption: caption,
+          ));
     });
   }
 
@@ -289,10 +295,10 @@ class _ChatScreenState extends State<ChatScreen> {
         case 'profile':
           Navigator.push(context, MaterialPageRoute(
               builder: (_) => MessageInfoScreen(
-                userName: widget.userName,
-                userAvatar: widget.userAvatar,
-                userUsername: widget.userUsername,
-              )));
+              userName: widget.otherUser.displayName,
+              userAvatar: widget.otherUser.avatarAsset ?? '',
+              userUsername: widget.otherUser.username,
+            )));
           break;
         case 'search':
           setState(() { _isSearching = true; });
@@ -310,7 +316,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showBlockDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text('Block ${widget.userName}?'),
+      title: Text('Block ${widget.otherUser.displayName}?'),
       content: const Text('They won\'t be able to message you anymore.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -325,7 +331,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showReportDialog() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text('Report ${widget.userName}?'),
+      title: Text('Report ${widget.otherUser.displayName}?'),
       content: const Text('Your report will be reviewed. Thank you for keeping Knockpost safe.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -339,7 +345,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // ─── Message Context Menu ────────────────────
 
-  void _showMessageOptions(Offset position, _ChatMessage message) async {
+  void _showMessageOptions(Offset position, ChatMessage message) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xff2A2A2A) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
@@ -361,7 +367,7 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 12),
           Text('Copy', style: TextStyle(color: textColor, fontWeight: FontWeight.w500)),
         ])),
-        if (message.isMe)
+        if (message.senderId == _myUid)
           PopupMenuItem(value: 'edit', child: Row(children: [
             Icon(Icons.edit_rounded, size: 20, color: textColor),
             const SizedBox(width: 12),
@@ -386,8 +392,9 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'edit': _startEditing(message.id, message.text); break;
       case 'delete':
         KnockHaptics.heavy();
+        // Delete from Firestore
+        ChatService.instance.deleteMessage(_chatId, message.id);
         setState(() {
-          _messages.removeWhere((m) => m.id == message.id);
           if (_replyingToId == message.id) _cancelReply();
           if (_editingMessageId == message.id) _cancelEdit();
         });
@@ -434,22 +441,49 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 // ── Message List ──
                 Expanded(
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    itemCount: _filteredMessages.length,
-                    itemBuilder: (context, index) {
-                      final msg = _filteredMessages[index];
-                      _ChatMessage? parentMsg;
-                      if (msg.replyToId != null) {
-                        try { parentMsg = _messages.firstWhere((m) => m.id == msg.replyToId); }
-                        catch (_) {}
-                      }
-                      return _buildMessageRow(
-                        msg, parentMsg,
-                        isDark, myBubbleColor, otherBubbleColor,
-                        textColor, subtleColor,
+                  child: StreamBuilder<List<ChatMessage>>(
+                    stream: ChatService.instance.streamMessages(_chatId),
+                    builder: (context, snapshot) {
+                      _firestoreMessages = snapshot.data ?? [];
+                      
+                      // Filter by search query
+                      final filtered = _filteredMessages;
+
+                      // Combine with local image messages for optimistic UI
+                      final allItems = [
+                        ..._localImages.map((e) => _ChatListItem.localImage(e)),
+                        ...filtered.map((e) => _ChatListItem.firestore(e)),
+                      ];
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        itemCount: allItems.length,
+                        itemBuilder: (context, index) {
+                          final item = allItems[index];
+
+                          if (item.isLocalImage) {
+                            final localImg = item.localImage!;
+                            return _buildLocalImageRow(
+                              localImg,
+                              isDark, myBubbleColor,
+                              textColor, subtleColor,
+                            );
+                          }
+
+                          final msg = item.firestore!;
+                          ChatMessage? parentMsg;
+                          if (msg.replyToId != null) {
+                            try { parentMsg = _firestoreMessages.firstWhere((m) => m.id == msg.replyToId); }
+                            catch (_) {}
+                          }
+                          return _buildMessageRow(
+                            msg, parentMsg,
+                            isDark, myBubbleColor, otherBubbleColor,
+                            textColor, subtleColor,
+                          );
+                        },
                       );
                     },
                   ),
@@ -497,15 +531,15 @@ class _ChatScreenState extends State<ChatScreen> {
       title: GestureDetector(
         onTap: () => Navigator.push(context,
             MaterialPageRoute(builder: (_) => MessageInfoScreen(
-              userName: widget.userName,
-              userAvatar: widget.userAvatar,
-              userUsername: widget.userUsername,
+              userName: widget.otherUser.displayName,
+              userAvatar: widget.otherUser.avatarAsset ?? '',
+              userUsername: widget.otherUser.username,
             ))),
         child: Row(children: [
-          CircleAvatar(radius: 18, backgroundImage: AssetImage(widget.userAvatar)),
+          _buildAvatar(widget.otherUser.avatarAsset ?? '', radius: 18),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.userName, style: TextStyle(
+            Text(widget.otherUser.displayName, style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
             const Text("Active now", style: TextStyle(
               color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
@@ -550,15 +584,15 @@ class _ChatScreenState extends State<ChatScreen> {
   // ─────────────────────────────────────────────
 
   Widget _buildMessageRow(
-    _ChatMessage msg,
-    _ChatMessage? parentMsg,
+    ChatMessage msg,
+    ChatMessage? parentMsg,
     bool isDark,
     Color myBubbleColor,
     Color otherBubbleColor,
     Color textColor,
     Color subtleColor,
   ) {
-    final isMe = msg.isMe;
+    final isMe = msg.senderId == _myUid;
 
     Widget bubble = _buildBubble(
       msg, parentMsg, isDark,
@@ -567,10 +601,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     // Avatar
-    final avatar = CircleAvatar(
-      radius: 14,
-      backgroundImage: AssetImage(isMe ? "assets/test2.jpg" : "assets/test1.jpg"),
-    );
+    final avatarAsset = isMe
+        ? AuthService.instance.currentUser?.photoURL ?? '' // Can be improved
+        : widget.otherUser.avatarAsset ?? '';
+    final avatar = _buildAvatar(avatarAsset, radius: 14);
 
     return _FastLongPressTile(
       onFastLongPress: (pos) {
@@ -600,16 +634,69 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildLocalImageRow(
+    _LocalImageMessage msg,
+    bool isDark,
+    Color myBubbleColor,
+    Color textColor,
+    Color subtleColor,
+  ) {
+    // Local images are always "isMe"
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.memory(msg.bytes,
+                          width: MediaQuery.of(context).size.width * 0.62, fit: BoxFit.cover),
+                    ),
+                    const CircularProgressIndicator(color: Colors.white), // Uploading indicator
+                  ],
+                ),
+                if (msg.caption.isNotEmpty)
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.62,
+                    ),
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      msg.caption,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          _buildAvatar(AuthService.instance.currentUser?.photoURL ?? '', radius: 14),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBubble(
-    _ChatMessage msg,
-    _ChatMessage? parentMsg,
+    ChatMessage msg,
+    ChatMessage? parentMsg,
     bool isDark,
     Color myBubbleColor,
     Color otherBubbleColor,
     Color textColor,
     Color subtleColor,
   ) {
-    final isMe = msg.isMe;
+    final isMe = msg.senderId == _myUid;
 
     return Column(
       crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -632,13 +719,13 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
         // Bubble
-        msg.imageBytes != null
+        msg.isImage
             ? Column(
                 crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(18),
-                    child: Image.memory(msg.imageBytes!,
+                    child: Image.network(msg.imageUrl!,
                         width: MediaQuery.of(context).size.width * 0.62, fit: BoxFit.cover),
                   ),
                   if (msg.text.isNotEmpty)

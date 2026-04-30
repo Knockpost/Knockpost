@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'notification_service.dart';
+import '../models/notification_model.dart';
 
 class LikeService {
   LikeService._internal();
@@ -13,8 +15,10 @@ class LikeService {
   Future<void> toggleLike({
     required String postId,
     required String userId,
+    required String postAuthorId, // Added for notification
     required bool isLiking,
     String reactionType = '❤',
+    String? postThumbnailUrl,     // Added for notification
   }) async {
     final postRef = _firestore.collection('posts').doc(postId);
     final likeRef = postRef.collection('likes').doc(userId);
@@ -46,6 +50,16 @@ class LikeService {
           }
         }
       });
+
+      // Send notification if liking and not self
+      if (isLiking && userId != postAuthorId) {
+        NotificationService.instance.sendNotification(
+          receiverUid: postAuthorId,
+          type: NotificationType.like,
+          postId: postId,
+          postThumbnailUrl: postThumbnailUrl,
+        );
+      }
     } catch (e) {
       debugPrint("Error toggling like: $e");
       rethrow;

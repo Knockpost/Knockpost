@@ -6,99 +6,15 @@ import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../utils/haptic_helper.dart';
 import '../screens/profile/widgets/knock_button.dart';
-import '../screens/profile/other_profile_screen.dart';
 import '../screens/discover/discover_people_screen.dart';
+import '../screens/profile/other_profile_screen.dart';
+import '../services/post_service.dart';
+import '../services/database_service.dart';
+import '../services/current_user_service.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
-final List<UserModel> demoSuggestedUsers = [
-  const UserModel(
-    id: 'zayn01',
-    displayName: 'Zayn Malik',
-    username: 'zayn.malik',
-    bio: 'Singer & songwriter 🎤 | Former 1D',
-    avatarAsset: 'assets/test1.jpg',
-    coverImageAsset: 'assets/test2.jpg',
-    friendsCount: 52400,
-    accountType: AccountType.creator,
-    rank: CreatorRank.impact,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 24,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'justin01',
-    displayName: 'Justin Bieber',
-    username: 'justin.bieber',
-    avatarAsset: 'assets/test2.jpg',
-    friendsCount: 84200,
-    accountType: AccountType.creator,
-    rank: CreatorRank.plus,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 15,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test4.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'suman01',
-    displayName: 'Suman Patra',
-    username: 'suman.patra',
-    bio: 'Keep it private 🔒',
-    avatarAsset: 'assets/test3.jpg',
-    coverImageAsset: 'assets/test4.jpg',
-    friendsCount: 142,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.private,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 3,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test3.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
-  ),
-  const UserModel(
-    id: 'saptarshi01',
-    displayName: 'Saptarshi Nayak',
-    username: 'saptarshi.nayak',
-    bio: 'Open book 📖 | Exploring life',
-    avatarAsset: 'assets/test4.jpg',
-    coverImageAsset: 'assets/test1.jpg',
-    friendsCount: 890,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.open,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 8,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg'],
-  ),
-  const UserModel(
-    id: 'arya01',
-    displayName: 'Arya Layek',
-    username: 'arya.layek',
-    bio: 'Creator & storyteller ✨ | Pro vibes',
-    avatarAsset: 'assets/test1.jpg',
-    coverImageAsset: 'assets/test3.jpg',
-    friendsCount: 15400,
-    accountType: AccountType.creator,
-    rank: CreatorRank.pro,
-    knockStatus: KnockStatus.theyKnockedYou,
-    mutualFriendsCount: 31,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'leo01',
-    displayName: 'Leonardo DiCaprio',
-    username: 'leo.dicaprio',
-    bio: 'Actor & environmentalist 🌍',
-    avatarAsset: 'assets/test2.jpg',
-    coverImageAsset: 'assets/test4.jpg',
-    friendsCount: 320,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.open,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 5,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test4.jpg'],
-  ),
-];
+
 
 
 
@@ -112,25 +28,39 @@ class PeopleSuggestionStrip extends StatefulWidget {
 }
 
 class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
-  late List<UserModel> _users;
-  late final Map<String, KnockStatus> _statuses;
+  List<UserModel> _users = [];
+  Map<String, KnockStatus> _statuses = {};
   final Map<String, GlobalKey<_AnimatedDismissCardState>> _cardKeys = {};
+
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Filter out already dismissed users for this session
-    _users = demoSuggestedUsers.where((u) => !GlobalDismissState.isDismissed(u.id)).toList();
-    
-    _statuses = {
-      for (final u in _users) u.id: u.knockStatus,
-    };
-    for (final u in _users) {
-      _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
-    }
-    
+    _fetchUsers();
     // Listen for global dismissals (e.g., from profile screen)
     GlobalDismissState.dismissedUserIds.addListener(_onGlobalDismissalChanged);
+  }
+
+  Future<void> _fetchUsers() async {
+    final currentUserId = CurrentUserService.instance.currentUser?.id;
+    final fetchedUsers = await DatabaseService.instance.getSuggestedUsers(
+      excludeUid: currentUserId,
+      limitCount: 15,
+    );
+    
+    if (mounted) {
+      setState(() {
+        _users = fetchedUsers.where((u) => !GlobalDismissState.isDismissed(u.id)).toList();
+        _statuses = {
+          for (final u in _users) u.id: u.knockStatus,
+        };
+        for (final u in _users) {
+          _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
+        }
+        _isLoading = false;
+      });
+    }
   }
 
   void _onGlobalDismissalChanged() {
@@ -164,6 +94,12 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
     if (_users.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -470,10 +406,15 @@ class _SuggestionCard extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OtherProfileScreen(
-                      user: user.copyWith(knockStatus: knockStatus),
-                      posts: getDemoPostsForUser(user.id),
-                      onKnockStatusChanged: onKnockChanged,
+                    builder: (_) => StreamBuilder<List<PostModel>>(
+                      stream: PostService.instance.getUserPosts(user.id),
+                      builder: (context, snapshot) {
+                        return OtherProfileScreen(
+                          user: user.copyWith(knockStatus: knockStatus),
+                          posts: snapshot.data ?? [],
+                          onKnockStatusChanged: onKnockChanged,
+                        );
+                      },
                     ),
                   ),
                 );

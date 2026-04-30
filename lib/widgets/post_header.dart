@@ -4,8 +4,11 @@ import '../utils/global_knock_state.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
+import '../screens/profile/profile_screen.dart';
 import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
+import '../utils/image_helper.dart';
+import '../services/post_service.dart';
 import '../screens/waves/widgets/more_options_sheet.dart';
 
 class PostHeader extends StatefulWidget {
@@ -127,15 +130,34 @@ class _PostHeaderState extends State<PostHeader> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => OtherProfileScreen(
-          user: widget.user.copyWith(knockStatus: _status),
-          posts: getDemoPostsForUser(widget.user.id),
-          onKnockStatusChanged: (newStatus) {
-            if (mounted) {
-              setState(() => _status = newStatus);
+        builder: (context) {
+          Widget buildScreen(List<PostModel> currentPosts) {
+            if (widget.user.isOwnProfile) {
+              return ProfileScreen(
+                user: widget.user,
+                posts: currentPosts,
+              );
+            } else {
+              return OtherProfileScreen(
+                user: widget.user.copyWith(knockStatus: _status),
+                posts: currentPosts,
+                onKnockStatusChanged: (newStatus) {
+                  if (mounted) {
+                    setState(() => _status = newStatus);
+                  }
+                },
+              );
             }
-          },
-        ),
+          }
+
+          return StreamBuilder<List<PostModel>>(
+            stream: PostService.instance.getUserPosts(widget.user.id),
+            builder: (context, snapshot) {
+              // Show whatever we have so far (or empty list if loading)
+              return buildScreen(snapshot.data ?? []);
+            },
+          );
+        },
       ),
     );
   }
@@ -187,11 +209,7 @@ class _PostHeaderState extends State<PostHeader> {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.grey.shade300,
-                  backgroundImage: user.avatarAsset != null
-                      ? (user.avatarAsset!.startsWith('assets/')
-                          ? AssetImage(user.avatarAsset!) as ImageProvider
-                          : FileImage(File(user.avatarAsset!)))
-                      : null,
+                  backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
                   child: user.avatarAsset == null
                       ? Icon(Icons.person, size: 18, color: Colors.grey.shade600)
                       : null,

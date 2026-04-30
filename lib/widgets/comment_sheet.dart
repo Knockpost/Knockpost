@@ -13,6 +13,7 @@ import '../services/comment_service.dart';
 import '../services/current_user_service.dart';
 import '../models/message.dart';
 import '../utils/haptic_helper.dart';
+import '../utils/image_helper.dart';
 
 class CommentSheet extends StatefulWidget {
   final String postId;
@@ -55,7 +56,8 @@ class _CommentSheetState extends State<CommentSheet> {
   String? _selectedThreadUserId;
   bool _showChatPage = false;
 
-  UserModel get _viewer => CurrentUserService.instance.currentUser ?? demoOwnUser;
+  UserModel get _viewer =>
+      CurrentUserService.instance.currentUser!;
 
   @override
   void initState() {
@@ -73,7 +75,11 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   UserModel _resolveUser(String userId) {
-    return findDemoUserById(userId) ?? demoOwnUser;
+    if (userId == CurrentUserService.instance.currentUser?.id) {
+      return CurrentUserService.instance.currentUser!;
+    }
+    // We should fetch the user from Firestore ideally
+    return UserModel(id: userId, displayName: 'User', username: 'user');
   }
 
   Future<void> _openThread(ReplyThread thread) async {
@@ -82,7 +88,7 @@ class _CommentSheetState extends State<CommentSheet> {
       _selectedThreadUserId = thread.userId;
       _showChatPage = true;
     });
-    
+
     CommentService.instance.markThreadRead(
       postId: widget.postId,
       threadUserId: thread.userId,
@@ -118,8 +124,8 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   void _openProfile(UserModel user) {
-    final resolvedUser = findDemoUserById(user.id) ?? user;
-    final posts = getDemoPostsForUser(resolvedUser.id);
+    final resolvedUser = user;
+    final posts = <PostModel>[];
 
     KnockHaptics.tap();
     Navigator.push(
@@ -134,13 +140,15 @@ class _CommentSheetState extends State<CommentSheet> {
 
   Widget _buildChatPage(String threadUserId, ReplyThread? activeThread) {
     // We create a fallback thread if it doesn't exist yet
-    final thread = activeThread ?? ReplyThread(
-      postId: widget.postId,
-      authorId: widget.postAuthor.id,
-      userId: threadUserId,
-      lastMessage: '',
-      lastTimestamp: DateTime.now(),
-    );
+    final thread =
+        activeThread ??
+        ReplyThread(
+          postId: widget.postId,
+          authorId: widget.postAuthor.id,
+          userId: threadUserId,
+          lastMessage: '',
+          lastTimestamp: DateTime.now(),
+        );
 
     return StreamBuilder<List<ReplyMessage>>(
       stream: CommentService.instance.getMessagesForThread(
@@ -167,7 +175,9 @@ class _CommentSheetState extends State<CommentSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final sheetColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEAEAEA);
+    final borderColor = isDark
+        ? const Color(0xFF2A2A2A)
+        : const Color(0xFFEAEAEA);
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
@@ -180,7 +190,9 @@ class _CommentSheetState extends State<CommentSheet> {
           child: Container(
             decoration: BoxDecoration(
               color: sheetColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
               border: Border(top: BorderSide(color: borderColor)),
             ),
             child: StreamBuilder<List<ReplyThread>>(
@@ -191,11 +203,13 @@ class _CommentSheetState extends State<CommentSheet> {
               ),
               builder: (context, snapshot) {
                 final threads = snapshot.data ?? [];
-                
+
                 ReplyThread? activeThread;
                 if (_selectedThreadUserId != null) {
                   try {
-                    activeThread = threads.firstWhere((t) => t.userId == _selectedThreadUserId);
+                    activeThread = threads.firstWhere(
+                      (t) => t.userId == _selectedThreadUserId,
+                    );
                   } catch (e) {
                     activeThread = null;
                   }
@@ -203,7 +217,9 @@ class _CommentSheetState extends State<CommentSheet> {
 
                 UserModel? activePartner;
                 if (_showChatPage && _selectedThreadUserId != null) {
-                  activePartner = widget.isPostOwner ? _resolveUser(_selectedThreadUserId!) : widget.postAuthor;
+                  activePartner = widget.isPostOwner
+                      ? _resolveUser(_selectedThreadUserId!)
+                      : widget.postAuthor;
                 }
 
                 return Column(
@@ -213,7 +229,9 @@ class _CommentSheetState extends State<CommentSheet> {
                       width: 42,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF3A3A3A) : const Color(0xFFDADADA),
+                        color: isDark
+                            ? const Color(0xFF3A3A3A)
+                            : const Color(0xFFDADADA),
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -221,8 +239,12 @@ class _CommentSheetState extends State<CommentSheet> {
                     _SheetHeader(
                       showListHeader: widget.isPostOwner && !_showChatPage,
                       participant: _showChatPage ? activePartner : null,
-                      onParticipantTap: _showChatPage && activePartner != null ? () => _openProfile(activePartner!) : null,
-                      onBack: widget.isPostOwner && _showChatPage ? _closeThread : null,
+                      onParticipantTap: _showChatPage && activePartner != null
+                          ? () => _openProfile(activePartner!)
+                          : null,
+                      onBack: widget.isPostOwner && _showChatPage
+                          ? _closeThread
+                          : null,
                     ),
                     Divider(height: 1, color: borderColor),
                     Expanded(
@@ -238,7 +260,10 @@ class _CommentSheetState extends State<CommentSheet> {
                                 ),
                                 _selectedThreadUserId == null
                                     ? const SizedBox.shrink()
-                                    : _buildChatPage(_selectedThreadUserId!, activeThread),
+                                    : _buildChatPage(
+                                        _selectedThreadUserId!,
+                                        activeThread,
+                                      ),
                               ],
                             )
                           : _buildChatPage(_viewer.id, activeThread),
@@ -271,7 +296,9 @@ class _SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF171717);
-    final subtleColor = isDark ? const Color(0xFF9A9A9A) : const Color(0xFF757575);
+    final subtleColor = isDark
+        ? const Color(0xFF9A9A9A)
+        : const Color(0xFF757575);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -362,16 +389,16 @@ class _HeaderAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtleColor = isDark ? const Color(0xFF9A9A9A) : const Color(0xFF757575);
+    final subtleColor = isDark
+        ? const Color(0xFF9A9A9A)
+        : const Color(0xFF757575);
 
     return CircleAvatar(
       radius: 16,
-      backgroundColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-      backgroundImage: user?.avatarAsset != null
-          ? (user!.avatarAsset!.startsWith('assets/')
-                ? AssetImage(user!.avatarAsset!) as ImageProvider
-                : FileImage(File(user!.avatarAsset!)))
-          : null,
+      backgroundColor: isDark
+          ? const Color(0xFF2A2A2A)
+          : const Color(0xFFEEEEEE),
+      backgroundImage: ImageHelper.resolveAvatar(user?.avatarAsset),
       child: user?.avatarAsset == null
           ? Icon(Icons.person_rounded, size: 18, color: subtleColor)
           : null,

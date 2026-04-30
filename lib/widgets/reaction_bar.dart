@@ -141,6 +141,7 @@ class _ReactionBarState extends State<ReactionBar>
           LikeService.instance.toggleLike(
             postId: widget.postId,
             userId: currentUser.id,
+            postAuthorId: widget.postAuthor.id,
             isLiking: true,
           );
         }
@@ -182,6 +183,7 @@ class _ReactionBarState extends State<ReactionBar>
       LikeService.instance.toggleLike(
         postId: widget.postId,
         userId: currentUser.id,
+        postAuthorId: widget.postAuthor.id,
         isLiking: isLiking,
         reactionType: _selectedEmoji ?? '❤',
       );
@@ -272,6 +274,7 @@ class _ReactionBarState extends State<ReactionBar>
         LikeService.instance.toggleLike(
           postId: widget.postId,
           userId: currentUser.id,
+          postAuthorId: widget.postAuthor.id,
           isLiking: true,
           reactionType: _reactions[_hoveredIndex].emoji,
         );

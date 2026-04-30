@@ -1,59 +1,110 @@
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart' as p;
 
 class StorageService {
-  static final StorageService instance = StorageService._internal();
-
   StorageService._internal();
+  static final StorageService instance = StorageService._internal();
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  /// Uploads a profile image to Firebase Storage and returns the download URL.
-  Future<String?> uploadProfileImage(String uid, File imageFile) async {
+  /// Uploads a post media file (image/video) to Storage.
+  /// Path: posts/{userId}/{postId}/{fileName}
+  Future<String?> uploadPostMedia({
+    required String userId,
+    required String postId,
+    required File file,
+  }) async {
     try {
-      final ref = _storage.ref().child('profile_images').child('$uid.jpg');
-      await ref.putFile(imageFile);
-      final downloadUrl = await ref.getDownloadURL();
+      final fileName = p.basename(file.path);
+      final ref = _storage.ref().child('posts/$userId/$postId/$fileName');
+
+      // Upload file
+      final uploadTask = await ref.putFile(file);
+      
+      // Get download URL
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      debugPrint("Error uploading profile image: $e");
+      debugPrint("Error uploading post media: $e");
       return null;
     }
   }
 
-  /// Uploads multiple media files for a post and returns their download URLs.
-  Future<List<String>> uploadPostMedia(String postId, List<File> files) async {
-    List<String> downloadUrls = [];
+  /// Uploads a post cover image to Storage.
+  /// Path: posts/{userId}/{postId}/cover_{fileName}
+  Future<String?> uploadPostCoverImage({
+    required String userId,
+    required String postId,
+    required File file,
+  }) async {
     try {
-      for (int i = 0; i < files.length; i++) {
-        final file = files[i];
-        final extension = file.path.split('.').last.toLowerCase();
-        final fileName = '${postId}_$i.$extension';
-        final ref = _storage.ref().child('posts').child(postId).child(fileName);
-        
-        final isVideo = ['mp4', 'mov', 'avi', 'mkv'].contains(extension);
-        final contentType = isVideo ? 'video/mp4' : 'image/$extension';
-        
-        await ref.putFile(file, SettableMetadata(contentType: contentType));
-        final url = await ref.getDownloadURL();
-        downloadUrls.add(url);
-      }
-      return downloadUrls;
+      final fileName = p.basename(file.path);
+      final ref = _storage.ref().child('posts/$userId/$postId/cover_$fileName');
+
+      final uploadTask = await ref.putFile(file);
+      return await uploadTask.ref.getDownloadURL();
     } catch (e) {
-      debugPrint("Error uploading post media: $e");
-      return downloadUrls;
+      debugPrint("Error uploading cover image: $e");
+      return null;
     }
   }
 
-  /// Uploads a cover image for a video post.
-  Future<String?> uploadPostCoverImage(String postId, File coverFile) async {
+  /// Uploads a chat image (from memory) to Storage.
+  /// Path: chats/{chatId}/{messageId}.jpg
+  Future<String?> uploadChatImage({
+    required String chatId,
+    required String messageId,
+    required Uint8List bytes,
+  }) async {
     try {
-      final ref = _storage.ref().child('posts').child(postId).child('cover.jpg');
-      await ref.putFile(coverFile);
-      return await ref.getDownloadURL();
+      final ref = _storage.ref().child('chats/$chatId/$messageId.jpg');
+      
+      final metadata = SettableMetadata(contentType: 'image/jpeg');
+      final uploadTask = await ref.putData(bytes, metadata);
+      
+      return await uploadTask.ref.getDownloadURL();
     } catch (e) {
-      debugPrint("Error uploading post cover image: $e");
+      debugPrint("Error uploading chat image: $e");
+      return null;
+    }
+  }
+
+  /// Uploads a profile picture to Storage.
+  /// Path: users/{userId}/avatar_{timestamp}.ext
+  Future<String?> uploadProfilePicture({
+    required String userId,
+    required File file,
+  }) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = p.extension(file.path);
+      final ref = _storage.ref().child('users/$userId/avatar_$timestamp$ext');
+
+      final uploadTask = await ref.putFile(file);
+      return await uploadTask.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint("Error uploading profile picture: $e");
+      return null;
+    }
+  }
+
+  /// Uploads a profile cover image to Storage.
+  /// Path: users/{userId}/cover_{timestamp}.ext
+  Future<String?> uploadCoverPicture({
+    required String userId,
+    required File file,
+  }) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = p.extension(file.path);
+      final ref = _storage.ref().child('users/$userId/cover_$timestamp$ext');
+
+      final uploadTask = await ref.putFile(file);
+      return await uploadTask.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint("Error uploading cover picture: $e");
       return null;
     }
   }

@@ -22,11 +22,24 @@ class PostService {
       String? coverUrl;
 
       if (mediaFiles.isNotEmpty) {
-        imageUrls = await StorageService.instance.uploadPostMedia(post.id, mediaFiles);
+        for (var file in mediaFiles) {
+          final url = await StorageService.instance.uploadPostMedia(
+            userId: post.authorId,
+            postId: post.id,
+            file: file,
+          );
+          if (url != null) {
+            imageUrls.add(url);
+          }
+        }
       }
 
       if (coverFile != null) {
-        coverUrl = await StorageService.instance.uploadPostCoverImage(post.id, coverFile);
+        coverUrl = await StorageService.instance.uploadPostCoverImage(
+          userId: post.authorId,
+          postId: post.id,
+          file: coverFile,
+        );
       }
 
       final updatedPost = post.copyWith(
@@ -42,16 +55,18 @@ class PostService {
   }
 
   /// Streams posts for the home feed, ordered by newest first.
-  /// Note: Complex queries (like sorting by duration + date) require composite indexes.
+  /// Filters out expired h24/h36 posts client-side (lifetime posts always show).
   Stream<List<PostModel>> getFeedPosts({int limit = 20}) {
     return postsCollection
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
+      return snapshot.docs
+          .map((doc) => PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .where((post) =>
+              post.duration == PostDuration.lifetime || post.isInRecentsWindow)
+          .toList();
     });
   }
 
@@ -66,6 +81,21 @@ class PostService {
       return snapshot.docs.map((doc) {
         return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
+    });
+  }
+
+  /// Streams active glimpses (stories) for the GlimpsStrip.
+  /// Filters out expired glimpses locally to avoid needing a complex composite index.
+  Stream<List<PostModel>> getGlimpsesStream({int limit = 30}) {
+    return postsCollection
+        .where('type', isEqualTo: PostType.glimps.name)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).where((post) => post.isInRecentsWindow).toList();
     });
   }
 

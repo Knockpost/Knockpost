@@ -8,6 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../models/user_model.dart';
 import '../../../models/post_model.dart';
 import '../../../utils/haptic_helper.dart';
+import '../../../utils/image_helper.dart';
+import '../../../services/connection_service.dart';
+import '../../../services/database_service.dart';
+import '../../../services/current_user_service.dart';
 import '../../discover/discover_people_screen.dart';
 import '../connections_screen.dart';
 import '../other_profile_screen.dart';
@@ -159,9 +163,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       image: hasCover
                           ? DecorationImage(
                               image: user.coverImageAsset!.startsWith('assets/')
-                                  ? AssetImage(user.coverImageAsset!)
-                                        as ImageProvider
-                                  : FileImage(File(user.coverImageAsset!)),
+                                  ? AssetImage(user.coverImageAsset!) as ImageProvider
+                                  : user.coverImageAsset!.startsWith('http')
+                                      ? NetworkImage(user.coverImageAsset!) as ImageProvider
+                                      : FileImage(File(user.coverImageAsset!)),
                               fit: BoxFit.cover,
                             )
                           : null,
@@ -671,7 +676,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                             MaterialPageRoute(
                               builder: (_) => OtherProfileScreen(
                                 user: friend,
-                                posts: getDemoPostsForUser(friend.id),
+                                posts: const [],
                               ),
                             ),
                           );
@@ -780,53 +785,74 @@ class _ProfileHeaderState extends State<ProfileHeader> {
         );
       },
       behavior: HitTestBehavior.opaque,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 58,
-            height: 26,
-            child: Stack(
-              children: [
-                _friendPreviewAvatar('assets/test2.jpg', 0, isDark),
-                _friendPreviewAvatar('assets/test3.jpg', 16, isDark),
-                _friendPreviewAvatar('assets/test4.jpg', 32, isDark),
+      child: StreamBuilder<List<String>>(
+        stream: ConnectionService.instance.streamMutualConnectionUids(),
+        builder: (context, snapshot) {
+          final uids = snapshot.data ?? [];
+          final displayUids = uids.take(3).toList();
+          
+          return Row(
+            children: [
+              if (displayUids.isNotEmpty) ...[
+                SizedBox(
+                  width: 26.0 + (displayUids.length - 1) * 16.0,
+                  height: 26,
+                  child: FutureBuilder<List<Map<String, dynamic>?>>(
+                    future: Future.wait(displayUids.map((uid) =>
+                        DatabaseService.instance.getUserProfile(uid, useCache: true))),
+                    builder: (context, userSnapshot) {
+                      final usersData = userSnapshot.data ?? [];
+                      return Stack(
+                        children: List.generate(usersData.length, (i) {
+                          final userData = usersData[i];
+                          final avatar = userData?['profileImageUrl'] as String?;
+                          return _friendPreviewAvatar(avatar, i * 16.0, isDark);
+                        }),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Connections',
-            style: TextStyle(
-              fontSize: 14.5,
-              color: textColor,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.1,
-            ),
-          ),
-        ],
+              Text(
+                'Connections',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  color: textColor,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _friendPreviewAvatar(String asset, double left, bool isDark) {
+  Widget _friendPreviewAvatar(String? asset, double left, bool isDark) {
     return Positioned(
       left: left,
       child: Container(
         width: 24,
         height: 24,
         decoration: BoxDecoration(
+          color: isDark ? Colors.grey[800] : Colors.grey[300],
           shape: BoxShape.circle,
           border: Border.all(
             color: isDark ? const Color(0xFF111111) : Colors.white,
             width: 1.6,
           ),
-          image: DecorationImage(
-            image: asset.startsWith('assets/')
-                ? AssetImage(asset) as ImageProvider
-                : FileImage(File(asset)),
-            fit: BoxFit.cover,
-          ),
+          image: asset != null && asset.isNotEmpty
+              ? DecorationImage(
+                  image: ImageHelper.resolveAvatar(asset)!,
+                  fit: BoxFit.cover,
+                )
+              : null,
         ),
+        child: asset == null || asset.isEmpty
+            ? Icon(Icons.person, size: 14, color: isDark ? Colors.white54 : Colors.black54)
+            : null,
       ),
     );
   }
@@ -909,7 +935,9 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar> {
         backgroundImage: user.avatarAsset != null
             ? (user.avatarAsset!.startsWith('assets/')
                   ? AssetImage(user.avatarAsset!) as ImageProvider
-                  : FileImage(File(user.avatarAsset!)))
+                  : user.avatarAsset!.startsWith('http')
+                      ? NetworkImage(user.avatarAsset!) as ImageProvider
+                      : FileImage(File(user.avatarAsset!)))
             : null,
         child: user.avatarAsset == null
             ? Text(

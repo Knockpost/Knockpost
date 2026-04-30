@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
-import '../../widgets/people_suggestion_strip.dart'; // Using demoSuggestedUsers
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
 
 Future<List<String>?> showFriendPickerScreen(
@@ -47,17 +48,14 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
   final Set<String> _selectedIds = {};
   
   // Use demo users as friends for now
-  late List<UserModel> _friends;
-  late List<UserModel> _filteredFriends;
+  List<UserModel> _friends = [];
+  List<UserModel> _filteredFriends = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _friends = List.of(demoSuggestedUsers);
-    // Sort alphabetically
-    _friends.sort((a, b) => a.displayName.compareTo(b.displayName));
-    _filteredFriends = _friends;
-    
+    _fetchUsers();
     _selectedIds.addAll(widget.initiallySelected);
 
     _searchCtrl.addListener(() {
@@ -74,6 +72,23 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
         }
       });
     });
+  }
+
+  Future<void> _fetchUsers() async {
+    final currentUserId = CurrentUserService.instance.currentUser?.id;
+    final fetchedUsers = await DatabaseService.instance.getSuggestedUsers(
+      excludeUid: currentUserId,
+      limitCount: 50, // Get a reasonable amount of people to pick from
+    );
+    
+    if (mounted) {
+      setState(() {
+        _friends = List.of(fetchedUsers);
+        _friends.sort((a, b) => a.displayName.compareTo(b.displayName));
+        _filteredFriends = _friends;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -210,7 +225,9 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
 
           // ── Friends List ────────────────────────────────────────────────
           Expanded(
-            child: _filteredFriends.isEmpty
+            child: _isLoading 
+              ? const Center(child: CircularProgressIndicator())
+              : _filteredFriends.isEmpty
                 ? Center(
                     child: Text(
                       'No friends found.',

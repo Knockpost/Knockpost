@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../utils/global_knock_state.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
+import '../../../services/connection_service.dart';
 
 /// Knock button with instant acceptance for open profiles and pending for private.
 /// Designed to be used inside an Expanded widget, matching Edit button sizing.
@@ -35,6 +36,7 @@ class _KnockButtonState extends State<KnockButton>
   late KnockStatus _status;
   late AnimationController _scaleController;
   late Animation<double> _scaleAnim;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -82,10 +84,12 @@ class _KnockButtonState extends State<KnockButton>
       widget.accountType == AccountType.creator ||
       widget.privacyType == PrivacyType.open;
 
-  void _onTap() {
+  void _onTap() async {
+    if (_isLoading) return;
     KnockHaptics.tap();
     _scaleController.reverse().then((_) => _scaleController.forward());
 
+    // Compute the optimistic next status
     KnockStatus nextStatus = _status;
     switch (_status) {
       case KnockStatus.none:
@@ -103,10 +107,43 @@ class _KnockButtonState extends State<KnockButton>
         break;
     }
 
-    setState(() => _status = nextStatus);
+    // Optimistic UI update
+    final previousStatus = _status;
+    setState(() {
+      _status = nextStatus;
+      _isLoading = true;
+    });
     _globalNotifier.value = nextStatus;
-
     widget.onStatusChanged?.call(_status);
+
+    // Persist to Firestore
+    try {
+      switch (previousStatus) {
+        case KnockStatus.none:
+          await ConnectionService.instance.sendKnock(
+            toUid: widget.userId,
+            isOpenProfile: _isEffectivelyOpen,
+          );
+          break;
+        case KnockStatus.pending:
+        case KnockStatus.knocked:
+        case KnockStatus.mutualKnocked:
+          await ConnectionService.instance.removeKnock(widget.userId);
+          break;
+        case KnockStatus.theyKnockedYou:
+          await ConnectionService.instance.acceptKnock(widget.userId);
+          break;
+      }
+    } catch (_) {
+      // Rollback on error
+      if (mounted) {
+        setState(() => _status = previousStatus);
+        _globalNotifier.value = previousStatus;
+        widget.onStatusChanged?.call(previousStatus);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -181,14 +218,23 @@ class _KnockButtonState extends State<KnockButton>
             ),
           ),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: widget.isCompact ? 12 : 13,
-              fontWeight: FontWeight.w700,
-              color: fg,
-            ),
-          ),
+          child: _isLoading
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: fg,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: widget.isCompact ? 12 : 13,
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                  ),
+                ),
         ),
       ),
     );

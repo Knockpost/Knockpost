@@ -8,6 +8,9 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/user_model.dart';
+import '../../services/storage_service.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'social_links_screen.dart';
@@ -285,19 +288,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     KnockHaptics.impact();
     setState(() => _isSaving = true);
 
-    final updated = widget.user.copyWith(
-      displayName: _normalizedName,
-      username: _normalizedUsername,
-      bio: _normalizedBio,
-      avatarAsset: _avatarAsset,
-      clearAvatar: _avatarAsset == null,
-      coverImageAsset: _coverImageAsset,
-      clearCover: _coverImageAsset == null,
-      socialLinks: _socialLinks,
-    );
+    try {
+      final uid = widget.user.id;
+      String? finalAvatarUrl = _avatarAsset;
+      String? finalCoverUrl = _coverImageAsset;
 
-    if (!mounted) return;
-    Navigator.pop(context, updated);
+      // Upload avatar if it's a new local file (not http and not assets/)
+      if (_avatarAsset != null &&
+          !_avatarAsset!.startsWith('http') &&
+          !_avatarAsset!.startsWith('assets/')) {
+        finalAvatarUrl = await StorageService.instance.uploadProfilePicture(
+          userId: uid,
+          file: File(_avatarAsset!),
+        );
+      }
+
+      // Upload cover if it's a new local file
+      if (_coverImageAsset != null &&
+          !_coverImageAsset!.startsWith('http') &&
+          !_coverImageAsset!.startsWith('assets/')) {
+        finalCoverUrl = await StorageService.instance.uploadCoverPicture(
+          userId: uid,
+          file: File(_coverImageAsset!),
+        );
+      }
+
+      // Save to Firestore
+      await DatabaseService.instance.updateUserProfile(
+        uid: uid,
+        displayName: _normalizedName,
+        username: _normalizedUsername,
+        bio: _normalizedBio,
+        profileImageUrl: finalAvatarUrl,
+        coverImageUrl: finalCoverUrl,
+        socialLinks: _socialLinks,
+      );
+
+      // Refresh local user cache
+      await CurrentUserService.instance.loadCurrentUser();
+
+      final updated = widget.user.copyWith(
+        displayName: _normalizedName,
+        username: _normalizedUsername,
+        bio: _normalizedBio,
+        avatarAsset: finalAvatarUrl,
+        clearAvatar: finalAvatarUrl == null,
+        coverImageAsset: finalCoverUrl,
+        clearCover: finalCoverUrl == null,
+        socialLinks: _socialLinks,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context, updated);
+    } catch (e) {
+      debugPrint('Error saving profile: $e');
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save profile: $e')),
+      );
+    }
   }
 
   @override

@@ -13,6 +13,7 @@ import '../../../widgets/staggered_entry_animation.dart';
 import 'profile_glimps_strip.dart';
 import 'profile_ui_helpers.dart';
 import 'package:video_player/video_player.dart';
+import '../../../utils/image_helper.dart';
 
 /// Grid view of lifetime posts (Showcase tab).
 /// Tapping a post opens it in a full-screen scroll detail view.
@@ -201,9 +202,10 @@ class _GridTile extends StatelessWidget {
       if (isVideo) {
         imageWidget = _VideoThumbnail(path: imagePath);
       } else {
-        imageWidget = imagePath.startsWith('assets/')
-            ? Image.asset(imagePath, fit: BoxFit.cover)
-            : Image.file(File(imagePath), fit: BoxFit.cover);
+        final provider = ImageHelper.resolveImage(imagePath);
+        imageWidget = provider != null
+            ? Image(image: provider, fit: BoxFit.cover)
+            : Container(color: Colors.grey);
       }
 
       return Stack(
@@ -279,9 +281,13 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.path.startsWith('assets/')
-        ? VideoPlayerController.asset(widget.path)
-        : VideoPlayerController.file(File(widget.path));
+    if (widget.path.startsWith('http')) {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.path));
+    } else if (widget.path.startsWith('assets/')) {
+      _controller = VideoPlayerController.asset(widget.path);
+    } else {
+      _controller = VideoPlayerController.file(File(widget.path));
+    }
 
     _controller
         .initialize()

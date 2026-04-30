@@ -12,6 +12,8 @@ import '../shared/music_editor_screen.dart';
 import '../shared/post_settings_sheet.dart';
 import '../shared/final_post_screen.dart';
 import 'package:colorfilter_generator/presets.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:path_provider/path_provider.dart';
 
 class WavesEditorScreen extends StatefulWidget {
   final List<File> files;
@@ -351,6 +353,38 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
       'points': p.points.map((pt) => {'x': pt.dx / _editorBoxWidth, 'y': pt.dy / _editorBoxHeight}).toList(),
     }).toList();
 
+    // Generate a thumbnail for the video if it's the first file
+    File? coverFile;
+    if (widget.files.isNotEmpty) {
+      try {
+        final pathLower = widget.files.first.path.toLowerCase();
+        final isVideo = pathLower.endsWith('.mp4') ||
+            pathLower.endsWith('.mov') ||
+            pathLower.endsWith('.mkv') ||
+            pathLower.endsWith('.avi') ||
+            pathLower.endsWith('.webm') ||
+            pathLower.endsWith('.3gp') ||
+            pathLower.endsWith('.m4v');
+        
+        if (isVideo) {
+          final tempDir = await getTemporaryDirectory();
+          final thumbPath = await VideoThumbnail.thumbnailFile(
+            video: widget.files.first.path,
+            thumbnailPath: tempDir.path,
+            imageFormat: ImageFormat.JPEG,
+            quality: 75,
+          );
+          if (thumbPath != null) {
+            coverFile = File(thumbPath);
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to generate thumbnail: $e');
+      }
+    }
+
+    if (!mounted) return;
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -376,6 +410,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
           isVideoPost: true,
           videoHasSound: _selectedMusic == null,
+          coverImageFile: coverFile, // Pass the generated thumbnail!
         ),
       ),
     );

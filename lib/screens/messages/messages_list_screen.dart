@@ -1,25 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import '../../models/chat_model.dart';
+import '../../models/user_model.dart';
+import '../../services/auth_service.dart';
+import '../../services/chat_service.dart';
+import '../../services/database_service.dart';
 import '../../utils/haptic_helper.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
-
-import '../../models/user_model.dart';
-
-class _ConversationData {
-  final UserModel user;
-  final String message;
-  final String time;
-  final int unreadCount;
-  final bool read;
-
-  const _ConversationData({
-    required this.user,
-    required this.message,
-    required this.time,
-    this.unreadCount = 0,
-    this.read = false,
-  });
-}
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -31,54 +20,6 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-
-  static const List<_ConversationData> _conversations = [
-    _ConversationData(
-      user: demoZaynMalik,
-      message: "Just finished recording, what's up?",
-      time: "2m",
-      unreadCount: 2,
-    ),
-    _ConversationData(
-      user: demoJustinBieber,
-      message: "That sounds awesome! 😂",
-      time: "10m",
-      unreadCount: 1,
-    ),
-    _ConversationData(
-      user: demoSumanPatra,
-      message: "Are we still on for tomorrow?",
-      time: "30m",
-      read: true,
-    ),
-    _ConversationData(
-      user: demoSaptarshiNayak,
-      message: "Sure, I'll send it over to you!",
-      time: "45m",
-      read: true,
-    ),
-    _ConversationData(
-      user: demoAryaLayek,
-      message: "Can you call me when you're free?",
-      time: "1h",
-      read: true,
-    ),
-    _ConversationData(
-      user: demoLeonardoDiCaprio,
-      message: "Haha that's so funny!",
-      time: "2h",
-      read: true,
-    ),
-  ];
-
-  List<_ConversationData> get _filteredConversations {
-    if (_searchQuery.isEmpty) return _conversations;
-    final query = _searchQuery.toLowerCase();
-    return _conversations.where((c) {
-      return c.user.displayName.toLowerCase().contains(query) ||
-          c.message.toLowerCase().contains(query);
-    }).toList();
-  }
 
   @override
   void initState() {
@@ -103,11 +44,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final searchBgColor = isDark ? Colors.grey.shade900 : Colors.grey.shade100;
     final hintColor = isDark ? Colors.grey.shade500 : Colors.grey.shade400;
     final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    final filtered = _filteredConversations;
+    final myUid = AuthService.instance.currentUser?.uid ?? '';
 
     return Scaffold(
       backgroundColor: bgColor,
-
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
@@ -121,14 +61,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
             fontSize: 22,
           ),
         ),
-        actions: const [
-          _NewMessageIcon(),
-        ],
+        actions: const [_NewMessageIcon()],
       ),
-
       body: Column(
         children: [
-          /// SEARCH BAR
+          // ── Search Bar ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
@@ -159,46 +96,70 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 4),
 
-          const SizedBox(height: 10),
-
-          /// MESSAGE LIST
+          // ── Message List ──
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
+            child: StreamBuilder<List<ChatRoom>>(
+              stream: ChatService.instance.streamUserChats(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: isDark ? Colors.white38 : Colors.black26,
+                    ),
+                  );
+                }
+
+                final rooms = snapshot.data ?? [];
+
+                // Filter by search query
+                final filtered = _searchQuery.isEmpty
+                    ? rooms
+                    : rooms; // We filter after fetching user names below
+
+                if (filtered.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.search_off_rounded,
+                        Icon(Icons.chat_bubble_outline_rounded,
                             size: 48, color: hintColor),
                         const SizedBox(height: 12),
                         Text(
-                          "No results for \"$_searchQuery\"",
+                          "No conversations yet",
+                          style: TextStyle(color: hintColor, fontSize: 15),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Knock someone and start chatting!",
                           style: TextStyle(
-                            color: hintColor,
-                            fontSize: 15,
-                          ),
+                              color: hintColor.withValues(alpha: 0.7),
+                              fontSize: 13),
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final c = filtered[index];
-                      return MessageTile(
-                        name: c.user.displayName,
-                        username: c.user.username,
-                        avatarAsset: c.user.avatarAsset ?? '',
-                        message: c.message,
-                        time: c.time,
-                        unreadCount: c.unreadCount,
-                        read: c.read,
-                        searchQuery: _searchQuery,
-                      );
-                    },
-                  ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final room = filtered[index];
+                    final otherUid = room.otherUid(myUid);
+                    return _ChatRoomTile(
+                      room: room,
+                      otherUid: otherUid,
+                      myUid: myUid,
+                      isDark: isDark,
+                      searchQuery: _searchQuery,
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -206,6 +167,198 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 }
 
+// ─────────────────────────────────────────────
+// Per-room tile (fetches user profile lazily)
+// ─────────────────────────────────────────────
+
+class _ChatRoomTile extends StatelessWidget {
+  final ChatRoom room;
+  final String otherUid;
+  final String myUid;
+  final bool isDark;
+  final String searchQuery;
+
+  const _ChatRoomTile({
+    required this.room,
+    required this.otherUid,
+    required this.myUid,
+    required this.isDark,
+    required this.searchQuery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: DatabaseService.instance.getUserProfile(otherUid, useCache: true),
+      builder: (context, snap) {
+        final data = snap.data;
+        final name = (data?['displayName'] as String?) ??
+            (data?['username'] as String?) ??
+            'KnockPost User';
+        final username = (data?['username'] as String?) ?? '';
+        final avatarUrl = (data?['profileImageUrl'] as String?) ?? '';
+        final unread = room.unreadFor(myUid);
+
+        // Filter by search
+        if (searchQuery.isNotEmpty) {
+          final q = searchQuery.toLowerCase();
+          if (!name.toLowerCase().contains(q) &&
+              !username.toLowerCase().contains(q) &&
+              !room.lastMessage.toLowerCase().contains(q)) {
+            return const SizedBox.shrink();
+          }
+        }
+
+        final textColor = isDark ? Colors.white : Colors.black;
+        final subtitleColor =
+            isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+        final isUnread = unread > 0;
+
+        return InkWell(
+          enableFeedback: false,
+          onTap: () {
+            KnockHaptics.selection();
+            final user = UserModel(
+              id: otherUid,
+              displayName: name,
+              username: username,
+              avatarAsset: avatarUrl.isNotEmpty ? avatarUrl : null,
+            );
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  otherUser: user,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                _Avatar(url: avatarUrl, isDark: isDark),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: isUnread
+                              ? FontWeight.bold
+                              : FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        room.lastMessage,
+                        style: TextStyle(
+                          color: isUnread ? textColor : subtitleColor,
+                          fontWeight: isUnread
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _timeLabel(room.lastMessageTime),
+                      style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 12,
+                        fontWeight:
+                            isUnread ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (isUnread)
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF0A7CFF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unread > 99 ? '99+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _timeLabel(DateTime? dt) {
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${dt.day}/${dt.month}';
+  }
+}
+
+// ─────────────────────────────────────────────
+// Avatar helper
+// ─────────────────────────────────────────────
+
+class _Avatar extends StatelessWidget {
+  final String url;
+  final bool isDark;
+  const _Avatar({required this.url, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    ImageProvider? img;
+    if (url.isNotEmpty) {
+      if (url.startsWith('http')) {
+        img = NetworkImage(url);
+      } else if (url.startsWith('assets/')) {
+        img = AssetImage(url);
+      } else {
+        img = FileImage(File(url));
+      }
+    }
+    return CircleAvatar(
+      radius: 26,
+      backgroundColor:
+          isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+      backgroundImage: img,
+      child: img == null
+          ? Icon(Icons.person,
+              size: 24, color: Colors.grey.shade500)
+          : null,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// New Message Icon
+// ─────────────────────────────────────────────
 
 class _NewMessageIcon extends StatefulWidget {
   const _NewMessageIcon();
@@ -229,9 +382,7 @@ class _NewMessageIconState extends State<_NewMessageIcon> {
         KnockHaptics.tap();
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const NewMessageScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const NewMessageScreen()),
         );
       },
       onTapCancel: () => setState(() => _isPressed = false),
@@ -241,141 +392,6 @@ class _NewMessageIconState extends State<_NewMessageIcon> {
           _isPressed ? Icons.maps_ugc : Icons.maps_ugc_outlined,
           color: textColor,
           size: 26,
-        ),
-      ),
-    );
-  }
-}
-
-class MessageTile extends StatelessWidget {
-  final String name;
-  final String username;
-  final String avatarAsset;
-  final String message;
-  final String time;
-  final int unreadCount;
-  final bool read;
-  final String searchQuery;
-
-  const MessageTile({
-    super.key,
-    required this.name,
-    required this.username,
-    required this.avatarAsset,
-    required this.message,
-    required this.time,
-    this.unreadCount = 0,
-    this.read = false,
-    this.searchQuery = '',
-  });
-
-  /// Build a RichText with the matching substring highlighted.
-  Widget _highlightText(
-    String text, {
-    required Color color,
-    required FontWeight fontWeight,
-    double fontSize = 14,
-    int? maxLines,
-    TextOverflow? overflow,
-  }) {
-    return Text(
-      text,
-      maxLines: maxLines,
-      overflow: overflow,
-      style: TextStyle(color: color, fontWeight: fontWeight, fontSize: fontSize),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    const highlightColor = Color(0xFF0A7CFF); // Vibrant Blue
-
-    return InkWell(
-      enableFeedback: false,
-      onTap: () {
-        KnockHaptics.selection();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              userName: name,
-              userAvatar: avatarAsset,
-              userUsername: username,
-            ),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundImage: AssetImage(avatarAsset),
-            ),
-
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _highlightText(
-                    name,
-                    color: textColor,
-                    fontWeight: (!read && unreadCount > 0) ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 16,
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  _highlightText(
-                    message,
-                    color: (!read && unreadCount > 0) ? textColor : subtitleColor,
-                    fontWeight: (!read && unreadCount > 0) ? FontWeight.w600 : FontWeight.normal,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 10),
-
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  time,
-                  style: TextStyle(
-                    color: subtitleColor, 
-                    fontSize: 12,
-                    fontWeight: (!read && unreadCount > 0) ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                if (unreadCount > 0)
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: highlightColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      unreadCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white, 
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
         ),
       ),
     );

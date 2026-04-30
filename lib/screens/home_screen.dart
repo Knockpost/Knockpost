@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/global_post_state.dart';
+import '../utils/image_helper.dart';
 
 import '../models/post_model.dart';
 import '../models/user_model.dart';
@@ -36,6 +37,7 @@ import '../widgets/system_nav_bar_fill.dart';
 import '../utils/waves_feed_state.dart';
 import '../services/current_user_service.dart';
 import '../services/post_service.dart';
+import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationService.instance.initFCM();
     _postScrollLockController = PostScrollLockController()
       ..register(_scrollController);
     _pageController = PageController(initialPage: _currentNavIndex);
@@ -182,23 +185,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 21,
-                        backgroundColor: isDark
-                            ? const Color(0xFF2A2A2A)
-                            : const Color(0xFFE0E0E0),
-                        backgroundImage: demoOwnUser.avatarAsset != null
-                            ? AssetImage(demoOwnUser.avatarAsset!)
-                            : null,
-                        child: demoOwnUser.avatarAsset == null
-                            ? Icon(
-                                Icons.person_rounded,
-                                size: 22,
-                                color: isDark
-                                    ? Colors.grey.shade400
-                                    : Colors.grey.shade600,
-                              )
-                            : null,
+                      ValueListenableBuilder<UserModel?>(
+                        valueListenable: CurrentUserService.instance.userNotifier,
+                        builder: (context, currentUser, _) {
+                          return CircleAvatar(
+                            radius: 21,
+                            backgroundColor: isDark
+                                ? const Color(0xFF2A2A2A)
+                                : const Color(0xFFE0E0E0),
+                            backgroundImage: currentUser?.avatarAsset != null
+                                ? ImageHelper.resolveImage(currentUser!.avatarAsset!)
+                                : null,
+                            child: currentUser?.avatarAsset == null
+                                ? Icon(
+                                    Icons.person_rounded,
+                                    size: 22,
+                                    color: isDark
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
+                                  )
+                                : null,
+                          );
+                        },
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -715,13 +723,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             valueListenable:
                                                 GlobalPostState.deletedPostIds,
                                             builder: (context, deletedIds, _) {
-                                              // Combine real posts from Firestore with some demo posts for testing other users' content
-                                              final allDemoPosts = [
-                                                ...getDemoPostsForUser('zayn01'),
-                                                ...getDemoPostsForUser('saptarshi01'),
-                                              ];
-
-                                              final sortedPosts = [...realPosts, ...allDemoPosts]
+                                              final sortedPosts = realPosts
                                                   .where((p) =>
                                                       !deletedIds.contains(p.id) &&
                                                       p.type != PostType.glimps)
@@ -766,9 +768,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   index == totalItems - 1;
 
                                               if (index == glimpseStripIndex) {
-                                                return GlimpsStrip(
-                                                  glimpses: demoGlimpseFeed,
-                                                );
+                                                return const GlimpsStrip();
                                               }
                                               if (index == peopleStripIndex) {
                                                 return const PeopleSuggestionStrip();
@@ -790,16 +790,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                               final post =
                                                   activePosts[postIndex];
                                               final currentUser = CurrentUserService.instance.currentUser;
-                                              final author =
-                                                  (post.authorId == 'me' || post.authorId == currentUser?.id)
-                                                  ? (currentUser ?? demoOwnUser)
-                                                  : findDemoUserByUsername(
-                                                          post.authorId ==
-                                                                  'zayn01'
-                                                              ? 'zayn.malik'
-                                                              : 'saptarshi.nayak',
-                                                        ) ??
-                                                        demoOwnUser;
+                                              final author = post.authorId == currentUser?.id ? currentUser! : UserModel(
+                                                id: post.authorId,
+                                                displayName: 'User',
+                                                username: 'user',
+                                              );
 
                                               final dividerColor = isDark
                                                   ? const Color(0xFF2A2A2A)
@@ -905,8 +900,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: ValueListenableBuilder<UserModel?>(
                                 valueListenable: CurrentUserService.instance.userNotifier,
                                 builder: (context, liveUser, child) {
-                                  // real user load হলে show করো, নাহলে demo fallback
-                                  final user = liveUser ?? demoOwnUser;
+                                  final user = liveUser;
+                                  if (user == null) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
                                   return StreamBuilder<List<PostModel>>(
                                     stream: PostService.instance.getUserPosts(user.id),
                                     builder: (context, snapshot) {
