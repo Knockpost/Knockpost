@@ -39,6 +39,7 @@ import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -186,7 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ValueListenableBuilder<UserModel?>(
-                        valueListenable: CurrentUserService.instance.userNotifier,
+                        valueListenable:
+                            CurrentUserService.instance.userNotifier,
                         builder: (context, currentUser, _) {
                           return CircleAvatar(
                             radius: 21,
@@ -194,7 +196,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? const Color(0xFF2A2A2A)
                                 : const Color(0xFFE0E0E0),
                             backgroundImage: currentUser?.avatarAsset != null
-                                ? ImageHelper.resolveImage(currentUser!.avatarAsset!)
+                                ? ImageHelper.resolveImage(
+                                    currentUser!.avatarAsset!,
+                                  )
                                 : null,
                             child: currentUser?.avatarAsset == null
                                 ? Icon(
@@ -330,7 +334,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => MediaEditorScreen(
                                     files: croppedFiles,
-                                    initialCaption: captionController.text.trim(),
+                                    initialCaption: captionController.text
+                                        .trim(),
                                     aspectRatio: aspectRatio,
                                   ),
                                 ),
@@ -359,16 +364,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => const FractionallySizedBox(
                         heightFactor: 0.95,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
                           child: WavesGallerySheet(showCreativeTools: false),
                         ),
                       ),
                     );
 
-                    if (result != null && result.isNotEmpty && context.mounted) {
-                      final isVideo = result.first.path.toLowerCase().endsWith('.mp4') ||
-                                      result.first.path.toLowerCase().endsWith('.mov') ||
-                                      result.first.path.toLowerCase().endsWith('.mkv');
+                    if (result != null &&
+                        result.isNotEmpty &&
+                        context.mounted) {
+                      final isVideo =
+                          result.first.path.toLowerCase().endsWith('.mp4') ||
+                          result.first.path.toLowerCase().endsWith('.mov') ||
+                          result.first.path.toLowerCase().endsWith('.mkv');
                       if (isVideo) {
                         Navigator.push(
                           context,
@@ -394,7 +404,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   MaterialPageRoute(
                                     builder: (_) => MediaEditorScreen(
                                       files: croppedFiles,
-                                      initialCaption: captionController.text.trim(),
+                                      initialCaption: captionController.text
+                                          .trim(),
                                       aspectRatio: aspectRatio,
                                     ),
                                   ),
@@ -424,13 +435,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => const FractionallySizedBox(
                         heightFactor: 0.95,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
                           child: WavesGallerySheet(),
                         ),
                       ),
                     );
 
-                    if (result != null && result.isNotEmpty && context.mounted) {
+                    if (result != null &&
+                        result.isNotEmpty &&
+                        context.mounted) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -711,177 +726,158 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                             ];
                                           },
-                                      body: StreamBuilder<List<PostModel>>(
-                                        stream: PostService.instance.getFeedPosts(),
-                                        builder: (context, snapshot) {
-                                          if (!snapshot.hasData) {
-                                            return const Center(child: CircularProgressIndicator());
-                                          }
-                                          final realPosts = snapshot.data!;
-
-                                          return ValueListenableBuilder<Set<String>>(
-                                            valueListenable:
-                                                GlobalPostState.deletedPostIds,
-                                            builder: (context, deletedIds, _) {
-                                              final sortedPosts = realPosts
-                                                  .where((p) =>
-                                                      !deletedIds.contains(p.id) &&
-                                                      p.type != PostType.glimps)
-                                                  .toList()
-                                                ..sort((a, b) => b.createdAt
-                                                    .compareTo(a.createdAt));
-
-                                          final activePosts = <PostModel>[];
-                                          final pendingWaves = <PostModel>[];
-                                          for (final p in sortedPosts) {
-                                            if (p.type == PostType.waves) {
-                                              if (activePosts.isNotEmpty &&
-                                                  activePosts.last.type ==
-                                                      PostType.waves) {
-                                                pendingWaves.add(p);
-                                              } else {
-                                                activePosts.add(p);
-                                              }
-                                            } else {
-                                              activePosts.add(p);
-                                              if (pendingWaves.isNotEmpty) {
-                                                activePosts.add(pendingWaves.removeAt(0));
-                                              }
-                                            }
-                                          }
-
-                                          return PostInnerScrollLockRegistrar(
-                                            child: ListView.builder(
-                                              physics: isScrollLocked
-                                                  ? const NeverScrollableScrollPhysics()
-                                                  : null,
-                                              padding: const EdgeInsets.only(
-                                                bottom: 90,
-                                              ),
-                                            itemCount: activePosts.length + 2,
-                                            itemBuilder: (context, index) {
-                                              const glimpseStripIndex = 1;
-                                              const peopleStripIndex = 3;
-                                              final totalItems =
-                                                  activePosts.length + 2;
-                                              final isLast =
-                                                  index == totalItems - 1;
-
-                                              if (index == glimpseStripIndex) {
-                                                return const GlimpsStrip();
-                                              }
-                                              if (index == peopleStripIndex) {
-                                                return const PeopleSuggestionStrip();
-                                              }
-
-                                              int postIndex = index;
-                                              if (index > peopleStripIndex) {
-                                                postIndex -= 2;
-                                              } else if (index >
-                                                  glimpseStripIndex) {
-                                                postIndex -= 1;
-                                              }
-
-                                              if (postIndex >=
-                                                  activePosts.length) {
-                                                return const SizedBox.shrink();
-                                              }
-
-                                              final post =
-                                                  activePosts[postIndex];
-                                              final currentUser = CurrentUserService.instance.currentUser;
-                                              final author = post.authorId == currentUser?.id ? currentUser! : UserModel(
-                                                id: post.authorId,
-                                                displayName: 'User',
-                                                username: 'user',
-                                              );
-
-                                              final dividerColor = isDark
-                                                  ? const Color(0xFF2A2A2A)
-                                                  : const Color(0xFFE8E8E8);
-                                              final divider = Divider(
-                                                height: 1,
-                                                thickness: 1,
-                                                color: dividerColor,
-                                              );
-
-                                              Widget card;
-                                              if (post.type == PostType.text) {
-                                                card = ThoughtCard(
-                                                  user: author,
-                                                  text: post.text,
-                                                  likes: post.likes,
-                                                  views: post.views,
-                                                  postId: post.id,
-                                                  timestamp: post.timestampText,
+                                      body: ValueListenableBuilder<UserModel?>(
+                                        valueListenable: CurrentUserService.instance.userNotifier,
+                                        builder: (context, currentUser, _) {
+                                          return StreamBuilder<List<({PostModel post, UserModel author})>>(
+                                            stream: PostService.instance.getFeedPostsWithAuthors(
+                                              currentUserId: currentUser?.id ?? '',
+                                              currentUserModel: currentUser,
+                                            ),
+                                            builder: (context, snapshot) {
+                                              if (!snapshot.hasData) {
+                                                return const Center(
+                                                  child: CircularProgressIndicator(),
                                                 );
-                                              } else if (post.type == PostType.waves) {
-                                                card = WavesFeedCard(
-                                                  post: post,
-                                                  user: author,
-                                                  // Tap করলে সেই video URL সেট করি, তারপর Waves tab (index 2)-এ যাও
-                                                  onTap: () {
-                                                    final videoUrl = post.imagePaths.isNotEmpty
-                                                        ? post.imagePaths.first
-                                                        : null;
-                                                    if (videoUrl != null) {
-                                                      WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                              }
+                                              final feedItems = snapshot.data!;
+
+                                              return ValueListenableBuilder<Set<String>>(
+                                                valueListenable: GlobalPostState.deletedPostIds,
+                                                builder: (context, deletedIds, _) {
+                                                  // Filter and sort
+                                                  final sorted = feedItems
+                                                      .where((item) =>
+                                                          !deletedIds.contains(item.post.id) &&
+                                                          item.post.type != PostType.glimps)
+                                                      .toList()
+                                                    ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+
+                                                  // Interleave waves
+                                                  final activeItems = <({PostModel post, UserModel author})>[];
+                                                  final pendingWaves = <({PostModel post, UserModel author})>[];
+                                                  for (final item in sorted) {
+                                                    if (item.post.type == PostType.waves) {
+                                                      if (activeItems.isNotEmpty && activeItems.last.post.type == PostType.waves) {
+                                                        pendingWaves.add(item);
+                                                      } else {
+                                                        activeItems.add(item);
+                                                      }
+                                                    } else {
+                                                      activeItems.add(item);
+                                                      if (pendingWaves.isNotEmpty) {
+                                                        activeItems.add(pendingWaves.removeAt(0));
+                                                      }
                                                     }
-                                                    _animateToTab(2);
-                                                  },
-                                                );
-                                              } else {
-                                                card = PostCard(
-                                                  imagePaths: post.imagePaths,
-                                                  user: author,
-                                                  caption: post.text,
-                                                  likes: post.likes,
-                                                  views: post.views,
-                                                  postId: post.id,
-                                                  timestamp: post.timestampText,
-                                                  musicUrl: post.musicUrl,
-                                                  musicTitle: post.musicTitle,
-                                                  musicArtist: post.musicArtist,
-                                                  musicStyle: post.musicStyle,
-                                                  musicCoverUrl: post.musicCoverUrl,
-                                                  musicTrimStart: post.musicTrimStart,
-                                                  musicLyrics: post.musicLyrics,
-                                                  musicLyricsConfig: post.musicLyricsConfig,
-                                                  musicOverlayX: post.musicOverlayX,
-                                                  musicOverlayY: post.musicOverlayY,
-                                                  musicOverlayScale: post.musicOverlayScale,
-                                                  musicOverlayRotation: post.musicOverlayRotation,
-                                                  filterIndex: post.filterIndex,
-                                                  textOverlays: post.textOverlays,
-                                                  drawPaths: post.drawPaths,
-                                                  isVideoPost: post.isVideoPost || post.type == PostType.waves,
-                                                  videoHasSound: post.videoHasSound,
-                                                  coverImagePath: post.coverImagePath,
-                                                  mediaAspectRatio: post.mediaAspectRatio,
-                                                  mediaIsBaked: post.mediaIsBaked,
-                                                );
-                                              }
+                                                  }
 
-                                              return Column(
-                                                children: [
-                                                  divider,
-                                                  card,
-                                                  if (isLast) divider,
-                                                ],
+                                                  return PostInnerScrollLockRegistrar(
+                                                    child: ListView.builder(
+                                                      physics: isScrollLocked
+                                                          ? const NeverScrollableScrollPhysics()
+                                                          : null,
+                                                      padding: const EdgeInsets.only(bottom: 90),
+                                                      itemCount: activeItems.length + 2,
+                                                      itemBuilder: (context, index) {
+                                                        const glimpseStripIndex = 1;
+                                                        const peopleStripIndex = 3;
+                                                        final totalItems = activeItems.length + 2;
+                                                        final isLast = index == totalItems - 1;
+
+                                                        if (index == glimpseStripIndex) return const GlimpsStrip();
+                                                        if (index == peopleStripIndex) return const PeopleSuggestionStrip();
+
+                                                        int postIndex = index;
+                                                        if (index > peopleStripIndex) {
+                                                          postIndex -= 2;
+                                                        } else if (index > glimpseStripIndex) {
+                                                          postIndex -= 1;
+                                                        }
+
+                                                        if (postIndex >= activeItems.length) return const SizedBox.shrink();
+
+                                                        final post = activeItems[postIndex].post;
+                                                        final author = activeItems[postIndex].author;
+
+                                                        final dividerColor = isDark
+                                                            ? const Color(0xFF2A2A2A)
+                                                            : const Color(0xFFE8E8E8);
+                                                        final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
+                                                        Widget card;
+                                                        if (post.type == PostType.text) {
+                                                          card = ThoughtCard(
+                                                            user: author,
+                                                            text: post.text,
+                                                            likes: post.likes,
+                                                            views: post.views,
+                                                            postId: post.id,
+                                                            timestamp: post.timestampText,
+                                                          );
+                                                        } else if (post.type == PostType.waves) {
+                                                          card = WavesFeedCard(
+                                                            post: post,
+                                                            user: author,
+                                                            onTap: () {
+                                                              final videoUrl = post.imagePaths.isNotEmpty ? post.imagePaths.first : null;
+                                                              if (videoUrl != null) WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                                              _animateToTab(2);
+                                                            },
+                                                          );
+                                                        } else {
+                                                          card = PostCard(
+                                                            imagePaths: post.imagePaths,
+                                                            user: author,
+                                                            caption: post.text,
+                                                            likes: post.likes,
+                                                            views: post.views,
+                                                            postId: post.id,
+                                                            timestamp: post.timestampText,
+                                                            musicUrl: post.musicUrl,
+                                                            musicTitle: post.musicTitle,
+                                                            musicArtist: post.musicArtist,
+                                                            musicStyle: post.musicStyle,
+                                                            musicCoverUrl: post.musicCoverUrl,
+                                                            musicTrimStart: post.musicTrimStart,
+                                                            musicLyrics: post.musicLyrics,
+                                                            musicLyricsConfig: post.musicLyricsConfig,
+                                                            musicOverlayX: post.musicOverlayX,
+                                                            musicOverlayY: post.musicOverlayY,
+                                                            musicOverlayScale: post.musicOverlayScale,
+                                                            musicOverlayRotation: post.musicOverlayRotation,
+                                                            filterIndex: post.filterIndex,
+                                                            textOverlays: post.textOverlays,
+                                                            drawPaths: post.drawPaths,
+                                                            isVideoPost: post.isVideoPost || post.type == PostType.waves,
+                                                            videoHasSound: post.videoHasSound,
+                                                            coverImagePath: post.coverImagePath,
+                                                            mediaAspectRatio: post.mediaAspectRatio,
+                                                            mediaIsBaked: post.mediaIsBaked,
+                                                          );
+                                                        }
+
+                                                        return Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            card,
+                                                            if (!isLast) divider,
+                                                          ],
+                                                        );
+                                                      },
+                                                    ),
+                                                  );
+                                                },
                                               );
                                             },
-                                          ),
-                                        );
-                                      },
+                                          );
+                                        },
+                                      ),
                                     );
                                   },
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
                           const _KeepAlivePage(child: SearchScreen()),
                           ValueListenableBuilder<int>(
                             valueListenable: _navIndexNotifier,
@@ -898,14 +894,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: NotificationListener<ScrollNotification>(
                               onNotification: _onScrollNotification,
                               child: ValueListenableBuilder<UserModel?>(
-                                valueListenable: CurrentUserService.instance.userNotifier,
+                                valueListenable:
+                                    CurrentUserService.instance.userNotifier,
                                 builder: (context, liveUser, child) {
                                   final user = liveUser;
                                   if (user == null) {
-                                    return const Center(child: CircularProgressIndicator());
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
                                   }
                                   return StreamBuilder<List<PostModel>>(
-                                    stream: PostService.instance.getUserPosts(user.id),
+                                    stream: PostService.instance.getUserPosts(
+                                      user.id,
+                                    ),
                                     builder: (context, snapshot) {
                                       final currentPosts = snapshot.data ?? [];
                                       return ProfileScreen(

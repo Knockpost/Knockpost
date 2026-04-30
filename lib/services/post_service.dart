@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/post_model.dart';
+import '../models/user_model.dart';
 import 'storage_service.dart';
 
 class PostService {
@@ -67,6 +68,54 @@ class PostService {
           .where((post) =>
               post.duration == PostDuration.lifetime || post.isInRecentsWindow)
           .toList();
+    });
+  }
+
+  /// Streams feed posts along with their resolved author [UserModel].
+  /// Author profiles are batch-fetched from Firestore whenever the post list changes.
+  /// Returns a list of (PostModel, UserModel) records.
+  Stream<List<({PostModel post, UserModel author})>> getFeedPostsWithAuthors({
+    int limit = 20,
+    required String currentUserId,
+    required UserModel? currentUserModel,
+  }) {
+    return getFeedPosts(limit: limit).asyncMap((posts) async {
+      // Collect unique author IDs (excluding current user — we already have their data)
+      final Set<String> uniqueAuthorIds = {};
+      for (final p in posts) {
+        if (p.authorId != currentUserId) {
+          uniqueAuthorIds.add(p.authorId);
+        }
+      }
+
+      // Batch-fetch all author profiles in parallel
+      final Map<String, UserModel> authorMap = {};
+      await Future.wait(uniqueAuthorIds.map((uid) async {
+        try {
+          final data = await _firestore.collection('users').doc(uid).get();
+          if (data.exists && data.data() != null) {
+            authorMap[uid] = UserModel.fromMap(data.data()!, uid);
+          }
+        } catch (e) {
+          debugPrint('PostService: failed to fetch author $uid: $e');
+        }
+      }));
+
+      // Map each post to its author
+      return posts.map((post) {
+        UserModel author;
+        if (post.authorId == currentUserId && currentUserModel != null) {
+          author = currentUserModel;
+        } else {
+          author = authorMap[post.authorId] ??
+              UserModel(
+                id: post.authorId,
+                displayName: 'Unknown',
+                username: 'unknown',
+              );
+        }
+        return (post: post, author: author);
+      }).toList();
     });
   }
 
