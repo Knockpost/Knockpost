@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 import '../../models/notification_model.dart';
-import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/current_user_service.dart';
+import '../../widgets/comment_sheet.dart';
 import '../profile/other_profile_screen.dart';
-import '../single_post_screen.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
+import '../../utils/image_helper.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -221,28 +221,7 @@ class _NotifTile extends StatelessWidget {
     if (notif.type == NotificationType.knock) {
       return _KnockBackButton(isDark: isDark, user: user);
     }
-
-    if (notif.postThumbnailUrl != null && notif.postThumbnailUrl!.isNotEmpty) {
-      ImageProvider imgProvider;
-      if (notif.postThumbnailUrl!.startsWith('http')) {
-        imgProvider = NetworkImage(notif.postThumbnailUrl!);
-      } else if (notif.postThumbnailUrl!.startsWith('assets/')) {
-        imgProvider = AssetImage(notif.postThumbnailUrl!);
-      } else {
-        imgProvider = FileImage(File(notif.postThumbnailUrl!));
-      }
-
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image(
-          image: imgProvider,
-          width: 48,
-          height: 48,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
+    // No thumbnail for comment/like — keep it clean
     return const SizedBox.shrink();
   }
 
@@ -259,12 +238,12 @@ class _NotifTile extends StatelessWidget {
     return InkWell(
       onTap: () {
         KnockHaptics.selection();
-        
+
         // Mark as read
         if (!notif.isRead) {
           NotificationService.instance.markAsRead(notif.id);
         }
-        
+
         if (notif.type == NotificationType.knock) {
           // Go to user profile
           Navigator.push(
@@ -272,39 +251,25 @@ class _NotifTile extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => OtherProfileScreen(
                 user: user,
-                // Using empty posts for now since we don't fetch full user posts in notif
-                posts: const [], 
+                posts: const [],
               ),
             ),
           );
-        } else {
-          // Go to single post view (we need a post model)
-          final isComment = notif.type == NotificationType.comment;
-          
-          final dummyPost = PostModel(
-            id: notif.postId ?? 'post_${notif.id}',
-            authorId: 'me', // Doesn't matter for this view
-            type: PostType.media,
-            duration: PostDuration.h24,
-            imagePaths: notif.postThumbnailUrl != null ? [notif.postThumbnailUrl!] : [],
-            text: isComment ? notif.commentSnippet ?? '' : '',
-            createdAt: notif.timestamp.subtract(const Duration(hours: 4)), 
-            likes: 0,
-            views: 0,
-          );
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SinglePostScreen(
-                post: dummyPost,
-                author: demoSumanPatra, // We should fetch my user data here ideally, but using demo is fine for UI
-                autoOpenComments: isComment,
-              ),
-            ),
-          );
+        } else if (notif.type == NotificationType.comment && notif.postId != null) {
+          // Open comment sheet directly for the post the user commented on
+          final currentUser = CurrentUserService.instance.currentUser;
+          if (currentUser != null) {
+            CommentSheet.show(
+              context,
+              postId: notif.postId!,
+              postAuthor: currentUser,
+              isPostOwner: true, // We are the post owner since it's our notification
+            );
+          }
         }
+        // like notifications: do nothing extra (already marked as read)
       },
+
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         color: unreadBg,
@@ -341,16 +306,7 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ImageProvider? img;
-    if (url.isNotEmpty) {
-      if (url.startsWith('http')) {
-        img = NetworkImage(url);
-      } else if (url.startsWith('assets/')) {
-        img = AssetImage(url);
-      } else {
-        img = FileImage(File(url));
-      }
-    }
+    final img = ImageHelper.resolveImage(url.isNotEmpty ? url : null);
     return CircleAvatar(
       radius: 25,
       backgroundColor:

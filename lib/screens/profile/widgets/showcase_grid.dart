@@ -14,6 +14,7 @@ import 'profile_glimps_strip.dart';
 import 'profile_ui_helpers.dart';
 import 'package:video_player/video_player.dart';
 import '../../../utils/image_helper.dart';
+import '../../waves/waves_feed_card.dart';
 
 /// Grid view of lifetime posts (Showcase tab).
 /// Tapping a post opens it in a full-screen scroll detail view.
@@ -36,7 +37,7 @@ class ShowcaseGrid extends StatelessWidget {
           .where(
             (p) =>
                 p.isInShowcase &&
-                p.type == PostType.media &&
+                (p.type == PostType.media || p.type == PostType.waves) &&
                 p.imagePaths.isNotEmpty,
           )
           .toList()
@@ -377,45 +378,53 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
     return Column(
       children: [
         divider,
-        post.imagePaths.isEmpty
-            ? ThoughtCard(
+        post.type == PostType.waves
+            ? WavesFeedCard(
+                post: post,
                 user: widget.user,
-                text: post.text,
-                likes: post.likes,
-                views: post.views,
-                disableProfileNavigation: false,
-                timestamp: post.timestampText,
+                onTap: () {
+                  // Optional: handle tap if needed, though usually not required in profile
+                },
               )
-            : PostCard(
-                imagePaths: post.imagePaths,
-                user: widget.user,
-                caption: post.text,
-                postId: post.id,
-                musicUrl: post.musicUrl,
-                musicTitle: post.musicTitle,
-                musicArtist: post.musicArtist,
-                musicStyle: post.musicStyle,
-                musicCoverUrl: post.musicCoverUrl,
-                musicTrimStart: post.musicTrimStart,
-                musicLyrics: post.musicLyrics,
-                musicLyricsConfig: post.musicLyricsConfig,
-                musicOverlayX: post.musicOverlayX,
-                musicOverlayY: post.musicOverlayY,
-                musicOverlayScale: post.musicOverlayScale,
-                musicOverlayRotation: post.musicOverlayRotation,
-                filterIndex: post.filterIndex,
-                textOverlays: post.textOverlays,
-                drawPaths: post.drawPaths,
-                isVideoPost: post.isVideoPost,
-                videoHasSound: post.videoHasSound,
-                coverImagePath: post.coverImagePath,
-                mediaAspectRatio: post.mediaAspectRatio,
-                mediaIsBaked: post.mediaIsBaked,
-                likes: post.likes,
-                views: post.views,
-                disableProfileNavigation: false,
-                timestamp: post.timestampText,
-              ),
+            : post.imagePaths.isEmpty
+                ? ThoughtCard(
+                    user: widget.user,
+                    text: post.text,
+                    likes: post.likes,
+                    views: post.views,
+                    disableProfileNavigation: false,
+                    timestamp: post.timestampText,
+                  )
+                : PostCard(
+                    imagePaths: post.imagePaths,
+                    user: widget.user,
+                    caption: post.text,
+                    postId: post.id,
+                    musicUrl: post.musicUrl,
+                    musicTitle: post.musicTitle,
+                    musicArtist: post.musicArtist,
+                    musicStyle: post.musicStyle,
+                    musicCoverUrl: post.musicCoverUrl,
+                    musicTrimStart: post.musicTrimStart,
+                    musicLyrics: post.musicLyrics,
+                    musicLyricsConfig: post.musicLyricsConfig,
+                    musicOverlayX: post.musicOverlayX,
+                    musicOverlayY: post.musicOverlayY,
+                    musicOverlayScale: post.musicOverlayScale,
+                    musicOverlayRotation: post.musicOverlayRotation,
+                    filterIndex: post.filterIndex,
+                    textOverlays: post.textOverlays,
+                    drawPaths: post.drawPaths,
+                    isVideoPost: post.isVideoPost,
+                    videoHasSound: post.videoHasSound,
+                    coverImagePath: post.coverImagePath,
+                    mediaAspectRatio: post.mediaAspectRatio,
+                    mediaIsBaked: post.mediaIsBaked,
+                    likes: post.likes,
+                    views: post.views,
+                    disableProfileNavigation: false,
+                    timestamp: post.timestampText,
+                  ),
         if (isLast) divider,
       ],
     );

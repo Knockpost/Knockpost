@@ -11,6 +11,7 @@ import '../screens/reply_chat_screen.dart';
 import '../screens/reply_list_screen.dart';
 import '../services/comment_service.dart';
 import '../services/current_user_service.dart';
+import '../services/database_service.dart';
 import '../models/message.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/image_helper.dart';
@@ -55,6 +56,7 @@ class _CommentSheetState extends State<CommentSheet> {
 
   String? _selectedThreadUserId;
   bool _showChatPage = false;
+  final Map<String, UserModel> _userCache = {};
 
   UserModel get _viewer =>
       CurrentUserService.instance.currentUser!;
@@ -78,12 +80,26 @@ class _CommentSheetState extends State<CommentSheet> {
     if (userId == CurrentUserService.instance.currentUser?.id) {
       return CurrentUserService.instance.currentUser!;
     }
-    // We should fetch the user from Firestore ideally
-    return UserModel(id: userId, displayName: 'User', username: 'user');
+    // Return from cache if available, otherwise placeholder
+    return _userCache[userId] ??
+        UserModel(id: userId, displayName: 'User', username: 'user');
+  }
+
+  Future<void> _fetchAndCacheUser(String userId) async {
+    if (_userCache.containsKey(userId)) return;
+    if (userId == CurrentUserService.instance.currentUser?.id) return;
+    try {
+      final user = await DatabaseService.instance.getUserById(userId);
+      if (user != null && mounted) {
+        setState(() => _userCache[userId] = user);
+      }
+    } catch (_) {}
   }
 
   Future<void> _openThread(ReplyThread thread) async {
     KnockHaptics.selection();
+    // Pre-fetch the user before showing the chat page
+    await _fetchAndCacheUser(thread.userId);
     setState(() {
       _selectedThreadUserId = thread.userId;
       _showChatPage = true;
@@ -203,6 +219,11 @@ class _CommentSheetState extends State<CommentSheet> {
               ),
               builder: (context, snapshot) {
                 final threads = snapshot.data ?? [];
+
+                // Pre-fetch all thread user profiles into cache when threads arrive
+                for (final t in threads) {
+                  _fetchAndCacheUser(t.userId);
+                }
 
                 ReplyThread? activeThread;
                 if (_selectedThreadUserId != null) {

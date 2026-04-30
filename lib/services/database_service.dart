@@ -109,6 +109,20 @@ class DatabaseService {
     }
   }
 
+  /// Fetch a UserModel by UID. Returns null if not found.
+  Future<UserModel?> getUserById(String uid) async {
+    try {
+      final data = await getUserProfile(uid, useCache: true);
+      if (data != null) {
+        return UserModel.fromMap(data, uid);
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching user by id: $e");
+      return null;
+    }
+  }
+
   /// Search users by username prefix (case-insensitive via lowercase storage).
   /// Also fetches by displayName prefix as a second query.
   Future<List<UserModel>> searchUsers(String query, {String? excludeUid}) async {

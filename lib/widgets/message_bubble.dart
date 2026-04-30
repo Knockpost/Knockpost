@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../models/message.dart';
 import '../models/user_model.dart';
+import '../utils/image_helper.dart';
 
 class MessageBubble extends StatelessWidget {
   final ReplyMessage message;
@@ -37,6 +36,23 @@ class MessageBubble extends StatelessWidget {
       bottomLeft: const Radius.circular(22),
       bottomRight: const Radius.circular(22),
     );
+
+    // Use ImageHelper to handle network URLs, local files, and assets
+    final avatarImage = ImageHelper.resolveImage(sender.avatarAsset);
+
+    Widget buildAvatar() => GestureDetector(
+          onTap: onUserTap,
+          child: CircleAvatar(
+            radius: 14,
+            backgroundColor: isDark
+                ? const Color(0xFF2A2A2A)
+                : const Color(0xFFEEEEEE),
+            backgroundImage: avatarImage,
+            child: avatarImage == null
+                ? Icon(Icons.person_rounded, color: subtleColor, size: 16)
+                : null,
+          ),
+        );
 
     final bubble = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 290),
@@ -96,52 +112,10 @@ class MessageBubble extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: onUserTap,
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isDark
-                                ? const Color(0xFF2A2A2A)
-                                : const Color(0xFFEEEEEE),
-                            backgroundImage: sender.avatarAsset != null
-                                ? (sender.avatarAsset!.startsWith('assets/')
-                                      ? AssetImage(sender.avatarAsset!)
-                                          as ImageProvider
-                                      : FileImage(File(sender.avatarAsset!)))
-                                : null,
-                            child: sender.avatarAsset == null
-                                ? Icon(
-                                    Icons.person_rounded,
-                                    color: subtleColor,
-                                    size: 16,
-                                  )
-                                : null,
-                          ),
-                        ),
+                        buildAvatar(),
                       ]
                     : <Widget>[
-                        GestureDetector(
-                          onTap: onUserTap,
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isDark
-                                ? const Color(0xFF2A2A2A)
-                                : const Color(0xFFEEEEEE),
-                            backgroundImage: sender.avatarAsset != null
-                                ? (sender.avatarAsset!.startsWith('assets/')
-                                      ? AssetImage(sender.avatarAsset!)
-                                          as ImageProvider
-                                      : FileImage(File(sender.avatarAsset!)))
-                                : null,
-                            child: sender.avatarAsset == null
-                                ? Icon(
-                                    Icons.person_rounded,
-                                    color: subtleColor,
-                                    size: 16,
-                                  )
-                                : null,
-                          ),
-                        ),
+                        buildAvatar(),
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: onUserTap,

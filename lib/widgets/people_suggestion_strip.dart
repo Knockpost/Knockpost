@@ -11,6 +11,7 @@ import '../screens/profile/other_profile_screen.dart';
 import '../services/post_service.dart';
 import '../services/database_service.dart';
 import '../services/current_user_service.dart';
+import '../utils/image_helper.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
@@ -296,11 +297,7 @@ class _SuggestionCard extends StatelessWidget {
                     // Avatar
                     CircleAvatar(
                       radius: 30,
-                      backgroundImage: user.avatarAsset != null
-                          ? (user.avatarAsset!.startsWith('assets/')
-                              ? AssetImage(user.avatarAsset!) as ImageProvider
-                              : FileImage(File(user.avatarAsset!)))
-                          : null,
+                      backgroundImage: ImageHelper.resolveImage(user.avatarAsset),
                       backgroundColor: isDark
                           ? const Color(0xFF2A2A2A)
                           : const Color(0xFFE8E8E8),

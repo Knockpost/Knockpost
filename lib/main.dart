@@ -24,6 +24,12 @@ void main() async {
     systemNavigationBarColor: Colors.black,
     systemNavigationBarDividerColor: Colors.transparent,
   ));
+  // ── Image cache tuning ────────────────────────────────────────────────────
+  // Default Flutter cache: 100MB / 1000 images. We bump this so that
+  // feed images stay in memory longer and don't re-download on re-scroll.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 300 << 20; // 300 MB
+  PaintingBinding.instance.imageCache.maximumSize     = 500;        // max 500 images
+
   runApp(const MyApp());
 }
 
