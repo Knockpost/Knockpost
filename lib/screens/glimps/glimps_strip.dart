@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../services/post_service.dart';
+import '../../../services/current_user_service.dart';
+import '../../../services/database_service.dart';
 import 'glimps_card.dart';
 
 class GlimpsStrip extends StatelessWidget {
@@ -56,20 +58,32 @@ class GlimpsStrip extends StatelessWidget {
                 itemCount: allGlimpses.length,
                 itemBuilder: (context, index) {
                   final glimpse = allGlimpses[index];
-                  // Find matching user from our demo data, if available
-                  // Otherwise, GlimpsCard will handle fetching the real user
-                  UserModel? user;
-                  if (glimpse.authorId.isNotEmpty) {
-                    user = findDemoUserByUsername('${glimpse.authorId.replaceAll('01', '')}.01') 
-                                 ?? findDemoUserByUsername(glimpse.authorId.replaceAll('01', '')) 
-                                 ?? allDemoUsers.cast<UserModel?>().firstWhere((u) => u?.id == glimpse.authorId, orElse: () => null);
+                  final currentUser = CurrentUserService.instance.currentUser;
+                  
+                  if (currentUser != null && glimpse.authorId == currentUser.id) {
+                    return GlimpsCard(
+                      glimpse: glimpse,
+                      user: currentUser,
+                      allGlimpses: allGlimpses,
+                      glimpseIndex: index,
+                    );
                   }
 
-                  return GlimpsCard(
-                    glimpse: glimpse,
-                    user: user,
-                    allGlimpses: allGlimpses,
-                    glimpseIndex: index,
+                  return FutureBuilder<Map<String, dynamic>?>(
+                    future: DatabaseService.instance.getUserProfile(glimpse.authorId, useCache: true),
+                    builder: (context, snapshot) {
+                      final data = snapshot.data;
+                      final author = data != null
+                          ? UserModel.fromMap(data, glimpse.authorId)
+                          : UserModel(id: glimpse.authorId, displayName: 'Loading...', username: '...');
+
+                      return GlimpsCard(
+                        glimpse: glimpse,
+                        user: author,
+                        allGlimpses: allGlimpses,
+                        glimpseIndex: index,
+                      );
+                    },
                   );
                 },
               ),

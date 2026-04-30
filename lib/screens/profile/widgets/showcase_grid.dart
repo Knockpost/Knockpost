@@ -190,7 +190,7 @@ class _GridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (post.type == PostType.media &&
+    if ((post.type == PostType.media || post.type == PostType.waves) &&
         post.imagePaths.isNotEmpty) {
       final imagePath = post.imagePaths.first;
       final hasVideoExtension =
@@ -209,41 +209,43 @@ class _GridTile extends StatelessWidget {
             : Container(color: Colors.grey);
       }
 
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          imageWidget,
-          if (post.type == PostType.waves)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black26,
-                child: const Center(
-                  child: Icon(
-                    Icons.play_circle_fill_rounded,
-                    color: Colors.white,
-                    size: 32,
+      return ClipRect(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageWidget,
+            if (post.type == PostType.waves)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: Icon(
+                      Icons.play_circle_fill_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                 ),
               ),
-            ),
-          if (post.imagePaths.length > 1 && post.type == PostType.media)
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: const Icon(
-                  Icons.collections_rounded,
-                  color: Colors.white,
-                  size: 14,
+            if (post.imagePaths.length > 1 && post.type == PostType.media)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: const Icon(
+                    Icons.collections_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       );
     }
     // Text post tile
@@ -293,7 +295,12 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
     _controller
         .initialize()
         .then((_) {
-          if (mounted) setState(() => _initialized = true);
+          if (mounted) {
+            _controller.setVolume(0);
+            _controller.setLooping(true);
+            _controller.play();
+            setState(() => _initialized = true);
+          }
         })
         .catchError((_) {
           // Ignored for thumbnail
@@ -387,44 +394,44 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
                 },
               )
             : post.imagePaths.isEmpty
-                ? ThoughtCard(
-                    user: widget.user,
-                    text: post.text,
-                    likes: post.likes,
-                    views: post.views,
-                    disableProfileNavigation: false,
-                    timestamp: post.timestampText,
-                  )
-                : PostCard(
-                    imagePaths: post.imagePaths,
-                    user: widget.user,
-                    caption: post.text,
-                    postId: post.id,
-                    musicUrl: post.musicUrl,
-                    musicTitle: post.musicTitle,
-                    musicArtist: post.musicArtist,
-                    musicStyle: post.musicStyle,
-                    musicCoverUrl: post.musicCoverUrl,
-                    musicTrimStart: post.musicTrimStart,
-                    musicLyrics: post.musicLyrics,
-                    musicLyricsConfig: post.musicLyricsConfig,
-                    musicOverlayX: post.musicOverlayX,
-                    musicOverlayY: post.musicOverlayY,
-                    musicOverlayScale: post.musicOverlayScale,
-                    musicOverlayRotation: post.musicOverlayRotation,
-                    filterIndex: post.filterIndex,
-                    textOverlays: post.textOverlays,
-                    drawPaths: post.drawPaths,
-                    isVideoPost: post.isVideoPost,
-                    videoHasSound: post.videoHasSound,
-                    coverImagePath: post.coverImagePath,
-                    mediaAspectRatio: post.mediaAspectRatio,
-                    mediaIsBaked: post.mediaIsBaked,
-                    likes: post.likes,
-                    views: post.views,
-                    disableProfileNavigation: false,
-                    timestamp: post.timestampText,
-                  ),
+            ? ThoughtCard(
+                user: widget.user,
+                text: post.text,
+                likes: post.likes,
+                views: post.views,
+                disableProfileNavigation: false,
+                timestamp: post.timestampText,
+              )
+            : PostCard(
+                imagePaths: post.imagePaths,
+                user: widget.user,
+                caption: post.text,
+                postId: post.id,
+                musicUrl: post.musicUrl,
+                musicTitle: post.musicTitle,
+                musicArtist: post.musicArtist,
+                musicStyle: post.musicStyle,
+                musicCoverUrl: post.musicCoverUrl,
+                musicTrimStart: post.musicTrimStart,
+                musicLyrics: post.musicLyrics,
+                musicLyricsConfig: post.musicLyricsConfig,
+                musicOverlayX: post.musicOverlayX,
+                musicOverlayY: post.musicOverlayY,
+                musicOverlayScale: post.musicOverlayScale,
+                musicOverlayRotation: post.musicOverlayRotation,
+                filterIndex: post.filterIndex,
+                textOverlays: post.textOverlays,
+                drawPaths: post.drawPaths,
+                isVideoPost: post.isVideoPost,
+                videoHasSound: post.videoHasSound,
+                coverImagePath: post.coverImagePath,
+                mediaAspectRatio: post.mediaAspectRatio,
+                mediaIsBaked: post.mediaIsBaked,
+                likes: post.likes,
+                views: post.views,
+                disableProfileNavigation: false,
+                timestamp: post.timestampText,
+              ),
         if (isLast) divider,
       ],
     );

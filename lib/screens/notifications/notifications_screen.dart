@@ -9,6 +9,7 @@ import '../profile/other_profile_screen.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
 import '../../utils/image_helper.dart';
+import '../../services/connection_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -359,11 +360,15 @@ class _KnockBackButton extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: () {
+          onTap: () async {
             KnockHaptics.selection();
-            notifier.value = user.isEffectivelyOpen
-                ? KnockStatus.knocked
-                : KnockStatus.pending;
+            notifier.value = KnockStatus.mutualKnocked;
+            try {
+              await ConnectionService.instance.acceptKnock(user.id);
+            } catch (e) {
+              // Revert on error
+              notifier.value = KnockStatus.theyKnockedYou;
+            }
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),

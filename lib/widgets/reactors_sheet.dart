@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../models/post_model.dart';
 import '../screens/profile/other_profile_screen.dart';
 import '../utils/haptic_helper.dart';
 
 import '../services/like_service.dart';
 import '../services/current_user_service.dart';
+import '../services/database_service.dart';
 import '../utils/image_helper.dart';
 
 class ReactorsSheet extends StatelessWidget {
@@ -85,117 +85,40 @@ class ReactorsSheet extends StatelessWidget {
                     final reactor = reactors[index];
                     final String userId = reactor['userId'];
                     final String reaction = reactor['reaction'] ?? '❤';
-                    
-                    UserModel user;
+
+                    // Current user → already have data
                     if (userId == currentUser?.id) {
-                      user = currentUser!;
-                    } else {
-                      user = UserModel(
-                        id: userId,
-                        username: 'user_${userId.length > 4 ? userId.substring(0, 4) : userId}',
-                        displayName: 'Knockpost User',
+                      return _ReactorTile(
+                        user: currentUser!,
+                        reaction: reaction,
+                        isDark: isDark,
+                        bgColor: bgColor,
+                        textColor: textColor,
                       );
                     }
 
-                    return InkWell(
-                      onTap: () {
-                        KnockHaptics.selection();
-                        Navigator.pop(context);
-                        if (!user.isOwnProfile) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OtherProfileScreen(
-                                user: user,
-                                posts: const [],
-                              ),
-                            ),
-                          );
-                        }
+                    // Other users → fetch from Firestore
+                    return FutureBuilder<Map<String, dynamic>?>(
+                      future: DatabaseService.instance.getUserProfile(userId, useCache: true),
+                      builder: (context, snap) {
+                        final data = snap.data;
+                        final user = data != null
+                            ? UserModel(
+                                id: userId,
+                                displayName: data['displayName'] ?? data['username'] ?? 'User',
+                                username: data['username'] ?? '',
+                                avatarAsset: data['profileImageUrl'],
+                              )
+                            : UserModel(id: userId, displayName: '...', username: '...');
+
+                        return _ReactorTile(
+                          user: user,
+                          reaction: reaction,
+                          isDark: isDark,
+                          bgColor: bgColor,
+                          textColor: textColor,
+                        );
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        child: Row(
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                CircleAvatar(
-                                  radius: 24,
-                                  backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
-                                  child: user.avatarAsset == null
-                                      ? const Icon(Icons.person)
-                                      : null,
-                                ),
-                                Positioned(
-                                  right: -4,
-                                  bottom: -2,
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: bgColor, width: 2.2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.1),
-                                          blurRadius: 2,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      reaction,
-                                      style: const TextStyle(fontSize: 12, height: 1.1),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    user.username,
-                                    style: TextStyle(
-                                      color: textColor,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    user.displayName,
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white54 : Colors.black54,
-                                      fontSize: 13.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                "Profile",
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     );
                   },
                 );
@@ -204,6 +127,132 @@ class ReactorsSheet extends StatelessWidget {
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
         ],
+      ),
+    );
+  }
+}
+
+// ── Reactor Tile ──────────────────────────────────────────────────────────────
+
+class _ReactorTile extends StatelessWidget {
+  final UserModel user;
+  final String reaction;
+  final bool isDark;
+  final Color bgColor;
+  final Color textColor;
+
+  const _ReactorTile({
+    required this.user,
+    required this.reaction,
+    required this.isDark,
+    required this.bgColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        KnockHaptics.selection();
+        Navigator.pop(context);
+        if (!user.isOwnProfile) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OtherProfileScreen(
+                user: user,
+                posts: const [],
+              ),
+            ),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
+                  child: user.avatarAsset == null
+                      ? const Icon(Icons.person)
+                      : null,
+                ),
+                Positioned(
+                  right: -4,
+                  bottom: -2,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF1E1E1E)
+                          : const Color(0xFFF0F0F0),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: bgColor, width: 2.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      reaction,
+                      style: const TextStyle(fontSize: 12, height: 1.1),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.username.isEmpty ? '...' : user.username,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    user.displayName.isEmpty ? '...' : user.displayName,
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black54,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white10
+                    : Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Profile',
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

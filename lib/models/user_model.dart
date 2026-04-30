@@ -339,10 +339,3 @@ UserModel? findDemoUserById(String id) {
   return null;
 }
 
-/// Find a full demo UserModel by username. Returns null if not found.
-UserModel? findDemoUserByUsername(String username) {
-  for (final u in allDemoUsers) {
-    if (u.username == username) return u;
-  }
-  return null;
-}

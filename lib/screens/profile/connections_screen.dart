@@ -62,7 +62,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
         if (mounted) setState(() => _youKnockedReal = users);
       });
     });
-    ConnectionService.instance.streamIncomingPendingKnockUids().listen((uids) {
+    ConnectionService.instance.streamIncomingKnockUids().listen((uids) {
       _loadUsersFromUids(uids).then((users) {
         if (mounted) setState(() => _incomingPendingReal = users);
       });
@@ -107,14 +107,35 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     return status == KnockStatus.mutualKnocked || status == KnockStatus.knocked;
   }
 
+  // Sent knocks (You → them), EXCLUDING those who are already mutual
+  // (mutuals are shown separately in 'You Knocked' with a message button)
   List<UserModel> get _allYouKnocked => _youKnockedReal;
-  List<UserModel> get _allIncomingPending => _incomingPendingReal;
-  List<UserModel> get _allKnockedYouMutual => _mutualReal;
 
-  int get _totalKnockedYou =>
-      _allIncomingPending.length + _allKnockedYouMutual.length;
+  // Combined: all people I sent a knock to + mutual connections who knocked me
+  // → all shown in 'You Knocked' tab
+  List<UserModel> get _youKnockedCombined {
+    final Set<String> seen = {};
+    final List<UserModel> result = [];
+    for (final u in _youKnockedReal) {
+      if (seen.add(u.id)) result.add(u);
+    }
+    // Also include mutual connections who knocked me first (not already in sent list)
+    for (final u in _mutualReal) {
+      if (seen.add(u.id)) result.add(u);
+    }
+    return result;
+  }
 
-  int get _totalConnections => _allYouKnocked.length + _totalKnockedYou;
+  // 'Knocked You' = everyone who knocked ME:
+  //   - pending (not mutual yet) → show Knock Back
+  //   - mutual (knocked back already) → show message
+  List<UserModel> get _pendingIncoming {
+    return _incomingPendingReal;
+  }
+
+  int get _totalKnockedYou => _pendingIncoming.length;
+
+  int get _totalConnections => _youKnockedCombined.length + _totalKnockedYou;
 
   /// Compact number: 999 → '999', 1200 → '1.2k', 52400 → '52.4k', 1000000 → '1m'
   static String _formatCount(int n) {
@@ -245,7 +266,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
                   // ── Tab toggle with sliding pill ──
                   _KnockpostPillToggle(
                     labels: [
-                      'You Knocked (${_formatCount(_allYouKnocked.length)})',
+                      'You Knocked (${_formatCount(_youKnockedCombined.length)})',
                       'Knocked You (${_formatCount(_totalKnockedYou)})',
                     ],
                     activeIndex: _activeSegment,
@@ -292,7 +313,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   // ── You Knocked tab ──
   Widget _buildYouKnockedList(bool isDark, Color textColor) {
-    final users = _filter(_allYouKnocked);
+    // Show everyone I knocked + mutual connections
+    final users = _filter(_youKnockedCombined);
 
     if (users.isEmpty) {
       return _buildEmptyState(
@@ -323,27 +345,29 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   // ── Knocked You tab ──
   Widget _buildKnockedYouList(bool isDark, Color textColor) {
-    // Build entries from pending list preserving original order
-    final pendingEntries = _filter(_allIncomingPending).map((u) {
-      final knockedBack = _isKnockedBack(u.id);
-      return _KnockedYouEntry(
-        u,
-        knockedBack ? _CardAction.knocked : _CardAction.knockBack,
-      );
-    }).toList();
+    final mutualIds = _mutualReal.map((u) => u.id).toSet();
+    final sentIds   = _youKnockedReal.map((u) => u.id).toSet();
 
-    // Mutual connections always show with message action
-    final mutualEntries = _filter(_allKnockedYouMutual)
-        .map((u) => _KnockedYouEntry(u, _CardAction.message))
+    // pending = knocked me but I haven't knocked back
+    final pending = _filter(_incomingPendingReal)
+        .where((u) => !mutualIds.contains(u.id) && !sentIds.contains(u.id))
         .toList();
 
-    final allEntries = [...pendingEntries, ...mutualEntries];
+    // mutual = knocked me AND I knocked back
+    final mutual = _filter(_incomingPendingReal)
+        .where((u) => mutualIds.contains(u.id) || sentIds.contains(u.id))
+        .toList();
+
+    final allEntries = [
+      ...pending.map((u) => _KnockedYouEntry(u, _CardAction.knockBack)),
+      ...mutual.map((u) => _KnockedYouEntry(u, _CardAction.message)),
+    ];
 
     if (allEntries.isEmpty) {
       return _buildEmptyState(
         isDark,
         '🚪',
-        'No knocks yet',
+        'No pending knocks',
         'When someone knocks, they\'ll appear here',
       );
     }

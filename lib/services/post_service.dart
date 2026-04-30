@@ -123,13 +123,13 @@ class PostService {
   Stream<List<PostModel>> getWavesStream({int limit = 30}) {
     return postsCollection
         .where('type', isEqualTo: PostType.waves.name)
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final posts = snapshot.docs.map((doc) {
         return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(limit).toList();
     });
   }
 
@@ -138,13 +138,13 @@ class PostService {
   Stream<List<PostModel>> getGlimpsesStream({int limit = 30}) {
     return postsCollection
         .where('type', isEqualTo: PostType.glimps.name)
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final posts = snapshot.docs.map((doc) {
         return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).where((post) => post.isInRecentsWindow).toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(limit).toList();
     });
   }
 

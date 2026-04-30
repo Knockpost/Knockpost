@@ -65,10 +65,30 @@ class ConnectionService {
     final me = _myUid;
     if (me == null) return;
     try {
-      await _col.doc(_docId(fromUid, me)).update({
+      final batch = _db.batch();
+      
+      // Update their knock to accepted
+      batch.update(_col.doc(_docId(fromUid, me)), {
         'status': 'accepted',
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      
+      // Create my knock to them as accepted
+      batch.set(_col.doc(_docId(me, fromUid)), {
+        'fromUid': me,
+        'toUid': fromUid,
+        'status': 'accepted',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      
+      await batch.commit();
+
+      // Send a notification that we knocked back
+      NotificationService.instance.sendNotification(
+        receiverUid: fromUid,
+        type: NotificationType.knock,
+      );
     } catch (e) {
       debugPrint('ConnectionService.acceptKnock error: $e');
       rethrow;
@@ -157,13 +177,12 @@ class ConnectionService {
         .map((s) => s.docs.map((d) => (d.data() as Map)['toUid'] as String).toList());
   }
 
-  /// Stream of incoming knocks that are still pending (they knocked, I haven't responded).
-  Stream<List<String>> streamIncomingPendingKnockUids() {
+  /// Stream of ALL incoming knocks (both pending and accepted).
+  Stream<List<String>> streamIncomingKnockUids() {
     final me = _myUid;
     if (me == null) return const Stream.empty();
     return _col
         .where('toUid', isEqualTo: me)
-        .where('status', isEqualTo: 'pending')
         .snapshots()
         .map((s) => s.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList());
   }

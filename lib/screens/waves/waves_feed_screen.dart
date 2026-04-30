@@ -7,6 +7,7 @@ import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../services/post_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/database_service.dart';
 
 class WavesFeedScreen extends StatefulWidget {
   final bool isVisible;
@@ -147,19 +148,42 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                   itemBuilder: (context, index) {
                     final post = waves[index];
                     final currentUser = CurrentUserService.instance.currentUser;
-                    final isOwnPost = post.authorId == 'me' || post.authorId == currentUser?.id;
-                    final authorUsername = isOwnPost
-                        ? (currentUser?.username ?? 'you')
-                        : (findDemoUserByUsername(
-                                post.authorId == 'zayn01' ? 'zayn.malik' : 'saptarshi.nayak'
-                            )?.username ?? post.authorId);
+                    
+                    if (currentUser != null && post.authorId == currentUser.id) {
+                      return WaveItem(
+                        videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
+                        username: currentUser.username,
+                        caption: post.text,
+                        isActive: index == currentIndex && widget.isVisible,
+                        bottomPadding: bottomNavHeight,
+                        post: post,
+                        author: currentUser,
+                      );
+                    }
 
-                    return WaveItem(
-                      videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
-                      username: authorUsername,
-                      caption: post.text,
-                      isActive: index == currentIndex && widget.isVisible,
-                      bottomPadding: bottomNavHeight,
+                    return FutureBuilder<Map<String, dynamic>?>(
+                      future: DatabaseService.instance.getUserProfile(post.authorId, useCache: true),
+                      builder: (context, snapshot) {
+                        final data = snapshot.data;
+                        final author = data != null
+                            ? UserModel(
+                                id: post.authorId,
+                                displayName: data['displayName'] ?? data['username'] ?? 'User',
+                                username: data['username'] ?? post.authorId,
+                                avatarAsset: data['profileImageUrl'],
+                              )
+                            : UserModel(id: post.authorId, displayName: 'Loading...', username: '...');
+
+                        return WaveItem(
+                          videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
+                          username: author.username,
+                          caption: post.text,
+                          isActive: index == currentIndex && widget.isVisible,
+                          bottomPadding: bottomNavHeight,
+                          post: post,
+                          author: author,
+                        );
+                      },
                     );
                   },
                 );

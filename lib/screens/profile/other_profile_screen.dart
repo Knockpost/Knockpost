@@ -15,6 +15,8 @@ import 'widgets/profile_ui_helpers.dart';
 import '../../widgets/post_scroll_lock_scope.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../services/post_service.dart';
+import '../../services/connection_service.dart';
 
 /// Viewing someone ELSE's profile.
 class OtherProfileScreen extends StatefulWidget {
@@ -39,6 +41,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   late final PostScrollLockController _postScrollLockController;
   late TabController _tabController;
   late UserModel _user;
+  List<PostModel> _posts = [];
 
   @override
   void initState() {
@@ -57,6 +60,19 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
     }
 
     _tabController = TabController(length: 3, vsync: this);
+
+    // Load posts from Firestore
+    PostService.instance.getUserPosts(_user.id).listen((posts) {
+      if (mounted) setState(() => _posts = posts);
+    });
+
+    // Fetch the latest knock status from Firestore
+    ConnectionService.instance.getKnockStatus(_user.id).then((status) {
+      if (mounted && _user.knockStatus != status) {
+        setState(() => _user = _user.copyWith(knockStatus: status));
+        GlobalKnockState.getNotifier(_user.id, status).value = status;
+      }
+    });
   }
 
   @override
@@ -301,7 +317,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                               SingleChildScrollView(
                                 physics: const NeverScrollableScrollPhysics(),
                                 child: RecentsSection(
-                                  posts: widget.posts,
+                                  posts: _posts,
                                   user: _user,
                                   tabController: _tabController,
                                   isOwnProfile: false,
@@ -310,7 +326,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                               SingleChildScrollView(
                                 physics: const NeverScrollableScrollPhysics(),
                                 child: ShowcaseGrid(
-                                  posts: widget.posts,
+                                  posts: _posts,
                                   user: _user,
                                   tabController: _tabController,
                                   isOwnProfile: false,
@@ -319,7 +335,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                               SingleChildScrollView(
                                 physics: const NeverScrollableScrollPhysics(),
                                 child: TextPostsSection(
-                                  posts: widget.posts,
+                                  posts: _posts,
                                   user: _user,
                                   tabController: _tabController,
                                   isOwnProfile: false,

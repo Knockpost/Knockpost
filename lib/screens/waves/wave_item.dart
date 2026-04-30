@@ -4,9 +4,15 @@ import 'widgets/wave_comment_sheet.dart';
 import 'widgets/share_sheet.dart';
 import 'widgets/more_options_sheet.dart';
 import '../profile/other_profile_screen.dart';
+import '../profile/profile_screen.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/image_helper.dart';
+import '../../services/current_user_service.dart';
+import '../../services/like_service.dart';
+import '../../services/post_service.dart';
+import 'dart:async';
 
 class WaveItem extends StatefulWidget {
   final String videoUrl;
@@ -14,6 +20,9 @@ class WaveItem extends StatefulWidget {
   final String caption;
   final bool isActive;
   final double bottomPadding;
+  // Real data (optional — falls back to string-only mode if null)
+  final PostModel? post;
+  final UserModel? author;
 
   const WaveItem({
     super.key,
@@ -22,6 +31,8 @@ class WaveItem extends StatefulWidget {
     required this.caption,
     required this.isActive,
     this.bottomPadding = 0,
+    this.post,
+    this.author,
   });
 
   @override
@@ -117,8 +128,36 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     }
   }
 
+  void _openAuthorProfile() {
+    KnockHaptics.tap();
+    final author = widget.author;
+    if (author == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          if (author.isOwnProfile) {
+            return StreamBuilder<List<PostModel>>(
+              stream: PostService.instance.getUserPosts(author.id),
+              builder: (context, snap) =>
+                  ProfileScreen(user: author, posts: snap.data ?? []),
+            );
+          } else {
+            return StreamBuilder<List<PostModel>>(
+              stream: PostService.instance.getUserPosts(author.id),
+              builder: (context, snap) =>
+                  OtherProfileScreen(user: author, posts: snap.data ?? []),
+            );
+          }
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
+
     _controller.dispose();
     _heartAnimController.dispose();
     _playPauseAnimController.dispose();
@@ -269,6 +308,8 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                 WaveReactionButton(
                   doubleTapped: _doubleTapped,
                   onDoubleTapHandled: _onDoubleTapHandled,
+                  postId: widget.post?.id,
+                  postAuthorId: widget.author?.id,
                 ),
 
                 const SizedBox(height: 20),
@@ -344,37 +385,34 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
               children: [
                 /// Username Row
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OtherProfileScreen(
-                            user: demoAryaLayek, posts: demoOwnPosts),
-                      ),
-                    );
-                  },
+                  onTap: _openAuthorProfile,
                   child: Row(
                     children: [
                       /// Avatar with gradient ring
                       Container(
                         padding: const EdgeInsets.all(1.5),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: LinearGradient(
                             colors: [
-                              Colors.purple.shade400,
-                              Colors.orange.shade400,
+                              Colors.white70,
+                              Colors.white38,
                             ],
                           ),
                         ),
                         child: CircleAvatar(
                           radius: 16,
                           backgroundColor: Colors.grey.shade900,
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 16,
-                          ),
+                          backgroundImage: widget.author?.avatarAsset != null
+                              ? ImageHelper.resolveAvatar(widget.author!.avatarAsset)
+                              : null,
+                          child: widget.author?.avatarAsset == null
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 16,
+                                )
+                              : null,
                         ),
                       ),
 
@@ -382,7 +420,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
                       /// Username
                       Text(
-                        "@${widget.username}",
+                        "@${widget.author?.username ?? widget.username}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -393,10 +431,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
                       const SizedBox(width: 8),
 
-                      /// Knock Button
+                      /// Knock Button (only for other users)
+                      if (widget.author != null && !widget.author!.isOwnProfile)
                       GestureDetector(
                         onTap: () {
-                          // Prevent toggling play/pause when tapping Knock
                           _toggleKnock();
                         },
                         child: AnimatedContainer(
@@ -452,7 +490,9 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        "Original Audio — @${widget.username}",
+                        widget.post?.musicTitle != null
+                            ? '${widget.post!.musicTitle}${widget.post!.musicArtist != null ? " • ${widget.post!.musicArtist}" : ""}'
+                            : "Original Audio — @${widget.author?.username ?? widget.username}",
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
@@ -682,11 +722,15 @@ class _SpinningDiscState extends State<_SpinningDisc>
 class WaveReactionButton extends StatefulWidget {
   final bool doubleTapped;
   final VoidCallback? onDoubleTapHandled;
+  final String? postId;
+  final String? postAuthorId;
 
   const WaveReactionButton({
     super.key,
     this.doubleTapped = false,
     this.onDoubleTapHandled,
+    this.postId,
+    this.postAuthorId,
   });
 
   @override
@@ -696,6 +740,7 @@ class WaveReactionButton extends StatefulWidget {
 class _WaveReactionButtonState extends State<WaveReactionButton>
     with TickerProviderStateMixin {
   String? _selectedEmoji;
+  StreamSubscription<String?>? _likeSub;
 
   // ── Popup state ──
   bool _showPopup = false;
@@ -736,13 +781,26 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
       parent: _heartController,
       curve: Curves.easeInOut,
     ));
+
+    // Sync existing reaction from Firestore
+    final currentUser = CurrentUserService.instance.currentUser;
+    if (currentUser != null && widget.postId != null) {
+      _likeSub = LikeService.instance
+          .userReaction(widget.postId!, currentUser.id)
+          .listen((reaction) {
+        if (mounted) setState(() => _selectedEmoji = reaction);
+      });
+    }
   }
 
   @override
   void didUpdateWidget(covariant WaveReactionButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.doubleTapped && !oldWidget.doubleTapped) {
-      _selectWithAnimation('❤');
+      if (_selectedEmoji == null) {
+        _selectWithAnimation('❤');
+        _saveReaction(isLiking: true, emoji: '❤');
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onDoubleTapHandled?.call();
       });
@@ -751,6 +809,7 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
 
   @override
   void dispose() {
+    _likeSub?.cancel();
     _popupController.dispose();
     _heartController.dispose();
     super.dispose();
@@ -758,17 +817,31 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
 
   void _onTapReaction() {
     KnockHaptics.tap();
-    if (_selectedEmoji != null) {
-      setState(() => _selectedEmoji = null);
-    } else {
+    final isLiking = _selectedEmoji == null;
+    if (isLiking) {
       _selectWithAnimation('❤');
+    } else {
+      setState(() => _selectedEmoji = null);
     }
+    _saveReaction(isLiking: isLiking, emoji: isLiking ? '❤' : null);
   }
 
   void _selectWithAnimation(String emoji) {
     KnockHaptics.impact();
     setState(() => _selectedEmoji = emoji);
     _heartController.forward(from: 0);
+  }
+
+  void _saveReaction({required bool isLiking, String? emoji}) {
+    final currentUser = CurrentUserService.instance.currentUser;
+    if (currentUser == null || widget.postId == null) return;
+    LikeService.instance.toggleLike(
+      postId: widget.postId!,
+      userId: currentUser.id,
+      postAuthorId: widget.postAuthorId ?? '',
+      isLiking: isLiking,
+      reactionType: emoji ?? '❤',
+    );
   }
 
   Widget _buildEmojiWidget(int index, double size) {
@@ -822,7 +895,9 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
 
   void _onLongPressEnd(LongPressEndDetails details) {
     if (_hoveredIndex >= 0 && _hoveredIndex < _reactions.length) {
-      _selectWithAnimation(_reactions[_hoveredIndex]);
+      final emoji = _reactions[_hoveredIndex];
+      _selectWithAnimation(emoji);
+      _saveReaction(isLiking: true, emoji: emoji);
     }
     setState(() {
       _showPopup = false;
