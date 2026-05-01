@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chat_model.dart';
+import '../models/notification_model.dart';
 import 'auth_service.dart';
+import 'notification_service.dart';
 
 /// Handles all 1:1 messaging logic backed by Firestore.
 ///
@@ -40,18 +42,24 @@ class ChatService {
   // ── Streams ────────────────────────────────────────────────────────────────
 
   /// Stream of all chat rooms that the current user is a participant in,
-  /// sorted by last message time descending.
+  /// sorted by last message time descending (sorted locally to avoid composite index req).
   Stream<List<ChatRoom>> streamUserChats() {
     final me = _myUid;
     if (me == null) return const Stream.empty();
     return _chats
         .where('participants', arrayContains: me)
-        .orderBy('lastMessageTime', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) =>
-                ChatRoom.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+        .map((snap) {
+      final list = snap.docs
+          .map((d) => ChatRoom.fromMap(d.data() as Map<String, dynamic>, d.id))
+          .toList();
+      list.sort((a, b) {
+        final aTime = a.lastMessageTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.lastMessageTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+      return list;
+    });
   }
 
   /// Stream of messages for a given chat, ordered newest first (reverse=true for ListView).
@@ -125,6 +133,18 @@ class ChatService {
           });
         }
       });
+
+      // Send notification after successful transaction
+      try {
+        NotificationService.instance.sendNotification(
+          receiverUid: otherUid,
+          type: NotificationType.message,
+          commentSnippet: text, // Reuse this field to pass message text preview
+        );
+      } catch (e) {
+        debugPrint('Failed to send notification for message: $e');
+      }
+
     } catch (e) {
       debugPrint('ChatService.sendMessage error: $e');
       rethrow;

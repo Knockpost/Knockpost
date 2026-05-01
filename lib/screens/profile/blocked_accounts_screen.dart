@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../utils/image_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
+
+import '../../services/current_user_service.dart';
+import '../../services/database_service.dart';
 
 class BlockedAccountsScreen extends StatefulWidget {
   const BlockedAccountsScreen({super.key});
@@ -12,13 +16,50 @@ class BlockedAccountsScreen extends StatefulWidget {
 }
 
 class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
-  late List<UserModel> _blockedUsers;
+  List<UserModel> _blockedUsers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Load some mock data for demo purposes, taking 2 users as blocked
-    _blockedUsers = allDemoUsers.where((u) => !u.isOwnProfile).take(2).toList();
+    _loadBlockedUsers();
+  }
+
+  Future<void> _loadBlockedUsers() async {
+    final me = CurrentUserService.instance.currentUser;
+    if (me == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    
+    try {
+      final doc = await DatabaseService.instance.usersCollection.doc(me.id).get();
+      if (!doc.exists) {
+        setState(() => _isLoading = false);
+        return;
+      }
+      
+      final myUser = UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      if (myUser.blockedUsers.isEmpty) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final List<UserModel> users = [];
+      for (final uid in myUser.blockedUsers) {
+        final blockedDoc = await DatabaseService.instance.usersCollection.doc(uid).get();
+        if (blockedDoc.exists) {
+          users.add(UserModel.fromMap(blockedDoc.data() as Map<String, dynamic>, blockedDoc.id));
+        }
+      }
+      setState(() {
+        _blockedUsers = users;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading blocked users: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
   void _unblockUser(UserModel user) {
@@ -68,6 +109,10 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
             TextButton(
               onPressed: () {
                 KnockHaptics.impact();
+                final me = CurrentUserService.instance.currentUser;
+                if (me != null) {
+                  DatabaseService.instance.unblockUser(myUid: me.id, targetUid: user.id);
+                }
                 setState(() {
                   _blockedUsers.remove(user);
                 });
@@ -156,18 +201,22 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                 ),
                 
                 Expanded(
-                  child: _blockedUsers.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No blocked accounts',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: subColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : ListView.builder(
+                      : _blockedUsers.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No blocked accounts',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: subColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
                           physics: const BouncingScrollPhysics(),
                           itemCount: _blockedUsers.length,
                           itemBuilder: (context, index) {
@@ -181,7 +230,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 26,
-                                    backgroundImage: AssetImage(user.avatarAsset!),
+                                    backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
                                     backgroundColor: isDark ? Colors.white10 : Colors.black12,
                                   ),
                                   const SizedBox(width: 14),

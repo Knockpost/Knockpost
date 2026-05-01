@@ -10,6 +10,10 @@ import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
 import '../../utils/image_helper.dart';
 import '../../services/connection_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/post_model.dart';
+import '../single_post_screen.dart';
+import '../messages/chat_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -184,6 +188,9 @@ class _NotifTile extends StatelessWidget {
       case NotificationType.knock:
         action = ' sent you a knock.';
         break;
+      case NotificationType.message:
+        action = ' sent you a message.';
+        break;
     }
 
     return Column(
@@ -236,8 +243,62 @@ class _NotifTile extends StatelessWidget {
             : const Color(0xFFE8F4FD))
         : Colors.transparent;
 
-    return InkWell(
-      onTap: () {
+    return Dismissible(
+      key: ValueKey(notif.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red.shade400,
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      onDismissed: (_) {
+        NotificationService.instance.deleteNotification(notif.id);
+      },
+      confirmDismiss: (direction) async {
+        return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              title: Text(
+                'Delete notification?',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                'Are you sure you want to delete this notification? This action cannot be undone.',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      child: InkWell(
+        onTap: () async {
         KnockHaptics.selection();
 
         // Mark as read
@@ -256,19 +317,58 @@ class _NotifTile extends StatelessWidget {
               ),
             ),
           );
-        } else if (notif.type == NotificationType.comment && notif.postId != null) {
-          // Open comment sheet directly for the post the user commented on
+        } else if (notif.type == NotificationType.message) {
+          // Go to chat screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                otherUser: user,
+              ),
+            ),
+          );
+        } else if ((notif.type == NotificationType.comment || notif.type == NotificationType.like) && notif.postId != null) {
           final currentUser = CurrentUserService.instance.currentUser;
           if (currentUser != null) {
-            CommentSheet.show(
-              context,
-              postId: notif.postId!,
-              postAuthor: currentUser,
-              isPostOwner: true, // We are the post owner since it's our notification
-            );
+            try {
+              final doc = await FirebaseFirestore.instance.collection('posts').doc(notif.postId).get();
+              if (doc.exists && doc.data() != null && context.mounted) {
+                final post = PostModel.fromMap(doc.data()!, doc.id);
+                
+                // Fetch actual post author
+                UserModel postAuthor = currentUser; // default fallback
+                try {
+                  final authorDoc = await FirebaseFirestore.instance.collection('users').doc(post.authorId).get();
+                  if (authorDoc.exists && authorDoc.data() != null) {
+                    postAuthor = UserModel.fromMap(authorDoc.data()!, authorDoc.id);
+                  }
+                } catch (e) {
+                  debugPrint('Failed to fetch post author: $e');
+                }
+
+                if (!context.mounted) return;
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SinglePostScreen(
+                      post: post,
+                      author: postAuthor,
+                      autoOpenComments: notif.type == NotificationType.comment,
+                      autoOpenReactions: notif.type == NotificationType.like,
+                      isPostOwner: currentUser.id == postAuthor.id,
+                      initialThreadUserId: notif.type == NotificationType.comment ? notif.triggerUserId : null,
+                    ),
+                  ),
+                );
+              } else {
+                // Post might have been deleted, fallback to just showing the sheet if needed, or do nothing.
+              }
+            } catch (e) {
+              debugPrint('Error fetching post for notification: $e');
+            }
           }
         }
-        // like notifications: do nothing extra (already marked as read)
       },
 
       child: AnimatedContainer(
@@ -296,6 +396,7 @@ class _NotifTile extends StatelessWidget {
         ],
       ),
     ),
+      ),
     );
   }
 }

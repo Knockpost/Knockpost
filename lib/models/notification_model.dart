@@ -6,6 +6,7 @@ enum NotificationType {
   knock,    // Someone knocked on your post/profile
   like,     // Someone liked your post
   comment,  // Someone commented on your post
+  message,  // Someone sent you a message
 }
 
 // ─── Model ───────────────────────────────────────────────────────────────────

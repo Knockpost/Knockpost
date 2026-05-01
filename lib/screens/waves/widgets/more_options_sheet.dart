@@ -3,6 +3,8 @@ import '../../../utils/global_dismiss_state.dart';
 import '../../../utils/global_post_state.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../../services/post_service.dart';
+import '../../../services/database_service.dart';
+import '../../../services/current_user_service.dart';
 
 class MoreOptionsSheet extends StatelessWidget {
   final String userId;
@@ -104,7 +106,16 @@ class MoreOptionsSheet extends StatelessWidget {
                     icon: Icons.block_outlined,
                     label: "Block @$username",
                     isDestructive: true,
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      Navigator.pop(context);
+                      final myUid = CurrentUserService.instance.currentUser?.id;
+                      if (myUid != null) {
+                        DatabaseService.instance.blockUser(myUid: myUid, targetUid: userId);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Blocked @$username")),
+                        );
+                      }
+                    },
                   ),
                 ],
               ],

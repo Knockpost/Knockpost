@@ -6,17 +6,24 @@ import 'post/post_card.dart';
 import 'thoughts/thought_card.dart';
 import '../widgets/comment_sheet.dart';
 import '../widgets/post_scroll_lock_scope.dart';
+import '../widgets/reactors_sheet.dart';
 
 class SinglePostScreen extends StatefulWidget {
   final PostModel post;
   final UserModel author;
   final bool autoOpenComments;
+  final bool autoOpenReactions;
+  final bool isPostOwner;
+  final String? initialThreadUserId;
 
   const SinglePostScreen({
     super.key,
     required this.post,
     required this.author,
     this.autoOpenComments = false,
+    this.autoOpenReactions = false,
+    this.isPostOwner = false,
+    this.initialThreadUserId,
   });
 
   @override
@@ -38,8 +45,13 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
           context,
           postId: widget.post.id,
           postAuthor: widget.author,
-          isPostOwner: false,
+          isPostOwner: widget.isPostOwner,
+          initialThreadUserId: widget.initialThreadUserId,
         );
+      });
+    } else if (widget.autoOpenReactions) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ReactorsSheet.show(context, postId: widget.post.id);
       });
     }
   }
@@ -101,6 +113,7 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                 children: [
                   widget.post.imagePaths.isEmpty
                       ? ThoughtCard(
+                          postId: widget.post.id,
                           user: widget.author,
                           text: widget.post.text,
                           likes: widget.post.likes,
@@ -108,6 +121,7 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                           timestamp: widget.post.timestampText,
                         )
                       : PostCard(
+                          postId: widget.post.id,
                           imagePaths: widget.post.imagePaths,
                           user: widget.author,
                           caption: widget.post.text,

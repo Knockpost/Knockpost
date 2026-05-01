@@ -20,12 +20,14 @@ class CommentSheet extends StatefulWidget {
   final String postId;
   final UserModel postAuthor;
   final bool isPostOwner;
+  final String? initialThreadUserId;
 
   const CommentSheet({
     super.key,
     required this.postId,
     required this.postAuthor,
     this.isPostOwner = false,
+    this.initialThreadUserId,
   });
 
   static void show(
@@ -33,6 +35,7 @@ class CommentSheet extends StatefulWidget {
     required String postId,
     required UserModel postAuthor,
     bool isPostOwner = false,
+    String? initialThreadUserId,
   }) {
     KnockHaptics.tap();
     showModalBottomSheet<void>(
@@ -43,6 +46,7 @@ class CommentSheet extends StatefulWidget {
         postId: postId,
         postAuthor: postAuthor,
         isPostOwner: isPostOwner,
+        initialThreadUserId: initialThreadUserId,
       ),
     );
   }
@@ -52,7 +56,7 @@ class CommentSheet extends StatefulWidget {
 }
 
 class _CommentSheetState extends State<CommentSheet> {
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
 
   String? _selectedThreadUserId;
   bool _showChatPage = false;
@@ -64,9 +68,21 @@ class _CommentSheetState extends State<CommentSheet> {
   @override
   void initState() {
     super.initState();
-    _showChatPage = !widget.isPostOwner;
-    if (!widget.isPostOwner) {
-      _selectedThreadUserId = _viewer.id;
+    // If isPostOwner and there's an initialThreadUserId, jump directly to that chat
+    if (widget.isPostOwner && widget.initialThreadUserId != null) {
+      _selectedThreadUserId = widget.initialThreadUserId;
+      _showChatPage = true;
+      _pageController = PageController(initialPage: 1);
+      // Pre-fetch the thread user
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _fetchAndCacheUser(widget.initialThreadUserId!);
+      });
+    } else {
+      _pageController = PageController(initialPage: 0);
+      _showChatPage = !widget.isPostOwner;
+      if (!widget.isPostOwner) {
+        _selectedThreadUserId = _viewer.id;
+      }
     }
   }
 

@@ -39,6 +39,7 @@ class ReactionBar extends StatefulWidget {
   final String? shareUsername;
   final String? shareCaption;
   final String? timestamp;
+
   /// false হলে Share button দেখায়েবে না (Glimpse-এ ব্যবহার হয়)
   final bool showShare;
 
@@ -89,13 +90,15 @@ class _ReactionBarState extends State<ReactionBar>
 
     final currentUser = CurrentUserService.instance.currentUser;
     if (currentUser != null && widget.postId != 'demo_post') {
-      _likeSub = LikeService.instance.userReaction(widget.postId, currentUser.id).listen((reaction) {
-        if (mounted) {
-          setState(() {
-            _selectedEmoji = reaction;
+      _likeSub = LikeService.instance
+          .userReaction(widget.postId, currentUser.id)
+          .listen((reaction) {
+            if (mounted) {
+              setState(() {
+                _selectedEmoji = reaction;
+              });
+            }
           });
-        }
-      });
     }
 
     // Popup open/close animation
@@ -416,37 +419,37 @@ class _ReactionBarState extends State<ReactionBar>
 
                   // Share button
                   if (widget.showShare)
-                  GestureDetector(
-                    onTap: () {
-                      KnockHaptics.tap();
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => ShareSheet(
-                          url: 'https://knockpost.app/post/${widget.postId}',
-                          username: widget.shareUsername ?? 'someone',
-                          caption: widget.shareCaption ?? '',
-                          contentType: 'post',
+                    GestureDetector(
+                      onTap: () {
+                        KnockHaptics.tap();
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => ShareSheet(
+                            url: 'https://knockpost.app/post/${widget.postId}',
+                            username: widget.shareUsername ?? 'someone',
+                            caption: widget.shareCaption ?? '',
+                            contentType: 'post',
+                          ),
+                        );
+                      },
+                      child: Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      );
-                    },
-                    child: Container(
-                      height: 40,
-                      width: 40,
-                      decoration: BoxDecoration(
-                        color: bgColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.share_outlined,
-                        size: 20,
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.8)
-                            : Colors.black.withValues(alpha: 0.75),
+                        child: Icon(
+                          Icons.share_outlined,
+                          size: 20,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.8)
+                              : Colors.black.withValues(alpha: 0.75),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ],
@@ -610,7 +613,7 @@ class _ReactionSummary extends StatelessWidget {
       stream: LikeService.instance.getPostReactions(postId),
       builder: (context, snapshot) {
         final emojisToShow = <String>[];
-        
+
         if (snapshot.hasData && snapshot.data!.isNotEmpty) {
           final Set<String> uniqueEmojis = {};
           for (final reactor in snapshot.data!) {
@@ -634,7 +637,11 @@ class _ReactionSummary extends StatelessWidget {
         return GestureDetector(
           onTap: () {
             KnockHaptics.selection();
-            ReactorsSheet.show(context, postId: postId, userReaction: userReaction);
+            ReactorsSheet.show(
+              context,
+              postId: postId,
+              userReaction: userReaction,
+            );
           },
           behavior: HitTestBehavior.opaque,
           child: Padding(

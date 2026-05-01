@@ -11,6 +11,8 @@ import '../../models/chat_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
+import '../../services/current_user_service.dart';
+import '../../services/storage_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
@@ -168,18 +170,56 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _sendImageMessage(Uint8List bytes, String caption) {
-    // Store locally while upload happens (future: upload to Storage)
+  void _sendImageMessage(Uint8List bytes, String caption) async {
+    // Store locally while upload happens
     KnockHaptics.impact();
+    final localId = DateTime.now().millisecondsSinceEpoch.toString();
     setState(() {
       _localImages.insert(
           0,
           _LocalImageMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            id: localId,
             bytes: bytes,
             caption: caption,
           ));
     });
+
+    // Upload to Storage
+    final url = await StorageService.instance.uploadChatImage(
+      chatId: _chatId,
+      messageId: localId,
+      bytes: bytes,
+    );
+
+    if (url != null) {
+      // Send message with the URL
+      await ChatService.instance.sendMessage(
+        otherUid: widget.otherUser.id,
+        text: caption,
+        imageUrl: url,
+      ).catchError((e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to send message')),
+          );
+        }
+      });
+      // Remove from local optimistic UI
+      if (mounted) {
+        setState(() {
+          _localImages.removeWhere((m) => m.id == localId);
+        });
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to upload image')),
+        );
+        setState(() {
+          _localImages.removeWhere((m) => m.id == localId);
+        });
+      }
+    }
   }
 
   void _setReply(String messageId) {
@@ -602,7 +642,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Avatar
     final avatarAsset = isMe
-        ? AuthService.instance.currentUser?.photoURL ?? '' // Can be improved
+        ? CurrentUserService.instance.currentUser?.avatarAsset ?? ''
         : widget.otherUser.avatarAsset ?? '';
     final avatar = _buildAvatar(avatarAsset, radius: 14);
 

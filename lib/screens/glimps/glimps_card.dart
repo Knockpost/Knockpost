@@ -21,12 +21,15 @@ class GlimpsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (glimpse.imagePaths.isEmpty && glimpse.coverImagePath == null) return const SizedBox.shrink();
+    if (glimpse.imagePaths.isEmpty && glimpse.coverImagePath == null)
+      return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Prioritize coverImagePath (for video glimpses) to avoid crashing on .mp4 URLs
-    final thumbnailPath = glimpse.coverImagePath ?? (glimpse.imagePaths.isNotEmpty ? glimpse.imagePaths.first : '');
+    final thumbnailPath =
+        glimpse.coverImagePath ??
+        (glimpse.imagePaths.isNotEmpty ? glimpse.imagePaths.first : '');
 
     return GestureDetector(
       onTap: () {
@@ -69,7 +72,9 @@ class GlimpsCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         color: Colors.grey.shade900,
-                        child: const Center(child: Icon(Icons.error, color: Colors.white54)),
+                        child: const Center(
+                          child: Icon(Icons.error, color: Colors.white54),
+                        ),
                       ),
                     ),
 
@@ -97,10 +102,16 @@ class GlimpsCard extends StatelessWidget {
                 child: user != null
                     ? _buildUserInfo(user!)
                     : FutureBuilder<Map<String, dynamic>?>(
-                        future: DatabaseService.instance.getUserProfile(glimpse.authorId, useCache: true),
+                        future: DatabaseService.instance.getUserProfile(
+                          glimpse.authorId,
+                          useCache: true,
+                        ),
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return const SizedBox.shrink();
-                          final realUser = UserModel.fromMap(snapshot.data!, glimpse.authorId);
+                          final realUser = UserModel.fromMap(
+                            snapshot.data!,
+                            glimpse.authorId,
+                          );
                           return _buildUserInfo(realUser);
                         },
                       ),
@@ -136,10 +147,7 @@ class GlimpsCard extends StatelessWidget {
               height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 1.5,
-                ),
+                border: Border.all(color: Colors.white, width: 1.5),
                 image: DecorationImage(
                   image: avatarProvider,
                   fit: BoxFit.cover,
@@ -155,9 +163,7 @@ class GlimpsCard extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  shadows: [
-                    Shadow(color: Colors.black87, blurRadius: 4),
-                  ],
+                  shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

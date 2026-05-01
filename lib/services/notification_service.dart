@@ -84,6 +84,16 @@ class NotificationService {
     }
   }
 
+  Future<void> deleteNotification(String notificationId) async {
+    final uid = _myUid;
+    if (uid == null) return;
+    try {
+      await _userNotifs(uid).doc(notificationId).delete();
+    } catch (e) {
+      debugPrint('Error deleting notification: $e');
+    }
+  }
+
   Future<void> markAllAsRead() async {
     final uid = _myUid;
     if (uid == null) return;
@@ -122,6 +132,8 @@ class NotificationService {
         docId = 'like_${postId}_$triggerUid';
       } else if (type == NotificationType.knock) {
         docId = 'knock_$triggerUid';
+      } else if (type == NotificationType.message) {
+        docId = 'message_$triggerUid'; // Update the same notification for consecutive messages
       }
 
       final notifRef = docId != null 

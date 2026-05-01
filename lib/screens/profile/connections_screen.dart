@@ -101,15 +101,6 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     }).toList();
   }
 
-  /// Check if a user has been knocked back (from connections OR from profile)
-  bool _isKnockedBack(String userId) {
-    final status = GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYou).value;
-    return status == KnockStatus.mutualKnocked || status == KnockStatus.knocked;
-  }
-
-  // Sent knocks (You → them), EXCLUDING those who are already mutual
-  // (mutuals are shown separately in 'You Knocked' with a message button)
-  List<UserModel> get _allYouKnocked => _youKnockedReal;
 
   // Combined: all people I sent a knock to + mutual connections who knocked me
   // → all shown in 'You Knocked' tab

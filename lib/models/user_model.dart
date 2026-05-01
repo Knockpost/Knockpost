@@ -46,6 +46,7 @@ class UserModel {
   final int mutualFriendsCount;
   final List<String> mutualFriendsAvatars;
   final Map<String, String> socialLinks; // e.g. {'instagram': 'arjun.nayak', 'youtube': '...'}
+  final List<String> blockedUsers; // UIDs of blocked users
 
   const UserModel({
     required this.id,
@@ -67,6 +68,7 @@ class UserModel {
     this.mutualFriendsCount = 0,
     this.mutualFriendsAvatars = const [],
     this.socialLinks = const {},
+    this.blockedUsers = const [],
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -90,6 +92,7 @@ class UserModel {
       knockStatus: _parseKnockStatus(map['knockStatus']),
       mutualFriendsCount: map['mutualFriendsCount'] ?? 0,
       socialLinks: Map<String, String>.from(map['socialLinks'] ?? {}),
+      blockedUsers: List<String>.from(map['blockedUsers'] ?? []),
     );
   }
 
@@ -111,6 +114,7 @@ class UserModel {
       'totalKnocksReceived': totalKnocksReceived,
       'mutualFriendsCount': mutualFriendsCount,
       'socialLinks': socialLinks,
+      'blockedUsers': blockedUsers,
     };
   }
 
@@ -191,6 +195,7 @@ class UserModel {
     int? mutualFriendsCount,
     List<String>? mutualFriendsAvatars,
     Map<String, String>? socialLinks,
+    List<String>? blockedUsers,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -215,6 +220,7 @@ class UserModel {
       mutualFriendsCount: mutualFriendsCount ?? this.mutualFriendsCount,
       mutualFriendsAvatars: mutualFriendsAvatars ?? this.mutualFriendsAvatars,
       socialLinks: socialLinks ?? this.socialLinks,
+      blockedUsers: blockedUsers ?? this.blockedUsers,
     );
   }
 }

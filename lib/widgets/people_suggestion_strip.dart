@@ -11,6 +11,7 @@ import '../screens/profile/other_profile_screen.dart';
 import '../services/post_service.dart';
 import '../services/database_service.dart';
 import '../services/current_user_service.dart';
+import '../services/connection_service.dart';
 import '../utils/image_helper.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
@@ -47,15 +48,40 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
     final currentUserId = CurrentUserService.instance.currentUser?.id;
     final fetchedUsers = await DatabaseService.instance.getSuggestedUsers(
       excludeUid: currentUserId,
-      limitCount: 15,
+      limitCount: 30, // Fetch more to ensure we have enough after filtering
     );
     
+    if (!mounted) return;
+
+    final statuses = await Future.wait(fetchedUsers.map((u) async {
+      var status = GlobalKnockState.getNotifier(u.id, u.knockStatus).value;
+      if (status == KnockStatus.none) {
+        status = await ConnectionService.instance.getKnockStatus(u.id);
+        GlobalKnockState.getNotifier(u.id, status).value = status;
+      }
+      return status;
+    }));
+
+    final validUsers = <UserModel>[];
+    final validStatuses = <String, KnockStatus>{};
+
+    for (int i = 0; i < fetchedUsers.length; i++) {
+      final u = fetchedUsers[i];
+      if (GlobalDismissState.isDismissed(u.id)) continue;
+      
+      final status = statuses[i];
+      if (status != KnockStatus.knocked &&
+          status != KnockStatus.pending &&
+          status != KnockStatus.mutualKnocked) {
+        validUsers.add(u);
+        validStatuses[u.id] = status;
+      }
+    }
+
     if (mounted) {
       setState(() {
-        _users = fetchedUsers.where((u) => !GlobalDismissState.isDismissed(u.id)).toList();
-        _statuses = {
-          for (final u in _users) u.id: u.knockStatus,
-        };
+        _users = validUsers.take(15).toList(); // Limit to 15 for the strip
+        _statuses = validStatuses;
         for (final u in _users) {
           _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
         }
@@ -388,7 +414,7 @@ class _SuggestionCard extends StatelessWidget {
               _SuggestionAction(
                 userId: user.id,
                 status: knockStatus,
-                privacyType: user.privacyType,
+                isEffectivelyOpen: user.isEffectivelyOpen,
                 onChanged: onKnockChanged,
                 onDismiss: onDismiss,
               ),
@@ -447,14 +473,14 @@ class _SuggestionCard extends StatelessWidget {
 class _SuggestionAction extends StatefulWidget {
   final String userId;
   final KnockStatus status;
-  final PrivacyType privacyType;
+  final bool isEffectivelyOpen;
   final ValueChanged<KnockStatus> onChanged;
   final VoidCallback onDismiss;
 
   const _SuggestionAction({
     required this.userId,
     required this.status,
-    required this.privacyType,
+    required this.isEffectivelyOpen,
     required this.onChanged,
     required this.onDismiss,
   });
@@ -515,12 +541,16 @@ class _SuggestionActionState extends State<_SuggestionAction>
     final KnockStatus newStatus;
     switch (_status) {
       case KnockStatus.none:
-        newStatus = widget.privacyType == PrivacyType.open
-            ? KnockStatus.knocked
-            : KnockStatus.pending;
+        final isOpen = widget.isEffectivelyOpen;
+        newStatus = isOpen ? KnockStatus.knocked : KnockStatus.pending;
+        ConnectionService.instance.sendKnock(
+          toUid: widget.userId,
+          isOpenProfile: isOpen,
+        );
         break;
       case KnockStatus.theyKnockedYou:
         newStatus = KnockStatus.mutualKnocked;
+        ConnectionService.instance.acceptKnock(widget.userId);
         break;
       default:
         newStatus = KnockStatus.none;

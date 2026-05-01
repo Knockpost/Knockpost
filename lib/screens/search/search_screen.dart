@@ -5,7 +5,9 @@ import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../profile/other_profile_screen.dart';
-
+import '../../services/connection_service.dart';
+import '../../utils/global_knock_state.dart';
+import '../profile/widgets/knock_button.dart';
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -57,9 +59,20 @@ class _SearchScreenState extends State<SearchScreen> {
       query,
       excludeUid: currentUid,
     );
+    List<UserModel> finalResults = results;
+    
+    if (currentUid != null) {
+      final futures = results.map((user) async {
+        final status = await ConnectionService.instance.getKnockStatus(user.id);
+        GlobalKnockState.getNotifier(user.id, status).value = status;
+        return user.copyWith(knockStatus: status);
+      });
+      finalResults = await Future.wait(futures);
+    }
+
     if (!mounted) return;
     setState(() {
-      _results = results;
+      _results = finalResults;
       _isLoading = false;
       _hasSearched = true;
     });
@@ -211,12 +224,9 @@ class _UserResultTile extends StatefulWidget {
 }
 
 class _UserResultTileState extends State<_UserResultTile> {
-  late KnockStatus _knockStatus;
-
   @override
   void initState() {
     super.initState();
-    _knockStatus = widget.user.knockStatus;
   }
 
   bool get _isEffectivelyOpen =>
@@ -224,76 +234,18 @@ class _UserResultTileState extends State<_UserResultTile> {
       widget.user.privacyType == PrivacyType.open;
 
   Widget _buildTrailingButton() {
-    final isDark = widget.isDark;
-    final greyBg = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5);
-    final greyFg = isDark ? Colors.white : Colors.black87;
-    final primaryBg = isDark ? Colors.white : Colors.black;
-    final primaryFg = isDark ? Colors.black : Colors.white;
-
-    String label;
-    Color bg;
-    Color fg;
-
-    switch (_knockStatus) {
-      case KnockStatus.none:
-        label = 'Knock';
-        bg = primaryBg;
-        fg = primaryFg;
-        break;
-      case KnockStatus.pending:
-        label = 'Pending';
-        bg = greyBg;
-        fg = greyFg;
-        break;
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        label = 'Knocked';
-        bg = greyBg;
-        fg = greyFg;
-        break;
-      case KnockStatus.theyKnockedYou:
-        label = 'Knock Back';
-        bg = primaryBg;
-        fg = primaryFg;
-        break;
-    }
-
-    return GestureDetector(
-      onTap: () {
-        KnockHaptics.tap();
-        setState(() {
-          switch (_knockStatus) {
-            case KnockStatus.none:
-              _knockStatus = _isEffectivelyOpen
-                  ? KnockStatus.knocked
-                  : KnockStatus.pending;
-              break;
-            case KnockStatus.pending:
-            case KnockStatus.knocked:
-            case KnockStatus.mutualKnocked:
-              _knockStatus = KnockStatus.none;
-              break;
-            case KnockStatus.theyKnockedYou:
-              _knockStatus = KnockStatus.knocked;
-              break;
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(8),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KnockButton(
+          userId: widget.user.id,
+          initialStatus: widget.user.knockStatus,
+          privacyType: widget.user.privacyType,
+          accountType: widget.user.accountType,
+          isCompact: true,
+          isOwnProfile: widget.user.isOwnProfile,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: fg,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -352,7 +304,8 @@ class _UserResultTileState extends State<_UserResultTile> {
       trailing: _buildTrailingButton(),
       onTap: () {
         KnockHaptics.tap();
-        final updatedUser = widget.user.copyWith(knockStatus: _knockStatus);
+        final currentStatus = GlobalKnockState.getNotifier(widget.user.id, widget.user.knockStatus).value;
+        final updatedUser = widget.user.copyWith(knockStatus: currentStatus);
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -360,7 +313,7 @@ class _UserResultTileState extends State<_UserResultTile> {
               user: updatedUser,
               posts: const [],
               onKnockStatusChanged: (status) {
-                setState(() => _knockStatus = status);
+                // Handled natively by GlobalKnockState
               },
             ),
           ),

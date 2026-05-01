@@ -3,6 +3,8 @@ import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/image_helper.dart';
 import 'chat_screen.dart';
+import '../../services/connection_service.dart';
+import '../../services/database_service.dart';
 
 class NewMessageScreen extends StatefulWidget {
   const NewMessageScreen({super.key});
@@ -15,22 +17,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const List<UserModel> _allUsers = [
-    demoAryaLayek,
-    demoJustinBieber,
-    demoLeonardoDiCaprio,
-    demoSaptarshiNayak,
-    demoSumanPatra,
-    demoZaynMalik,
-  ];
-
-  List<UserModel> get _filteredUsers {
-    if (_searchQuery.isEmpty) return _allUsers;
-    final query = _searchQuery.toLowerCase();
-    return _allUsers.where((u) =>
-        u.displayName.toLowerCase().contains(query) ||
-        u.username.toLowerCase().contains(query)).toList();
-  }
+  List<UserModel> _mutualConnections = [];
 
   @override
   void initState() {
@@ -39,6 +26,25 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
       final q = _searchController.text.trim();
       if (q != _searchQuery) setState(() => _searchQuery = q);
     });
+
+    ConnectionService.instance.streamMutualConnectionUids().listen((uids) async {
+      final users = <UserModel>[];
+      for (final uid in uids) {
+        final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
+        if (data != null) users.add(UserModel.fromMap(data, uid));
+      }
+      if (mounted) {
+        setState(() => _mutualConnections = users);
+      }
+    });
+  }
+
+  List<UserModel> get _filteredUsers {
+    if (_searchQuery.isEmpty) return _mutualConnections;
+    final query = _searchQuery.toLowerCase();
+    return _mutualConnections.where((u) =>
+        u.displayName.toLowerCase().contains(query) ||
+        u.username.toLowerCase().contains(query)).toList();
   }
 
   @override

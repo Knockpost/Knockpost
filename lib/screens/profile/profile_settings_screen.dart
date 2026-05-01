@@ -24,12 +24,13 @@ class ProfileSettingsScreen extends StatefulWidget {
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserModel _user;
-  final String _accountEmail = 'arya.lk@gmail.com';
+  late String _accountEmail;
 
   @override
   void initState() {
     super.initState();
     _user = widget.user;
+    _accountEmail = FirebaseAuth.instance.currentUser?.email ?? 'Unknown Email';
   }
 
   void _toggleProfessional(bool value) {

@@ -4,6 +4,7 @@ import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/connection_service.dart';
 import '../../widgets/people_suggestion_strip.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import '../../services/post_service.dart';
@@ -38,9 +39,34 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
       excludeUid: currentUserId,
       limitCount: 50,
     );
+    
+    if (!mounted) return;
+
+    final statuses = await Future.wait(fetchedUsers.map((u) async {
+      var status = GlobalKnockState.getNotifier(u.id, u.knockStatus).value;
+      if (status == KnockStatus.none) {
+        status = await ConnectionService.instance.getKnockStatus(u.id);
+        GlobalKnockState.getNotifier(u.id, status).value = status;
+      }
+      return status;
+    }));
+
+    final validUsers = <UserModel>[];
+    for (int i = 0; i < fetchedUsers.length; i++) {
+      final u = fetchedUsers[i];
+      if (GlobalDismissState.isDismissed(u.id)) continue;
+      
+      final status = statuses[i];
+      if (status != KnockStatus.knocked &&
+          status != KnockStatus.pending &&
+          status != KnockStatus.mutualKnocked) {
+        validUsers.add(u);
+      }
+    }
+
     if (mounted) {
       setState(() {
-        _users = fetchedUsers;
+        _users = validUsers;
         _isLoading = false;
       });
     }

@@ -178,4 +178,28 @@ class DatabaseService {
       return [];
     }
   }
+
+  /// Block a user
+  Future<void> blockUser({required String myUid, required String targetUid}) async {
+    try {
+      await usersCollection.doc(myUid).update({
+        'blockedUsers': FieldValue.arrayUnion([targetUid]),
+      });
+    } catch (e) {
+      debugPrint("Error blocking user: $e");
+      rethrow;
+    }
+  }
+
+  /// Unblock a user
+  Future<void> unblockUser({required String myUid, required String targetUid}) async {
+    try {
+      await usersCollection.doc(myUid).update({
+        'blockedUsers': FieldValue.arrayRemove([targetUid]),
+      });
+    } catch (e) {
+      debugPrint("Error unblocking user: $e");
+      rethrow;
+    }
+  }
 }
