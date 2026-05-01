@@ -341,9 +341,12 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (context) => ShareSheet(
-                        url: widget.videoUrl,
+                        url: widget.post?.id != null
+                            ? 'https://knockpost.app/wave/${widget.post!.id}'
+                            : widget.videoUrl,
                         username: widget.username,
                         caption: widget.caption,
+                        contentType: 'wave',
                       ),
                     );
                   },

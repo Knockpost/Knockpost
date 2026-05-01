@@ -340,7 +340,13 @@ class _NotifTile extends StatelessWidget {
                 try {
                   final authorDoc = await FirebaseFirestore.instance.collection('users').doc(post.authorId).get();
                   if (authorDoc.exists && authorDoc.data() != null) {
-                    postAuthor = UserModel.fromMap(authorDoc.data()!, authorDoc.id);
+                    final fetchedAuthor = UserModel.fromMap(authorDoc.data()!, authorDoc.id);
+                    // ✅ Fix: UserModel.fromMap never sets isOwnProfile (not stored in DB).
+                    // PostCard/ThoughtCard use user.isOwnProfile to decide reaction bar style,
+                    // so we must set it correctly here based on who the current user is.
+                    postAuthor = fetchedAuthor.copyWith(
+                      isOwnProfile: currentUser.id == post.authorId,
+                    );
                   }
                 } catch (e) {
                   debugPrint('Failed to fetch post author: $e');
