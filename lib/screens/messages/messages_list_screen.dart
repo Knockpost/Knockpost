@@ -22,23 +22,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  List<UserModel> _mutualConnections = [];
-
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() {
       final q = _searchController.text.trim();
       if (q != _searchQuery) setState(() => _searchQuery = q);
-    });
-
-    ConnectionService.instance.streamMutualConnectionUids().listen((uids) async {
-      final users = <UserModel>[];
-      for (final uid in uids) {
-        final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
-        if (data != null) users.add(UserModel.fromMap(data, uid));
-      }
-      if (mounted) setState(() => _mutualConnections = users);
     });
   }
 

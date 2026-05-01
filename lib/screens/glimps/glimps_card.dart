@@ -21,8 +21,9 @@ class GlimpsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (glimpse.imagePaths.isEmpty && glimpse.coverImagePath == null)
+    if (glimpse.imagePaths.isEmpty && glimpse.coverImagePath == null) {
       return const SizedBox.shrink();
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

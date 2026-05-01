@@ -229,9 +229,7 @@ class _UserResultTileState extends State<_UserResultTile> {
     super.initState();
   }
 
-  bool get _isEffectivelyOpen =>
-      widget.user.accountType == AccountType.creator ||
-      widget.user.privacyType == PrivacyType.open;
+
 
   Widget _buildTrailingButton() {
     return Row(
