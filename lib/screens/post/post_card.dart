@@ -8,6 +8,7 @@ import '../../widgets/reaction_bar.dart';
 import '../shared/music_editor_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import '../../services/post_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PostCard — Unified post rendering with proper music mode separation
@@ -87,6 +88,7 @@ class PostCard extends StatefulWidget {
 }
 
 class _PostCardState extends State<PostCard> {
+  static final Set<String> _viewedPosts = {};
   bool _doubleTapped = false;
   AudioPlayer? _audioPlayer;
   bool _isPlaying = false;
@@ -177,6 +179,13 @@ class _PostCardState extends State<PostCard> {
         if (!mounted) return;
         final visibleFraction = info.visibleFraction;
         _isVisible = visibleFraction > 0.4; // Consider visible if 40% is on screen
+
+        if (_isVisible && widget.postId != null && !widget.postId!.startsWith('demo_')) {
+          if (!_viewedPosts.contains(widget.postId!)) {
+            _viewedPosts.add(widget.postId!);
+            PostService.instance.incrementViewCount(widget.postId!, widget.user.id);
+          }
+        }
 
         if (_audioPlayer != null) {
           if (!_isVisible) {

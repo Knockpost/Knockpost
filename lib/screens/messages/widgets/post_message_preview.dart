@@ -42,9 +42,9 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
       final postData = postDoc.data() as Map<String, dynamic>;
       final post = PostModel.fromMap(postData, postDoc.id);
       
-      final authorData = await DatabaseService.instance.getUserProfile(post.userId);
+      final authorData = await DatabaseService.instance.getUserProfile(post.authorId);
       if (authorData != null) {
-        final author = UserModel.fromMap(authorData, post.userId);
+        final author = UserModel.fromMap(authorData, post.authorId);
         if (mounted) {
           setState(() {
             _post = post;

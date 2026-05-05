@@ -13,7 +13,8 @@ enum KnockStatus {
   none, // No interaction yet
   pending, // Current user knocked, awaiting acceptance
   knocked, // Knock accepted (mutual / one-way accepted)
-  theyKnockedYou, // They knocked the current user first
+  theyKnockedYouPending, // They knocked but current user hasn't accepted yet
+  theyKnockedYou, // They knocked the current user and it is accepted
   mutualKnocked, // Both knocked and accepted
 }
 
@@ -49,6 +50,7 @@ class UserModel {
   final List<String> blockedUsers; // UIDs of blocked users
   final bool isOnline;
   final DateTime? lastSeen;
+  final List<String> interests;
 
   const UserModel({
     required this.id,
@@ -73,6 +75,7 @@ class UserModel {
     this.blockedUsers = const [],
     this.isOnline = false,
     this.lastSeen,
+    this.interests = const [],
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -101,6 +104,7 @@ class UserModel {
       lastSeen: map['lastSeen'] != null 
           ? (map['lastSeen'] as dynamic).toDate()
           : null,
+      interests: List<String>.from(map['interests'] ?? []),
     );
   }
 
@@ -125,6 +129,7 @@ class UserModel {
       'blockedUsers': blockedUsers,
       'isOnline': isOnline,
       'lastSeen': lastSeen,
+      'interests': interests,
     };
   }
 
@@ -143,6 +148,7 @@ class UserModel {
     switch (statusStr) {
       case 'pending': return KnockStatus.pending;
       case 'knocked': return KnockStatus.knocked;
+      case 'theyKnockedYouPending': return KnockStatus.theyKnockedYouPending;
       case 'theyKnockedYou': return KnockStatus.theyKnockedYou;
       case 'mutualKnocked': return KnockStatus.mutualKnocked;
       default: return KnockStatus.none;
@@ -208,6 +214,7 @@ class UserModel {
     List<String>? blockedUsers,
     bool? isOnline,
     DateTime? lastSeen,
+    List<String>? interests,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -235,6 +242,7 @@ class UserModel {
       blockedUsers: blockedUsers ?? this.blockedUsers,
       isOnline: isOnline ?? this.isOnline,
       lastSeen: lastSeen ?? this.lastSeen,
+      interests: interests ?? this.interests,
     );
   }
 }

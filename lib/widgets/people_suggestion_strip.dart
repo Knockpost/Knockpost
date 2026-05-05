@@ -541,6 +541,7 @@ class _SuggestionActionState extends State<_SuggestionAction>
     final KnockStatus newStatus;
     switch (_status) {
       case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
         final isOpen = widget.isEffectivelyOpen;
         newStatus = isOpen ? KnockStatus.knocked : KnockStatus.pending;
         ConnectionService.instance.sendKnock(
@@ -578,6 +579,7 @@ class _SuggestionActionState extends State<_SuggestionAction>
 
     final label = switch (_status) {
       KnockStatus.none => 'Knock',
+      KnockStatus.theyKnockedYouPending => 'Knock',
       KnockStatus.pending => 'Knocked',
       KnockStatus.knocked => 'Knocked',
       KnockStatus.mutualKnocked => 'Knocked',

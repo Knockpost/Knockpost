@@ -435,11 +435,68 @@ class _KnockBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // If the notification data doesn't have the current knock status (e.g. from cache),
+    // get KnockStatus first. Usually `user.knockStatus` should be accurate if fetched recently.
     final notifier = GlobalKnockState.getNotifier(user.id, user.knockStatus);
 
     return ValueListenableBuilder<KnockStatus>(
       valueListenable: notifier,
       builder: (context, status, _) {
+        if (status == KnockStatus.none) {
+          return const SizedBox.shrink(); // declined or removed
+        }
+
+        if (status == KnockStatus.theyKnockedYouPending) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  KnockHaptics.selection();
+                  notifier.value = KnockStatus.theyKnockedYou; // transitions to "Knock Back"
+                  try {
+                    await ConnectionService.instance.approveKnock(user.id);
+                  } catch (e) {
+                    notifier.value = KnockStatus.theyKnockedYouPending;
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: const Text(
+                    'Accept',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () async {
+                  KnockHaptics.selection();
+                  notifier.value = KnockStatus.none; // disappear
+                  try {
+                    await ConnectionService.instance.declineKnock(user.id);
+                  } catch (e) {
+                    notifier.value = KnockStatus.theyKnockedYouPending;
+                  }
+                },
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
+            ],
+          );
+        }
+
         final isKnockedBack = status == KnockStatus.mutualKnocked || 
                               status == KnockStatus.knocked || 
                               status == KnockStatus.pending;
@@ -466,32 +523,38 @@ class _KnockBackButton extends StatelessWidget {
           );
         }
 
-        return GestureDetector(
-          onTap: () async {
-            KnockHaptics.selection();
-            notifier.value = KnockStatus.mutualKnocked;
-            try {
-              await ConnectionService.instance.acceptKnock(user.id);
-            } catch (e) {
-              // Revert on error
-              notifier.value = KnockStatus.theyKnockedYou;
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white : Colors.black,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Text(
-              'Knock Back',
-              style: TextStyle(
-                color: isDark ? Colors.black : Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+        // Normal 'theyKnockedYou' state -> 'Knock Back'
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () async {
+                KnockHaptics.selection();
+                notifier.value = KnockStatus.mutualKnocked;
+                try {
+                  await ConnectionService.instance.acceptKnock(user.id);
+                } catch (e) {
+                  // Revert on error
+                  notifier.value = KnockStatus.theyKnockedYou;
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white : Colors.black,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Text(
+                  'Knock Back',
+                  style: TextStyle(
+                    color: isDark ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         );
       },
     );

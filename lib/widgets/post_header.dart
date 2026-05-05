@@ -77,6 +77,7 @@ class _PostHeaderState extends State<PostHeader> {
     
     switch (_status) {
       case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
         nextStatus = isEffectivelyOpen ? KnockStatus.knocked : KnockStatus.pending;
         _showBlackFlash = true;
         break;
@@ -173,6 +174,7 @@ class _PostHeaderState extends State<PostHeader> {
 
     switch (_status) {
       case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
         label = "Knock";
         break;
       case KnockStatus.theyKnockedYou:

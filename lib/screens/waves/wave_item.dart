@@ -40,6 +40,7 @@ class WaveItem extends StatefulWidget {
 }
 
 class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
+  static final Set<String> _viewedWaves = {};
   late VideoPlayerController _controller;
 
   bool isPlaying = true;
@@ -105,6 +106,12 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
         _controller.setLooping(true);
         if (widget.isActive) {
           _controller.play();
+          if (widget.post != null && widget.author != null && !widget.post!.id.startsWith('demo_')) {
+            if (!_viewedWaves.contains(widget.post!.id)) {
+              _viewedWaves.add(widget.post!.id);
+              PostService.instance.incrementViewCount(widget.post!.id, widget.author!.id);
+            }
+          }
         } else {
           _controller.pause();
         }
@@ -122,6 +129,13 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       _controller.play();
       isPlaying = true;
       _playPauseAnimController.reverse();
+      
+      if (widget.post != null && widget.author != null && !widget.post!.id.startsWith('demo_')) {
+        if (!_viewedWaves.contains(widget.post!.id)) {
+          _viewedWaves.add(widget.post!.id);
+          PostService.instance.incrementViewCount(widget.post!.id, widget.author!.id);
+        }
+      }
     } else {
       _controller.pause();
       isPlaying = false;

@@ -12,6 +12,47 @@ class DatabaseService {
   // Collection References
   CollectionReference get usersCollection => _firestore.collection('users');
 
+  /// Recalculate and update the creator rank for a user based on their stats.
+  Future<void> recalculateCreatorRank(String uid) async {
+    try {
+      final doc = await usersCollection.doc(uid).get();
+      if (!doc.exists) return;
+      
+      final data = doc.data() as Map<String, dynamic>?;
+      if (data == null) return;
+      
+      final accountType = data['accountType'] as String?;
+      if (accountType != 'creator') return;
+
+      final totalViews = data['totalViews'] as int? ?? 0;
+      final totalLikes = data['totalLikes'] as int? ?? 0;
+      final totalKnocks = data['totalKnocksReceived'] as int? ?? 0;
+      
+      // Calculate new rank
+      // IMPACT: views >= 10k, likes >= 5k, knocks >= 500
+      // PRO: views >= 5k, likes >= 2k, knocks >= 100
+      // PLUS: views >= 1k, likes >= 500, knocks >= 50
+      // ECHO: default
+      CreatorRank newRank = CreatorRank.echo;
+      if (totalViews >= 10000 && totalLikes >= 5000 && totalKnocks >= 500) {
+        newRank = CreatorRank.impact;
+      } else if (totalViews >= 5000 && totalLikes >= 2000 && totalKnocks >= 100) {
+        newRank = CreatorRank.pro;
+      } else if (totalViews >= 1000 && totalLikes >= 500 && totalKnocks >= 50) {
+        newRank = CreatorRank.plus;
+      }
+      
+      final currentRankStr = data['rank'] as String?;
+      if (currentRankStr != newRank.name) {
+        await usersCollection.doc(uid).update({
+          'rank': newRank.name,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error recalculating rank: $e');
+    }
+  }
+
   /// Check if a username is already taken.
   Future<bool> checkUsernameTaken(String username) async {
     try {
@@ -61,6 +102,8 @@ class DatabaseService {
     String? profileImageUrl,
     String? coverImageUrl,
     Map<String, String>? socialLinks,
+    String? accountType,
+    String? privacyType,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -79,6 +122,12 @@ class DatabaseService {
       }
       if (socialLinks != null) {
         data['socialLinks'] = socialLinks;
+      }
+      if (accountType != null) {
+        data['accountType'] = accountType;
+      }
+      if (privacyType != null) {
+        data['privacyType'] = privacyType;
       }
 
       await usersCollection.doc(uid).update(data);

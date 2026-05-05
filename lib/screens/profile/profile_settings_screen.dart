@@ -7,10 +7,13 @@ import '../../widgets/system_nav_bar_fill.dart';
 import 'widgets/creator_rank_badge.dart';
 import 'widgets/profile_ui_helpers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../login_screen.dart';
 import 'edit_profile_screen.dart';
 import 'blocked_accounts_screen.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
 class ProfileSettingsScreen extends StatefulWidget {
@@ -33,14 +36,77 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     _accountEmail = FirebaseAuth.instance.currentUser?.email ?? 'Unknown Email';
   }
 
-  void _toggleProfessional(bool value) {
+  Future<void> _toggleProfessional(bool value) async {
     KnockHaptics.impact();
+    final newType = value ? AccountType.creator : AccountType.normal;
     setState(() {
       _user = _user.copyWith(
-        accountType: value ? AccountType.creator : AccountType.normal,
+        accountType: newType,
         rank: CreatorRank.echo,
       );
     });
+    try {
+      await DatabaseService.instance.updateUserProfile(
+        uid: _user.id,
+        displayName: _user.displayName,
+        username: _user.username,
+        accountType: newType.name,
+      );
+      CurrentUserService.instance.refresh();
+    } catch (e) {
+      debugPrint('Error updating account type: $e');
+    }
+  }
+
+  Future<bool> _confirmPrivacyChange(bool isPrivate) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final dialogBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
+    final title = isPrivate ? 'Switch to Private Account?' : 'Switch to Public Account?';
+    final content = isPrivate
+        ? 'Only accepted Knocks will be able to see your profile & posts. This won\'t change who can message you.'
+        : 'Anyone will be able to see your profile & posts. You will no longer need to approve Knocks.';
+
+    final confirmText = isPrivate ? 'Switch to Private' : 'Switch to Public';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                title,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              content: Text(
+                content,
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 14, height: 1.4),
+                textAlign: TextAlign.center,
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(
+                    confirmText,
+                    style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -130,13 +196,29 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     subtitle: 'Only accepted Knocks can see your profile & posts.',
                     trailing: Switch(
                       value: _user.privacyType == PrivacyType.private,
-                      onChanged: (v) {
+                      onChanged: (v) async {
                         KnockHaptics.selection();
+                        
+                        final confirm = await _confirmPrivacyChange(v);
+                        if (!confirm) return;
+
+                        final newPrivacy = v ? PrivacyType.private : PrivacyType.open;
                         setState(() {
                           _user = _user.copyWith(
-                            privacyType: v ? PrivacyType.private : PrivacyType.open,
+                            privacyType: newPrivacy,
                           );
                         });
+                        try {
+                          await DatabaseService.instance.updateUserProfile(
+                            uid: _user.id,
+                            displayName: _user.displayName,
+                            username: _user.username,
+                            privacyType: newPrivacy.name,
+                          );
+                          CurrentUserService.instance.refresh();
+                        } catch (e) {
+                          debugPrint('Error updating privacy type: $e');
+                        }
                       },
                       activeThumbColor: textColor,
                     ),
@@ -691,16 +773,64 @@ class _ManageInterestsScreen extends StatefulWidget {
 }
 
 class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
-  final Map<String, bool> _interests = {
-    'Photography': true,
-    'Travel': true,
-    'Music': false,
-    'Gaming': true,
-    'Fashion': false,
-    'Fitness': false,
-    'Tech': true,
-    'Food': true,
-  };
+  final List<String> _allTopics = [
+    "Culture", "Technology", "Business", "Science", "Music", "Sports", 
+    "Art", "Movies", "Books", "Lifestyle", "Health", "Food", 
+    "Politics", "Gaming", "Fashion", "Photography", "Travel", "Fitness"
+  ];
+
+  late Map<String, bool> _interests;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInterests();
+  }
+
+  void _loadUserInterests() {
+    final user = CurrentUserService.instance.currentUser;
+    final userInterests = user?.interests ?? [];
+    
+    _interests = {};
+    for (final topic in _allTopics) {
+      _interests[topic] = userInterests.contains(topic);
+    }
+    
+    for (final topic in userInterests) {
+      if (!_interests.containsKey(topic)) {
+        _interests[topic] = true;
+      }
+    }
+    
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _updateInterest(String topic, bool isSelected) async {
+    setState(() {
+      _interests[topic] = isSelected;
+    });
+    KnockHaptics.selection();
+
+    final user = CurrentUserService.instance.currentUser;
+    if (user == null) return;
+
+    final selectedList = _interests.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.id).update({
+        'interests': selectedList,
+      });
+      await CurrentUserService.instance.loadCurrentUser();
+    } catch (e) {
+      debugPrint('Error updating interests: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -746,7 +876,9 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
             ),
           ),
         ),
-        body: ListView(
+        body: _isLoading 
+            ? const Center(child: CircularProgressIndicator(color: Colors.grey))
+            : ListView(
           padding: EdgeInsets.zero,
           children: [
             _SectionHeader('Topics', isDark: isDark),
@@ -762,10 +894,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
                           : 'Tap to add this interest',
                       trailing: Switch(
                         value: entry.value,
-                        onChanged: (value) {
-                          KnockHaptics.selection();
-                          setState(() => _interests[entry.key] = value);
-                        },
+                        onChanged: (value) => _updateInterest(entry.key, value),
                         activeThumbColor: textColor,
                       ),
                     ),
@@ -1040,7 +1169,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
   }
 
   int get _totalUsageMinutes =>
-      _weeklyUsageMinutes.values.fold(0, (sum, value) => sum + value);
+      _weeklyUsageMinutes.values.fold(0, (acc, value) => acc + value);
 
   int get _averageUsageMinutes =>
       (_totalUsageMinutes / _weeklyUsageMinutes.length).round();

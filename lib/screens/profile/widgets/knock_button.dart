@@ -93,6 +93,7 @@ class _KnockButtonState extends State<KnockButton>
     KnockStatus nextStatus = _status;
     switch (_status) {
       case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
         nextStatus = _isEffectivelyOpen
             ? KnockStatus.knocked
             : KnockStatus.pending;
@@ -120,6 +121,7 @@ class _KnockButtonState extends State<KnockButton>
     try {
       switch (previousStatus) {
         case KnockStatus.none:
+        case KnockStatus.theyKnockedYouPending:
           await ConnectionService.instance.sendKnock(
             toUid: widget.userId,
             isOpenProfile: _isEffectivelyOpen,
@@ -169,6 +171,7 @@ class _KnockButtonState extends State<KnockButton>
 
     switch (_status) {
       case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
         label = 'Knock';
         bg = primaryBg;
         fg = primaryFg;

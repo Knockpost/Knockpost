@@ -34,8 +34,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   late AnimationController _listAnimController;
 
   // Real-time stream data (loaded from Firestore)
-  List<UserModel> _youKnockedReal = [];
+  List<UserModel> _sentPendingReal = [];
+  List<UserModel> _sentAcceptedReal = [];
   List<UserModel> _incomingPendingReal = [];
+  List<UserModel> _incomingAcceptedReal = [];
   List<UserModel> _mutualReal = [];
 
   // Track which users have been dismissed from the lists
@@ -57,14 +59,24 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     Future.microtask(() => _listAnimController.forward());
 
     // Subscribe to real knock streams
-    ConnectionService.instance.streamSentKnockUids().listen((uids) {
+    ConnectionService.instance.streamSentPendingKnockUids().listen((uids) {
       _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _youKnockedReal = users);
+        if (mounted) setState(() => _sentPendingReal = users);
       });
     });
-    ConnectionService.instance.streamIncomingKnockUids().listen((uids) {
+    ConnectionService.instance.streamSentAcceptedKnockUids().listen((uids) {
+      _loadUsersFromUids(uids).then((users) {
+        if (mounted) setState(() => _sentAcceptedReal = users);
+      });
+    });
+    ConnectionService.instance.streamIncomingPendingKnockUids().listen((uids) {
       _loadUsersFromUids(uids).then((users) {
         if (mounted) setState(() => _incomingPendingReal = users);
+      });
+    });
+    ConnectionService.instance.streamIncomingAcceptedKnockUids().listen((uids) {
+      _loadUsersFromUids(uids).then((users) {
+        if (mounted) setState(() => _incomingAcceptedReal = users);
       });
     });
     ConnectionService.instance.streamMutualConnectionUids().listen((uids) {
@@ -102,12 +114,11 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   }
 
 
-  // Combined: all people I sent a knock to + mutual connections who knocked me
-  // → all shown in 'You Knocked' tab
-  List<UserModel> get _youKnockedCombined {
+  // Combined: accepted knocks I sent + mutual connections who knocked me
+  List<UserModel> get _youKnockedAccepted {
     final Set<String> seen = {};
     final List<UserModel> result = [];
-    for (final u in _youKnockedReal) {
+    for (final u in _sentAcceptedReal) {
       if (seen.add(u.id)) result.add(u);
     }
     // Also include mutual connections who knocked me first (not already in sent list)
@@ -117,16 +128,19 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     return result;
   }
 
+  List<UserModel> get _youKnockedPending {
+    return _sentPendingReal;
+  }
+
   // 'Knocked You' = everyone who knocked ME:
   //   - pending (not mutual yet) → show Knock Back
   //   - mutual (knocked back already) → show message
-  List<UserModel> get _pendingIncoming {
-    return _incomingPendingReal;
-  }
 
-  int get _totalKnockedYou => _pendingIncoming.length;
+  int get _totalKnockedYou => _incomingPendingReal.length + _incomingAcceptedReal.length;
 
-  int get _totalConnections => _youKnockedCombined.length + _totalKnockedYou;
+  int get _totalYouKnocked => _youKnockedAccepted.length;
+
+  int get _totalConnections => _totalYouKnocked + _totalKnockedYou;
 
   /// Compact number: 999 → '999', 1200 → '1.2k', 52400 → '52.4k', 1000000 → '1m'
   static String _formatCount(int n) {
@@ -150,11 +164,57 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     );
   }
 
-  void _onDismiss(String userId) {
+  void _onAcceptKnock(String userId) {
+    KnockHaptics.impact();
+    GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYouPending).value =
+        KnockStatus.theyKnockedYou;
+    // Persist to Firestore
+    ConnectionService.instance.approveKnock(userId).catchError(
+      (e) => debugPrint('ConnectionsScreen._onAcceptKnock error: $e'),
+    );
+  }
+
+  Future<void> _onDismiss(String userId, String username) async {
     KnockHaptics.tap();
-    setState(() {
-      _dismissedIds.add(userId);
-    });
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Decline Knock?',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+          textAlign: TextAlign.center,
+        ),
+        content: Text(
+          'Are you sure you want to decline the knock from @$username?',
+          style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 14, height: 1.4),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Decline', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700, fontSize: 15)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _dismissedIds.add(userId);
+      });
+      // Update global state so that buttons elsewhere reset to 'Knock'
+      GlobalKnockState.getNotifier(userId, KnockStatus.none).value = KnockStatus.none;
+      await ConnectionService.instance.declineKnock(userId);
+    }
   }
 
   void _onMessage(UserModel user) {
@@ -257,7 +317,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
                   // ── Tab toggle with sliding pill ──
                   _KnockpostPillToggle(
                     labels: [
-                      'You Knocked (${_formatCount(_youKnockedCombined.length)})',
+                      'You Knocked (${_formatCount(_totalYouKnocked)})',
                       'Knocked You (${_formatCount(_totalKnockedYou)})',
                     ],
                     activeIndex: _activeSegment,
@@ -305,9 +365,15 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   // ── You Knocked tab ──
   Widget _buildYouKnockedList(bool isDark, Color textColor) {
     // Show everyone I knocked + mutual connections
-    final users = _filter(_youKnockedCombined);
+    final accepted = _filter(_youKnockedAccepted);
+    final pending = _filter(_youKnockedPending);
+    
+    final allEntries = [
+      ...pending.map((u) => _KnockedYouEntry(u, _CardAction.pending)),
+      ...accepted.map((u) => _KnockedYouEntry(u, _CardAction.message)),
+    ];
 
-    if (users.isEmpty) {
+    if (allEntries.isEmpty) {
       return _buildEmptyState(
         isDark,
         '👋',
@@ -319,16 +385,16 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     return _StaggeredCardList(
       key: const ValueKey('you_knocked'),
       animController: _listAnimController,
-      itemCount: users.length,
+      itemCount: allEntries.length,
       itemBuilder: (context, index) {
-        final user = users[index];
+        final entry = allEntries[index];
         return _ConnectionCard(
-          user: user,
+          user: entry.user,
           isDark: isDark,
           textColor: textColor,
-          actionType: _CardAction.message,
-          onProfileTap: () => _navigateToProfile(user),
-          onMessage: () => _onMessage(user),
+          actionType: entry.action,
+          onProfileTap: () => _navigateToProfile(entry.user),
+          onMessage: () => _onMessage(entry.user),
         );
       },
     );
@@ -337,20 +403,26 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   // ── Knocked You tab ──
   Widget _buildKnockedYouList(bool isDark, Color textColor) {
     final mutualIds = _mutualReal.map((u) => u.id).toSet();
-    final sentIds   = _youKnockedReal.map((u) => u.id).toSet();
+    final sentIds   = _sentAcceptedReal.map((u) => u.id).toSet();
 
-    // pending = knocked me but I haven't knocked back
+    // 1. pending = knocked me but I haven't accepted or knocked back
     final pending = _filter(_incomingPendingReal)
         .where((u) => !mutualIds.contains(u.id) && !sentIds.contains(u.id))
         .toList();
 
-    // mutual = knocked me AND I knocked back
-    final mutual = _filter(_incomingPendingReal)
+    // 2. accepted not mutual = knocked me, I accepted (or I am open), but I haven't knocked back
+    final acceptedNotMutual = _filter(_incomingAcceptedReal)
+        .where((u) => !mutualIds.contains(u.id) && !sentIds.contains(u.id))
+        .toList();
+
+    // 3. mutual = knocked me AND I knocked back
+    final mutual = _filter(_incomingAcceptedReal)
         .where((u) => mutualIds.contains(u.id) || sentIds.contains(u.id))
         .toList();
 
     final allEntries = [
-      ...pending.map((u) => _KnockedYouEntry(u, _CardAction.knockBack)),
+      ...pending.map((u) => _KnockedYouEntry(u, _CardAction.accept)),
+      ...acceptedNotMutual.map((u) => _KnockedYouEntry(u, _CardAction.knockBack)),
       ...mutual.map((u) => _KnockedYouEntry(u, _CardAction.message)),
     ];
 
@@ -376,7 +448,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
           actionType: entry.action,
           onProfileTap: () => _navigateToProfile(entry.user),
           onKnockBack: () => _onKnockBack(entry.user.id),
-          onDismiss: () => _onDismiss(entry.user.id),
+          onAcceptKnock: () => _onAcceptKnock(entry.user.id),
+          onDismiss: () => _onDismiss(entry.user.id, entry.user.username),
           onMessage: () => _onMessage(entry.user),
         );
       },
@@ -646,7 +719,7 @@ class _KnockedYouEntry {
   const _KnockedYouEntry(this.user, this.action);
 }
 
-enum _CardAction { message, knockBack, knocked }
+enum _CardAction { message, knockBack, knocked, pending, accept }
 
 class _ConnectionCard extends StatefulWidget {
   final UserModel user;
@@ -655,6 +728,7 @@ class _ConnectionCard extends StatefulWidget {
   final _CardAction actionType;
   final VoidCallback onProfileTap;
   final VoidCallback? onKnockBack;
+  final VoidCallback? onAcceptKnock;
   final VoidCallback? onDismiss;
   final VoidCallback? onMessage;
 
@@ -665,6 +739,7 @@ class _ConnectionCard extends StatefulWidget {
     required this.actionType,
     required this.onProfileTap,
     this.onKnockBack,
+    this.onAcceptKnock,
     this.onDismiss,
     this.onMessage,
   });
@@ -740,6 +815,10 @@ class _ConnectionCardState extends State<_ConnectionCard>
               _buildMessageAction(isDark, textColor)
             else if (widget.actionType == _CardAction.knocked)
               _buildKnockedAction(isDark, textColor)
+            else if (widget.actionType == _CardAction.pending)
+              _buildPendingAction(isDark, textColor)
+            else if (widget.actionType == _CardAction.accept)
+              _buildAcceptAction(isDark, textColor)
             else
               _buildKnockBackAction(isDark, textColor),
           ],
@@ -844,6 +923,41 @@ class _ConnectionCardState extends State<_ConnectionCard>
     );
   }
 
+  Widget _buildAcceptAction(bool isDark, Color textColor) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: widget.onAcceptKnock,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.blueAccent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Text(
+              'Accept',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: widget.onDismiss,
+          child: Icon(
+            Icons.close_rounded,
+            size: 20,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildKnockedAction(bool isDark, Color textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -861,4 +975,27 @@ class _ConnectionCardState extends State<_ConnectionCard>
       ),
     );
   }
+
+  Widget _buildPendingAction(bool isDark, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        border: Border.all(
+          color: isDark ? Colors.white24 : Colors.black26,
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        'Pending',
+        style: TextStyle(
+          color: isDark ? Colors.white54 : Colors.black54,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 }
+

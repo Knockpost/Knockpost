@@ -4,6 +4,7 @@ import '../models/user_model.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 import '../models/notification_model.dart';
+import 'database_service.dart';
 
 /// Handles all Knock / Connection logic.
 ///
@@ -53,6 +54,12 @@ class ConnectionService {
         receiverUid: toUid,
         type: NotificationType.knock,
       );
+
+      // Increment stats
+      await _db.collection('users').doc(toUid).update({
+        'totalKnocksReceived': FieldValue.increment(1),
+      }).catchError((_) {}); // Ignore if document doesn't exist
+      DatabaseService.instance.recalculateCreatorRank(toUid);
     } catch (e) {
       debugPrint('ConnectionService.sendKnock error: $e');
       rethrow;
@@ -102,8 +109,35 @@ class ConnectionService {
     if (me == null) return;
     try {
       await _col.doc(_docId(me, otherUid)).delete();
+
+      // Decrement stats
+      await _db.collection('users').doc(otherUid).update({
+        'totalKnocksReceived': FieldValue.increment(-1),
+      }).catchError((_) {});
+      DatabaseService.instance.recalculateCreatorRank(otherUid);
     } catch (e) {
       debugPrint('ConnectionService.removeKnock error: $e');
+      rethrow;
+    }
+  }
+
+  /// Approve an incoming knock from [fromUid] without knocking back.
+  /// Updates the existing {fromUid}_{myUid} document to 'accepted'.
+  Future<void> approveKnock(String fromUid) async {
+    final me = _myUid;
+    if (me == null) return;
+    try {
+      await _col.doc(_docId(fromUid, me)).update({
+        'status': 'accepted',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      // Optionally notify them that you accepted
+      NotificationService.instance.sendNotification(
+        receiverUid: fromUid,
+        type: NotificationType.knock, // Or a specific 'accepted' type if available
+      );
+    } catch (e) {
+      debugPrint('ConnectionService.approveKnock error: $e');
       rethrow;
     }
   }
@@ -114,6 +148,12 @@ class ConnectionService {
     if (me == null) return;
     try {
       await _col.doc(_docId(fromUid, me)).delete();
+
+      // Decrement stats
+      await _db.collection('users').doc(me).update({
+        'totalKnocksReceived': FieldValue.increment(-1),
+      }).catchError((_) {});
+      DatabaseService.instance.recalculateCreatorRank(me);
     } catch (e) {
       debugPrint('ConnectionService.declineKnock error: $e');
       rethrow;
@@ -155,8 +195,13 @@ class ConnectionService {
       // I knocked, still pending
       if (iKnocked && iStatus == 'pending') return KnockStatus.pending;
 
-      // They knocked me (pending from their side)
-      if (theyKnocked && !iKnocked) return KnockStatus.theyKnockedYou;
+      // They knocked me
+      if (theyKnocked && !iKnocked) {
+        if (theyStatus == 'pending') {
+          return KnockStatus.theyKnockedYouPending;
+        }
+        return KnockStatus.theyKnockedYou;
+      }
 
       return KnockStatus.none;
     } catch (e) {
@@ -177,12 +222,46 @@ class ConnectionService {
         .map((s) => s.docs.map((d) => (d.data() as Map)['toUid'] as String).toList());
   }
 
-  /// Stream of ALL incoming knocks (both pending and accepted).
-  Stream<List<String>> streamIncomingKnockUids() {
+  /// Stream of UIDs that the current user has knocked and are currently pending.
+  Stream<List<String>> streamSentPendingKnockUids() {
+    final me = _myUid;
+    if (me == null) return const Stream.empty();
+    return _col
+        .where('fromUid', isEqualTo: me)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((s) => s.docs.map((d) => (d.data() as Map)['toUid'] as String).toList());
+  }
+
+  /// Stream of UIDs that the current user has knocked and are currently accepted.
+  Stream<List<String>> streamSentAcceptedKnockUids() {
+    final me = _myUid;
+    if (me == null) return const Stream.empty();
+    return _col
+        .where('fromUid', isEqualTo: me)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots()
+        .map((s) => s.docs.map((d) => (d.data() as Map)['toUid'] as String).toList());
+  }
+
+  /// Stream of incoming knocks that are currently pending.
+  Stream<List<String>> streamIncomingPendingKnockUids() {
     final me = _myUid;
     if (me == null) return const Stream.empty();
     return _col
         .where('toUid', isEqualTo: me)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((s) => s.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList());
+  }
+
+  /// Stream of incoming knocks that are currently accepted.
+  Stream<List<String>> streamIncomingAcceptedKnockUids() {
+    final me = _myUid;
+    if (me == null) return const Stream.empty();
+    return _col
+        .where('toUid', isEqualTo: me)
+        .where('status', isEqualTo: 'accepted')
         .snapshots()
         .map((s) => s.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList());
   }

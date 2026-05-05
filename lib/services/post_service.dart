@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import 'storage_service.dart';
+import 'connection_service.dart';
+import 'database_service.dart';
 
 class PostService {
   PostService._internal();
@@ -13,8 +15,8 @@ class PostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   CollectionReference get postsCollection => _firestore.collection('posts');
 
-  /// Helper to bidirectionally filter out posts from blocked users.
-  Future<List<PostModel>> _filterBlockedPosts(List<PostModel> posts) async {
+  /// Helper to bidirectionally filter out posts from blocked users AND private accounts.
+  Future<List<PostModel>> _filterBlockedAndPrivatePosts(List<PostModel> posts) async {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     if (myUid == null) return posts;
 
@@ -25,12 +27,19 @@ class PostService {
     final Set<String> uniqueAuthorIds = posts.map((p) => p.authorId).toSet();
     uniqueAuthorIds.remove(myUid);
 
-    final Map<String, List<String>> authorBlockedListMap = {};
+    final Map<String, UserModel> authorMap = {};
+    final Map<String, KnockStatus> knockStatusMap = {};
+
     await Future.wait(uniqueAuthorIds.map((uid) async {
       try {
         final data = await _firestore.collection('users').doc(uid).get();
         if (data.exists && data.data() != null) {
-          authorBlockedListMap[uid] = List<String>.from(data.data()!['blockedUsers'] ?? []);
+          final user = UserModel.fromMap(data.data()!, uid);
+          authorMap[uid] = user;
+          
+          if (user.accountType == AccountType.normal && user.privacyType == PrivacyType.private) {
+             knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
+          }
         }
       } catch (e) {
         debugPrint('PostService: failed to fetch author $uid: $e');
@@ -39,9 +48,20 @@ class PostService {
 
     return posts.where((post) {
       if (post.authorId == myUid) return true;
-      if (myBlockedUsers.contains(post.authorId)) return false;
-      final theirBlockedUsers = authorBlockedListMap[post.authorId] ?? [];
-      if (theirBlockedUsers.contains(myUid)) return false;
+      final author = authorMap[post.authorId];
+      if (author == null) return false;
+
+      if (myBlockedUsers.contains(author.id)) return false;
+      if (author.blockedUsers.contains(myUid)) return false;
+
+      // Privacy Check
+      if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+        final status = knockStatusMap[author.id];
+        if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+          return false;
+        }
+      }
+
       return true;
     }).toList();
   }
@@ -135,30 +155,41 @@ class PostService {
         }
       }));
 
-      // Map each post to its author, applying bidirectional block filter
-      return posts.where((post) {
-        if (post.authorId == currentUserId) return true;
-        final author = authorMap[post.authorId];
-        if (author == null) return false;
-        
-        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) return false;
-        if (author.blockedUsers.contains(currentUserId)) return false;
-        
-        return true;
-      }).map((post) {
-        UserModel author;
-        if (post.authorId == currentUserId && currentUserModel != null) {
-          author = currentUserModel;
-        } else {
-          author = authorMap[post.authorId] ??
-              UserModel(
-                id: post.authorId,
-                displayName: 'Unknown',
-                username: 'unknown',
-              );
+      // Fetch privacy statuses in parallel for any private users
+      final Map<String, KnockStatus> knockStatusMap = {};
+      await Future.wait(uniqueAuthorIds.map((uid) async {
+        final author = authorMap[uid];
+        if (author != null && author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+            knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
         }
-        return (post: post, author: author);
-      }).toList();
+      }));
+
+      // Map each post to its author, applying bidirectional block filter & privacy check
+      final List<({PostModel post, UserModel author})> validPosts = [];
+      for (final post in posts) {
+        if (post.authorId == currentUserId) {
+          if (currentUserModel != null) {
+             validPosts.add((post: post, author: currentUserModel));
+          }
+          continue;
+        }
+        
+        final author = authorMap[post.authorId];
+        if (author == null) continue;
+        
+        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) continue;
+        if (author.blockedUsers.contains(currentUserId)) continue;
+        
+        if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+          final status = knockStatusMap[author.id];
+          if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+            continue;
+          }
+        }
+        
+        validPosts.add((post: post, author: author));
+      }
+      return validPosts;
     });
   }
 
@@ -173,7 +204,7 @@ class PostService {
       }).toList();
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return posts.take(limit).toList();
-    }).asyncMap(_filterBlockedPosts);
+    }).asyncMap(_filterBlockedAndPrivatePosts);
   }
 
   /// Streams active glimpses (stories) for the GlimpsStrip.
@@ -188,7 +219,7 @@ class PostService {
       }).where((post) => post.isInRecentsWindow).toList();
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return posts.take(limit).toList();
-    }).asyncMap(_filterBlockedPosts);
+    }).asyncMap(_filterBlockedAndPrivatePosts);
   }
 
   /// Streams a specific user's posts.
@@ -211,6 +242,27 @@ class PostService {
       await postsCollection.doc(postId).delete();
     } catch (e) {
       debugPrint("Error deleting post: $e");
+    }
+  }
+
+  /// Increments the view count for a post and the total views for its author.
+  /// To avoid excessive writes, we could debounce this or track viewed post IDs locally.
+  Future<void> incrementViewCount(String postId, String authorId) async {
+    try {
+      // Increment post views
+      await postsCollection.doc(postId).update({
+        'views': FieldValue.increment(1),
+      });
+
+      // Increment author's total views
+      await _firestore.collection('users').doc(authorId).update({
+        'totalViews': FieldValue.increment(1),
+      });
+
+      // Recalculate rank asynchronously
+      DatabaseService.instance.recalculateCreatorRank(authorId);
+    } catch (e) {
+      debugPrint("Error incrementing view count: $e");
     }
   }
 }
