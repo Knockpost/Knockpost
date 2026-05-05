@@ -11,6 +11,7 @@ import '../utils/image_helper.dart';
 
 import '../models/post_model.dart';
 import '../models/user_model.dart';
+import '../models/notification_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import 'post/post_card.dart';
@@ -706,19 +707,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   ),
                                                 ),
                                                 actions: [
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.notifications_none,
-                                                      color: textColor,
-                                                    ),
-                                                    onPressed: () {
-                                                      KnockHaptics.tap();
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              const NotificationsScreen(),
-                                                        ),
+                                                  StreamBuilder<List<NotificationModel>>(
+                                                    stream: NotificationService.instance.streamNotifications(),
+                                                    builder: (context, snapshot) {
+                                                      final hasUnread = snapshot.data?.any((n) => !n.isRead) ?? false;
+                                                      return Stack(
+                                                        alignment: Alignment.center,
+                                                        children: [
+                                                          IconButton(
+                                                            icon: Icon(
+                                                              Icons.notifications_none,
+                                                              color: textColor,
+                                                            ),
+                                                            onPressed: () {
+                                                              KnockHaptics.tap();
+                                                              Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                  builder: (_) =>
+                                                                      const NotificationsScreen(),
+                                                                ),
+                                                              );
+                                                            },
+                                                          ),
+                                                          if (hasUnread)
+                                                            Positioned(
+                                                              top: 12,
+                                                              right: 12,
+                                                              child: Container(
+                                                                width: 10,
+                                                                height: 10,
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors.redAccent,
+                                                                  shape: BoxShape.circle,
+                                                                  border: Border.all(
+                                                                    color: bgColor,
+                                                                    width: 2,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                        ],
                                                       );
                                                     },
                                                   ),

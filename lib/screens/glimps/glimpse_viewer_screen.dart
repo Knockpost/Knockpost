@@ -22,20 +22,24 @@ import '../waves/widgets/more_options_sheet.dart';
 // • Unique Knockpost accent styling
 // ─────────────────────────────────────────────────────────────────────────────
 
+import '../../../services/database_service.dart';
+
 /// Opens the Glimpse viewer with a custom scale/fade page route.
 void openGlimpseViewer(
   BuildContext context, {
-  required List<PostModel> glimpses,
-  required UserModel user,
-  int initialIndex = 0,
+  required Map<String, List<PostModel>> groupedGlimpses,
+  required List<String> authorIds,
+  required int initialAuthorIndex,
+  int initialGlimpseIndex = 0,
   String? heroTag,
 }) {
   Navigator.of(context).push(
     _GlimpseViewerRoute(
       page: GlimpseViewerScreen(
-        glimpses: glimpses,
-        user: user,
-        initialIndex: initialIndex,
+        groupedGlimpses: groupedGlimpses,
+        authorIds: authorIds,
+        initialAuthorIndex: initialAuthorIndex,
+        initialGlimpseIndex: initialGlimpseIndex,
         heroTag: heroTag,
       ),
     ),
@@ -69,18 +73,20 @@ class _GlimpseViewerRoute extends PageRouteBuilder {
       );
 }
 
-// ── GlimpseViewerScreen ────────────────────────────────────────────────────
+// ── GlimpseViewerScreen (PageView wrapper) ─────────────────────────────────
 class GlimpseViewerScreen extends StatefulWidget {
-  final List<PostModel> glimpses;
-  final UserModel user;
-  final int initialIndex;
+  final Map<String, List<PostModel>> groupedGlimpses;
+  final List<String> authorIds;
+  final int initialAuthorIndex;
+  final int initialGlimpseIndex;
   final String? heroTag;
 
   const GlimpseViewerScreen({
     super.key,
-    required this.glimpses,
-    required this.user,
-    this.initialIndex = 0,
+    required this.groupedGlimpses,
+    required this.authorIds,
+    required this.initialAuthorIndex,
+    this.initialGlimpseIndex = 0,
     this.heroTag,
   });
 
@@ -88,9 +94,91 @@ class GlimpseViewerScreen extends StatefulWidget {
   State<GlimpseViewerScreen> createState() => _GlimpseViewerScreenState();
 }
 
-class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
+class _GlimpseViewerScreenState extends State<GlimpseViewerScreen> {
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: widget.initialAuthorIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToNextUser() {
+    if (_pageController.page!.toInt() < widget.authorIds.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _goToPrevUser() {
+    if (_pageController.page!.toInt() > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.authorIds.length,
+        itemBuilder: (context, index) {
+          final authorId = widget.authorIds[index];
+          final glimpses = widget.groupedGlimpses[authorId]!;
+          final isInitialAuthor = index == widget.initialAuthorIndex;
+          return _SingleUserGlimpseViewer(
+            key: ValueKey(authorId),
+            glimpses: glimpses,
+            authorId: authorId,
+            initialIndex: isInitialAuthor ? widget.initialGlimpseIndex : 0,
+            onFinished: _goToNextUser,
+            onGoToPreviousUser: _goToPrevUser,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── SingleUserGlimpseViewer ────────────────────────────────────────────────
+class _SingleUserGlimpseViewer extends StatefulWidget {
+  final List<PostModel> glimpses;
+  final String authorId;
+  final int initialIndex;
+  final VoidCallback onFinished;
+  final VoidCallback onGoToPreviousUser;
+
+  const _SingleUserGlimpseViewer({
+    super.key,
+    required this.glimpses,
+    required this.authorId,
+    this.initialIndex = 0,
+    required this.onFinished,
+    required this.onGoToPreviousUser,
+  });
+
+  @override
+  State<_SingleUserGlimpseViewer> createState() => _SingleUserGlimpseViewerState();
+}
+
+class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     with TickerProviderStateMixin {
   late int _currentIndex;
+  UserModel? _user;
   late AnimationController _progressController;
 
   // Swipe-down dismiss state
@@ -119,6 +207,22 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
 
     // Immersive mode
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final cu = CurrentUserService.instance.currentUser;
+    if (cu != null && cu.id == widget.authorId) {
+      if (mounted) setState(() => _user = cu);
+      return;
+    }
+    final data = await DatabaseService.instance.getUserProfile(widget.authorId, useCache: true);
+    if (data != null && mounted) {
+      setState(() {
+        _user = UserModel.fromMap(data, widget.authorId);
+      });
+    }
   }
 
   @override
@@ -144,8 +248,8 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
       _progressController.reset();
       _progressController.forward();
     } else {
-      // Last glimpse — exit
-      Navigator.of(context).pop();
+      // Last glimpse — go to next user!
+      widget.onFinished();
     }
   }
 
@@ -155,9 +259,8 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
       _progressController.reset();
       _progressController.forward();
     } else {
-      // Already first — restart current
-      _progressController.reset();
-      _progressController.forward();
+      // Already first — go to prev user!
+      widget.onGoToPreviousUser();
     }
   }
 
@@ -221,6 +324,12 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_user == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator(color: _accentColor)),
+      );
+    }
     final glimpse = widget.glimpses[_currentIndex];
     final thumbnailPath = glimpse.imagePaths.isNotEmpty
         ? glimpse.imagePaths.first
@@ -347,8 +456,8 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
                    child: ReactionBar(
                      key: ValueKey('reaction_$_currentIndex'),
                      postId: glimpse.id,
-                     postAuthor: widget.user,
-                     isPostOwner: widget.user.isOwnProfile,
+                     postAuthor: _user!,
+                     isPostOwner: _user!.isOwnProfile,
                      initialLikes: glimpse.likes,
                      initialViews: glimpse.views,
                      timestamp: glimpse.relativeTime,
@@ -563,14 +672,14 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.black, width: 2),
-                  image: widget.user.avatarAsset != null
+                  image: _user!.avatarAsset != null
                       ? DecorationImage(
-                          image: ImageHelper.resolveImage(widget.user.avatarAsset)!,
+                          image: ImageHelper.resolveImage(_user!.avatarAsset)!,
                           fit: BoxFit.cover,
                         )
                       : null,
                 ),
-                child: widget.user.avatarAsset == null
+                child: _user!.avatarAsset == null
                     ? const Icon(Icons.person, color: Colors.white54, size: 18)
                     : null,
               ),
@@ -582,7 +691,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.user.displayName,
+                    _user!.displayName,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,

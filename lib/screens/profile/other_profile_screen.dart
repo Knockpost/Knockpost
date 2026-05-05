@@ -17,6 +17,8 @@ import '../../widgets/system_nav_bar_fill.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../services/post_service.dart';
 import '../../services/connection_service.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 
 /// Viewing someone ELSE's profile.
 class OtherProfileScreen extends StatefulWidget {
@@ -222,8 +224,13 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                   icon: Icons.block_outlined,
                   label: 'Block',
                   color: danger,
-                  onTap: () {
+                  onTap: () async {
                     GlobalDismissState.dismiss(_user.id);
+                    final myUid = CurrentUserService.instance.currentUser?.id;
+                    if (myUid != null) {
+                      await DatabaseService.instance.blockUser(myUid: myUid, targetUid: _user.id);
+                      await CurrentUserService.instance.refresh();
+                    }
                     toast('@${_user.username} has been blocked');
                   },
                 ),

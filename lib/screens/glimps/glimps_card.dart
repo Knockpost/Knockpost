@@ -11,12 +11,19 @@ class GlimpsCard extends StatelessWidget {
   final List<PostModel> allGlimpses;
   final int glimpseIndex;
 
+  final Map<String, List<PostModel>> groupedGlimpses;
+  final List<String> authorIds;
+  final int initialAuthorIndex;
+
   const GlimpsCard({
     super.key,
     required this.glimpse,
     required this.user,
     this.allGlimpses = const [],
     this.glimpseIndex = 0,
+    this.groupedGlimpses = const {},
+    this.authorIds = const [],
+    this.initialAuthorIndex = 0,
   });
 
   @override
@@ -36,12 +43,11 @@ class GlimpsCard extends StatelessWidget {
       onTap: () {
         KnockHaptics.tap();
         if (user != null) {
-          final glimpses = allGlimpses.isNotEmpty ? allGlimpses : [glimpse];
           openGlimpseViewer(
             context,
-            glimpses: glimpses,
-            user: user!,
-            initialIndex: glimpseIndex,
+            groupedGlimpses: groupedGlimpses.isNotEmpty ? groupedGlimpses : {user!.id: [glimpse]},
+            authorIds: authorIds.isNotEmpty ? authorIds : [user!.id],
+            initialAuthorIndex: initialAuthorIndex,
             heroTag: 'glimpse_${glimpse.id}',
           );
         }

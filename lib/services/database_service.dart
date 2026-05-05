@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._internal();
 
@@ -145,13 +145,32 @@ class DatabaseService {
           .limit(20)
           .get();
 
+      // Fetch current user's blocked list
+      final myUid = FirebaseAuth.instance.currentUser?.uid;
+      List<String> myBlockedUsers = [];
+      if (myUid != null) {
+        final myDoc = await usersCollection.doc(myUid).get();
+        if (myDoc.exists) {
+          final data = myDoc.data() as Map<String, dynamic>;
+          myBlockedUsers = List<String>.from(data['blockedUsers'] ?? []);
+        }
+      }
+
       // Merge & deduplicate
       final Map<String, UserModel> combined = {};
       for (final doc in [...usernameSnap.docs, ...nameSnap.docs]) {
         if (excludeUid != null && doc.id == excludeUid) continue;
+        if (myUid != null && doc.id == myUid) continue;
+
+        final docData = doc.data() as Map<String, dynamic>;
+        final theirBlockedUsers = List<String>.from(docData['blockedUsers'] ?? []);
+        
+        // Exclude if I blocked them or they blocked me
+        if (myBlockedUsers.contains(doc.id) || theirBlockedUsers.contains(myUid)) continue;
+
         if (!combined.containsKey(doc.id)) {
           combined[doc.id] = UserModel.fromMap(
-            doc.data() as Map<String, dynamic>,
+            docData,
             doc.id,
           );
         }
@@ -166,11 +185,31 @@ class DatabaseService {
   /// Get a list of suggested users
   Future<List<UserModel>> getSuggestedUsers({String? excludeUid, int limitCount = 10}) async {
     try {
-      final snap = await usersCollection.limit(limitCount).get();
+      final snap = await usersCollection.limit(limitCount * 2).get(); // fetch more to account for filtered out users
       final List<UserModel> users = [];
+
+      final myUid = FirebaseAuth.instance.currentUser?.uid;
+      List<String> myBlockedUsers = [];
+      if (myUid != null) {
+        final myDoc = await usersCollection.doc(myUid).get();
+        if (myDoc.exists) {
+          final data = myDoc.data() as Map<String, dynamic>;
+          myBlockedUsers = List<String>.from(data['blockedUsers'] ?? []);
+        }
+      }
+
       for (final doc in snap.docs) {
+        if (users.length >= limitCount) break;
         if (excludeUid != null && doc.id == excludeUid) continue;
-        users.add(UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id));
+        if (myUid != null && doc.id == myUid) continue;
+
+        final docData = doc.data() as Map<String, dynamic>;
+        final theirBlockedUsers = List<String>.from(docData['blockedUsers'] ?? []);
+        
+        // Exclude if I blocked them or they blocked me
+        if (myBlockedUsers.contains(doc.id) || theirBlockedUsers.contains(myUid)) continue;
+
+        users.add(UserModel.fromMap(docData, doc.id));
       }
       return users;
     } catch (e) {
@@ -185,6 +224,10 @@ class DatabaseService {
       await usersCollection.doc(myUid).update({
         'blockedUsers': FieldValue.arrayUnion([targetUid]),
       });
+      
+      // Remove any connection documents between these two users
+      await _firestore.collection('connections').doc('${myUid}_$targetUid').delete();
+      await _firestore.collection('connections').doc('${targetUid}_$myUid').delete();
     } catch (e) {
       debugPrint("Error blocking user: $e");
       rethrow;

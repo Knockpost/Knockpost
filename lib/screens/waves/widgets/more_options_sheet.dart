@@ -106,14 +106,17 @@ class MoreOptionsSheet extends StatelessWidget {
                     icon: Icons.block_outlined,
                     label: "Block @$username",
                     isDestructive: true,
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(context);
                       final myUid = CurrentUserService.instance.currentUser?.id;
                       if (myUid != null) {
-                        DatabaseService.instance.blockUser(myUid: myUid, targetUid: userId);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Blocked @$username")),
-                        );
+                        await DatabaseService.instance.blockUser(myUid: myUid, targetUid: userId);
+                        await CurrentUserService.instance.refresh();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Blocked @$username")),
+                          );
+                        }
                       }
                     },
                   ),

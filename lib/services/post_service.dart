@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import 'storage_service.dart';
@@ -11,6 +12,39 @@ class PostService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   CollectionReference get postsCollection => _firestore.collection('posts');
+
+  /// Helper to bidirectionally filter out posts from blocked users.
+  Future<List<PostModel>> _filterBlockedPosts(List<PostModel> posts) async {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return posts;
+
+    // Fetch my profile for my blocked users
+    final myDoc = await _firestore.collection('users').doc(myUid).get();
+    final myBlockedUsers = myDoc.exists ? List<String>.from(myDoc.data()?['blockedUsers'] ?? []) : <String>[];
+
+    final Set<String> uniqueAuthorIds = posts.map((p) => p.authorId).toSet();
+    uniqueAuthorIds.remove(myUid);
+
+    final Map<String, List<String>> authorBlockedListMap = {};
+    await Future.wait(uniqueAuthorIds.map((uid) async {
+      try {
+        final data = await _firestore.collection('users').doc(uid).get();
+        if (data.exists && data.data() != null) {
+          authorBlockedListMap[uid] = List<String>.from(data.data()!['blockedUsers'] ?? []);
+        }
+      } catch (e) {
+        debugPrint('PostService: failed to fetch author $uid: $e');
+      }
+    }));
+
+    return posts.where((post) {
+      if (post.authorId == myUid) return true;
+      if (myBlockedUsers.contains(post.authorId)) return false;
+      final theirBlockedUsers = authorBlockedListMap[post.authorId] ?? [];
+      if (theirBlockedUsers.contains(myUid)) return false;
+      return true;
+    }).toList();
+  }
 
   /// Creates a new post in Firestore and uploads media to Storage.
   Future<void> createPost({
@@ -101,8 +135,17 @@ class PostService {
         }
       }));
 
-      // Map each post to its author
-      return posts.map((post) {
+      // Map each post to its author, applying bidirectional block filter
+      return posts.where((post) {
+        if (post.authorId == currentUserId) return true;
+        final author = authorMap[post.authorId];
+        if (author == null) return false;
+        
+        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) return false;
+        if (author.blockedUsers.contains(currentUserId)) return false;
+        
+        return true;
+      }).map((post) {
         UserModel author;
         if (post.authorId == currentUserId && currentUserModel != null) {
           author = currentUserModel;
@@ -130,7 +173,7 @@ class PostService {
       }).toList();
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return posts.take(limit).toList();
-    });
+    }).asyncMap(_filterBlockedPosts);
   }
 
   /// Streams active glimpses (stories) for the GlimpsStrip.
@@ -145,7 +188,7 @@ class PostService {
       }).where((post) => post.isInRecentsWindow).toList();
       posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return posts.take(limit).toList();
-    });
+    }).asyncMap(_filterBlockedPosts);
   }
 
   /// Streams a specific user's posts.

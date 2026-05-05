@@ -47,6 +47,8 @@ class UserModel {
   final List<String> mutualFriendsAvatars;
   final Map<String, String> socialLinks; // e.g. {'instagram': 'arjun.nayak', 'youtube': '...'}
   final List<String> blockedUsers; // UIDs of blocked users
+  final bool isOnline;
+  final DateTime? lastSeen;
 
   const UserModel({
     required this.id,
@@ -69,6 +71,8 @@ class UserModel {
     this.mutualFriendsAvatars = const [],
     this.socialLinks = const {},
     this.blockedUsers = const [],
+    this.isOnline = false,
+    this.lastSeen,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -93,6 +97,10 @@ class UserModel {
       mutualFriendsCount: map['mutualFriendsCount'] ?? 0,
       socialLinks: Map<String, String>.from(map['socialLinks'] ?? {}),
       blockedUsers: List<String>.from(map['blockedUsers'] ?? []),
+      isOnline: map['isOnline'] ?? false,
+      lastSeen: map['lastSeen'] != null 
+          ? (map['lastSeen'] as dynamic).toDate()
+          : null,
     );
   }
 
@@ -115,6 +123,8 @@ class UserModel {
       'mutualFriendsCount': mutualFriendsCount,
       'socialLinks': socialLinks,
       'blockedUsers': blockedUsers,
+      'isOnline': isOnline,
+      'lastSeen': lastSeen,
     };
   }
 
@@ -196,6 +206,8 @@ class UserModel {
     List<String>? mutualFriendsAvatars,
     Map<String, String>? socialLinks,
     List<String>? blockedUsers,
+    bool? isOnline,
+    DateTime? lastSeen,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -221,6 +233,8 @@ class UserModel {
       mutualFriendsAvatars: mutualFriendsAvatars ?? this.mutualFriendsAvatars,
       socialLinks: socialLinks ?? this.socialLinks,
       blockedUsers: blockedUsers ?? this.blockedUsers,
+      isOnline: isOnline ?? this.isOnline,
+      lastSeen: lastSeen ?? this.lastSeen,
     );
   }
 }

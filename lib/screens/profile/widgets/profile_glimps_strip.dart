@@ -87,9 +87,10 @@ class ProfileGlimpsCard extends StatelessWidget {
         final allG = allGlimpses.isNotEmpty ? allGlimpses : [glimpse];
         openGlimpseViewer(
           context,
-          glimpses: allG,
-          user: user,
-          initialIndex: glimpseIndex,
+          groupedGlimpses: {user.id: allG},
+          authorIds: [user.id],
+          initialAuthorIndex: 0,
+          initialGlimpseIndex: glimpseIndex,
           heroTag: 'profile_glimpse_${glimpse.id}',
         );
       },

@@ -20,6 +20,25 @@ class GlimpsStrip extends StatelessWidget {
 
         if (allGlimpses.isEmpty) return const SizedBox.shrink();
 
+        // Group by authorId
+        final Map<String, List<PostModel>> groupedGlimpses = {};
+        for (final glimpse in allGlimpses) {
+          if (!groupedGlimpses.containsKey(glimpse.authorId)) {
+            groupedGlimpses[glimpse.authorId] = [];
+          }
+          groupedGlimpses[glimpse.authorId]!.add(glimpse);
+        }
+
+        // Get unique authors list (maintain order of first glimpse appearance)
+        final authorIds = groupedGlimpses.keys.toList();
+
+        // Move current user to front if they have glimpses
+        final currentUser = CurrentUserService.instance.currentUser;
+        if (currentUser != null && authorIds.contains(currentUser.id)) {
+          authorIds.remove(currentUser.id);
+          authorIds.insert(0, currentUser.id);
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -55,33 +74,40 @@ class GlimpsStrip extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                itemCount: allGlimpses.length,
+                itemCount: authorIds.length,
                 itemBuilder: (context, index) {
-                  final glimpse = allGlimpses[index];
-                  final currentUser = CurrentUserService.instance.currentUser;
+                  final authorId = authorIds[index];
+                  final userGlimpses = groupedGlimpses[authorId]!;
+                  final firstGlimpse = userGlimpses.first;
                   
-                  if (currentUser != null && glimpse.authorId == currentUser.id) {
+                  if (currentUser != null && authorId == currentUser.id) {
                     return GlimpsCard(
-                      glimpse: glimpse,
+                      glimpse: firstGlimpse,
                       user: currentUser,
-                      allGlimpses: allGlimpses,
-                      glimpseIndex: index,
+                      allGlimpses: userGlimpses,
+                      glimpseIndex: 0,
+                      groupedGlimpses: groupedGlimpses,
+                      authorIds: authorIds,
+                      initialAuthorIndex: index,
                     );
                   }
 
                   return FutureBuilder<Map<String, dynamic>?>(
-                    future: DatabaseService.instance.getUserProfile(glimpse.authorId, useCache: true),
+                    future: DatabaseService.instance.getUserProfile(authorId, useCache: true),
                     builder: (context, snapshot) {
                       final data = snapshot.data;
                       final author = data != null
-                          ? UserModel.fromMap(data, glimpse.authorId)
-                          : UserModel(id: glimpse.authorId, displayName: 'Loading...', username: '...');
+                          ? UserModel.fromMap(data, authorId)
+                          : UserModel(id: authorId, displayName: 'Loading...', username: '...');
 
                       return GlimpsCard(
-                        glimpse: glimpse,
+                        glimpse: firstGlimpse,
                         user: author,
-                        allGlimpses: allGlimpses,
-                        glimpseIndex: index,
+                        allGlimpses: userGlimpses,
+                        glimpseIndex: 0,
+                        groupedGlimpses: groupedGlimpses,
+                        authorIds: authorIds,
+                        initialAuthorIndex: index,
                       );
                     },
                   );

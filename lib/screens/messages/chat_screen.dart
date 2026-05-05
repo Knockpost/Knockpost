@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/chat_model.dart';
 import '../../models/user_model.dart';
@@ -17,6 +18,7 @@ import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
 import 'media_preview_screen.dart';
+import 'widgets/post_message_preview.dart';
 
 // ─────────────────────────────────────────────
 // Screen
@@ -110,6 +112,16 @@ class _ChatScreenState extends State<ChatScreen> {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
+  }
+
+  String _formatLastSeen(DateTime? lastSeen) {
+    if (lastSeen == null) return "Offline";
+    final diff = DateTime.now().difference(lastSeen);
+    if (diff.inMinutes < 1) return "Active just now";
+    if (diff.inMinutes < 60) return "Active ${diff.inMinutes}m ago";
+    if (diff.inHours < 24) return "Active ${diff.inHours}h ago";
+    if (diff.inDays == 1) return "Active yesterday";
+    return "Active ${diff.inDays}d ago";
   }
 
   Widget _buildAvatar(String url, {required double radius}) {
@@ -581,8 +593,29 @@ class _ChatScreenState extends State<ChatScreen> {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.otherUser.displayName, style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
-            const Text("Active now", style: TextStyle(
-              color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(widget.otherUser.id).snapshots(),
+              builder: (context, snapshot) {
+                String statusText = "";
+                bool isOnline = false;
+                
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>;
+                  final updatedUser = UserModel.fromMap(data, widget.otherUser.id);
+                  isOnline = updatedUser.isOnline;
+                  statusText = isOnline ? "Active now" : _formatLastSeen(updatedUser.lastSeen);
+                } else {
+                  isOnline = widget.otherUser.isOnline;
+                  statusText = isOnline ? "Active now" : _formatLastSeen(widget.otherUser.lastSeen);
+                }
+                
+                return Text(statusText, style: TextStyle(
+                  color: isOnline ? Colors.green : Colors.grey.shade500, 
+                  fontSize: 12, 
+                  fontWeight: FontWeight.w500
+                ));
+              },
+            ),
           ]),
         ]),
       ),
@@ -737,6 +770,10 @@ class _ChatScreenState extends State<ChatScreen> {
     Color subtleColor,
   ) {
     final isMe = msg.senderId == _myUid;
+    
+    final postUrlRegex = RegExp(r'https:\/\/knockpost\.app\/post\/([a-zA-Z0-9_-]+)');
+    final match = postUrlRegex.firstMatch(msg.text);
+    final String? postId = match?.group(1);
 
     return Column(
       crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -798,12 +835,33 @@ class _ChatScreenState extends State<ChatScreen> {
                       bottomRight: Radius.circular(isMe ? 4 : 20),
                     ),
                   ),
-                  child: Text(
-                    msg.text,
-                    style: TextStyle(
-                      color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
-                      fontSize: 15.5,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (postId == null)
+                        Text(
+                          msg.text,
+                          style: TextStyle(
+                            color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
+                            fontSize: 15.5,
+                          ),
+                        )
+                      else ...[
+                        if (msg.text.replaceAll(match!.group(0)!, '').trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Text(
+                              msg.text.replaceAll(match.group(0)!, '').trim(),
+                              style: TextStyle(
+                                color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black),
+                                fontSize: 15.5,
+                              ),
+                            ),
+                          ),
+                        PostMessagePreview(postId: postId, isMe: isMe),
+                      ],
+                    ],
                   ),
                 ),
               ),
