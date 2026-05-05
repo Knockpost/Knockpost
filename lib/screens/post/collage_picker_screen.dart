@@ -146,6 +146,12 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
   bool _isLoading = true;
   final List<AssetEntity> _selected = [];
 
+  // Cache to prevent FutureBuilder from stuttering while scrolling
+  final Map<String, Uint8List> _thumbCache = {};
+
+  // For album selection
+  List<AssetPathEntity> _albums = [];
+
   // ── Editor state (visible after photos picked) ──
   bool _inEditor = false;
   List<File> _files = [];
@@ -518,15 +524,22 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              FutureBuilder<Uint8List?>(
-                                future: asset.thumbnailDataWithSize(const ThumbnailSize.square(300)),
-                                builder: (_, snap) {
-                                  if (snap.hasData && snap.data != null) {
-                                    return Image.memory(snap.data!, fit: BoxFit.cover, gaplessPlayback: true);
-                                  }
-                                  return Container(color: Colors.white.withValues(alpha: 0.05));
-                                },
-                              ),
+                              _thumbCache.containsKey(asset.id)
+                                  ? Image.memory(
+                                      _thumbCache[asset.id]!,
+                                      fit: BoxFit.cover,
+                                      gaplessPlayback: true,
+                                    )
+                                  : FutureBuilder<Uint8List?>(
+                                      future: asset.thumbnailDataWithSize(const ThumbnailSize.square(300)),
+                                      builder: (_, snap) {
+                                        if (snap.hasData && snap.data != null) {
+                                          _thumbCache[asset.id] = snap.data!;
+                                          return Image.memory(snap.data!, fit: BoxFit.cover, gaplessPlayback: true);
+                                        }
+                                        return Container(color: Colors.white.withValues(alpha: 0.05));
+                                      },
+                                    ),
                               if (isFull && !isSelected)
                                 Container(color: Colors.black.withValues(alpha: 0.55)),
                               if (isSelected)
