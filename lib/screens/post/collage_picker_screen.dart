@@ -149,9 +149,6 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
   // Cache to prevent FutureBuilder from stuttering while scrolling
   final Map<String, Uint8List> _thumbCache = {};
 
-  // For album selection
-  List<AssetPathEntity> _albums = [];
-
   // ── Editor state (visible after photos picked) ──
   bool _inEditor = false;
   List<File> _files = [];
