@@ -32,7 +32,7 @@ class StorageService {
         minWidth: maxSize,
         minHeight: maxSize,
         format: CompressFormat.jpeg,
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (result != null) {
         final compressed = File(result.path);
@@ -58,7 +58,7 @@ class StorageService {
         quality: VideoQuality.MediumQuality,
         deleteOrigin: false,
         includeAudio: true,
-      );
+      ).timeout(const Duration(seconds: 45));
       if (info != null && info.file != null) {
         debugPrint(
           'StorageService: video compressed '
@@ -69,6 +69,9 @@ class StorageService {
       }
     } catch (e) {
       debugPrint('StorageService: video compression failed, using original: $e');
+      try {
+        VideoCompress.cancelCompression(); // cleanup if hung
+      } catch (_) {}
     }
     return file;
   }
@@ -97,11 +100,20 @@ class StorageService {
 
       final fileName = p.basename(toUpload.path);
       final ref = _storage.ref().child('posts/$userId/$postId/$fileName');
-      final uploadTask = await ref.putFile(toUpload);
-      return await uploadTask.ref.getDownloadURL();
+      
+      // Add timeout to prevent infinite hang in release mode if network drops
+      final uploadTask = await ref.putFile(toUpload).timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => throw Exception('Upload timed out'),
+      );
+      
+      return await uploadTask.ref.getDownloadURL().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw Exception('Failed to get download URL'),
+      );
     } catch (e) {
       debugPrint("Error uploading post media: $e");
-      return null;
+      throw Exception('Storage Error: $e');
     }
   }
 
@@ -121,7 +133,7 @@ class StorageService {
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
       debugPrint("Error uploading cover image: $e");
-      return null;
+      throw Exception('Cover Storage Error: $e');
     }
   }
 

@@ -9,28 +9,50 @@ import 'theme/theme_controller.dart';
 import 'utils/audio_lifecycle_manager.dart';
 
 void main() async {
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  AudioLifecycleManager.instance.init();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  // Force non-edge-to-edge mode so system nav bar is opaque
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.manual,
-    overlays: SystemUiOverlay.values,
-  );
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    systemNavigationBarColor: Colors.black,
-    systemNavigationBarDividerColor: Colors.transparent,
-  ));
-  // ── Image cache tuning ────────────────────────────────────────────────────
-  // Default Flutter cache: 100MB / 1000 images. We bump this so that
-  // feed images stay in memory longer and don't re-download on re-scroll.
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 300 << 20; // 300 MB
-  PaintingBinding.instance.imageCache.maximumSize     = 500;        // max 500 images
+  try {
+    WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+    AudioLifecycleManager.instance.init();
+    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Force non-edge-to-edge mode so system nav bar is opaque
+    await SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+    );
+    // ── Image cache tuning ────────────────────────────────────────────────────
+    // Default Flutter cache: 100MB / 1000 images. We bump this so that
+    // feed images stay in memory longer and don't re-download on re-scroll.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 300 << 20; // 300 MB
+    PaintingBinding.instance.imageCache.maximumSize = 500; // max 500 images
 
-  runApp(const MyApp());
+    runApp(const MyApp());
+  } catch (e, stack) {
+    debugPrint("Startup Error: $e\n$stack");
+    FlutterNativeSplash.remove();
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text(
+                "Failed to start app:\n$e",
+                style: const TextStyle(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AppScrollBehavior extends ScrollBehavior {
@@ -44,12 +66,14 @@ class _AppScrollBehavior extends ScrollBehavior {
 
   @override
   Widget buildOverscrollIndicator(
-      BuildContext context, Widget child, ScrollableDetails details) {
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
     // Remove Android glow indicator globally
     return child;
   }
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

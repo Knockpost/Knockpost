@@ -28,61 +28,86 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> startApp() async {
-    // Run initialization concurrently to slash wait times
-    final futures = await Future.wait([
-      AppLinks().getInitialLink(),
-      SharedPreferences.getInstance(),
-    ]);
+    try {
+      // Run initialization concurrently to slash wait times
+      final futures = await Future.wait([
+        AppLinks().getInitialLink(),
+        SharedPreferences.getInstance(),
+      ]).timeout(const Duration(seconds: 5)); // Reduced to 5s for faster fallback
 
-    final link = futures[0] as Uri?;
-    final prefs = futures[1] as SharedPreferences;
+      final link = futures[0] as Uri?;
+      final prefs = futures[1] as SharedPreferences;
 
-    if (link != null) {
-      final linkString = link.toString();
-      debugPrint("Splash Detected Email Link: $linkString");
-      if (FirebaseAuth.instance.isSignInWithEmailLink(linkString)) {
-        await _handleEmailLink(linkString);
-        return;
-      }
-    }
-
-    final user = AuthService.instance.currentUser;
-
-    if (user != null) {
-      if (!user.emailVerified) {
-        _navigate(SignupVerificationScreen(email: user.email ?? ""));
-        return;
-      }
-
-      // ⚡ ULTRA-FAST BYPASS: If we already confirmed they're registered before, skip Firestore!
-      final isRegistered = prefs.getBool('is_registered') ?? false;
-      if (isRegistered) {
-        await CurrentUserService.instance.loadCurrentUser();
-        _navigate(const HomeScreen());
-        return;
-      }
-
-      // If not marked registered locally, check Firestore (prefer cache)
-      Map<String, dynamic>? userProfile;
-      try {
-        userProfile = await DatabaseService.instance.getUserProfile(user.uid, useCache: true);
-      } catch (_) {
-        userProfile = await DatabaseService.instance.getUserProfile(user.uid);
-      }
-
-      if (mounted) {
-        if (userProfile != null) {
-          await prefs.setBool('is_registered', true);
-          await CurrentUserService.instance.loadCurrentUser();
-          _navigate(const HomeScreen());
-        } else {
-          _navigate(
-            SignupUsernameScreen(email: user.email ?? "", isGoogleSignup: true),
-          );
+      if (link != null) {
+        final linkString = link.toString();
+        debugPrint("Splash Detected Email Link: $linkString");
+        if (FirebaseAuth.instance.isSignInWithEmailLink(linkString)) {
+          await _handleEmailLink(linkString);
+          return;
         }
       }
-    } else {
-      _navigate(const LoginScreen());
+
+      final user = AuthService.instance.currentUser;
+
+      if (user != null) {
+        if (!user.emailVerified) {
+          _navigate(SignupVerificationScreen(email: user.email ?? ""));
+          return;
+        }
+
+        // ⚡ ULTRA-FAST BYPASS: If we already confirmed they're registered before, skip Firestore!
+        final isRegistered = prefs.getBool('is_registered') ?? false;
+        if (isRegistered) {
+          await CurrentUserService.instance.loadCurrentUser().timeout(
+            const Duration(seconds: 3), // Reduced timeout
+            onTimeout: () {},
+          );
+          _navigate(const HomeScreen());
+          return;
+        }
+
+        // If not marked registered locally, check Firestore (prefer cache)
+        Map<String, dynamic>? userProfile;
+        try {
+          userProfile = await DatabaseService.instance.getUserProfile(user.uid, useCache: true);
+        } catch (_) {
+          try {
+            userProfile = await DatabaseService.instance.getUserProfile(user.uid).timeout(const Duration(seconds: 5));
+          } catch (_) {}
+        }
+
+        if (mounted) {
+          if (userProfile != null) {
+            await prefs.setBool('is_registered', true);
+            await CurrentUserService.instance.loadCurrentUser().timeout(
+              const Duration(seconds: 3),
+              onTimeout: () {},
+            );
+            _navigate(const HomeScreen());
+          } else {
+            _navigate(
+              SignupUsernameScreen(email: user.email ?? "", isGoogleSignup: true),
+            );
+          }
+        }
+      } else {
+        _navigate(const LoginScreen());
+      }
+    } catch (e, stack) {
+      debugPrint("Error in startApp: $e\n$stack");
+      FlutterNativeSplash.remove(); // Force remove splash screen on any error
+      if (mounted) {
+        // Fallback navigation if anything throws/times out
+        try {
+          if (AuthService.instance.currentUser != null) {
+            _navigate(const HomeScreen());
+          } else {
+            _navigate(const LoginScreen());
+          }
+        } catch (_) {
+          _navigate(const LoginScreen());
+        }
+      }
     }
   }
 
@@ -116,8 +141,8 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigate(Widget screen) {
-    if (!mounted) return;
     FlutterNativeSplash.remove();
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => screen),

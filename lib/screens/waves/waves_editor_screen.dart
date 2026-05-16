@@ -355,10 +355,11 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
     // Generate a thumbnail for the video if it's the first file
     File? coverFile;
+    bool isVideo = false;
     if (widget.files.isNotEmpty) {
       try {
         final pathLower = widget.files.first.path.toLowerCase();
-        final isVideo = pathLower.endsWith('.mp4') ||
+        isVideo = pathLower.endsWith('.mp4') ||
             pathLower.endsWith('.mov') ||
             pathLower.endsWith('.mkv') ||
             pathLower.endsWith('.avi') ||
@@ -408,7 +409,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           initialFilterIndex: _selectedFilterIndex > 0 ? _selectedFilterIndex : null,
           initialTextOverlays: serializedTexts.isEmpty ? null : serializedTexts,
           initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
-          isVideoPost: true,
+          isVideoPost: isVideo,
           videoHasSound: _selectedMusic == null,
           coverImageFile: coverFile, // Pass the generated thumbnail!
         ),

@@ -87,6 +87,11 @@ class PostService {
             imageUrls.add(url);
           }
         }
+        
+        // If media files were provided but none uploaded successfully, fail the post
+        if (imageUrls.isEmpty) {
+          throw Exception('Failed to upload media files. Please check your connection.');
+        }
       }
 
       if (coverFile != null) {
