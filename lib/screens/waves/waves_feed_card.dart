@@ -587,6 +587,7 @@ class _WavesFeedCardState extends State<WavesFeedCard>
             shareUsername: widget.user.username,
             shareCaption: widget.post.text,
             timestamp: widget.post.timestampText,
+            transparentButtons: true,
           ),
         ],
       ),

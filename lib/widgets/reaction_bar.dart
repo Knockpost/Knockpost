@@ -43,6 +43,10 @@ class ReactionBar extends StatefulWidget {
   /// false হলে Share button দেখায়েবে না (Glimpse-এ ব্যবহার হয়)
   final bool showShare;
 
+  /// true হলে button-এর background transparent হবে, icon color adaptive
+  /// (dark bg → white, light bg → black). Waves overlay-তে ব্যবহার হয়।
+  final bool transparentButtons;
+
   const ReactionBar({
     super.key,
     this.doubleTapped = false,
@@ -56,6 +60,7 @@ class ReactionBar extends StatefulWidget {
     this.shareCaption,
     this.timestamp,
     this.showShare = true,
+    this.transparentButtons = false,
   });
 
   @override
@@ -293,7 +298,14 @@ class _ReactionBarState extends State<ReactionBar>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
+    final bgColor = widget.transparentButtons
+        ? Colors.transparent
+        : (isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2));
+    final iconColor = widget.transparentButtons
+        ? Colors.white.withValues(alpha: 0.9)
+        : (isDark
+            ? Colors.white.withValues(alpha: 0.8)
+            : Colors.black.withValues(alpha: 0.75));
 
     return Stack(
       clipBehavior: Clip.none,
@@ -386,7 +398,7 @@ class _ReactionBarState extends State<ReactionBar>
                     ),
                   ),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 11),
 
                   // Comment button
                   GestureDetector(
@@ -408,14 +420,12 @@ class _ReactionBarState extends State<ReactionBar>
                       child: Icon(
                         Icons.chat_bubble_outline,
                         size: 20,
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.8)
-                            : Colors.black.withValues(alpha: 0.75),
+                        color: iconColor,
                       ),
                     ),
                   ),
 
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 11),
 
                   // Share button
                   if (widget.showShare)
@@ -444,9 +454,7 @@ class _ReactionBarState extends State<ReactionBar>
                         child: Icon(
                           Icons.share_outlined,
                           size: 20,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.8)
-                              : Colors.black.withValues(alpha: 0.75),
+                          color: iconColor,
                         ),
                       ),
                     ),

@@ -828,10 +828,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         final post = activeItems[postIndex].post;
                                                         final author = activeItems[postIndex].author;
 
-                                                        final dividerColor = isDark
-                                                            ? const Color(0xFF2A2A2A)
-                                                            : const Color(0xFFE8E8E8);
-                                                        final divider = Divider(height: 1, thickness: 1, color: dividerColor);
+
 
                                                         Widget card;
                                                         if (post.type == PostType.text) {
@@ -889,7 +886,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           crossAxisAlignment: CrossAxisAlignment.start,
                                                           children: [
                                                             card,
-                                                            if (!isLast) divider,
+                                                            if (!isLast)
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                child: Container(
+                                                                  height: 2.5,
+                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  color: isDark
+                                                                      ? Colors.white.withValues(alpha: 0.08)
+                                                                      : Colors.black.withValues(alpha: 0.08),
+                                                                ),
+                                                              ),
                                                           ],
                                                         );
                                                       },

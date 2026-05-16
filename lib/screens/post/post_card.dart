@@ -214,7 +214,7 @@ class _PostCardState extends State<PostCard> {
           ),
         ),
 
-        const SizedBox(height: 12),
+        SizedBox(height: widget.caption.isNotEmpty ? 12 : 8),
 
         if (widget.caption.isNotEmpty)
           Padding(
@@ -225,7 +225,7 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
 
-        const SizedBox(height: 14),
+        SizedBox(height: widget.caption.isNotEmpty ? 14 : 4),
 
         // ── Media + Overlays ──
         LayoutBuilder(

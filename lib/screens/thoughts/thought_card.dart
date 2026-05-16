@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/post_header.dart';
@@ -65,17 +66,28 @@ class _ThoughtCardState extends State<ThoughtCard> {
         // Double-tap on the thought text triggers reaction
         GestureDetector(
           onDoubleTap: _onDoubleTap,
-          child: Container(
-            width: double.infinity,
-            color: Colors.transparent, // Ensure gesture detector takes entire width
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Text(
-              widget.text,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.4,
-              ),
-            ),
+          child: Builder(
+            builder: (context) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+
+              return Container(
+                width: double.infinity,
+                color: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Text(
+                  widget.text,
+                  style: GoogleFonts.inter(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w400,
+                    height: 1.5,
+                    letterSpacing: -0.1,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : Colors.black.withValues(alpha: 0.85),
+                  ),
+                ),
+              );
+            },
           ),
         ),
 
