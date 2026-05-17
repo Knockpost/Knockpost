@@ -9,7 +9,6 @@ import '../../utils/audio_lifecycle_manager.dart';
 import '../../models/post_model.dart';
 import '../shared/music_picker_screen.dart';
 import '../shared/music_editor_screen.dart';
-import '../shared/post_settings_sheet.dart';
 import '../shared/final_post_screen.dart';
 import 'package:colorfilter_generator/presets.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
@@ -330,11 +329,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
   Future<void> _publishWave() async {
     KnockHaptics.tap();
-    final settings = await showPostSettingsSheet(
-      context,
-      isGlimpse: widget.isGlimpse,
-    );
-    if (settings == null || !mounted) return;
 
     await _bgAudioPlayer.stop();
     if (!mounted) return;
@@ -394,8 +388,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           initialCaption: _captionController.text.trim(),
           isGlimpse: widget.isGlimpse,
           isWaves: widget.isWaves,
-          selectedDuration: settings.duration,
-          selectedAudience: settings.audience,
           initialMusic: _selectedMusic,
           initialTrimSeconds: _trimStartSeconds,
           initialMusicStyle: _selectedMusicStyle,

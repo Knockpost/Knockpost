@@ -1,22 +1,17 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:record/record.dart';
 
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
-import '../../utils/audio_lifecycle_manager.dart';
 import '../../services/post_service.dart';
 import '../../services/current_user_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/image_helper.dart';
 import '../profile/profile_screen.dart';
-import 'music_editor_screen.dart';
 import 'music_picker_screen.dart';
 import 'post_settings_sheet.dart';
+import 'friend_picker_screen.dart';
 
 class FinalPostScreen extends StatefulWidget {
   final List<File> files;
@@ -79,145 +74,31 @@ class FinalPostScreen extends StatefulWidget {
 
 class _FinalPostScreenState extends State<FinalPostScreen>
     with TickerProviderStateMixin {
-  final AudioRecorder _recorder = AudioRecorder();
-
   late TextEditingController _captionController;
   late PostDuration _selectedDuration;
   late PostAudience _selectedAudience;
-  MusicTrack? _selectedMusic;
-  int? _selectedMusicStyle;
-  String? _selectedMusicCoverUrl;
-  String? _selectedMusicLyrics;
-  Map<String, dynamic>? _selectedMusicLyricsConfig;
+  List<String> _selectedFriendsExcept = [];
+  List<String> _selectedOnlyShareWith = [];
 
-  bool isRecording = false;
   bool _isPosting = false;
-  String? recordingPath;
-  int recordingSeconds = 0;
-  Timer? _recordingTimer;
-
-  late AnimationController _pulseController;
-  final AudioPlayer _bgAudioPlayer = AudioPlayer();
-  int _trimStartSeconds = 0;
 
   @override
   void initState() {
     super.initState();
-    AudioLifecycleManager.instance.register(_bgAudioPlayer);
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
     _selectedDuration = widget.selectedDuration;
     _selectedAudience = widget.selectedAudience;
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-
-    _selectedMusic = widget.initialMusic;
-    _trimStartSeconds = widget.initialTrimSeconds ?? 0;
-    _selectedMusicStyle = widget.initialMusicStyle;
-    _selectedMusicCoverUrl = widget.initialMusicCoverUrl;
-    _selectedMusicLyrics = widget.initialMusicLyrics;
-    _selectedMusicLyricsConfig = widget.initialMusicLyricsConfig;
-    if (_selectedMusic != null && !widget.isVideoPost) {
-      _playSelectedMusic();
-    }
-  }
-
-  Future<void> _playSelectedMusic() async {
-    if (_selectedMusic == null) {
-      await _bgAudioPlayer.stop();
-      return;
-    }
-    try {
-      await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
-      await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
-      await _bgAudioPlayer.setLoopMode(LoopMode.one);
-      await _bgAudioPlayer.play();
-    } catch (e) {
-      debugPrint('FinalPost bg audio error: $e');
-    }
   }
 
   @override
   void dispose() {
-    AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
-    _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     _captionController.dispose();
-    _pulseController.dispose();
-    _recordingTimer?.cancel();
-    _recorder.dispose();
     super.dispose();
   }
 
-  // ─── VOICE RECORDING ─────────────────────────────────────
-  Future<void> startRecording() async {
-    if (await _recorder.hasPermission()) {
-      final dir = await getTemporaryDirectory();
-      final path =
-          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-
-      await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
-        path: path,
-      );
-
-      setState(() {
-        isRecording = true;
-        recordingSeconds = 0;
-        recordingPath = path;
-      });
-
-      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() => recordingSeconds++);
-      });
-    }
-  }
-
-  Future<void> stopRecording() async {
-    final path = await _recorder.stop();
-    _recordingTimer?.cancel();
-
-    setState(() {
-      isRecording = false;
-      recordingPath = path;
-    });
-  }
-
-  void cancelRecording() async {
-    await _recorder.stop();
-    _recordingTimer?.cancel();
-
-    if (recordingPath != null) {
-      final file = File(recordingPath!);
-      if (await file.exists()) await file.delete();
-    }
-
-    setState(() {
-      isRecording = false;
-      recordingPath = null;
-      recordingSeconds = 0;
-    });
-  }
-
-  void deleteRecording() async {
-    if (recordingPath != null) {
-      final file = File(recordingPath!);
-      if (await file.exists()) await file.delete();
-    }
-    setState(() {
-      recordingPath = null;
-      recordingSeconds = 0;
-    });
-  }
-
-  String _formatDuration(int totalSeconds) {
-    final m = (totalSeconds ~/ 60).toString().padLeft(2, '0');
-    final s = (totalSeconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
+  // ─── POST CONTENT ──────────────────────────────────────────
   Future<void> _postContent() async {
     if (_isPosting) return;
 
@@ -239,10 +120,6 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    // ── STOP ALL AUDIO IMMEDIATELY ──
-    AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
-    _bgAudioPlayer.stop();
-
     final type = widget.isWaves
         ? PostType.waves
         : (widget.isGlimpse
@@ -261,14 +138,14 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       videoHasSound: widget.videoHasSound,
       coverImagePath: null, // Will be updated in PostService
       text: _captionController.text.trim(),
-      musicUrl: _selectedMusic?.previewUrl,
-      musicTitle: _selectedMusic?.title,
-      musicArtist: _selectedMusic?.artist,
-      musicCoverUrl: _selectedMusicCoverUrl ?? _selectedMusic?.coverUrl,
-      musicStyle: _selectedMusicStyle,
-      musicLyrics: _selectedMusicLyrics ?? _selectedMusic?.syncedLyrics,
-      musicLyricsConfig: _selectedMusicLyricsConfig,
-      musicTrimStart: _trimStartSeconds,
+      musicUrl: widget.initialMusic?.previewUrl,
+      musicTitle: widget.initialMusic?.title,
+      musicArtist: widget.initialMusic?.artist,
+      musicCoverUrl: widget.initialMusicCoverUrl ?? widget.initialMusic?.coverUrl,
+      musicStyle: widget.initialMusicStyle,
+      musicLyrics: widget.initialMusicLyrics ?? widget.initialMusic?.syncedLyrics,
+      musicLyricsConfig: widget.initialMusicLyricsConfig,
+      musicTrimStart: widget.initialTrimSeconds ?? 0,
       musicOverlayX: widget.initialMusicOverlayX,
       musicOverlayY: widget.initialMusicOverlayY,
       musicOverlayScale: widget.initialMusicOverlayScale,
@@ -307,117 +184,30 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     }
   }
 
-  Future<void> _editPostSettings() async {
-    final result = await showPostSettingsSheet(
-      context,
-      isGlimpse: widget.isGlimpse,
-      initialDuration: _selectedDuration,
-      initialAudience: _selectedAudience,
-    );
-    if (result == null || !mounted) return;
-    setState(() {
-      _selectedDuration = result.duration;
-      _selectedAudience = result.audience;
-    });
-  }
-
-  String _durationLabel(PostDuration d) {
-    switch (d) {
+  // ─── DURATION HELPERS ──────────────────────────────────────
+  int get _durationIndex {
+    switch (_selectedDuration) {
       case PostDuration.h24:
-        return '24 Hours';
+        return 0;
       case PostDuration.h36:
-        return '36 Hours';
+        return 1;
       case PostDuration.lifetime:
-        return 'Lifetime';
+        return 2;
     }
   }
 
-  Widget _buildMusicSelectionTile(bool isDark) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(
-        _selectedMusic != null ? Icons.graphic_eq : Icons.music_note_outlined,
-        size: 24,
-        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-      ),
-      title: Text(
-        _selectedMusic != null ? _selectedMusic!.title : "Add Music",
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: _selectedMusic != null
-              ? Colors.blue
-              : (isDark ? Colors.white : Colors.black),
-        ),
-      ),
-      subtitle: _selectedMusic != null
-          ? Text(
-              "${_selectedMusic!.artist} • ${_selectedMusic!.duration}",
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-              ),
-            )
-          : null,
-      trailing: _selectedMusic != null
-          ? IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-              onPressed: () {
-                KnockHaptics.tap();
-                setState(() {
-                  _selectedMusic = null;
-                  _selectedMusicStyle = null;
-                  _selectedMusicLyrics = null;
-                  _selectedMusicLyricsConfig = null;
-                  _bgAudioPlayer.stop();
-                });
-              },
-            )
-          : Icon(
-              Icons.arrow_forward_ios,
-              size: 14,
-              color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
-            ),
-      onTap: () async {
-        KnockHaptics.tap();
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MusicPickerScreen()),
-        );
-        if (result != null && result is MusicTrack) {
-          if (!mounted) return;
-          final isVideo =
-              widget.files.isNotEmpty &&
-              (widget.files.first.path.toLowerCase().endsWith('.mp4') ||
-                  widget.files.first.path.toLowerCase().endsWith('.mov'));
-
-          if (!mounted) return;
-          final overlayResult = await Navigator.push(
-            context,
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) =>
-                  MusicOverlayScreen(track: result, isVideo: isVideo),
-            ),
-          );
-
-          if (overlayResult != null && overlayResult is Map) {
-            setState(() {
-              _selectedMusic = overlayResult['track'] as MusicTrack;
-              _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
-              _selectedMusicStyle = overlayResult['styleIndex'] as int?;
-              _selectedMusicCoverUrl = _selectedMusic?.coverUrl;
-              _selectedMusicLyrics = _selectedMusic?.syncedLyrics;
-              _selectedMusicLyricsConfig =
-                  (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
-            });
-            _playSelectedMusic();
-          }
-        }
-      },
-    );
+  String _getDurationSubtitle() {
+    switch (_selectedDuration) {
+      case PostDuration.h24:
+        return 'Disappears after one day';
+      case PostDuration.h36:
+        return 'Extended temporary visibility';
+      case PostDuration.lifetime:
+        return 'Stays on your profile permanently';
+    }
   }
 
+  // ─── MEDIA PREVIEW THUMB ───────────────────────────────────
   Widget _buildComposerPreviewThumb(bool isDark) {
     if (widget.isVideoPost) {
       final previewFile = widget.coverImageFile;
@@ -478,620 +268,508 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     );
   }
 
-  // ─── BUILD ────────────────────────────────────────────────
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final title = widget.isGlimpse ? "Share Glimpse" : "New Post";
+  // ─── DURATION TOGGLE (sliding pill) ────────────────────────
+  Widget _buildDurationToggle(bool isDark) {
+    final labels = ['24h', '36h', 'Lifetime'];
 
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: isDark ? Colors.white : Colors.black,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final segmentWidth = (constraints.maxWidth - 8) / 3;
+
+        return Container(
+          height: 48,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1A1A1A)
+                : const Color(0xFFF3F3F3),
+            borderRadius: BorderRadius.circular(14),
           ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: Center(
-              child: GestureDetector(
-                onTap: _postContent,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Post",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              // 📸 MEDIA PREVIEW ROW
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        final currentUser = CurrentUserService.instance.currentUser;
-                        if (currentUser != null) {
-                          KnockHaptics.tap();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) {
-                                Widget buildScreen(List<PostModel> currentPosts) {
-                                  return ProfileScreen(
-                                    user: currentUser,
-                                    posts: currentPosts,
-                                  );
-                                }
-
-                                return StreamBuilder<List<PostModel>>(
-                                  stream: PostService.instance.getUserPosts(currentUser.id),
-                                  builder: (context, snapshot) {
-                                    return buildScreen(snapshot.data ?? []);
-                                  },
-                                );
-                              },
+              // ── Sliding active pill ──
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                left: _durationIndex * segmentWidth,
+                top: 0,
+                bottom: 0,
+                width: segmentWidth,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF333333)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                          );
-                        }
-                      },
-                      child: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-                        backgroundImage: CurrentUserService.instance.currentUser?.avatarAsset != null
-                            ? ImageHelper.resolveAvatar(CurrentUserService.instance.currentUser!.avatarAsset)
-                            : null,
-                        child: CurrentUserService.instance.currentUser?.avatarAsset == null
-                            ? Icon(Icons.person, size: 20, color: isDark ? Colors.white54 : Colors.black54)
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    if (widget.files.isNotEmpty) ...[
-                      _buildComposerPreviewThumb(isDark),
-                      const SizedBox(width: 16),
-                    ],
-                    Expanded(
-                      child: TextField(
-                        controller: _captionController,
-                        maxLines: widget.files.isNotEmpty ? 4 : null,
-                        minLines: widget.files.isNotEmpty ? 1 : 4,
-                        style: TextStyle(
-                          fontSize: 16,
-                          height: 1.4,
-                          color: isDark ? Colors.white : Colors.black,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: "Write a caption...",
-                          hintStyle: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade600
-                                : Colors.grey.shade400,
-                            fontSize: 16,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ),
-                  ],
+                          ],
+                  ),
                 ),
               ),
-
-              Divider(
-                height: 1,
-                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
-              ),
-
-              // ⚙️ POST SETTINGS SUMMARY (Duration + Audience)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    _buildSettingChip(
-                      icon: Icons.timer_outlined,
-                      label: _durationLabel(_selectedDuration),
-                      isDark: isDark,
-                      onTap: _editPostSettings,
-                    ),
-                    const SizedBox(width: 10),
-                    _buildSettingChip(
-                      icon: _selectedAudience.icon,
-                      label: _selectedAudience.label,
-                      isDark: isDark,
-                      onTap: _editPostSettings,
-                    ),
-                  ],
-                ),
-              ),
-
-              Divider(
-                height: 1,
-                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
-              ),
-
-              if (widget.isVideoPost)
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 4,
-                  ),
-                  leading: Icon(
-                    widget.videoHasSound
-                        ? Icons.volume_up_rounded
-                        : Icons.volume_off_rounded,
-                    size: 24,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                  ),
-                  title: Text(
-                    widget.videoHasSound
-                        ? "Audio ready"
-                        : "Posted without sound",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  subtitle: Text(
-                    widget.videoHasSound
-                        ? "Your video audio was finalized in the editor so the export matches the preview."
-                        : "This export was finalized without audio in the editor.",
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: isDark
-                          ? Colors.grey.shade500
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                )
-              else
-                _buildMusicSelectionTile(isDark),
-
-              /*
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 4,
-                  ),
-                  leading: Icon(
-                    _selectedMusic != null
-                        ? Icons.graphic_eq
-                        : Icons.music_note_outlined,
-                    size: 24,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                  ),
-                  title: Text(
-                    _selectedMusic != null
-                        ? _selectedMusic!.title
-                        : "Add Music",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: _selectedMusic != null
-                          ? Colors.blue
-                          : (isDark ? Colors.white : Colors.black),
-                    ),
-                  ),
-                  subtitle: _selectedMusic != null
-                      ? Text(
-                          "${_selectedMusic!.artist} • ${_selectedMusic!.duration}",
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade600,
-                          ),
-                        )
-                      : null,
-                  trailing: _selectedMusic != null
-                      ? IconButton(
-                          icon: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Colors.grey,
-                          ),
-                          onPressed: () {
-                            KnockHaptics.tap();
-                            setState(() {
-                              _selectedMusic = null;
-                              _bgAudioPlayer.stop();
-                            });
-                          },
-                        )
-                      : Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: isDark
-                              ? Colors.grey.shade600
-                              : Colors.grey.shade400,
-                        ),
-                  onTap: () async {
-                    KnockHaptics.tap();
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MusicPickerScreen(),
-                      ),
-                    );
-                    if (result != null && result is MusicTrack) {
-                      if (!context.mounted) return;
-                      final isVideo =
-                          widget.files.isNotEmpty &&
-                          (widget.files.first.path.toLowerCase().endsWith(
-                                '.mp4',
-                              ) ||
-                              widget.files.first.path.toLowerCase().endsWith(
-                                '.mov',
-                              ));
-
-                      if (!context.mounted) return;
-                      final overlayResult = await Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          opaque: false,
-                          pageBuilder: (_, __, ___) => MusicOverlayScreen(
-                            track: result,
-                            isVideo: isVideo,
-                          ),
-                        ),
-                      );
-
-                      if (overlayResult != null && overlayResult is Map) {
-                        setState(() {
-                          _selectedMusic = overlayResult['track'] as MusicTrack;
-                          _trimStartSeconds =
-                              overlayResult['trimStartSeconds'] as int;
-                          _selectedMusicStyle =
-                              overlayResult['styleIndex'] as int?;
-                          _selectedMusicCoverUrl = _selectedMusic?.coverUrl;
-                          _selectedMusicLyrics = _selectedMusic?.syncedLyrics;
-                        });
-                        _playSelectedMusic();
-                      }
-                    }
-                  },
-                ),
-
-              if (widget.isVideoPost && _selectedMusic != null)
-                Divider(
-                  height: 1,
-                  color: isDark
-                      ? Colors.grey.shade800
-                      : const Color(0xFFEEEEEE),
-                ),
-              */
-              if (widget.isVideoPost && _selectedMusic != null)
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 4,
-                  ),
-                  leading: Icon(
-                    Icons.music_note_rounded,
-                    size: 24,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                  ),
-                  title: Text(
-                    _selectedMusic!.title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${_selectedMusic!.artist} • Included in exported video',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: isDark
-                          ? Colors.grey.shade500
-                          : Colors.grey.shade600,
-                    ),
-                  ),
-                ),
-
-              Divider(
-                height: 1,
-                color: isDark ? Colors.grey.shade800 : const Color(0xFFEEEEEE),
-              ),
-
-              // 🎙️ VOICE RECORDING OPTION
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 4,
-                ),
-                leading: Icon(
-                  Icons.mic_none_outlined,
-                  size: 24,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-                ),
-                title: Text(
-                  recordingPath != null
-                      ? "Voice Note Recorded"
-                      : "Record Voice Note",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-                trailing: recordingPath != null
-                    ? null
-                    : Icon(
-                        Icons.arrow_forward_ios,
-                        size: 14,
-                        color: isDark
-                            ? Colors.grey.shade600
-                            : Colors.grey.shade400,
-                      ),
-                onTap: isRecording || recordingPath != null
-                    ? null
-                    : () {
+              // ── Tap targets ──
+              Row(
+                children: List.generate(3, (i) {
+                  final isActive = _durationIndex == i;
+                  return Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
                         KnockHaptics.tap();
-                        startRecording();
+                        setState(() {
+                          switch (i) {
+                            case 0:
+                              _selectedDuration = PostDuration.h24;
+                              break;
+                            case 1:
+                              _selectedDuration = PostDuration.h36;
+                              break;
+                            case 2:
+                              _selectedDuration = PostDuration.lifetime;
+                              break;
+                          }
+                        });
                       },
+                      child: Center(
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight:
+                                isActive ? FontWeight.w700 : FontWeight.w500,
+                            letterSpacing: 0.3,
+                            color: isActive
+                                ? (isDark ? Colors.white : Colors.black)
+                                : (isDark
+                                    ? Colors.white.withValues(alpha: 0.35)
+                                    : Colors.black.withValues(alpha: 0.35)),
+                          ),
+                          child: Text(labels[i]),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
-
-              if (isRecording) _buildRecordingBar(),
-              if (!isRecording && recordingPath != null) _buildAudioCard(),
-
-              const SizedBox(height: 40),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildSettingChip({
-    required IconData icon,
-    required String label,
-    required bool isDark,
-    Color? accentColor,
-    VoidCallback? onTap,
-  }) {
-    final color = accentColor ?? (isDark ? Colors.white70 : Colors.black54);
+  // ─── AUDIENCE OPTION ───────────────────────────────────────
+  Widget _buildAudienceOption(PostAudience aud, bool isDark) {
+    final isSelected = _selectedAudience == aud;
+
+    // Softer palette
+    final selectedBg = isDark
+        ? const Color(0xFF2A2A2A)
+        : const Color(0xFFF0F0F0);
+    final unselectedBg = isDark
+        ? Colors.white.withValues(alpha: 0.04)
+        : Colors.black.withValues(alpha: 0.025);
+
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      onTap: () async {
+        KnockHaptics.tap();
+        if (aud == PostAudience.myFriendsExcept) {
+          final result = await showFriendPickerScreen(
+            context,
+            title: aud.label,
+            subtitle: aud.subtitle,
+            accentColor: isDark ? Colors.white : Colors.black,
+            initiallySelected: _selectedFriendsExcept,
+            useExcludeMode: true,
+          );
+          if (result != null) {
+            setState(() {
+              _selectedAudience = aud;
+              _selectedFriendsExcept = result;
+            });
+          }
+        } else if (aud == PostAudience.onlyShareWith) {
+          final result = await showFriendPickerScreen(
+            context,
+            title: aud.label,
+            subtitle: aud.subtitle,
+            accentColor: isDark ? Colors.white : Colors.black,
+            initiallySelected: _selectedOnlyShareWith,
+          );
+          if (result != null) {
+            setState(() {
+              _selectedAudience = aud;
+              _selectedOnlyShareWith = result;
+            });
+          }
+        } else {
+          setState(() => _selectedAudience = aud);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: accentColor != null
-              ? accentColor.withValues(alpha: 0.1)
-              : (isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.black.withValues(alpha: 0.05)),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? selectedBg : unselectedBg,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: accentColor != null
-                ? accentColor.withValues(alpha: 0.35)
-                : (isDark
-                      ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.1)),
+            color: isSelected
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.08))
+                : Colors.transparent,
+            width: 1,
           ),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: color,
+            // Icon
+            Icon(
+              aud.icon,
+              size: 20,
+              color: isSelected
+                  ? (isDark ? Colors.white : Colors.black)
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : Colors.black.withValues(alpha: 0.35)),
+            ),
+            const SizedBox(width: 14),
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    aud.label,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    aud.subtitle,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w400,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.4)
+                          : Colors.black.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (onTap != null) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.expand_more_rounded, size: 15, color: color),
-            ],
+            // Radio indicator
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? (isDark ? Colors.white : Colors.black)
+                    : Colors.transparent,
+                border: Border.all(
+                  color: isSelected
+                      ? (isDark ? Colors.white : Colors.black)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.15)),
+                  width: 1.5,
+                ),
+              ),
+              child: isSelected
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: 12,
+                      color: isDark ? Colors.black : Colors.white,
+                    )
+                  : null,
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ─── RECORDING BAR ────────────────────────────────────────
-  Widget _buildRecordingBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F0),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFCCCC), width: 1),
-      ),
-      child: Row(
-        children: [
-          FadeTransition(
-            opacity: _pulseController,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            _formatDuration(recordingSeconds),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.red,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(18, (i) {
-                final height =
-                    6.0 +
-                    (isRecording
-                        ? (((i * 7 + recordingSeconds * 3) % 11) * 1.8)
-                        : 0.0);
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                  width: 3,
-                  height: height,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: () {
-              KnockHaptics.tap();
-              cancelRecording();
-            },
-            child: Icon(
-              Icons.delete_outline,
-              color: Colors.grey.shade600,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          GestureDetector(
-            onTap: () {
-              KnockHaptics.tap();
-              stopRecording();
-            },
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.stop, color: Colors.white, size: 18),
-            ),
-          ),
-        ],
+  // ─── Section Header ────────────────────────────────────────
+  Widget _buildSectionHeader(String title, bool isDark) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.2,
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.35)
+            : Colors.black.withValues(alpha: 0.4),
       ),
     );
   }
 
-  // ─── AUDIO ATTACHMENT CARD ────────────────────────────────
-  Widget _buildAudioCard() {
+  // ─── BUILD ────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2E2E2E) : const Color(0xFFE0E0E0),
-          width: 1,
+    final scaffoldBg = isDark ? Colors.black : Colors.white;
+
+    return Scaffold(
+      backgroundColor: scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: scaffoldBg,
+        surfaceTintColor: scaffoldBg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 19,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          "Post Settings",
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+            letterSpacing: -0.3,
+          ),
+        ),
+        centerTitle: true,
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white : Colors.black,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.play_arrow,
-              color: isDark ? Colors.black : Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Voice message",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Scrollable content ──
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Composer row ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              final currentUser = CurrentUserService.instance.currentUser;
+                              if (currentUser != null) {
+                                KnockHaptics.tap();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) {
+                                      Widget buildScreen(List<PostModel> currentPosts) {
+                                        return ProfileScreen(
+                                          user: currentUser,
+                                          posts: currentPosts,
+                                        );
+                                      }
+
+                                      return StreamBuilder<List<PostModel>>(
+                                        stream: PostService.instance.getUserPosts(currentUser.id),
+                                        builder: (context, snapshot) {
+                                          return buildScreen(snapshot.data ?? []);
+                                        },
+                                      );
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: isDark
+                                  ? const Color(0xFF2A2A2A)
+                                  : const Color(0xFFEEEEEE),
+                              backgroundImage: CurrentUserService.instance.currentUser?.avatarAsset != null
+                                  ? ImageHelper.resolveAvatar(CurrentUserService.instance.currentUser!.avatarAsset)
+                                  : null,
+                              child: CurrentUserService.instance.currentUser?.avatarAsset == null
+                                  ? Icon(Icons.person, size: 20,
+                                      color: isDark ? Colors.white54 : Colors.black38)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (widget.files.isNotEmpty) ...[
+                            _buildComposerPreviewThumb(isDark),
+                            const SizedBox(width: 14),
+                          ],
+                          Expanded(
+                            child: TextField(
+                              controller: _captionController,
+                              maxLines: widget.files.isNotEmpty ? 4 : null,
+                              minLines: widget.files.isNotEmpty ? 1 : 3,
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                height: 1.45,
+                                fontWeight: FontWeight.w400,
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: "Write a caption...",
+                                hintStyle: TextStyle(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.25)
+                                      : Colors.black.withValues(alpha: 0.3),
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.only(top: 2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Thin separator ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Container(
+                        height: 0.5,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // ─── SECTION 1: Duration ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('DURATION', isDark),
+                          const SizedBox(height: 14),
+                          _buildDurationToggle(isDark),
+                          const SizedBox(height: 10),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _getDurationSubtitle(),
+                                key: ValueKey(_selectedDuration),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.3)
+                                      : Colors.black.withValues(alpha: 0.35),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // ─── SECTION 2: Audience ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader('AUDIENCE', isDark),
+                          const SizedBox(height: 14),
+                          ...PostAudience.values.map(
+                            (aud) => _buildAudienceOption(aud, isDark),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _formatDuration(recordingSeconds),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () {
-              KnockHaptics.heavy();
-              deleteRecording();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.close, color: Colors.red, size: 18),
             ),
-          ),
-        ],
+
+            // ── SEND BUTTON (pinned at bottom) ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
+              decoration: BoxDecoration(
+                color: scaffoldBg,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  child: ElevatedButton(
+                    onPressed: _isPosting ? null : _postContent,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark
+                          ? Colors.white
+                          : Colors.black,
+                      foregroundColor: isDark
+                          ? Colors.black
+                          : Colors.white,
+                      disabledBackgroundColor: isDark
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.1),
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: _isPosting
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: isDark ? Colors.black : Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.send_rounded,
+                                size: 17,
+                                color: isDark ? Colors.black : Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Send',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                  color: isDark ? Colors.black : Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

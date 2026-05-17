@@ -23,7 +23,6 @@ import 'post/media_editor_screen.dart';
 import 'post/image_crop_screen.dart';
 import 'post/video_post_editor_screen.dart';
 import 'shared/final_post_screen.dart';
-import 'shared/post_settings_sheet.dart';
 import 'waves/waves_editor_screen.dart';
 import 'waves/waves_camera_screen.dart';
 import 'waves/waves_gallery_sheet.dart';
@@ -265,13 +264,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 KnockHaptics.tap();
                                 Navigator.pop(ctx);
                                 if (!context.mounted) return;
-                                final settings = await showPostSettingsSheet(
-                                  context,
-                                  isGlimpse: false,
-                                );
-                                if (settings == null || !context.mounted) {
-                                  return;
-                                }
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -279,8 +271,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                       files: const [],
                                       initialCaption: text,
                                       isGlimpse: false,
-                                      selectedDuration: settings.duration,
-                                      selectedAudience: settings.audience,
                                     ),
                                   ),
                                 );
@@ -813,8 +803,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         final totalItems = activeItems.length + 2;
                                                         final isLast = index == totalItems - 1;
 
-                                                        if (index == glimpseStripIndex) return const GlimpsStrip();
-                                                        if (index == peopleStripIndex) return const PeopleSuggestionStrip();
+                                                        if (index == glimpseStripIndex) {
+                                                          return Column(
+                                                            children: [
+                                                              const GlimpsStrip(),
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                child: Container(
+                                                                  height: 2.5,
+                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  color: isDark
+                                                                      ? Colors.white.withValues(alpha: 0.08)
+                                                                      : Colors.black.withValues(alpha: 0.08),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          );
+                                                        }
+                                                        if (index == peopleStripIndex) {
+                                                          return Column(
+                                                            children: [
+                                                              const PeopleSuggestionStrip(),
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                child: Container(
+                                                                  height: 2.5,
+                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  color: isDark
+                                                                      ? Colors.white.withValues(alpha: 0.08)
+                                                                      : Colors.black.withValues(alpha: 0.08),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          );
+                                                        }
 
                                                         int postIndex = index;
                                                         if (index > peopleStripIndex) {

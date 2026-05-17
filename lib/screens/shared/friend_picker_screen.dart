@@ -10,6 +10,7 @@ Future<List<String>?> showFriendPickerScreen(
   required String subtitle,
   required Color accentColor,
   List<String> initiallySelected = const [],
+  bool useExcludeMode = false,
 }) {
   return Navigator.push<List<String>>(
     context,
@@ -19,6 +20,7 @@ Future<List<String>?> showFriendPickerScreen(
         subtitle: subtitle,
         accentColor: accentColor,
         initiallySelected: initiallySelected,
+        useExcludeMode: useExcludeMode,
       ),
       fullscreenDialog: true, // Slides up from bottom like WhatsApp
     ),
@@ -30,6 +32,7 @@ class FriendPickerScreen extends StatefulWidget {
   final String subtitle;
   final Color accentColor;
   final List<String> initiallySelected;
+  final bool useExcludeMode;
 
   const FriendPickerScreen({
     super.key,
@@ -37,6 +40,7 @@ class FriendPickerScreen extends StatefulWidget {
     required this.subtitle,
     required this.accentColor,
     this.initiallySelected = const [],
+    this.useExcludeMode = false,
   });
 
   @override
@@ -266,8 +270,10 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
                                   ),
                                 ),
                                 child: isSelected
-                                    ? const Icon(
-                                        Icons.check_rounded,
+                                    ? Icon(
+                                        widget.useExcludeMode
+                                            ? Icons.close_rounded
+                                            : Icons.check_rounded,
                                         size: 14,
                                         color: Colors.white,
                                       )
