@@ -69,7 +69,7 @@ class GlimpsStrip extends StatelessWidget {
 
             // ── Horizontal Glimpse Carousel ──
             SizedBox(
-              height: MediaQuery.sizeOf(context).width * 0.60 * (16 / 9),
+              height: MediaQuery.sizeOf(context).width * 0.53 * (16 / 9),
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,

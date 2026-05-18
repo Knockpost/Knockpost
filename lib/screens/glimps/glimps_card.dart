@@ -53,7 +53,7 @@ class GlimpsCard extends StatelessWidget {
         }
       },
       child: Container(
-        width: MediaQuery.sizeOf(context).width * 0.60,
+        width: MediaQuery.sizeOf(context).width * 0.53,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
