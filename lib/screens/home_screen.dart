@@ -39,7 +39,6 @@ import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -573,7 +572,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isReelsTab = _currentNavIndex == 2;
-    final isProfileTab = _currentNavIndex == 4;
     final bgColor = isReelsTab
         ? Colors.black
         : (isDark ? Colors.black : Colors.white);
@@ -583,9 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: isReelsTab
-            ? Colors.black
-            : (isProfileTab ? Colors.transparent : bgColor),
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
@@ -648,7 +644,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // ── BODY ────────────────────────────────────────────────────
               body: SafeArea(
-                top: !(isReelsTab || isProfileTab),
+                top: false,
                 bottom: false,
                 child: PostPageSwipeLockScope(
                   controller: _postPageSwipeLockController,
@@ -676,116 +672,188 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ? const NeverScrollableScrollPhysics()
                                           : const ClampingScrollPhysics(),
                                       controller: _scrollController,
-                                      headerSliverBuilder:
-                                          (context, innerBoxIsScrolled) {
-                                            return [
-                                              SliverAppBar(
-                                                backgroundColor: bgColor,
-                                                surfaceTintColor: bgColor,
-                                                elevation: 0,
-                                                floating: true,
-                                                snap: true,
-                                                titleSpacing: 20,
-                                                centerTitle: false,
-                                                title: Text(
-                                                  "KnockPost",
-                                                  style: TextStyle(
-                                                    color: textColor,
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 21,
-                                                    letterSpacing: -0.5,
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  StreamBuilder<List<NotificationModel>>(
-                                                    stream: NotificationService.instance.streamNotifications(),
-                                                    builder: (context, snapshot) {
-                                                      final hasUnread = snapshot.data?.any((n) => !n.isRead) ?? false;
-                                                      return Stack(
-                                                        alignment: Alignment.center,
-                                                        children: [
-                                                          IconButton(
-                                                            icon: Icon(
-                                                              Icons.notifications_none,
-                                                              color: textColor,
+                                      headerSliverBuilder: (context, innerBoxIsScrolled) {
+                                        return [
+                                          SliverAppBar(
+                                            backgroundColor: bgColor,
+                                            surfaceTintColor: bgColor,
+                                            elevation: 0,
+                                            floating: true,
+                                            snap: true,
+                                            titleSpacing: 20,
+                                            centerTitle: false,
+                                            title: Text(
+                                              "KnockPost",
+                                              style: TextStyle(
+                                                color: textColor,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 21,
+                                                letterSpacing: -0.5,
+                                              ),
+                                            ),
+                                            actions: [
+                                              StreamBuilder<
+                                                List<NotificationModel>
+                                              >(
+                                                stream: NotificationService
+                                                    .instance
+                                                    .streamNotifications(),
+                                                builder: (context, snapshot) {
+                                                  final hasUnread =
+                                                      snapshot.data?.any(
+                                                        (n) => !n.isRead,
+                                                      ) ??
+                                                      false;
+                                                  return Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: Icon(
+                                                          Icons
+                                                              .notifications_none,
+                                                          color: textColor,
+                                                        ),
+                                                        onPressed: () {
+                                                          KnockHaptics.tap();
+                                                          Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (_) =>
+                                                                  const NotificationsScreen(),
                                                             ),
-                                                            onPressed: () {
-                                                              KnockHaptics.tap();
-                                                              Navigator.push(
-                                                                context,
-                                                                MaterialPageRoute(
-                                                                  builder: (_) =>
-                                                                      const NotificationsScreen(),
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                          if (hasUnread)
-                                                            Positioned(
-                                                              top: 12,
-                                                              right: 12,
-                                                              child: Container(
-                                                                width: 10,
-                                                                height: 10,
-                                                                decoration: BoxDecoration(
-                                                                  color: Colors.redAccent,
-                                                                  shape: BoxShape.circle,
-                                                                  border: Border.all(
-                                                                    color: bgColor,
+                                                          );
+                                                        },
+                                                      ),
+                                                      if (hasUnread)
+                                                        Positioned(
+                                                          top: 12,
+                                                          right: 12,
+                                                          child: Container(
+                                                            width: 10,
+                                                            height: 10,
+                                                            decoration: BoxDecoration(
+                                                              color: Colors
+                                                                  .redAccent,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border:
+                                                                  Border.all(
+                                                                    color:
+                                                                        bgColor,
                                                                     width: 2,
                                                                   ),
-                                                                ),
-                                                              ),
                                                             ),
-                                                        ],
-                                                      );
-                                                    },
-                                                  ),
-                                                ],
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  );
+                                                },
                                               ),
-                                            ];
-                                          },
+                                            ],
+                                          ),
+                                        ];
+                                      },
                                       body: ValueListenableBuilder<UserModel?>(
-                                        valueListenable: CurrentUserService.instance.userNotifier,
+                                        valueListenable: CurrentUserService
+                                            .instance
+                                            .userNotifier,
                                         builder: (context, currentUser, _) {
-                                          return StreamBuilder<List<({PostModel post, UserModel author})>>(
-                                            stream: PostService.instance.getFeedPostsWithAuthors(
-                                              currentUserId: currentUser?.id ?? '',
-                                              currentUserModel: currentUser,
-                                            ),
+                                          return StreamBuilder<
+                                            List<
+                                              ({
+                                                PostModel post,
+                                                UserModel author,
+                                              })
+                                            >
+                                          >(
+                                            stream: PostService.instance
+                                                .getFeedPostsWithAuthors(
+                                                  currentUserId:
+                                                      currentUser?.id ?? '',
+                                                  currentUserModel: currentUser,
+                                                ),
                                             builder: (context, snapshot) {
                                               if (!snapshot.hasData) {
                                                 return const Center(
-                                                  child: CircularProgressIndicator(),
+                                                  child:
+                                                      CircularProgressIndicator(),
                                                 );
                                               }
                                               final feedItems = snapshot.data!;
 
-                                              return ValueListenableBuilder<Set<String>>(
-                                                valueListenable: GlobalPostState.deletedPostIds,
+                                              return ValueListenableBuilder<
+                                                Set<String>
+                                              >(
+                                                valueListenable: GlobalPostState
+                                                    .deletedPostIds,
                                                 builder: (context, deletedIds, _) {
                                                   // Filter and sort
-                                                  final sorted = feedItems
-                                                      .where((item) =>
-                                                          !deletedIds.contains(item.post.id) &&
-                                                          item.post.type != PostType.glimps)
-                                                      .toList()
-                                                    ..sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+                                                  final sorted =
+                                                      feedItems
+                                                          .where(
+                                                            (item) =>
+                                                                !deletedIds
+                                                                    .contains(
+                                                                      item
+                                                                          .post
+                                                                          .id,
+                                                                    ) &&
+                                                                item
+                                                                        .post
+                                                                        .type !=
+                                                                    PostType
+                                                                        .glimps,
+                                                          )
+                                                          .toList()
+                                                        ..sort(
+                                                          (a, b) => b
+                                                              .post
+                                                              .createdAt
+                                                              .compareTo(
+                                                                a
+                                                                    .post
+                                                                    .createdAt,
+                                                              ),
+                                                        );
 
                                                   // Interleave waves
-                                                  final activeItems = <({PostModel post, UserModel author})>[];
-                                                  final pendingWaves = <({PostModel post, UserModel author})>[];
+                                                  final activeItems =
+                                                      <
+                                                        ({
+                                                          PostModel post,
+                                                          UserModel author,
+                                                        })
+                                                      >[];
+                                                  final pendingWaves =
+                                                      <
+                                                        ({
+                                                          PostModel post,
+                                                          UserModel author,
+                                                        })
+                                                      >[];
                                                   for (final item in sorted) {
-                                                    if (item.post.type == PostType.waves) {
-                                                      if (activeItems.isNotEmpty && activeItems.last.post.type == PostType.waves) {
+                                                    if (item.post.type ==
+                                                        PostType.waves) {
+                                                      if (activeItems
+                                                              .isNotEmpty &&
+                                                          activeItems
+                                                                  .last
+                                                                  .post
+                                                                  .type ==
+                                                              PostType.waves) {
                                                         pendingWaves.add(item);
                                                       } else {
                                                         activeItems.add(item);
                                                       }
                                                     } else {
                                                       activeItems.add(item);
-                                                      if (pendingWaves.isNotEmpty) {
-                                                        activeItems.add(pendingWaves.removeAt(0));
+                                                      if (pendingWaves
+                                                          .isNotEmpty) {
+                                                        activeItems.add(
+                                                          pendingWaves.removeAt(
+                                                            0,
+                                                          ),
+                                                        );
                                                       }
                                                     }
                                                   }
@@ -795,43 +863,84 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       physics: isScrollLocked
                                                           ? const NeverScrollableScrollPhysics()
                                                           : null,
-                                                      padding: const EdgeInsets.only(bottom: 90),
-                                                      itemCount: activeItems.length + 2,
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            bottom: 90,
+                                                          ),
+                                                      itemCount:
+                                                          activeItems.length +
+                                                          2,
                                                       itemBuilder: (context, index) {
-                                                        const glimpseStripIndex = 1;
-                                                        const peopleStripIndex = 3;
-                                                        final totalItems = activeItems.length + 2;
-                                                        final isLast = index == totalItems - 1;
+                                                        const glimpseStripIndex =
+                                                            1;
+                                                        const peopleStripIndex =
+                                                            3;
+                                                        final totalItems =
+                                                            activeItems.length +
+                                                            2;
+                                                        final isLast =
+                                                            index ==
+                                                            totalItems - 1;
 
-                                                        if (index == glimpseStripIndex) {
+                                                        if (index ==
+                                                            glimpseStripIndex) {
                                                           return Column(
                                                             children: [
                                                               const GlimpsStrip(),
                                                               Padding(
-                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                padding:
+                                                                    const EdgeInsets.only(
+                                                                      top: 6,
+                                                                      bottom: 2,
+                                                                    ),
                                                                 child: Container(
                                                                   height: 2.5,
-                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  margin:
+                                                                      const EdgeInsets.symmetric(
+                                                                        horizontal:
+                                                                            20,
+                                                                      ),
                                                                   color: isDark
-                                                                      ? Colors.white.withValues(alpha: 0.08)
-                                                                      : Colors.black.withValues(alpha: 0.08),
+                                                                      ? Colors.white.withValues(
+                                                                          alpha:
+                                                                              0.08,
+                                                                        )
+                                                                      : Colors.black.withValues(
+                                                                          alpha:
+                                                                              0.08,
+                                                                        ),
                                                                 ),
                                                               ),
                                                             ],
                                                           );
                                                         }
-                                                        if (index == peopleStripIndex) {
+                                                        if (index ==
+                                                            peopleStripIndex) {
                                                           return Column(
                                                             children: [
                                                               const PeopleSuggestionStrip(),
                                                               Padding(
-                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                padding:
+                                                                    const EdgeInsets.only(
+                                                                      top: 6,
+                                                                      bottom: 2,
+                                                                    ),
                                                                 child: Container(
                                                                   height: 2.5,
-                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  margin:
+                                                                      const EdgeInsets.symmetric(
+                                                                        horizontal:
+                                                                            20,
+                                                                      ),
                                                                   color: isDark
-                                                                      ? Colors.white.withValues(alpha: 0.08)
-                                                                      : Colors.black.withValues(alpha: 0.08),
+                                                                      ? Colors.white.withValues(
+                                                                          alpha:
+                                                                              0.08,
+                                                                        )
+                                                                      : Colors.black.withValues(
+                                                                          alpha:
+                                                                              0.08,
+                                                                        ),
                                                                 ),
                                                               ),
                                                             ],
@@ -839,84 +948,148 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         }
 
                                                         int postIndex = index;
-                                                        if (index > peopleStripIndex) {
+                                                        if (index >
+                                                            peopleStripIndex) {
                                                           postIndex -= 2;
-                                                        } else if (index > glimpseStripIndex) {
+                                                        } else if (index >
+                                                            glimpseStripIndex) {
                                                           postIndex -= 1;
                                                         }
 
-                                                        if (postIndex >= activeItems.length) return const SizedBox.shrink();
+                                                        if (postIndex >=
+                                                            activeItems.length) {
+                                                          return const SizedBox.shrink();
+                                                        }
 
-                                                        final post = activeItems[postIndex].post;
-                                                        final author = activeItems[postIndex].author;
-
-
+                                                        final post =
+                                                            activeItems[postIndex]
+                                                                .post;
+                                                        final author =
+                                                            activeItems[postIndex]
+                                                                .author;
 
                                                         Widget card;
-                                                        if (post.type == PostType.text) {
+                                                        if (post.type ==
+                                                            PostType.text) {
                                                           card = ThoughtCard(
                                                             user: author,
                                                             text: post.text,
                                                             likes: post.likes,
                                                             views: post.views,
                                                             postId: post.id,
-                                                            timestamp: post.timestampText,
+                                                            timestamp: post
+                                                                .timestampText,
                                                           );
-                                                        } else if (post.type == PostType.waves) {
+                                                        } else if (post.type ==
+                                                            PostType.waves) {
                                                           card = WavesFeedCard(
                                                             post: post,
                                                             user: author,
                                                             onTap: () {
-                                                              final videoUrl = post.imagePaths.isNotEmpty ? post.imagePaths.first : null;
-                                                              if (videoUrl != null) WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                                              final videoUrl =
+                                                                  post
+                                                                      .imagePaths
+                                                                      .isNotEmpty
+                                                                  ? post
+                                                                        .imagePaths
+                                                                        .first
+                                                                  : null;
+                                                              if (videoUrl !=
+                                                                  null) {
+                                                                WavesFeedState
+                                                                        .requestedVideoUrl
+                                                                        .value =
+                                                                    videoUrl;
+                                                              }
                                                               _animateToTab(2);
                                                             },
                                                           );
                                                         } else {
                                                           card = PostCard(
-                                                            imagePaths: post.imagePaths,
+                                                            imagePaths:
+                                                                post.imagePaths,
                                                             user: author,
                                                             caption: post.text,
                                                             likes: post.likes,
                                                             views: post.views,
                                                             postId: post.id,
-                                                            timestamp: post.timestampText,
-                                                            musicUrl: post.musicUrl,
-                                                            musicTitle: post.musicTitle,
-                                                            musicArtist: post.musicArtist,
-                                                            musicStyle: post.musicStyle,
-                                                            musicCoverUrl: post.musicCoverUrl,
-                                                            musicTrimStart: post.musicTrimStart,
-                                                            musicLyrics: post.musicLyrics,
-                                                            musicLyricsConfig: post.musicLyricsConfig,
-                                                            musicOverlayX: post.musicOverlayX,
-                                                            musicOverlayY: post.musicOverlayY,
-                                                            musicOverlayScale: post.musicOverlayScale,
-                                                            musicOverlayRotation: post.musicOverlayRotation,
-                                                            filterIndex: post.filterIndex,
-                                                            textOverlays: post.textOverlays,
-                                                            drawPaths: post.drawPaths,
-                                                            isVideoPost: post.isVideoPost || post.type == PostType.waves,
-                                                            videoHasSound: post.videoHasSound,
-                                                            coverImagePath: post.coverImagePath,
-                                                            mediaAspectRatio: post.mediaAspectRatio,
-                                                            mediaIsBaked: post.mediaIsBaked,
+                                                            timestamp: post
+                                                                .timestampText,
+                                                            musicUrl:
+                                                                post.musicUrl,
+                                                            musicTitle:
+                                                                post.musicTitle,
+                                                            musicArtist: post
+                                                                .musicArtist,
+                                                            musicStyle:
+                                                                post.musicStyle,
+                                                            musicCoverUrl: post
+                                                                .musicCoverUrl,
+                                                            musicTrimStart: post
+                                                                .musicTrimStart,
+                                                            musicLyrics: post
+                                                                .musicLyrics,
+                                                            musicLyricsConfig: post
+                                                                .musicLyricsConfig,
+                                                            musicOverlayX: post
+                                                                .musicOverlayX,
+                                                            musicOverlayY: post
+                                                                .musicOverlayY,
+                                                            musicOverlayScale: post
+                                                                .musicOverlayScale,
+                                                            musicOverlayRotation:
+                                                                post.musicOverlayRotation,
+                                                            filterIndex: post
+                                                                .filterIndex,
+                                                            textOverlays: post
+                                                                .textOverlays,
+                                                            drawPaths:
+                                                                post.drawPaths,
+                                                            isVideoPost:
+                                                                post.isVideoPost ||
+                                                                post.type ==
+                                                                    PostType
+                                                                        .waves,
+                                                            videoHasSound: post
+                                                                .videoHasSound,
+                                                            coverImagePath: post
+                                                                .coverImagePath,
+                                                            mediaAspectRatio: post
+                                                                .mediaAspectRatio,
+                                                            mediaIsBaked: post
+                                                                .mediaIsBaked,
                                                           );
                                                         }
 
                                                         return Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
                                                           children: [
                                                             card,
                                                             if (!isLast)
                                                               Padding(
-                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                padding:
+                                                                    const EdgeInsets.only(
+                                                                      top: 6,
+                                                                      bottom: 2,
+                                                                    ),
                                                                 child: Container(
                                                                   height: 2.5,
-                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  margin:
+                                                                      const EdgeInsets.symmetric(
+                                                                        horizontal:
+                                                                            20,
+                                                                      ),
                                                                   color: isDark
-                                                                      ? Colors.white.withValues(alpha: 0.08)
-                                                                      : Colors.black.withValues(alpha: 0.08),
+                                                                      ? Colors.white.withValues(
+                                                                          alpha:
+                                                                              0.08,
+                                                                        )
+                                                                      : Colors.black.withValues(
+                                                                          alpha:
+                                                                              0.08,
+                                                                        ),
                                                                 ),
                                                               ),
                                                           ],
