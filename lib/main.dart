@@ -14,15 +14,14 @@ void main() async {
     AudioLifecycleManager.instance.init();
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    // Force non-edge-to-edge mode so system nav bar is opaque
-    await SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
-    );
+    // Enable true edge-to-edge mode — content renders behind system bars (like YouTube)
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        systemNavigationBarColor: Colors.black,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false, // KEY: disables Android's auto scrim
+        statusBarColor: Colors.transparent,
       ),
     );
     // ── Image cache tuning ────────────────────────────────────────────────────

@@ -358,6 +358,8 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   late final PostScrollLockController _postScrollLockController;
   late final Key _centerKey = const ValueKey('center');
+  double _scrollDelta = 0;
+  bool _showNavBar = true;
 
   @override
   void initState() {
@@ -371,6 +373,25 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
     _postScrollLockController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification is ScrollUpdateNotification) {
+      final dy = notification.scrollDelta ?? 0;
+      if (dy > 0) {
+        _scrollDelta += dy;
+        if (_scrollDelta > 50 && _showNavBar) {
+          setState(() => _showNavBar = false);
+        }
+      } else if (dy < 0) {
+        _scrollDelta = 0;
+        if (!_showNavBar) {
+          setState(() => _showNavBar = true);
+        }
+      }
+    }
+    return false;
   }
 
   Widget _buildPostItem(int i, bool isDark) {
@@ -446,10 +467,11 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
       value: SystemUiOverlayStyle(
         statusBarColor: bg,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark
             ? Brightness.light
             : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Stack(
         children: [
@@ -482,41 +504,56 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
             ),
             body: PostScrollLockScope(
               controller: _postScrollLockController,
-              child: ValueListenableBuilder<bool>(
-                valueListenable: _postScrollLockController,
-                builder: (context, isScrollLocked, _) {
-                  return CustomScrollView(
-                    controller: _scrollController,
-                    physics: isScrollLocked
-                        ? const NeverScrollableScrollPhysics()
-                        : null,
-                    center: _centerKey,
-                    slivers: [
-                      if (widget.startIndex > 0)
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScrollNotification,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _postScrollLockController,
+                  builder: (context, isScrollLocked, _) {
+                    return CustomScrollView(
+                      controller: _scrollController,
+                      physics: isScrollLocked
+                          ? const NeverScrollableScrollPhysics()
+                          : null,
+                      center: _centerKey,
+                      slivers: [
+                        if (widget.startIndex > 0)
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              final actualIndex =
+                                  widget.startIndex - 1 - index;
+                              return _buildPostItem(actualIndex, isDark);
+                            }, childCount: widget.startIndex),
+                          ),
                         SliverList(
+                          key: _centerKey,
                           delegate: SliverChildBuilderDelegate((
                             context,
                             index,
                           ) {
-                            final actualIndex = widget.startIndex - 1 - index;
+                            final actualIndex = widget.startIndex + index;
                             return _buildPostItem(actualIndex, isDark);
-                          }, childCount: widget.startIndex),
+                          }, childCount:
+                              widget.posts.length - widget.startIndex),
                         ),
-                      SliverList(
-                        key: _centerKey,
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final actualIndex = widget.startIndex + index;
-                          return _buildPostItem(actualIndex, isDark);
-                        }, childCount: widget.posts.length - widget.startIndex),
-                      ),
-                      const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
-                    ],
-                  );
-                },
+                        const SliverPadding(
+                          padding: EdgeInsets.only(bottom: 40),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
-          SystemNavBarFill(color: bg),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            opacity: _showNavBar ? 1.0 : 0.0,
+            child: SystemNavBarFill(color: bg),
+          ),
         ],
       ),
     );

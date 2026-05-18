@@ -33,7 +33,6 @@ import 'search/search_screen.dart';
 import 'messages/messages_list_screen.dart';
 import 'notifications/notifications_screen.dart';
 import '../widgets/post_scroll_lock_scope.dart';
-import '../widgets/system_nav_bar_fill.dart';
 import '../utils/waves_feed_state.dart';
 import '../services/current_user_service.dart';
 import '../services/post_service.dart';
@@ -588,7 +587,8 @@ class _HomeScreenState extends State<HomeScreen> {
         statusBarBrightness: (isDark || isReelsTab)
             ? Brightness.dark
             : Brightness.light,
-        systemNavigationBarColor: isReelsTab ? Colors.black : bgColor,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
@@ -1180,11 +1180,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
-            // ── SOLID BAR BEHIND SYSTEM NAVIGATION BAR ──────────────────
-            // On Android 15+ the system nav bar is always transparent.
-            // This draws a solid color behind it so it looks opaque.
-            SystemNavBarFill(color: bgColor),
 
             // ── SEMI-TRANSPARENT STATUS BAR OVERLAY ─────────────────────
             Positioned(
