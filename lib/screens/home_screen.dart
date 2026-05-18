@@ -581,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
+        statusBarColor: const Color.fromARGB(0, 196, 196, 196),
         statusBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
@@ -957,7 +957,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         }
 
                                                         if (postIndex >=
-                                                            activeItems.length) {
+                                                            activeItems
+                                                                .length) {
                                                           return const SizedBox.shrink();
                                                         }
 
@@ -1184,6 +1185,17 @@ class _HomeScreenState extends State<HomeScreen> {
             // On Android 15+ the system nav bar is always transparent.
             // This draws a solid color behind it so it looks opaque.
             SystemNavBarFill(color: bgColor),
+
+            // ── SEMI-TRANSPARENT STATUS BAR OVERLAY ─────────────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: MediaQuery.of(context).padding.top,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
           ],
         ),
       ),
