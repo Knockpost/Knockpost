@@ -10,6 +10,7 @@ import 'edit_profile_screen.dart';
 import 'profile_settings_screen.dart';
 import 'widgets/profile_ui_helpers.dart';
 import '../../widgets/post_scroll_lock_scope.dart';
+import '../../widgets/knockpost_refresh.dart';
 
 /// Own profile screen — shown when tapping the Profile tab in bottom nav.
 class ProfileScreen extends StatefulWidget {
@@ -103,12 +104,15 @@ class _ProfileScreenState extends State<ProfileScreen>
           child: ValueListenableBuilder<bool>(
             valueListenable: _postScrollLockController,
             builder: (context, isScrollLocked, _) {
-              return NestedScrollView(
+              return KnockpostRefreshIndicator(
+                onRefresh: () async {
+                  await Future.delayed(const Duration(milliseconds: 400));
+                },
+                child: NestedScrollView(
                 controller: _scrollController,
-                // ClampingScrollPhysics prevents the bounce gap between tab bar and posts
                 physics: isScrollLocked
                     ? const NeverScrollableScrollPhysics()
-                    : const ClampingScrollPhysics(),
+                    : const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
                 headerSliverBuilder: (context, innerBoxIsScrolled) => [
                   // ── Profile Header ─────────────────────────────────────────────
                   SliverToBoxAdapter(
@@ -167,7 +171,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                   ],
                 ),
-              );
+              ),
+            );
             },
           ),
         ),

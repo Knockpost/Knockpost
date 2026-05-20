@@ -8,6 +8,7 @@ import '../../services/chat_service.dart';
 import '../../services/database_service.dart';
 import '../../services/connection_service.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/knockpost_refresh.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
 
@@ -105,12 +106,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               stream: ChatService.instance.streamUserChats(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: isDark ? Colors.white38 : Colors.black26,
-                    ),
-                  );
+                  return const KnockpostLoadingIndicator();
                 }
 
                 final rooms = snapshot.data ?? [];
@@ -144,20 +140,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final room = filtered[index];
-                    final otherUid = room.otherUid(myUid);
-                    return _ChatRoomTile(
-                      room: room,
-                      otherUid: otherUid,
-                      myUid: myUid,
-                      isDark: isDark,
-                      searchQuery: _searchQuery,
-                    );
+                return KnockpostRefreshIndicator(
+                  onRefresh: () async {
+                    await Future.delayed(const Duration(milliseconds: 400));
                   },
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final room = filtered[index];
+                      final otherUid = room.otherUid(myUid);
+                      return _ChatRoomTile(
+                        room: room,
+                        otherUid: otherUid,
+                        myUid: myUid,
+                        isDark: isDark,
+                        searchQuery: _searchQuery,
+                      );
+                    },
+                  ),
                 );
               },
             ),

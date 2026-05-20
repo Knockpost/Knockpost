@@ -8,6 +8,7 @@ import '../profile/other_profile_screen.dart';
 import '../../services/connection_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../profile/widgets/knock_button.dart';
+import '../../widgets/knockpost_refresh.dart';
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -169,7 +170,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     // Loading
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const KnockpostLoadingIndicator();
     }
 
     // No results

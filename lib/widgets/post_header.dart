@@ -163,42 +163,52 @@ class _PostHeaderState extends State<PostHeader> {
     );
   }
 
+  // Whether to show the Knock button.
+  // Hide for already-connected states (like Instagram hides "Following" from feed).
+  bool get _shouldShowKnockButton {
+    if (widget.user.isOwnProfile) return false;
+    switch (_status) {
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+      case KnockStatus.pending:
+        return false;
+      case KnockStatus.none:
+      case KnockStatus.theyKnockedYou:
+      case KnockStatus.theyKnockedYouPending:
+        return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Determine button colors
-    Color bgColor;
-    Color textColor;
-    String label;
-
-    switch (_status) {
-      case KnockStatus.none:
-      case KnockStatus.theyKnockedYouPending:
-        label = "Knock";
-        break;
-      case KnockStatus.theyKnockedYou:
-        label = "Knock back";
-        break;
-      case KnockStatus.pending:
-        label = "Pending";
-        break;
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        label = "Knocked";
-        break;
-    }
-
-    if (_showBlackFlash) {
-      bgColor = isDark ? Colors.white : Colors.black;
-      textColor = isDark ? Colors.black : Colors.white;
-    } else {
-      bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
-      textColor = isDark ? Colors.white : Colors.black;
-    }
-
     final user = widget.user;
     final bool isCreator = user.accountType == AccountType.creator;
+    final bool showButton = _shouldShowKnockButton;
+
+    // Button styling — only computed when needed
+    Color bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
+    Color textColor = isDark ? Colors.white : Colors.black;
+    String label = '';
+
+    if (showButton) {
+      switch (_status) {
+        case KnockStatus.none:
+        case KnockStatus.theyKnockedYouPending:
+          label = 'Knock';
+          break;
+        case KnockStatus.theyKnockedYou:
+          label = 'Knock back';
+          break;
+        default:
+          break;
+      }
+
+      if (_showBlackFlash) {
+        bgColor = isDark ? Colors.white : Colors.black;
+        textColor = isDark ? Colors.black : Colors.white;
+      }
+    }
 
     return Row(
       children: [
@@ -261,8 +271,8 @@ class _PostHeaderState extends State<PostHeader> {
           ),
         ),
 
-        // ── Knock / Knocked button ──
-        if (!user.isOwnProfile) ...[
+        // ── Knock button — only shown for non-connected users ──
+        if (showButton) ...[
           GestureDetector(
             onTap: _toggleKnock,
             child: AnimatedContainer(

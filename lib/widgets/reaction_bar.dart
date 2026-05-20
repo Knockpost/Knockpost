@@ -298,14 +298,27 @@ class _ReactionBarState extends State<ReactionBar>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = widget.transparentButtons
-        ? Colors.transparent
+    final isOverlay = widget.transparentButtons;
+    final bgColor = isOverlay
+        ? const Color(0x40000000) // black @ 0.25 — subtle dark translucent
         : (isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2));
-    final iconColor = widget.transparentButtons
-        ? Colors.white.withValues(alpha: 0.9)
+    final iconColor = isOverlay
+        ? Colors.white.withValues(alpha: 0.95)
         : (isDark
             ? Colors.white.withValues(alpha: 0.8)
             : Colors.black.withValues(alpha: 0.75));
+    const buttonRadius = 12.0;
+    const buttonSize = 40.0;
+    const iconSize = 20.0;
+    final buttonShadow = isOverlay
+        ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.20),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ]
+        : <BoxShadow>[];
 
     return Stack(
       clipBehavior: Clip.none,
@@ -328,7 +341,17 @@ class _ReactionBarState extends State<ReactionBar>
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.white54 : Colors.black54,
+                          color: isOverlay
+                              ? Colors.white.withValues(alpha: 0.6)
+                              : (isDark ? Colors.white54 : Colors.black54),
+                          shadows: isOverlay
+                              ? const [
+                                  Shadow(
+                                    color: Color(0x8A000000),
+                                    blurRadius: 4,
+                                  ),
+                                ]
+                              : null,
                         ),
                       ),
                     ),
@@ -339,6 +362,7 @@ class _ReactionBarState extends State<ReactionBar>
                       postId: widget.postId,
                       isDark: isDark,
                       userReaction: _selectedEmoji,
+                      isOverlay: isOverlay,
                     ),
                 ],
               ),
@@ -373,11 +397,12 @@ class _ReactionBarState extends State<ReactionBar>
                           }),
                     },
                     child: Container(
-                      height: 40,
-                      width: 40,
+                      height: buttonSize,
+                      width: buttonSize,
                       decoration: BoxDecoration(
                         color: bgColor,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(buttonRadius),
+                        boxShadow: buttonShadow,
                       ),
                       child: Center(
                         child: _selectedEmoji != null
@@ -389,7 +414,8 @@ class _ReactionBarState extends State<ReactionBar>
                                 ),
                               )
                             : Image.asset(
-                                isDark
+                                // Always use dark variant on video overlay
+                                (isDark || isOverlay)
                                     ? "assets/reaction_default_dark.png"
                                     : "assets/reaction_default_light.png",
                                 width: 24,
@@ -411,16 +437,18 @@ class _ReactionBarState extends State<ReactionBar>
                       );
                     },
                     child: Container(
-                      height: 40,
-                      width: 40,
+                      height: buttonSize,
+                      width: buttonSize,
                       decoration: BoxDecoration(
                         color: bgColor,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(buttonRadius),
+                        boxShadow: buttonShadow,
                       ),
-                      child: Icon(
-                        Icons.chat_bubble_outline,
-                        size: 20,
-                        color: iconColor,
+                      child: Center(
+                        child: CustomPaint(
+                          size: const Size(iconSize, iconSize),
+                          painter: _ReplyIconPainter(color: iconColor),
+                        ),
                       ),
                     ),
                   ),
@@ -445,15 +473,16 @@ class _ReactionBarState extends State<ReactionBar>
                         );
                       },
                       child: Container(
-                        height: 40,
-                        width: 40,
+                        height: buttonSize,
+                        width: buttonSize,
                         decoration: BoxDecoration(
                           color: bgColor,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(buttonRadius),
+                          boxShadow: buttonShadow,
                         ),
                         child: Icon(
                           Icons.share_outlined,
-                          size: 20,
+                          size: iconSize,
                           color: iconColor,
                         ),
                       ),
@@ -597,6 +626,7 @@ class _ReactionSummary extends StatelessWidget {
   final String postId;
   final bool isDark;
   final String? userReaction;
+  final bool isOverlay;
 
   const _ReactionSummary({
     required this.likes,
@@ -604,6 +634,7 @@ class _ReactionSummary extends StatelessWidget {
     required this.postId,
     required this.isDark,
     this.userReaction,
+    this.isOverlay = false,
   });
 
   String _formatLikes(int count) {
@@ -677,9 +708,19 @@ class _ReactionSummary extends StatelessWidget {
                 Text(
                   _formatLikes(likes),
                   style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
+                    color: isOverlay
+                        ? Colors.white.withValues(alpha: 0.95)
+                        : (isDark ? Colors.white70 : Colors.black87),
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
+                    shadows: isOverlay
+                        ? [
+                            const Shadow(
+                              color: Color(0x8A000000),
+                              blurRadius: 4,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               ],
@@ -698,11 +739,15 @@ class _ReactionSummary extends StatelessWidget {
         height: 24,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0),
+          color: isOverlay
+              ? const Color(0x66000000) // translucent black for video
+              : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0)),
           shape: BoxShape.circle,
           border: Border.all(
-            color: isDark ? Colors.black : Colors.white,
-            width: 2.0,
+            color: isOverlay
+                ? Colors.white.withValues(alpha: 0.5)
+                : (isDark ? Colors.black : Colors.white),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
@@ -716,4 +761,72 @@ class _ReactionSummary extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modern curved reply arrow icon — premium minimal design
+// EXACT geometrical implementation based on specified constraints.
+// ─────────────────────────────────────────────────────────────────────────────
+class _ReplyIconPainter extends CustomPainter {
+  final Color color;
+
+  const _ReplyIconPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.75 // Matches visual density of default Material icons
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final w = size.width;
+    final h = size.height;
+
+    final path = Path();
+
+    // 1. ARROWHEAD (45° chevron)
+    // Tip at x=15%, y=25%
+    final tipX = w * 0.15;
+    final tipY = h * 0.25;
+    final chevronDx = w * 0.11;
+    final chevronDy = h * 0.11;
+
+    path.moveTo(tipX + chevronDx, tipY - chevronDy);
+    path.lineTo(tipX, tipY);
+    path.lineTo(tipX + chevronDx, tipY + chevronDy);
+
+    // 2. TOP HORIZONTAL LINE
+    // Starts at arrowhead, goes perfectly horizontal to the arc start.
+    // To be mathematically tangent to the semicircle, it ends exactly at the arc's center X.
+    path.moveTo(tipX, tipY);
+    
+    // 3. RIGHT ARC (perfect semicircle)
+    // Shifting center to ~65% to make the top horizontal line MUCH longer,
+    // properly filling the icon canvas space.
+    final arcCenterX = w * 0.65;
+    final arcCenterY = h * 0.545;
+    final arcRadius = h * 0.295;
+
+    path.lineTo(arcCenterX, tipY); // tipY is exactly arcCenterY - arcRadius
+
+    path.arcToPoint(
+      Offset(arcCenterX, arcCenterY + arcRadius), // Ends at exact bottom of the circle
+      radius: Radius.circular(arcRadius),
+      clockwise: true,
+    );
+
+    // 4. BOTTOM TAIL
+    // Very short, perfectly horizontal. Ends at x=37%
+    final tailEndX = w * 0.37;
+    path.lineTo(tailEndX, arcCenterY + arcRadius);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ReplyIconPainter oldDelegate) =>
+
+      color != oldDelegate.color;
 }

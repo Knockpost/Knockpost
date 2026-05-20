@@ -14,6 +14,7 @@ import '../models/user_model.dart';
 import '../models/notification_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
+import '../widgets/knockpost_refresh.dart';
 import 'post/post_card.dart';
 import 'thoughts/thought_card.dart';
 import 'waves/waves_feed_card.dart';
@@ -667,10 +668,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: ValueListenableBuilder<bool>(
                                   valueListenable: _postScrollLockController,
                                   builder: (context, isScrollLocked, _) {
-                                    return NestedScrollView(
+                                    return KnockpostRefreshIndicator(
+                                      onRefresh: () async {
+                                        // Cosmetic refresh — StreamBuilder is already live
+                                        await Future.delayed(const Duration(milliseconds: 400));
+                                      },
+                                      child: NestedScrollView(
                                       physics: isScrollLocked
                                           ? const NeverScrollableScrollPhysics()
-                                          : const ClampingScrollPhysics(),
+                                          : const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
                                       controller: _scrollController,
                                       headerSliverBuilder: (context, innerBoxIsScrolled) {
                                         return [
@@ -774,10 +780,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ),
                                             builder: (context, snapshot) {
                                               if (!snapshot.hasData) {
-                                                return const Center(
-                                                  child:
-                                                      CircularProgressIndicator(),
-                                                );
+                                                return const KnockpostLoadingIndicator();
                                               }
                                               final feedItems = snapshot.data!;
 
@@ -1104,7 +1107,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           );
                                         },
                                       ),
-                                    );
+                                    ), // NestedScrollView
+                                    ); // KnockpostRefreshIndicator
                                   },
                                 ),
                               ),
@@ -1131,9 +1135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (context, liveUser, child) {
                                   final user = liveUser;
                                   if (user == null) {
-                                    return const Center(
-                                      child: CircularProgressIndicator(),
-                                    );
+                                    return const KnockpostLoadingIndicator();
                                   }
                                   return StreamBuilder<List<PostModel>>(
                                     stream: PostService.instance.getUserPosts(

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -15,19 +14,22 @@ import '../profile/profile_screen.dart';
 import 'widgets/more_options_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WavesFeedCard — Premium video-first card for Waves content in Home Feed
+// WavesFeedCard — Premium cinematic video card for Waves in Home Feed
 //
 // • Tall portrait layout with edge-to-edge video
 // • Auto-play when visible, pause when scrolled away
-// • Glassmorphic overlay UI (username, caption, music)
-// • Tap → opens fullscreen Waves viewer
-// • Unique Knockpost identity — NOT an Instagram copy
+// • Three-layer adaptive overlay system for universal readability
+// • Cinematic bottom zone with creator info + actions
+// • Instagram/Reels-style interactions:
+//     Single tap  → toggle sound
+//     Double tap  → like reaction
+//     Long press  → pause video (release → resume)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class WavesFeedCard extends StatefulWidget {
   final PostModel post;
   final UserModel user;
-  /// Tap করলে এই callback call হবে (Waves tab-এ navigate করতে)
+  /// Optional callback (kept for API compatibility)
   final VoidCallback? onTap;
 
   const WavesFeedCard({
@@ -41,27 +43,40 @@ class WavesFeedCard extends StatefulWidget {
   State<WavesFeedCard> createState() => _WavesFeedCardState();
 }
 
-class _WavesFeedCardState extends State<WavesFeedCard>
-    with SingleTickerProviderStateMixin {
+class _WavesFeedCardState extends State<WavesFeedCard> {
   VideoPlayerController? _controller;
   bool _initialized = false;
   bool _isVisible = false;
   bool _isMuted = true;
-  bool _showPlayIcon = false;
   bool _doubleTapped = false;
 
-  late final AnimationController _pulseController;
+  // ── Interaction state ───────────────────────────────────────────────────
+  bool _showSoundIndicator = false;
 
-  // Knockpost monochrome style
-  static const Color _waveAccent = Color(0xFFFFFFFF);
+  // ── Spacing & sizing constants ──────────────────────────────────────────
+  static const double _overlayPaddingH = 16.0;
+  static const double _overlayPaddingBottom = 16.0;
+  static const double _avatarSize = 32.0;
+
+  // ── Text shadow presets ─────────────────────────────────────────────────
+  static const List<Shadow> _strongShadow = [
+    Shadow(color: Color(0xDE000000), blurRadius: 6),
+  ];
+  static const List<Shadow> _mediumShadow = [
+    Shadow(color: Color(0x8A000000), blurRadius: 4),
+  ];
+  static const List<Shadow> _lightShadow = [
+    Shadow(color: Color(0x61000000), blurRadius: 3),
+  ];
+
+  // ── Icon shadow for bare icons on media ─────────────────────────────────
+  static const List<Shadow> _iconShadow = [
+    Shadow(color: Color(0xCC000000), blurRadius: 8),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
     _initVideo();
   }
 
@@ -92,7 +107,6 @@ class _WavesFeedCardState extends State<WavesFeedCard>
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -108,32 +122,22 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     }
   }
 
-  void _toggleMute() {
-    KnockHaptics.tap();
-    setState(() => _isMuted = !_isMuted);
-    _controller?.setVolume(_isMuted ? 0 : 1);
-  }
-
+  // ── Interaction: Single Tap → Toggle Sound ─────────────────────────────
   void _onTap() {
     KnockHaptics.tap();
-    if (widget.onTap != null) {
-      // Waves tab-এ navigate করো
-      widget.onTap!();
-    } else {
-      // Fallback: play/pause toggle
-      if (_controller?.value.isPlaying == true) {
-        _controller?.pause();
-        setState(() => _showPlayIcon = true);
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted) setState(() => _showPlayIcon = false);
-        });
-      } else {
-        _controller?.play();
-        setState(() => _showPlayIcon = false);
-      }
-    }
+    setState(() {
+      _isMuted = !_isMuted;
+      _showSoundIndicator = true;
+    });
+    _controller?.setVolume(_isMuted ? 0 : 1);
+
+    // Brief indicator then fade
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) setState(() => _showSoundIndicator = false);
+    });
   }
 
+  // ── Interaction: Double Tap → Like ─────────────────────────────────────
   void _onDoubleTap() {
     KnockHaptics.impact();
     setState(() => _doubleTapped = true);
@@ -141,6 +145,18 @@ class _WavesFeedCardState extends State<WavesFeedCard>
 
   void _onDoubleTapHandled() {
     setState(() => _doubleTapped = false);
+  }
+
+  // ── Interaction: Long Press → Pause / Release → Resume ─────────────────
+  void _onLongPressStart(LongPressStartDetails details) {
+    KnockHaptics.tap();
+    _controller?.pause();
+  }
+
+  void _onLongPressEnd(LongPressEndDetails details) {
+    if (_isVisible) {
+      _controller?.play();
+    }
   }
 
   void _openProfile() {
@@ -194,59 +210,46 @@ class _WavesFeedCardState extends State<WavesFeedCard>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // ── Video / Thumbnail Background ──
+                // ── Layer 1: Video / Thumbnail ──
                 _buildVideoLayer(),
 
-                // ── Gradient overlays ──
-                _buildGradients(),
+                // ── Layer 2: Adaptive gradient overlays ──
+                _buildGradients(cardHeight),
 
-                // ── Play/Pause indicator ──
-                if (_showPlayIcon)
-                  Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
-                    ),
-                  ),
+                // ── Layer 3: Sound toggle indicator ──
+                _buildSoundIndicator(),
 
-                // ── Tap handler — video area এ tap করলে Waves tab-এ যাবে ──
-                // Bottom overlay-এর আগে রাখা হয়েছে যাতে buttons নিজে tap নিতে পারে
+                // ── Layer 4: Gesture handler (tap/double-tap/long-press) ──
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onTap: _onTap,
                     onDoubleTap: _onDoubleTap,
+                    onLongPressStart: _onLongPressStart,
+                    onLongPressEnd: _onLongPressEnd,
                   ),
                 ),
 
-                // ── "WAVES" badge — top left ──
-                Positioned(top: 14, left: 14, child: _buildWavesBadge()),
-
-                // ── Top Right Buttons ──
+                // ── Layer 5: Top-right three-dot menu (bare icon) ──
                 Positioned(
-                  top: 14,
-                  right: 14,
-                  child: Row(
-                    children: [
-                      _buildMoreOptionsButton(),
-                      const SizedBox(width: 10),
-                      _buildMuteButton(),
-                    ],
+                  top: _overlayPaddingH,
+                  right: _overlayPaddingH,
+                  child: GestureDetector(
+                    onTap: _openMoreOptions,
+                    behavior: HitTestBehavior.opaque,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.more_horiz,
+                        color: Colors.white,
+                        size: 22,
+                        shadows: _iconShadow,
+                      ),
+                    ),
                   ),
                 ),
 
-                // ── Bottom overlay: user + caption + reactions ──
-                // Stack-এর শেষে রাখা হয়েছে তাই এটা সবার উপরে থাকবে
-                // এর ভেতরের comment/share buttons সরাসরি tap পাবে
+                // ── Layer 6: Bottom cinematic overlay ──
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -287,61 +290,84 @@ class _WavesFeedCardState extends State<WavesFeedCard>
       image = Image.network(
         path,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF0A0A0A)),
+        errorBuilder: (context, error, stackTrace) =>
+            Container(color: const Color(0xFF0A0A0A)),
       );
     } else {
       image = Image.file(
         File(path),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF0A0A0A)),
+        errorBuilder: (context, error, stackTrace) =>
+            Container(color: const Color(0xFF0A0A0A)),
       );
     }
 
     return SizedBox.expand(child: image);
   }
 
-  // ── Gradient Overlays ──────────────────────────────────────────────────
-  Widget _buildGradients() {
+  // ── Three-Layer Adaptive Gradient System ─────────────────────────────────
+  Widget _buildGradients(double cardHeight) {
     return IgnorePointer(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Top gradient
+          // Layer 1: Top vignette — ensures control visibility
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: 100,
-            child: Container(
+            height: 120,
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.black.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
+                  stops: const [0.0, 0.55, 1.0],
                 ),
               ),
             ),
           ),
-          // Bottom gradient — stronger for text readability
+
+          // Layer 2: Cinematic bottom gradient — extends high for text readability
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            height: 200,
-            child: Container(
+            height: cardHeight * 0.45,
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.85),
-                    Colors.black.withValues(alpha: 0.4),
+                    Colors.black.withValues(alpha: 0.78),
+                    Colors.black.withValues(alpha: 0.50),
+                    Colors.black.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
-                  stops: const [0.0, 0.55, 1.0],
+                  stops: const [0.0, 0.35, 0.7, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Layer 3: Subtle radial edge vignette — cinematic depth
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 0.9,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.18),
+                  ],
+                  stops: const [0.6, 1.0],
                 ),
               ),
             ),
@@ -351,77 +377,25 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     );
   }
 
-  // ── Waves Badge ────────────────────────────────────────────────────────
-  Widget _buildWavesBadge() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: _waveAccent.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _waveAccent.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  return Icon(
-                    Icons.play_circle_filled_rounded,
-                    color: _waveAccent.withValues(
-                      alpha: 0.7 + _pulseController.value * 0.3,
-                    ),
-                    size: 14,
-                  );
-                },
-              ),
-              const SizedBox(width: 5),
-              const Text(
-                'Wave',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Mute Button ────────────────────────────────────────────────────────
-  Widget _buildMuteButton() {
-    return GestureDetector(
-      onTap: _toggleMute,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+  // ── Sound Toggle Indicator (brief center icon) ──────────────────────────
+  Widget _buildSoundIndicator() {
+    return IgnorePointer(
+      child: Center(
+        child: AnimatedOpacity(
+          opacity: _showSoundIndicator ? 1.0 : 0.0,
+          duration: Duration(milliseconds: _showSoundIndicator ? 150 : 300),
+          curve: Curves.easeOutCubic,
           child: Container(
-            width: 32,
-            height: 32,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: Colors.black.withValues(alpha: 0.45),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
-                width: 0.5,
-              ),
             ),
             child: Icon(
               _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
               color: Colors.white,
-              size: 16,
+              size: 26,
             ),
           ),
         ),
@@ -429,60 +403,39 @@ class _WavesFeedCardState extends State<WavesFeedCard>
     );
   }
 
-  // ── More Options Button ────────────────────────────────────────────────
-  Widget _buildMoreOptionsButton() {
-    return GestureDetector(
-      onTap: () {
-        KnockHaptics.tap();
-        final currentUser = CurrentUserService.instance.currentUser;
-        final isOwner = currentUser != null && widget.post.authorId == currentUser.id;
+  // ── More Options Handler ────────────────────────────────────────────────
+  void _openMoreOptions() {
+    KnockHaptics.tap();
+    final currentUser = CurrentUserService.instance.currentUser;
+    final isOwner =
+        currentUser != null && widget.post.authorId == currentUser.id;
 
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) {
-            return MoreOptionsSheet(
-              userId: widget.user.id,
-              username: widget.user.username,
-              postId: widget.post.id,
-              isReel: true,
-              isOwner: isOwner,
-              postTypeName: 'Wave',
-            );
-          },
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return MoreOptionsSheet(
+          userId: widget.user.id,
+          username: widget.user.username,
+          postId: widget.post.id,
+          isReel: true,
+          isOwner: isOwner,
+          postTypeName: 'Wave',
         );
       },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
-                width: 0.5,
-              ),
-            ),
-            child: const Icon(
-              Icons.more_horiz_rounded,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
-  // ── Bottom Overlay ─────────────────────────────────────────────────────
+  // ── Bottom Cinematic Overlay ────────────────────────────────────────────
   Widget _buildBottomOverlay(bool isDark) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      padding: const EdgeInsets.fromLTRB(
+        _overlayPaddingH,
+        0,
+        _overlayPaddingH,
+        _overlayPaddingBottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -491,34 +444,39 @@ class _WavesFeedCardState extends State<WavesFeedCard>
           if (widget.post.musicTitle != null &&
               widget.post.musicTitle!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 12),
               child: _buildMusicRow(),
             ),
 
-          // User row — tap করলে profile খুলবে
+          // Creator row — tap করলে profile খুলবে
           GestureDetector(
             onTap: _openProfile,
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                // Avatar with wave ring
+                // Avatar with subtle ring
                 Container(
                   padding: const EdgeInsets.all(1.5),
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: [Colors.white70, Colors.white54, Colors.white38],
+                      colors: [
+                        Colors.white70,
+                        Colors.white54,
+                        Colors.white38,
+                      ],
                     ),
                   ),
                   child: Container(
-                    width: 30,
-                    height: 30,
+                    width: _avatarSize,
+                    height: _avatarSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.black, width: 1.5),
                       image: widget.user.avatarAsset != null
                           ? DecorationImage(
-                              image: ImageHelper.resolveImage(widget.user.avatarAsset)!,
+                              image: ImageHelper.resolveImage(
+                                  widget.user.avatarAsset)!,
                               fit: BoxFit.cover,
                             )
                           : null,
@@ -527,31 +485,36 @@ class _WavesFeedCardState extends State<WavesFeedCard>
                         ? const Icon(
                             Icons.person,
                             color: Colors.white54,
-                            size: 16,
+                            size: 17,
                           )
                         : null,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
+                // Creator name
                 Text(
                   widget.user.displayName,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
-                    shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
+                    shadows: _strongShadow,
                   ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  widget.post.relativeTime,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
+                if (widget.user.isOwnProfile) ...[
+                  const SizedBox(width: 6),
+                  // Timestamp — always readable with shadow
+                  Text(
+                    widget.post.relativeTime,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      shadows: _mediumShadow,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -560,15 +523,15 @@ class _WavesFeedCardState extends State<WavesFeedCard>
           // Caption (max 2 lines)
           if (widget.post.text.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 widget.post.text,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
-                  height: 1.35,
-                  shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+                  height: 1.4,
+                  shadows: _mediumShadow,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -601,7 +564,7 @@ class _WavesFeedCardState extends State<WavesFeedCard>
       children: [
         Icon(
           Icons.music_note_rounded,
-          color: _waveAccent.withValues(alpha: 0.8),
+          color: Colors.white.withValues(alpha: 0.7),
           size: 13,
         ),
         const SizedBox(width: 5),
@@ -612,6 +575,7 @@ class _WavesFeedCardState extends State<WavesFeedCard>
               color: Colors.white.withValues(alpha: 0.7),
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
+              shadows: _lightShadow,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
