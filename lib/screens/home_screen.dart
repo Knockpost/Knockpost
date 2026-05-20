@@ -580,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: const Color.fromARGB(0, 196, 196, 196),
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: (isDark || isReelsTab)
             ? Brightness.light
             : Brightness.dark,
@@ -602,9 +602,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _pageController.jumpToPage(0);
           }
         },
-        child: Stack(
-          children: [
-            Scaffold(
+        child: Scaffold(
               backgroundColor: bgColor,
               // extendBody makes the body render BEHIND the bottomNavigationBar
               // so when nav slides away, content is already there — no white gap!
@@ -1180,19 +1178,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
-            // ── SEMI-TRANSPARENT STATUS BAR OVERLAY ─────────────────────
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: MediaQuery.of(context).padding.top,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -3,6 +3,8 @@
     <!-- API 29+ Dark Mode: disable the automatic nav bar contrast scrim -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:statusBarColor">#00000000</item>
+        <item name="android:enforceStatusBarContrast">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:navigationBarColor">#00000000</item>
         <item name="android:enforceNavigationBarContrast">false</item>
