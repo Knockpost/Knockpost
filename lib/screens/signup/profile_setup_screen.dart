@@ -62,11 +62,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             selectedDate ?? DateTime(2000, 1, 1);
 
         return SizedBox(
-          height: 320,
-          child: Column(
-            children: [
+          height: 320 + MediaQuery.of(context).viewPadding.bottom,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+            child: Column(
+              children: [
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
               // Top bar
               Padding(
@@ -250,6 +252,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
 
             ],
+          ),
           ),
         );
       },

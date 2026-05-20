@@ -600,17 +600,16 @@ class _ProfileHeaderState extends State<ProfileHeader> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.55,
-            ),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: divColor),
-            ),
+        return Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.55 + MediaQuery.of(context).viewPadding.bottom,
+          ),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            border: Border(top: BorderSide(color: divColor)),
+          ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -769,7 +768,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 const SizedBox(height: 6),
               ],
             ),
-          ),
         );
       },
     );

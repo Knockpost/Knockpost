@@ -309,7 +309,7 @@ class _ShareSheetState extends State<ShareSheet>
             Padding(
               padding: EdgeInsets.fromLTRB(
                 16, 14, 16,
-                14 + MediaQuery.of(context).viewInsets.bottom,
+                14 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

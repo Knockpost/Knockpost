@@ -150,8 +150,10 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         final screenHeight = MediaQuery.of(context).size.height;
+        final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
         return Container(
-          height: screenHeight * 0.68,
+          height: screenHeight * 0.68 + bottomPadding,
+          padding: EdgeInsets.only(bottom: bottomPadding),
           decoration: BoxDecoration(
             color: sheetBg,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),

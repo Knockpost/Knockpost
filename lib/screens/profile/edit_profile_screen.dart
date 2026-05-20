@@ -172,10 +172,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Column(
+        return Padding(
+          padding: EdgeInsets.only(
+            top: 20,
+            bottom: 20 + MediaQuery.of(context).viewPadding.bottom,
+          ),
+          child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
@@ -249,7 +251,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ],
             ),
-          ),
         );
       },
     );

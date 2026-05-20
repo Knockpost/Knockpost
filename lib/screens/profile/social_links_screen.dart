@@ -121,7 +121,7 @@ class _SocialLinksScreenState extends State<SocialLinksScreen>
             bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+            padding: EdgeInsets.fromLTRB(24, 12, 24, 28 + MediaQuery.of(sheetContext).viewPadding.bottom),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

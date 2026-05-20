@@ -31,7 +31,7 @@ class AudienceSelector extends StatelessWidget {
               _tile(context, "Private"),
               _tile(context, "Custom"),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20 + MediaQuery.of(context).viewPadding.bottom),
             ],
           ),
         );

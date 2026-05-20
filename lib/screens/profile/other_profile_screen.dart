@@ -177,15 +177,14 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) {
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: div),
-            ),
-            child: Column(
+        return Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            border: Border.all(color: div),
+          ),
+          child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 8),
@@ -256,7 +255,6 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                 const SizedBox(height: 8),
               ],
             ),
-          ),
         );
       },
     );

@@ -215,18 +215,17 @@ class _CommentSheetState extends State<CommentSheet> {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: viewInsets),
-      child: SafeArea(
-        top: false,
-        child: FractionallySizedBox(
-          heightFactor: 0.88,
-          child: Container(
-            decoration: BoxDecoration(
-              color: sheetColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28),
-              ),
-              border: Border(top: BorderSide(color: borderColor)),
+      child: FractionallySizedBox(
+        heightFactor: 0.92,
+        child: Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+          decoration: BoxDecoration(
+            color: sheetColor,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(28),
             ),
+            border: Border(top: BorderSide(color: borderColor)),
+          ),
             child: StreamBuilder<List<ReplyThread>>(
               stream: CommentService.instance.getThreadsForPost(
                 postId: widget.postId,
@@ -311,8 +310,7 @@ class _CommentSheetState extends State<CommentSheet> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

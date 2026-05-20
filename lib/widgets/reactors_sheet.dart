@@ -30,7 +30,8 @@ class ReactorsSheet extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.55,
+      height: MediaQuery.of(context).size.height * 0.55 + MediaQuery.of(context).viewPadding.bottom,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
