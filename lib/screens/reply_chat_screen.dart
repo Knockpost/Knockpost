@@ -131,9 +131,12 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
     }
 
     KnockHaptics.impact();
+    final wasFocused = _focusNode.hasFocus;
     widget.onSend(text);
     _controller.clear();
-    _focusNode.requestFocus();
+    if (wasFocused) {
+      _focusNode.requestFocus();
+    }
   }
 
   void _insertQuickReaction(String emoji) {
@@ -151,7 +154,6 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
       text: nextText,
       selection: TextSelection.collapsed(offset: caretOffset),
     );
-    _focusNode.requestFocus();
   }
 
   @override
@@ -196,11 +198,13 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
                 if (widget.messages.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(
+                    child: Align(
+                      alignment: Alignment.topCenter,
                       child: Padding(
-                        padding: const EdgeInsets.only(bottom: 80),
+                        padding: const EdgeInsets.only(top: 130),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Container(
                               width: 72,
@@ -279,13 +283,20 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Quick reactions row — responsive, never wraps
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _QuickReactionsRow(
-                      reactions: _quickReplyReactions,
-                      isDark: isDark,
-                      onTap: _insertQuickReaction,
-                    ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: _isComposerFocused
+                        ? const SizedBox(width: double.infinity, height: 0)
+                        : Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _QuickReactionsRow(
+                              reactions: _quickReplyReactions,
+                              isDark: isDark,
+                              onTap: _insertQuickReaction,
+                            ),
+                          ),
                   ),
 
                   // Input field
