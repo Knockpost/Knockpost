@@ -202,19 +202,38 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.chat_bubble_outline_rounded,
-                              size: 32,
-                              color: subtleColor.withValues(alpha: 0.35),
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 28,
+                                  color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5),
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 20),
                             Text(
                               'Start the conversation',
                               style: TextStyle(
-                                color: subtleColor.withValues(alpha: 0.7),
-                                fontSize: 14,
+                                color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.8),
+                                fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                letterSpacing: -0.2,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Your messages are private',
+                              style: TextStyle(
+                                color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],

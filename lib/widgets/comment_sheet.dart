@@ -221,8 +221,8 @@ class _CommentSheetState extends State<CommentSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final sheetColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final borderColor = isDark
-        ? const Color(0xFF2A2A2A)
-        : const Color(0xFFEAEAEA);
+        ? const Color(0xFF333333).withValues(alpha: 0.5)
+        : const Color(0xFFE5E5E5).withValues(alpha: 0.6);
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final viewPadding = MediaQuery.of(context).viewPadding.bottom;
     // Intercept Android back button: if post owner is in chat, go back to list
@@ -239,31 +239,31 @@ class _CommentSheetState extends State<CommentSheet> {
         heightFactor: 0.78,
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(24),
+          top: Radius.circular(30),
         ),
         child: Container(
           decoration: BoxDecoration(
             color: sheetColor,
             borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(24),
+              top: Radius.circular(30),
             ),
             border: Border(top: BorderSide(color: borderColor)),
           ),
           child: Column(
             children: [
               // ── Drag handle ──
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Container(
-                width: 36,
-                height: 4,
+                width: 42,
+                height: 5,
                 decoration: BoxDecoration(
                   color: isDark
-                      ? const Color(0xFF3A3A3A)
-                      : const Color(0xFFD4D4D4),
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : Colors.black.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               // ── Header ──
               StreamBuilder<List<ReplyThread>>(
@@ -394,7 +394,7 @@ class _SheetHeader extends StatelessWidget {
                 ),
               )
             else
-              const SizedBox(width: 10),
+              SizedBox(width: showListHeader ? 40 : 12),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),

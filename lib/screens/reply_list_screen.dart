@@ -19,7 +19,6 @@ class ReplyListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtleColor = isDark ? const Color(0xFF6E6E6E) : const Color(0xFF9A9A9A);
 
     if (threads.isEmpty) {
       return Center(
@@ -28,19 +27,38 @@ class ReplyListScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.lock_outline_rounded,
-                color: subtleColor.withValues(alpha: 0.4),
-                size: 28,
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.lock_outline_rounded,
+                    color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5),
+                    size: 28,
+                  ),
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               Text(
                 'No replies yet',
                 style: TextStyle(
-                  color: subtleColor.withValues(alpha: 0.7),
-                  fontSize: 14,
+                  color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.8),
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Private replies will appear here',
+                style: TextStyle(
+                  color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
