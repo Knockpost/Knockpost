@@ -12,6 +12,7 @@ import '../../utils/image_helper.dart';
 import '../../services/current_user_service.dart';
 import '../../services/like_service.dart';
 import '../../services/post_service.dart';
+import '../../widgets/knockpost_avatar.dart';
 import 'dart:async';
 
 class WaveItem extends StatefulWidget {
@@ -417,19 +418,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                             ],
                           ),
                         ),
-                        child: CircleAvatar(
+                        child: KnockpostAvatar(
+                          url: widget.author?.avatarAsset,
                           radius: 16,
-                          backgroundColor: Colors.grey.shade900,
-                          backgroundImage: widget.author?.avatarAsset != null
-                              ? ImageHelper.resolveAvatar(widget.author!.avatarAsset)
-                              : null,
-                          child: widget.author?.avatarAsset == null
-                              ? const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 16,
-                                )
-                              : null,
+                          name: widget.author?.displayName,
                         ),
                       ),
 

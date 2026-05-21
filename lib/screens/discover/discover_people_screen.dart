@@ -11,7 +11,7 @@ import '../../services/post_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../../utils/global_dismiss_state.dart';
 import '../../utils/haptic_helper.dart';
-import '../../utils/image_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import '../profile/other_profile_screen.dart';
 import '../profile/widgets/knock_button.dart';
 
@@ -203,13 +203,10 @@ class _DiscoverUserTile extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            CircleAvatar(
+            KnockpostAvatar(
+              url: user.avatarAsset,
               radius: 28,
-              backgroundImage: ImageHelper.resolveImage(user.avatarAsset),
-              backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
-              child: user.avatarAsset == null
-                  ? Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black38)
-                  : null,
+              name: user.displayName,
             ),
             const SizedBox(width: 12),
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/message.dart';
 import '../models/user_model.dart';
-import '../utils/image_helper.dart';
+import 'knockpost_avatar.dart';
 
 class MessageBubble extends StatelessWidget {
   final ReplyMessage message;
@@ -31,33 +31,28 @@ class MessageBubble extends StatelessWidget {
         ? (isDark ? const Color(0xFF333D47) : const Color(0xFFE8EEF3))
         : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2));
     final radius = BorderRadius.only(
-      topLeft: Radius.circular(isUserSide ? 22 : (showSenderMeta ? 22 : 12)),
-      topRight: Radius.circular(isUserSide ? (showSenderMeta ? 22 : 12) : 22),
-      bottomLeft: const Radius.circular(22),
-      bottomRight: const Radius.circular(22),
+      topLeft: Radius.circular(isUserSide ? 20 : (showSenderMeta ? 20 : 10)),
+      topRight: Radius.circular(isUserSide ? (showSenderMeta ? 20 : 10) : 20),
+      bottomLeft: const Radius.circular(20),
+      bottomRight: const Radius.circular(20),
     );
 
-    // Use ImageHelper to handle network URLs, local files, and assets
-    final avatarImage = ImageHelper.resolveImage(sender.avatarAsset);
+    // Responsive max width: 72% of screen width
+    final maxBubbleWidth = MediaQuery.of(context).size.width * 0.72;
 
     Widget buildAvatar() => GestureDetector(
           onTap: onUserTap,
-          child: CircleAvatar(
-            radius: 14,
-            backgroundColor: isDark
-                ? const Color(0xFF2A2A2A)
-                : const Color(0xFFEEEEEE),
-            backgroundImage: avatarImage,
-            child: avatarImage == null
-                ? Icon(Icons.person_rounded, color: subtleColor, size: 16)
-                : null,
+          child: KnockpostAvatar(
+            url: sender.avatarAsset,
+            radius: 13,
+            name: sender.displayName,
           ),
         );
 
     final bubble = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 290),
+      constraints: BoxConstraints(maxWidth: maxBubbleWidth),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: radius,
@@ -76,7 +71,7 @@ class MessageBubble extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(
-        top: showSenderMeta ? 18 : 8,
+        top: showSenderMeta ? 16 : 6,
         bottom: 2,
       ),
       child: Column(
@@ -85,7 +80,7 @@ class MessageBubble extends StatelessWidget {
         children: [
           if (showSenderMeta)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 mainAxisAlignment:
                     isUserSide ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -95,45 +90,45 @@ class MessageBubble extends StatelessWidget {
                           timeLabel,
                           style: TextStyle(
                             color: subtleColor,
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         GestureDetector(
                           onTap: onUserTap,
                           child: Text(
                             sender.username,
                             style: TextStyle(
                               color: textColor,
-                              fontSize: 13,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         buildAvatar(),
                       ]
                     : <Widget>[
                         buildAvatar(),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         GestureDetector(
                           onTap: onUserTap,
                           child: Text(
                             sender.username,
                             style: TextStyle(
                               color: textColor,
-                              fontSize: 13,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         Text(
                           timeLabel,
                           style: TextStyle(
                             color: subtleColor,
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
                         ),

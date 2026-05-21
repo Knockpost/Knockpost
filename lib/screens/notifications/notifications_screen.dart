@@ -8,7 +8,7 @@ import '../../widgets/comment_sheet.dart';
 import '../profile/other_profile_screen.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
-import '../../utils/image_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import '../../services/connection_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/post_model.dart';
@@ -414,15 +414,9 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final img = ImageHelper.resolveImage(url.isNotEmpty ? url : null);
-    return CircleAvatar(
+    return KnockpostAvatar(
+      url: url.isNotEmpty ? url : null,
       radius: 25,
-      backgroundColor:
-          isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-      backgroundImage: img,
-      child: img == null
-          ? Icon(Icons.person, size: 24, color: Colors.grey.shade500)
-          : null,
     );
   }
 }

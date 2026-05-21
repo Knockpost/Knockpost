@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../services/current_user_service.dart';
+import '../../../widgets/knockpost_avatar.dart';
 
 class WaveCommentSheet extends StatefulWidget {
   final String creatorUsername;
@@ -202,17 +204,10 @@ class _WaveCommentSheetState extends State<WaveCommentSheet> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    CircleAvatar(
+                    KnockpostAvatar(
+                      url: CurrentUserService.instance.currentUser?.avatarAsset,
                       radius: 16,
-                      backgroundColor: Colors.blue.shade700,
-                      child: const Text(
-                        'Y',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
+                      name: CurrentUserService.instance.currentUser?.displayName,
                     ),
                     const SizedBox(width: 10),
                     Expanded(

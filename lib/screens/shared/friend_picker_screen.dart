@@ -3,6 +3,7 @@ import '../../models/user_model.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 
 Future<List<String>?> showFriendPickerScreen(
   BuildContext context, {
@@ -281,18 +282,10 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
                               ),
                               const SizedBox(width: 16),
                               // Avatar
-                              CircleAvatar(
+                              KnockpostAvatar(
+                                url: user.avatarAsset,
                                 radius: 22,
-                                backgroundImage: user.avatarAsset != null
-                                    ? AssetImage(user.avatarAsset!)
-                                    : null,
-                                backgroundColor: isDark
-                                    ? Colors.grey.shade900
-                                    : Colors.grey.shade200,
-                                child: user.avatarAsset == null
-                                    ? Icon(Icons.person,
-                                        color: isDark ? Colors.white54 : Colors.black38)
-                                    : null,
+                                name: user.displayName,
                               ),
                               const SizedBox(width: 12),
                               // Name

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/global_knock_state.dart';
 import '../models/post_model.dart';
@@ -7,8 +6,8 @@ import '../screens/profile/other_profile_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
-import '../utils/image_helper.dart';
 import '../services/post_service.dart';
+import 'knockpost_avatar.dart';
 import '../screens/waves/widgets/more_options_sheet.dart';
 
 class PostHeader extends StatefulWidget {
@@ -218,13 +217,10 @@ class _PostHeaderState extends State<PostHeader> {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                CircleAvatar(
+                KnockpostAvatar(
+                  url: user.avatarAsset,
                   radius: 16,
-                  backgroundColor: Colors.grey.shade300,
-                  backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
-                  child: user.avatarAsset == null
-                      ? Icon(Icons.person, size: 18, color: Colors.grey.shade600)
-                      : null,
+                  name: user.displayName,
                 ),
                 const SizedBox(width: 10),
                 Flexible(

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/global_knock_state.dart';
 import '../utils/global_dismiss_state.dart';
@@ -12,7 +11,7 @@ import '../services/post_service.dart';
 import '../services/database_service.dart';
 import '../services/current_user_service.dart';
 import '../services/connection_service.dart';
-import '../utils/image_helper.dart';
+import 'knockpost_avatar.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
@@ -321,17 +320,10 @@ class _SuggestionCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Avatar
-                    CircleAvatar(
+                    KnockpostAvatar(
+                      url: user.avatarAsset,
                       radius: 30,
-                      backgroundImage: ImageHelper.resolveImage(user.avatarAsset),
-                      backgroundColor: isDark
-                          ? const Color(0xFF2A2A2A)
-                          : const Color(0xFFE8E8E8),
-                      child: user.avatarAsset == null
-                          ? Icon(Icons.person,
-                              size: 30,
-                              color: isDark ? Colors.white54 : Colors.black38)
-                          : null,
+                      name: user.displayName,
                     ),
 
                     const SizedBox(height: 10),
@@ -637,10 +629,9 @@ class _MutualFriendsOverlap extends StatelessWidget {
                 color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: CircleAvatar(
+              child: KnockpostAvatar(
+                url: displayAvatars[index],
                 radius: 8,
-                backgroundImage: AssetImage(displayAvatars[index]),
-                backgroundColor: Colors.grey[300],
               ),
             ),
           );

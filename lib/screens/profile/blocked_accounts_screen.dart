@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
-import '../../utils/image_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 
 import '../../services/current_user_service.dart';
@@ -231,10 +231,10 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
+                                  KnockpostAvatar(
+                                    url: user.avatarAsset,
                                     radius: 26,
-                                    backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
-                                    backgroundColor: isDark ? Colors.white10 : Colors.black12,
+                                    name: user.displayName,
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(

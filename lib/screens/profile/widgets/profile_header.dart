@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../models/user_model.dart';
 import '../../../models/post_model.dart';
 import '../../../utils/haptic_helper.dart';
+import '../../../widgets/knockpost_avatar.dart';
 import '../../../utils/image_helper.dart';
 import '../../../services/connection_service.dart';
 import '../../../services/database_service.dart';
@@ -29,6 +30,8 @@ class ProfileHeader extends StatefulWidget {
   final ValueChanged<KnockStatus>? onKnockStatusChanged;
   final bool showBackButton;
   final bool showSettingsButton;
+  /// Real users who knocked this profile (fetched from Firestore).
+  final List<UserModel> knockerUsers;
 
   const ProfileHeader({
     super.key,
@@ -40,6 +43,7 @@ class ProfileHeader extends StatefulWidget {
     this.onKnockStatusChanged,
     this.showBackButton = false,
     this.showSettingsButton = false,
+    this.knockerUsers = const [],
   });
 
   @override
@@ -377,10 +381,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       const SizedBox(height: 18),
                       if (user.isOwnProfile)
                         _buildOwnFriendsRow(context, textColor, isDark)
-                      else if (user.mutualFriendsWhoKnocked.isNotEmpty)
-                        _buildFriendsKnockedRow(user, textColor, isDark),
+                      else if (widget.knockerUsers.isNotEmpty)
+                        _buildFriendsKnockedRow(widget.knockerUsers, textColor, isDark),
                       if (user.isOwnProfile ||
-                          user.mutualFriendsWhoKnocked.isNotEmpty)
+                          widget.knockerUsers.isNotEmpty)
                         const SizedBox(height: 13),
                       if (user.isOwnProfile)
                         Row(
@@ -532,16 +536,15 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     );
   }
 
-  Widget _buildFriendsKnockedRow(UserModel user, Color textColor, bool isDark) {
-    final avatars = user.mutualFriendsWhoKnocked;
+  Widget _buildFriendsKnockedRow(List<UserModel> knockers, Color textColor, bool isDark) {
     // Show up to 3 stacked avatars
-    final shown = avatars.length > 3 ? avatars.sublist(0, 3) : avatars;
+    final shown = knockers.length > 3 ? knockers.sublist(0, 3) : knockers;
     final stackWidth = 16.0 * (shown.length - 1) + 26;
 
     return GestureDetector(
       onTap: () {
         KnockHaptics.selection();
-        _showFriendsKnockedSheet(context, user, isDark);
+        _showFriendsKnockedSheet(context, knockers, isDark);
       },
       behavior: HitTestBehavior.opaque,
       child: Row(
@@ -552,18 +555,40 @@ class _ProfileHeaderState extends State<ProfileHeader> {
             child: Stack(
               children: [
                 for (int i = 0; i < shown.length; i++)
-                  _friendPreviewAvatar(shown[i], i * 16.0, isDark),
+                  Positioned(
+                    left: i * 16.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? Colors.black : Colors.white,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: KnockpostAvatar(
+                        url: shown[i].avatarAsset,
+                        radius: 11,
+                        name: shown[i].displayName,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            'Some people knocked',
-            style: TextStyle(
-              fontSize: 14.5,
-              color: textColor,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.1,
+          Expanded(
+            child: Text(
+              knockers.length == 1
+                  ? '${knockers.first.displayName} knocked'
+                  : '${knockers.first.displayName} and ${knockers.length - 1} other${knockers.length > 2 ? 's' : ''} knocked',
+              style: TextStyle(
+                fontSize: 13.5,
+                color: textColor.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -571,29 +596,11 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     );
   }
 
-  void _showFriendsKnockedSheet(BuildContext context, UserModel user, bool isDark) {
+  void _showFriendsKnockedSheet(BuildContext context, List<UserModel> knockers, bool isDark) {
     final bg = isDark ? const Color(0xFF171717) : Colors.white;
     final divColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEAEAEA);
     final textColor = isDark ? Colors.white : Colors.black;
     final subColor = isDark ? Colors.white54 : Colors.black54;
-
-    // Map avatar assets to demo users for display
-    final List<UserModel> friendsList = [];
-    for (final avatar in user.mutualFriendsWhoKnocked) {
-      // Find a demo user matching this avatar
-      final match = allDemoUsers.where((u) => u.avatarAsset == avatar).toList();
-      if (match.isNotEmpty && !friendsList.any((f) => f.id == match.first.id)) {
-        friendsList.add(match.first);
-      } else {
-        // Fallback: create a placeholder user from the avatar
-        friendsList.add(UserModel(
-          id: 'friend_${friendsList.length}',
-          displayName: 'KnockPost User',
-          username: 'user.${friendsList.length + 1}',
-          avatarAsset: avatar,
-        ));
-      }
-    }
 
     showModalBottomSheet<void>(
       context: context,
@@ -646,7 +653,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          '${friendsList.length}',
+                          '${knockers.length}',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -663,9 +670,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     shrinkWrap: true,
-                    itemCount: friendsList.length,
+                    itemCount: knockers.length,
                     itemBuilder: (ctx, index) {
-                      final friend = friendsList[index];
+                      final friend = knockers[index];
                       return InkWell(
                         onTap: () {
                           KnockHaptics.tap();
@@ -697,19 +704,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                     width: 1.5,
                                   ),
                                 ),
-                                child: CircleAvatar(
+                                child: KnockpostAvatar(
+                                  url: friend.avatarAsset,
                                   radius: 22,
-                                  backgroundColor: isDark
-                                      ? const Color(0xFF2A2A2A)
-                                      : const Color(0xFFEEEEEE),
-                                  backgroundImage: friend.avatarAsset != null
-                                      ? (friend.avatarAsset!.startsWith('assets/')
-                                          ? AssetImage(friend.avatarAsset!) as ImageProvider
-                                          : FileImage(File(friend.avatarAsset!)))
-                                      : null,
-                                  child: friend.avatarAsset == null
-                                      ? Icon(Icons.person, size: 20, color: Colors.grey.shade500)
-                                      : null,
+                                  name: friend.displayName,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -927,26 +925,10 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar> {
           width: borderWidth,
         ),
       ),
-      child: CircleAvatar(
+      child: KnockpostAvatar(
+        url: user.avatarAsset,
         radius: widget.radius,
-        backgroundColor: widget.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-        backgroundImage: user.avatarAsset != null
-            ? (user.avatarAsset!.startsWith('assets/')
-                  ? AssetImage(user.avatarAsset!) as ImageProvider
-                  : user.avatarAsset!.startsWith('http')
-                      ? NetworkImage(user.avatarAsset!) as ImageProvider
-                      : FileImage(File(user.avatarAsset!)))
-            : null,
-        child: user.avatarAsset == null
-            ? Text(
-                user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                style: TextStyle(
-                  fontSize: widget.radius * 0.74,
-                  fontWeight: FontWeight.w700,
-                  color: widget.isDark ? Colors.white70 : Colors.black54,
-                ),
-              )
-            : null,
+        name: user.displayName,
       ),
     );
   }
@@ -1054,24 +1036,10 @@ class _ZoomOverlayState extends State<_ZoomOverlay> with SingleTickerProviderSta
           width: borderWidth,
         ),
       ),
-      child: CircleAvatar(
+      child: KnockpostAvatar(
+        url: user.avatarAsset,
         radius: widget.radius,
-        backgroundColor: widget.isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-        backgroundImage: user.avatarAsset != null
-            ? (user.avatarAsset!.startsWith('assets/')
-                  ? AssetImage(user.avatarAsset!) as ImageProvider
-                  : FileImage(File(user.avatarAsset!)))
-            : null,
-        child: user.avatarAsset == null
-            ? Text(
-                user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                style: TextStyle(
-                  fontSize: widget.radius * 0.74,
-                  fontWeight: FontWeight.w700,
-                  color: widget.isDark ? Colors.white70 : Colors.black54,
-                ),
-              )
-            : null,
+        name: user.displayName,
       ),
     );
   }

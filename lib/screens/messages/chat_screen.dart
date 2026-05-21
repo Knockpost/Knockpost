@@ -17,6 +17,7 @@ import '../../services/storage_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
+import '../../widgets/knockpost_avatar.dart';
 import 'media_preview_screen.dart';
 import 'widgets/post_message_preview.dart';
 
@@ -124,26 +125,11 @@ class _ChatScreenState extends State<ChatScreen> {
     return "Active ${diff.inDays}d ago";
   }
 
-  Widget _buildAvatar(String url, {required double radius}) {
-    ImageProvider? img;
-    if (url.isNotEmpty) {
-      if (url.startsWith('http')) {
-        img = NetworkImage(url);
-      } else if (url.startsWith('assets/')) {
-        img = AssetImage(url);
-      } else {
-        img = FileImage(File(url));
-      }
-    }
-    return CircleAvatar(
+  Widget _buildAvatar(String? url, {required double radius, String? name}) {
+    return KnockpostAvatar(
+      url: url,
       radius: radius,
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF2A2A2A)
-          : const Color(0xFFEEEEEE),
-      backgroundImage: img,
-      child: img == null
-          ? Icon(Icons.person, size: radius * 1.5, color: Colors.grey.shade500)
-          : null,
+      name: name,
     );
   }
 
@@ -347,6 +333,7 @@ class _ChatScreenState extends State<ChatScreen> {
         case 'profile':
           Navigator.push(context, MaterialPageRoute(
               builder: (_) => MessageInfoScreen(
+              userId: widget.otherUser.id,
               userName: widget.otherUser.displayName,
               userAvatar: widget.otherUser.avatarAsset ?? '',
               userUsername: widget.otherUser.username,
@@ -583,12 +570,13 @@ class _ChatScreenState extends State<ChatScreen> {
       title: GestureDetector(
         onTap: () => Navigator.push(context,
             MaterialPageRoute(builder: (_) => MessageInfoScreen(
+              userId: widget.otherUser.id,
               userName: widget.otherUser.displayName,
               userAvatar: widget.otherUser.avatarAsset ?? '',
               userUsername: widget.otherUser.username,
             ))),
         child: Row(children: [
-          _buildAvatar(widget.otherUser.avatarAsset ?? '', radius: 18),
+          _buildAvatar(widget.otherUser.avatarAsset, radius: 18, name: widget.otherUser.displayName),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.otherUser.displayName, style: TextStyle(
@@ -677,7 +665,10 @@ class _ChatScreenState extends State<ChatScreen> {
     final avatarAsset = isMe
         ? CurrentUserService.instance.currentUser?.avatarAsset ?? ''
         : widget.otherUser.avatarAsset ?? '';
-    final avatar = _buildAvatar(avatarAsset, radius: 14);
+    final avatarName = isMe
+        ? CurrentUserService.instance.currentUser?.displayName
+        : widget.otherUser.displayName;
+    final avatar = _buildAvatar(avatarAsset, radius: 14, name: avatarName);
 
     return _FastLongPressTile(
       onFastLongPress: (pos) {
@@ -754,7 +745,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 6),
-          _buildAvatar(AuthService.instance.currentUser?.photoURL ?? '', radius: 14),
+          _buildAvatar(AuthService.instance.currentUser?.photoURL, radius: 14),
         ],
       ),
     );

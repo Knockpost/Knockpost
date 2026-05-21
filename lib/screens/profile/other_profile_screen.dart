@@ -44,6 +44,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   late TabController _tabController;
   late UserModel _user;
   List<PostModel> _posts = [];
+  List<UserModel> _knockerUsers = [];
 
   @override
   void initState() {
@@ -75,6 +76,26 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
         GlobalKnockState.getNotifier(_user.id, status).value = status;
       }
     });
+
+    // Fetch people who knocked this profile
+    _loadKnockers();
+  }
+
+  Future<void> _loadKnockers() async {
+    try {
+      final uids = await ConnectionService.instance.getKnockerUids(_user.id);
+      if (uids.isEmpty || !mounted) return;
+
+      final results = await Future.wait(
+        uids.map((uid) => DatabaseService.instance.getUserById(uid)),
+      );
+      final users = results.whereType<UserModel>().toList();
+      if (mounted && users.isNotEmpty) {
+        setState(() => _knockerUsers = users);
+      }
+    } catch (e) {
+      debugPrint('OtherProfileScreen._loadKnockers error: $e');
+    }
   }
 
   @override
@@ -305,6 +326,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                           onSettingsTap: _showProfileActions,
                           onKnockStatusChanged: _updateKnockStatus,
                           onMessageTap: _openChat,
+                          knockerUsers: _knockerUsers,
                         ),
                       ),
 

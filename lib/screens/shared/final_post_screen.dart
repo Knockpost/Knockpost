@@ -8,6 +8,7 @@ import '../../services/post_service.dart';
 import '../../services/current_user_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/image_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import '../profile/profile_screen.dart';
 import 'music_picker_screen.dart';
 import 'post_settings_sheet.dart';
@@ -592,18 +593,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                                 );
                               }
                             },
-                            child: CircleAvatar(
+                            child: KnockpostAvatar(
+                              url: CurrentUserService.instance.currentUser?.avatarAsset,
                               radius: 18,
-                              backgroundColor: isDark
-                                  ? const Color(0xFF2A2A2A)
-                                  : const Color(0xFFEEEEEE),
-                              backgroundImage: CurrentUserService.instance.currentUser?.avatarAsset != null
-                                  ? ImageHelper.resolveAvatar(CurrentUserService.instance.currentUser!.avatarAsset)
-                                  : null,
-                              child: CurrentUserService.instance.currentUser?.avatarAsset == null
-                                  ? Icon(Icons.person, size: 20,
-                                      color: isDark ? Colors.white54 : Colors.black38)
-                                  : null,
+                              name: CurrentUserService.instance.currentUser?.displayName,
                             ),
                           ),
                           const SizedBox(width: 12),

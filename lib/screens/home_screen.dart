@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/global_post_state.dart';
 import '../utils/image_helper.dart';
+import '../widgets/knockpost_avatar.dart';
 
 import '../models/post_model.dart';
 import '../models/user_model.dart';
@@ -191,25 +192,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueListenable:
                             CurrentUserService.instance.userNotifier,
                         builder: (context, currentUser, _) {
-                          return CircleAvatar(
+                          return KnockpostAvatar(
+                            url: currentUser?.avatarAsset,
                             radius: 21,
-                            backgroundColor: isDark
-                                ? const Color(0xFF2A2A2A)
-                                : const Color(0xFFE0E0E0),
-                            backgroundImage: currentUser?.avatarAsset != null
-                                ? ImageHelper.resolveImage(
-                                    currentUser!.avatarAsset!,
-                                  )
-                                : null,
-                            child: currentUser?.avatarAsset == null
-                                ? Icon(
-                                    Icons.person_rounded,
-                                    size: 22,
-                                    color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
-                                  )
-                                : null,
+                            name: currentUser?.displayName,
                           );
                         },
                       ),

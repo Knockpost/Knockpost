@@ -6,7 +6,7 @@ import '../utils/haptic_helper.dart';
 import '../services/like_service.dart';
 import '../services/current_user_service.dart';
 import '../services/database_service.dart';
-import '../utils/image_helper.dart';
+import '../widgets/knockpost_avatar.dart';
 
 class ReactorsSheet extends StatelessWidget {
   final String postId;
@@ -175,12 +175,10 @@ class _ReactorTile extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                CircleAvatar(
+                KnockpostAvatar(
+                  url: user.avatarAsset,
                   radius: 24,
-                  backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
-                  child: user.avatarAsset == null
-                      ? const Icon(Icons.person)
-                      : null,
+                  name: user.displayName,
                 ),
                 Positioned(
                   right: -4,

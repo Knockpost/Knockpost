@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../models/post_model.dart';
@@ -14,7 +12,7 @@ import '../services/current_user_service.dart';
 import '../services/database_service.dart';
 import '../models/message.dart';
 import '../utils/haptic_helper.dart';
-import '../utils/image_helper.dart';
+import 'knockpost_avatar.dart';
 
 class CommentSheet extends StatefulWidget {
   final String postId;
@@ -42,6 +40,7 @@ class CommentSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (_) => CommentSheet(
         postId: postId,
         postAuthor: postAuthor,
@@ -128,18 +127,18 @@ class _CommentSheetState extends State<CommentSheet> {
 
     await _pageController.animateToPage(
       1,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutQuart,
     );
   }
 
-  Future<void> _closeThread() async {
-    KnockHaptics.tap();
+  Future<void> _closeThread({bool haptic = true}) async {
+    if (haptic) KnockHaptics.tap();
     setState(() => _showChatPage = false);
     await _pageController.animateToPage(
       0,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutQuart,
     );
     if (!mounted) return;
     setState(() => _selectedThreadUserId = null);
@@ -182,7 +181,7 @@ class _CommentSheetState extends State<CommentSheet> {
           lastTimestamp: DateTime.now(),
         );
 
-    return StreamBuilder<List<ReplyMessage>>(
+    Widget chatWidget = StreamBuilder<List<ReplyMessage>>(
       stream: CommentService.instance.getMessagesForThread(
         postId: widget.postId,
         threadUserId: threadUserId,
@@ -200,117 +199,158 @@ class _CommentSheetState extends State<CommentSheet> {
         );
       },
     );
+
+    // Post owners can swipe right to go back to reply list
+    if (widget.isPostOwner) {
+      chatWidget = GestureDetector(
+        onHorizontalDragEnd: (details) {
+          // Swipe right (positive velocity) → go back to list
+          if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
+            _closeThread();
+          }
+        },
+        child: chatWidget,
+      );
+    }
+
+    return chatWidget;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
     final sheetColor = isDark ? const Color(0xFF1A1A1A) : Colors.white;
     final borderColor = isDark
         ? const Color(0xFF2A2A2A)
         : const Color(0xFFEAEAEA);
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final viewPadding = MediaQuery.of(context).viewPadding.bottom;
+    // Intercept Android back button: if post owner is in chat, go back to list
+    final interceptBack = widget.isPostOwner && _showChatPage;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: viewInsets),
+    return PopScope(
+      canPop: !interceptBack,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && interceptBack) {
+          _closeThread(haptic: false);
+        }
+      },
       child: FractionallySizedBox(
-        heightFactor: 0.92,
+        heightFactor: 0.78,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
         child: Container(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
           decoration: BoxDecoration(
             color: sheetColor,
             borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(28),
+              top: Radius.circular(24),
             ),
             border: Border(top: BorderSide(color: borderColor)),
           ),
-            child: StreamBuilder<List<ReplyThread>>(
-              stream: CommentService.instance.getThreadsForPost(
-                postId: widget.postId,
-                currentUserId: _viewer.id,
-                isPostOwner: widget.isPostOwner,
+          child: Column(
+            children: [
+              // ── Drag handle ──
+              const SizedBox(height: 10),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF3A3A3A)
+                      : const Color(0xFFD4D4D4),
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
-              builder: (context, snapshot) {
-                final threads = snapshot.data ?? [];
+              const SizedBox(height: 8),
 
-                // Pre-fetch all thread user profiles into cache when threads arrive
-                for (final t in threads) {
-                  _fetchAndCacheUser(t.userId);
-                }
+              // ── Header ──
+              StreamBuilder<List<ReplyThread>>(
+                stream: CommentService.instance.getThreadsForPost(
+                  postId: widget.postId,
+                  currentUserId: _viewer.id,
+                  isPostOwner: widget.isPostOwner,
+                ),
+                builder: (context, snapshot) {
+                  final threads = snapshot.data ?? [];
 
-                ReplyThread? activeThread;
-                if (_selectedThreadUserId != null) {
-                  try {
-                    activeThread = threads.firstWhere(
-                      (t) => t.userId == _selectedThreadUserId,
-                    );
-                  } catch (e) {
-                    activeThread = null;
+                  // Pre-fetch all thread user profiles into cache when threads arrive
+                  for (final t in threads) {
+                    _fetchAndCacheUser(t.userId);
                   }
-                }
 
-                UserModel? activePartner;
-                if (_showChatPage && _selectedThreadUserId != null) {
-                  activePartner = widget.isPostOwner
-                      ? _resolveUser(_selectedThreadUserId!)
-                      : widget.postAuthor;
-                }
+                  ReplyThread? activeThread;
+                  if (_selectedThreadUserId != null) {
+                    try {
+                      activeThread = threads.firstWhere(
+                        (t) => t.userId == _selectedThreadUserId,
+                      );
+                    } catch (e) {
+                      activeThread = null;
+                    }
+                  }
 
-                return Column(
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF3A3A3A)
-                            : const Color(0xFFDADADA),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                  UserModel? activePartner;
+                  if (_showChatPage && _selectedThreadUserId != null) {
+                    activePartner = widget.isPostOwner
+                        ? _resolveUser(_selectedThreadUserId!)
+                        : widget.postAuthor;
+                  }
+
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        _SheetHeader(
+                          showListHeader: widget.isPostOwner && !_showChatPage,
+                          participant: _showChatPage ? activePartner : null,
+                          onParticipantTap: _showChatPage && activePartner != null
+                              ? () => _openProfile(activePartner!)
+                              : null,
+                          onBack: widget.isPostOwner && _showChatPage
+                              ? _closeThread
+                              : null,
+                        ),
+                        Divider(height: 1, color: borderColor),
+                        Expanded(
+                          child: widget.isPostOwner
+                              ? PageView(
+                                  controller: _pageController,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  children: [
+                                    ReplyListScreen(
+                                      threads: threads,
+                                      resolveUser: _resolveUser,
+                                      onThreadTap: _openThread,
+                                    ),
+                                    _selectedThreadUserId == null
+                                        ? const SizedBox.shrink()
+                                        : _buildChatPage(
+                                            _selectedThreadUserId!,
+                                            activeThread,
+                                          ),
+                                  ],
+                                )
+                              : _buildChatPage(_viewer.id, activeThread),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
-                    _SheetHeader(
-                      showListHeader: widget.isPostOwner && !_showChatPage,
-                      participant: _showChatPage ? activePartner : null,
-                      onParticipantTap: _showChatPage && activePartner != null
-                          ? () => _openProfile(activePartner!)
-                          : null,
-                      onBack: widget.isPostOwner && _showChatPage
-                          ? _closeThread
-                          : null,
-                    ),
-                    Divider(height: 1, color: borderColor),
-                    Expanded(
-                      child: widget.isPostOwner
-                          ? PageView(
-                              controller: _pageController,
-                              physics: const NeverScrollableScrollPhysics(),
-                              children: [
-                                ReplyListScreen(
-                                  threads: threads,
-                                  resolveUser: _resolveUser,
-                                  onThreadTap: _openThread,
-                                ),
-                                _selectedThreadUserId == null
-                                    ? const SizedBox.shrink()
-                                    : _buildChatPage(
-                                        _selectedThreadUserId!,
-                                        activeThread,
-                                      ),
-                              ],
-                            )
-                          : _buildChatPage(_viewer.id, activeThread),
-                    ),
-                  ],
-                );
-              },
-            ),
+                  );
+                },
+              ),
+
+              // ── Bottom safe area + keyboard spacing ──
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                height: viewInsets > 0 ? viewInsets : viewPadding,
+              ),
+            ],
           ),
         ),
-      );
+      ),
+      ),
+    );
   }
 }
 
@@ -336,24 +376,25 @@ class _SheetHeader extends StatelessWidget {
         : const Color(0xFF757575);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: SizedBox(
-        height: 46,
+        height: 44,
         child: Row(
           children: [
-            SizedBox(
-              width: 40,
-              child: onBack == null
-                  ? null
-                  : IconButton(
-                      onPressed: onBack,
-                      icon: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 18,
-                        color: textColor,
-                      ),
-                    ),
-            ),
+            if (onBack != null)
+              SizedBox(
+                width: 40,
+                child: IconButton(
+                  onPressed: onBack,
+                  icon: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: textColor,
+                  ),
+                ),
+              )
+            else
+              const SizedBox(width: 10),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
@@ -366,9 +407,9 @@ class _SheetHeader extends StatelessWidget {
                           'Replies',
                           style: TextStyle(
                             color: textColor,
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
+                            letterSpacing: -0.3,
                           ),
                         ),
                       )
@@ -382,7 +423,7 @@ class _SheetHeader extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               _HeaderAvatar(user: participant),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   participant?.username ?? 'Replies',
@@ -391,7 +432,7 @@ class _SheetHeader extends StatelessWidget {
                                   textAlign: TextAlign.left,
                                   style: TextStyle(
                                     color: textColor,
-                                    fontSize: 15.5,
+                                    fontSize: 17,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -406,7 +447,7 @@ class _SheetHeader extends StatelessWidget {
               width: 40,
               child: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(Icons.close_rounded, color: subtleColor),
+                icon: Icon(Icons.close_rounded, color: subtleColor, size: 22),
               ),
             ),
           ],
@@ -423,20 +464,10 @@ class _HeaderAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtleColor = isDark
-        ? const Color(0xFF9A9A9A)
-        : const Color(0xFF757575);
-
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: isDark
-          ? const Color(0xFF2A2A2A)
-          : const Color(0xFFEEEEEE),
-      backgroundImage: ImageHelper.resolveAvatar(user?.avatarAsset),
-      child: user?.avatarAsset == null
-          ? Icon(Icons.person_rounded, size: 18, color: subtleColor)
-          : null,
+    return KnockpostAvatar(
+      url: user?.avatarAsset,
+      radius: 15,
+      name: user?.displayName,
     );
   }
 }

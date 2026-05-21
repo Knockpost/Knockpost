@@ -9,6 +9,7 @@ import '../../services/connection_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../profile/widgets/knock_button.dart';
 import '../../widgets/knockpost_refresh.dart';
+import '../../widgets/knockpost_avatar.dart';
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -249,29 +250,10 @@ class _UserResultTileState extends State<_UserResultTile> {
   }
 
   Widget _buildAvatar() {
-    final isDark = widget.isDark;
-    final avatar = widget.user.avatarAsset;
-
-    ImageProvider? imageProvider;
-    if (avatar != null && avatar.isNotEmpty) {
-      if (avatar.startsWith('http')) {
-        imageProvider = NetworkImage(avatar);
-      } else {
-        imageProvider = AssetImage(avatar);
-      }
-    }
-
-    return CircleAvatar(
+    return KnockpostAvatar(
+      url: widget.user.avatarAsset,
       radius: 22,
-      backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
-      backgroundImage: imageProvider,
-      child: imageProvider == null
-          ? Icon(
-              Icons.person,
-              size: 22,
-              color: isDark ? Colors.grey[600] : Colors.grey[500],
-            )
-          : null,
+      name: widget.user.displayName,
     );
   }
 

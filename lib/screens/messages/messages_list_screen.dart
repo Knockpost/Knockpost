@@ -11,6 +11,7 @@ import '../../utils/haptic_helper.dart';
 import '../../widgets/knockpost_refresh.dart';
 import 'chat_screen.dart';
 import 'new_message_screen.dart';
+import '../../widgets/knockpost_avatar.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -249,7 +250,7 @@ class _ChatRoomTile extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                _Avatar(url: avatarUrl, isDark: isDark),
+                KnockpostAvatar(url: avatarUrl, radius: 26, name: name),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -337,35 +338,8 @@ class _ChatRoomTile extends StatelessWidget {
 // Avatar helper
 // ─────────────────────────────────────────────
 
-class _Avatar extends StatelessWidget {
-  final String url;
-  final bool isDark;
-  const _Avatar({required this.url, required this.isDark});
+// _Avatar removed — using KnockpostAvatar directly
 
-  @override
-  Widget build(BuildContext context) {
-    ImageProvider? img;
-    if (url.isNotEmpty) {
-      if (url.startsWith('http')) {
-        img = NetworkImage(url);
-      } else if (url.startsWith('assets/')) {
-        img = AssetImage(url);
-      } else {
-        img = FileImage(File(url));
-      }
-    }
-    return CircleAvatar(
-      radius: 26,
-      backgroundColor:
-          isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-      backgroundImage: img,
-      child: img == null
-          ? Icon(Icons.person,
-              size: 24, color: Colors.grey.shade500)
-          : null,
-    );
-  }
-}
 
 // ─────────────────────────────────────────────
 // New Message Icon

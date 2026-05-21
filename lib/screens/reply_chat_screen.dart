@@ -98,6 +98,12 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
   void _onFocusChanged() {
     if (_focusNode.hasFocus != _isComposerFocused) {
       setState(() => _isComposerFocused = _focusNode.hasFocus);
+      // Auto-scroll to bottom when keyboard opens
+      if (_focusNode.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _jumpToBottom(animated: true);
+        });
+      }
     }
   }
 
@@ -110,7 +116,7 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
     if (animated) {
       _scrollController.animateTo(
         offset,
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
     } else {
@@ -155,8 +161,6 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
     final subtleColor = isDark ? const Color(0xFF9A9A9A) : const Color(0xFF757575);
     final composerSurface = isDark ? const Color(0xFF141414) : Colors.white;
     final composerBorder = isDark ? const Color(0xFF252525) : const Color(0xFFF1F1F1);
-    final reactionButtonFill =
-        isDark ? const Color(0xFF202020) : const Color(0xFFF5F5F5);
     final inputFill = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
     final inputBorderColor = _isComposerFocused
         ? (isDark ? const Color(0xFF414141) : const Color(0xFFDDDDDD))
@@ -170,54 +174,47 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
         ? widget.threadUser
         : widget.author;
     final noticeText =
-        'Only you and @${otherParticipant.username} can view these replies.';
+        'Private to you and @${otherParticipant.username}';
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Column(
         children: [
+          // ── Messages area ──
           Expanded(
             child: CustomScrollView(
               key: PageStorageKey<String>('reply-chat-${widget.thread.id}'),
               controller: _scrollController,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               slivers: [
+                // Privacy notice
                 SliverToBoxAdapter(
                   child: _PrivacyNotice(text: noticeText),
                 ),
+
+                // Empty state or messages
                 if (widget.messages.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        padding: const EdgeInsets.only(bottom: 80),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.chat_bubble_outline_rounded,
-                              size: 44,
-                              color: subtleColor.withValues(alpha: 0.65),
+                              size: 32,
+                              color: subtleColor.withValues(alpha: 0.35),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             Text(
-                              'This private thread starts with the first reply.',
-                              textAlign: TextAlign.center,
+                              'Start the conversation',
                               style: TextStyle(
-                                color: textColor,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Say something about the post and the conversation stays only between the author and this user.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: subtleColor,
-                                fontSize: 13.5,
-                                height: 1.45,
-                                fontWeight: FontWeight.w500,
+                                color: subtleColor.withValues(alpha: 0.7),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2,
                               ),
                             ),
                           ],
@@ -227,7 +224,7 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 18),
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 14),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate.fixed([
                         for (int index = 0; index < widget.messages.length; index++) ...[
@@ -250,38 +247,33 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
               ],
             ),
           ),
+
+          // ── Composer area ──
           Container(
             decoration: BoxDecoration(
               color: composerSurface,
               border: Border(top: BorderSide(color: composerBorder)),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Quick reactions row — responsive, never wraps
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          for (final emoji in _quickReplyReactions)
-                            _QuickReactionButton(
-                              emoji: emoji,
-                              fillColor: reactionButtonFill,
-                              onTap: () => _insertQuickReaction(emoji),
-                            ),
-                        ],
-                      ),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _QuickReactionsRow(
+                      reactions: _quickReplyReactions,
+                      isDark: isDark,
+                      onTap: _insertQuickReaction,
                     ),
                   ),
+
+                  // Input field
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.fromLTRB(16, 5, 6, 5),
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.fromLTRB(14, 4, 5, 4),
                     decoration: BoxDecoration(
                       color: inputFill,
                       borderRadius: BorderRadius.circular(24),
@@ -318,9 +310,10 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
                         GestureDetector(
                           onTap: _hasText ? _sendMessage : null,
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            width: 40,
-                            height: 40,
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutCubic,
+                            width: 38,
+                            height: 38,
                             decoration: BoxDecoration(
                               color: _hasText ? sendButtonActive : sendButtonIdle,
                               shape: BoxShape.circle,
@@ -418,36 +411,132 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
   }
 }
 
-class _QuickReactionButton extends StatelessWidget {
-  final String emoji;
-  final Color fillColor;
-  final VoidCallback onTap;
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick Reactions Row — responsive, never wraps
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _QuickReactionButton({
-    required this.emoji,
-    required this.fillColor,
+class _QuickReactionsRow extends StatelessWidget {
+  final List<String> reactions;
+  final bool isDark;
+  final ValueChanged<String> onTap;
+
+  const _QuickReactionsRow({
+    required this.reactions,
+    required this.isDark,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Ink(
-          width: 46,
-          height: 46,
+    final fillColor = isDark ? const Color(0xFF202020) : const Color(0xFFF5F5F5);
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Calculate button size: available width / count, with min/max constraints
+    const horizontalPadding = 14.0 * 2; // parent padding
+    final availableWidth = screenWidth - horizontalPadding;
+    const spacing = 8.0;
+    final totalSpacing = spacing * (reactions.length - 1);
+    final rawSize = (availableWidth - totalSpacing) / reactions.length;
+    final buttonSize = rawSize.clamp(36.0, 46.0);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 0; i < reactions.length; i++) ...[
+          if (i > 0) const SizedBox(width: spacing),
+          _QuickReactionButton(
+            emoji: reactions[i],
+            fillColor: fillColor,
+            size: buttonSize,
+            onTap: () => onTap(reactions[i]),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _QuickReactionButton extends StatefulWidget {
+  final String emoji;
+  final Color fillColor;
+  final double size;
+  final VoidCallback onTap;
+
+  const _QuickReactionButton({
+    required this.emoji,
+    required this.fillColor,
+    required this.size,
+    required this.onTap,
+  });
+
+  @override
+  State<_QuickReactionButton> createState() => _QuickReactionButtonState();
+}
+
+class _QuickReactionButtonState extends State<_QuickReactionButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scaleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+      value: 0.0,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) {
+    _scaleController.forward();
+  }
+
+  void _onTapUp(TapUpDetails _) {
+    _scaleController.reverse();
+    widget.onTap();
+  }
+
+  void _onTapCancel() {
+    _scaleController.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Emoji font size scales with button size
+    final emojiSize = widget.size * 0.52;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedBuilder(
+        animation: _scaleController,
+        builder: (context, child) {
+          final scale = 1.0 - (_scaleController.value * 0.12);
+          return Transform.scale(
+            scale: scale,
+            child: child,
+          );
+        },
+        child: Container(
+          width: widget.size,
+          height: widget.size,
           decoration: BoxDecoration(
-            color: fillColor,
+            color: widget.fillColor,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: Text(
-              emoji,
-              style: const TextStyle(
-                fontSize: 25,
+              widget.emoji,
+              style: TextStyle(
+                fontSize: emojiSize,
                 height: 1,
               ),
             ),
@@ -457,6 +546,10 @@ class _QuickReactionButton extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Day Divider
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _DayDivider extends StatelessWidget {
   final String label;
@@ -470,10 +563,10 @@ class _DayDivider extends StatelessWidget {
     final fillColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
           decoration: BoxDecoration(
             color: fillColor,
             borderRadius: BorderRadius.circular(999),
@@ -482,8 +575,9 @@ class _DayDivider extends StatelessWidget {
             label,
             style: TextStyle(
               color: textColor,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
             ),
           ),
         ),
@@ -491,6 +585,10 @@ class _DayDivider extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Privacy Notice — minimal
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _PrivacyNotice extends StatelessWidget {
   final String text;
@@ -500,40 +598,36 @@ class _PrivacyNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtleColor = isDark ? const Color(0xFF9A9A9A) : const Color(0xFF757575);
+    final subtleColor = isDark
+        ? const Color(0xFF6E6E6E)
+        : const Color(0xFF9A9A9A);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 12, 28, 10),
+      padding: const EdgeInsets.fromLTRB(28, 14, 28, 6),
       child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
-          child: Text.rich(
-            TextSpan(
-              children: [
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(
-                      Icons.lock_outline_rounded,
-                      size: 14,
-                      color: subtleColor.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ),
-                TextSpan(
-                  text: text,
-                  style: TextStyle(
-                    color: subtleColor,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 12,
+              color: subtleColor,
             ),
-            textAlign: TextAlign.center,
-          ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: subtleColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );

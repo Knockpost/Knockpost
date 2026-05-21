@@ -292,4 +292,21 @@ class ConnectionService {
           return mutuals;
         });
   }
+
+  /// Fetch UIDs of all people who knocked a specific user (accepted knocks only).
+  /// Returns user IDs whose knock to [targetUid] has status 'accepted'.
+  Future<List<String>> getKnockerUids(String targetUid) async {
+    try {
+      final snap = await _col
+          .where('toUid', isEqualTo: targetUid)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+      return snap.docs
+          .map((d) => (d.data() as Map)['fromUid'] as String)
+          .toList();
+    } catch (e) {
+      debugPrint('ConnectionService.getKnockerUids error: $e');
+      return [];
+    }
+  }
 }

@@ -1,21 +1,110 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
-import '../../widgets/people_suggestion_strip.dart';
 import '../profile/other_profile_screen.dart';
+import '../../services/database_service.dart';
 import '../../services/post_service.dart';
+import '../../widgets/knockpost_avatar.dart';
 
-class MessageInfoScreen extends StatelessWidget {
+class MessageInfoScreen extends StatefulWidget {
+  /// The real Firebase UID of the other chat participant.
+  final String userId;
   final String userName;
   final String userAvatar;
   final String userUsername;
 
   const MessageInfoScreen({
     super.key,
+    required this.userId,
     required this.userName,
     required this.userAvatar,
     required this.userUsername,
   });
+
+  @override
+  State<MessageInfoScreen> createState() => _MessageInfoScreenState();
+}
+
+class _MessageInfoScreenState extends State<MessageInfoScreen> {
+  /// Cached real user fetched from Firestore (null while loading).
+  UserModel? _resolvedUser;
+  bool _isLoadingUser = false;
+  bool _hasFetchError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRealUser();
+  }
+
+  /// Fetch the real UserModel from Firestore using the Firebase UID.
+  Future<void> _fetchRealUser() async {
+    setState(() {
+      _isLoadingUser = true;
+      _hasFetchError = false;
+    });
+
+    debugPrint('[MessageInfoScreen] Fetching real user for uid=${widget.userId}, '
+        'username=${widget.userUsername}');
+
+    try {
+      final user = await DatabaseService.instance.getUserById(widget.userId);
+      if (mounted) {
+        setState(() {
+          _resolvedUser = user;
+          _isLoadingUser = false;
+          _hasFetchError = user == null;
+        });
+
+        if (user != null) {
+          debugPrint('[MessageInfoScreen] ✅ Resolved user: '
+              'id=${user.id}, username=${user.username}, displayName=${user.displayName}');
+        } else {
+          debugPrint('[MessageInfoScreen] ⚠️ User not found for uid=${widget.userId}');
+        }
+      }
+    } catch (e) {
+      debugPrint('[MessageInfoScreen] ❌ Error fetching user: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingUser = false;
+          _hasFetchError = true;
+        });
+      }
+    }
+  }
+
+  /// Navigate to the real user's full profile screen.
+  void _openRealProfile() {
+    final user = _resolvedUser;
+    if (user == null) {
+      // Shouldn't happen — button is disabled while loading/error
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to load profile. Please try again.')),
+      );
+      return;
+    }
+
+    debugPrint('[MessageInfoScreen] Opening profile for uid=${user.id}, '
+        'username=${user.username}');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StreamBuilder<List<PostModel>>(
+          stream: PostService.instance.getUserPosts(user.id),
+          builder: (context, snapshot) {
+            return OtherProfileScreen(
+              user: user,
+              posts: snapshot.data ?? [],
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +112,11 @@ class MessageInfoScreen extends StatelessWidget {
     final bgColor = isDark ? Colors.black : Colors.white;
     final cardColor = isDark ? const Color(0xff1C1C1E) : const Color(0xfff5f7fb);
     final textColor = isDark ? Colors.white : Colors.black;
+
+    // Use resolved data if available, otherwise fall back to passed-in data for display
+    final displayName = _resolvedUser?.displayName ?? widget.userName;
+    final displayUsername = _resolvedUser?.username ?? widget.userUsername;
+    final displayAvatar = _resolvedUser?.avatarAsset ?? widget.userAvatar;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -40,45 +134,42 @@ class MessageInfoScreen extends StatelessWidget {
 
             /// USER PROFILE — tappable to open full profile
             GestureDetector(
-              onTap: () {
-                final userModel = UserModel(
-                  id: userUsername,
-                  displayName: userName,
-                  username: userUsername,
-                  avatarAsset: userAvatar,
-                );
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StreamBuilder<List<PostModel>>(
-                      stream: PostService.instance.getUserPosts(userModel.id),
-                      builder: (context, snapshot) {
-                        return OtherProfileScreen(
-                          user: userModel,
-                          posts: snapshot.data ?? [],
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
+              onTap: _isLoadingUser || _hasFetchError ? null : _openRealProfile,
               child: Column(
                 children: [
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF0A7CFF).withValues(alpha: 0.3), width: 3),
+                      border: Border.all(
+                        color: const Color(0xFF0A7CFF).withValues(alpha: 0.3),
+                        width: 3,
+                      ),
                     ),
-                    child: CircleAvatar(
+                    child: KnockpostAvatar(
+                      url: displayAvatar,
                       radius: 60,
-                      backgroundImage: AssetImage(userAvatar),
+                      name: displayName,
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
+                  // Loading indicator below avatar
+                  if (_isLoadingUser)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: isDark ? Colors.white38 : Colors.black26,
+                        ),
+                      ),
+                    ),
+
                   Text(
-                    userName,
+                    displayName,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -89,12 +180,35 @@ class MessageInfoScreen extends StatelessWidget {
                   const SizedBox(height: 6),
                   
                   Text(
-                    "@$userUsername",
+                    "@$displayUsername",
                     style: TextStyle(
                       fontSize: 16,
                       color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                     ),
                   ),
+
+                  // Error state
+                  if (_hasFetchError && !_isLoadingUser)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: GestureDetector(
+                        onTap: _fetchRealUser,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.refresh_rounded, size: 16, color: Colors.grey.shade500),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Tap to retry',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

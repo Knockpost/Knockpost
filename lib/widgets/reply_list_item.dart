@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../models/reply_thread.dart';
 import '../models/user_model.dart';
-import '../utils/image_helper.dart';
+import 'knockpost_avatar.dart';
 
 class ReplyListItem extends StatelessWidget {
   final ReplyThread thread;
@@ -30,31 +28,28 @@ class ReplyListItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: borderColor.withValues(alpha: 0.9)),
+              bottom: BorderSide(color: borderColor.withValues(alpha: 0.8)),
             ),
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-                backgroundImage: ImageHelper.resolveAvatar(user.avatarAsset),
-                child: user.avatarAsset == null
-                    ? Icon(Icons.person_rounded, color: subtleColor, size: 22)
-                    : null,
+              KnockpostAvatar(
+                url: user.avatarAsset,
+                radius: 22,
+                name: user.displayName,
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: Text(
@@ -63,7 +58,7 @@ class ReplyListItem extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: textColor,
-                              fontSize: 14.5,
+                              fontSize: 17,
                               fontWeight: FontWeight.w700,
                               letterSpacing: -0.2,
                             ),
@@ -80,19 +75,19 @@ class ReplyListItem extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
                         Expanded(
                           child: Text(
                             thread.lastMessage.isEmpty
-                                ? 'Start a private conversation around this post'
+                                ? 'Tap to start a conversation'
                                 : thread.lastMessage,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: thread.unreadCount > 0 ? textColor : subtleColor,
-                              fontSize: 13.5,
+                              fontSize: 13,
                               fontWeight: thread.unreadCount > 0
                                   ? FontWeight.w600
                                   : FontWeight.w500,
@@ -103,8 +98,8 @@ class ReplyListItem extends StatelessWidget {
                         if (thread.unreadCount > 0) ...[
                           const SizedBox(width: 10),
                           Container(
-                            width: 9,
-                            height: 9,
+                            width: 8,
+                            height: 8,
                             decoration: BoxDecoration(
                               color: accent,
                               shape: BoxShape.circle,

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../services/database_service.dart';
+import '../../../widgets/knockpost_avatar.dart';
 import '../../single_post_screen.dart';
 
 class PostMessagePreview extends StatefulWidget {
@@ -131,17 +132,10 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
               padding: const EdgeInsets.all(10),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  KnockpostAvatar(
+                    url: _author!.avatarAsset,
                     radius: 12,
-                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                    backgroundImage: _author!.avatarAsset != null
-                        ? (_author!.avatarAsset!.startsWith('http')
-                            ? NetworkImage(_author!.avatarAsset!) as ImageProvider
-                            : AssetImage(_author!.avatarAsset!))
-                        : null,
-                    child: _author!.avatarAsset == null
-                        ? const Icon(Icons.person, size: 14, color: Colors.white)
-                        : null,
+                    name: _author!.displayName,
                   ),
                   const SizedBox(width: 8),
                   Expanded(

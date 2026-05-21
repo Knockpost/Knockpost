@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
-import '../../utils/image_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import 'chat_screen.dart';
 import '../../services/connection_service.dart';
 import '../../services/database_service.dart';
@@ -179,13 +179,10 @@ class _UserTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            CircleAvatar(
+            KnockpostAvatar(
+              url: user.avatarAsset,
               radius: 26,
-              backgroundImage: ImageHelper.resolveImage(user.avatarAsset),
-              backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
-              child: user.avatarAsset == null
-                  ? Icon(Icons.person, color: isDark ? Colors.white54 : Colors.black38)
-                  : null,
+              name: user.displayName,
             ),
             const SizedBox(width: 16),
             Expanded(

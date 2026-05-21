@@ -5,6 +5,7 @@ import '../../models/user_model.dart';
 import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
+import '../../widgets/knockpost_avatar.dart';
 import '../../services/connection_service.dart';
 import '../../services/database_service.dart';
 import 'other_profile_screen.dart';
@@ -831,16 +832,6 @@ class _ConnectionCardState extends State<_ConnectionCard>
   }
 
   Widget _buildAvatar(UserModel user, bool isDark) {
-    ImageProvider? img;
-    if (user.avatarAsset != null && user.avatarAsset!.isNotEmpty) {
-      if (user.avatarAsset!.startsWith('http')) {
-        img = NetworkImage(user.avatarAsset!);
-      } else if (user.avatarAsset!.startsWith('assets/')) {
-        img = AssetImage(user.avatarAsset!);
-      } else {
-        img = FileImage(File(user.avatarAsset!));
-      }
-    }
     return Container(
       width: 52,
       height: 52,
@@ -853,14 +844,10 @@ class _ConnectionCardState extends State<_ConnectionCard>
           width: 1.5,
         ),
       ),
-      child: CircleAvatar(
+      child: KnockpostAvatar(
+        url: user.avatarAsset,
         radius: 25,
-        backgroundColor:
-            isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-        backgroundImage: img,
-        child: img == null
-            ? Icon(Icons.person, size: 22, color: Colors.grey.shade500)
-            : null,
+        name: user.displayName,
       ),
     );
   }
