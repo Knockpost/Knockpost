@@ -131,6 +131,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
         user.coverImageAsset != null && user.coverImageAsset!.isNotEmpty;
     // Shrink the cover height to bring the profile info up, leaving a nice gap for the top buttons
     final coverHeight = hasCover ? 180.0 + topPadding : topPadding + 76.0;
+    
+    final currentUser = CurrentUserService.instance.currentUser;
+    final validKnockers = widget.knockerUsers.where((k) => k.id != currentUser?.id).toList();
 
     final SystemUiOverlayStyle overlayStyle =
         (hasCover
@@ -381,10 +384,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                       const SizedBox(height: 18),
                       if (user.isOwnProfile)
                         _buildOwnFriendsRow(context, textColor, isDark)
-                      else if (widget.knockerUsers.isNotEmpty)
-                        _buildFriendsKnockedRow(widget.knockerUsers, textColor, isDark),
+                      else if (validKnockers.isNotEmpty)
+                        _buildFriendsKnockedRow(validKnockers, textColor, isDark),
                       if (user.isOwnProfile ||
-                          widget.knockerUsers.isNotEmpty)
+                          validKnockers.isNotEmpty)
                         const SizedBox(height: 13),
                       if (user.isOwnProfile)
                         Row(
@@ -692,23 +695,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           child: Row(
                             children: [
                               // Avatar
-                              Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isDark
-                                        ? Colors.white12
-                                        : Colors.black.withValues(alpha: 0.08),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: KnockpostAvatar(
-                                  url: friend.avatarAsset,
-                                  radius: 22,
-                                  name: friend.displayName,
-                                ),
+                              KnockpostAvatar(
+                                url: friend.avatarAsset,
+                                radius: 23,
+                                name: friend.displayName,
                               ),
                               const SizedBox(width: 12),
                               // Name + username
@@ -720,10 +710,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                       children: [
                                         Flexible(
                                           child: Text(
-                                            friend.username,
+                                            friend.displayName,
                                             style: TextStyle(
-                                              fontSize: 14.5,
-                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
                                               color: textColor,
                                             ),
                                             maxLines: 1,
@@ -736,11 +726,11 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                         ],
                                       ],
                                     ),
-                                    const SizedBox(height: 2),
+                                    const SizedBox(height: 1),
                                     Text(
-                                      friend.displayName,
+                                      '@${friend.username}',
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 13.5,
                                         color: subColor,
                                       ),
                                       maxLines: 1,
