@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
@@ -18,6 +19,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   String _searchQuery = '';
 
   List<UserModel> _mutualConnections = [];
+  StreamSubscription? _connectionSub;
 
   @override
   void initState() {
@@ -27,7 +29,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
       if (q != _searchQuery) setState(() => _searchQuery = q);
     });
 
-    ConnectionService.instance.streamMutualConnectionUids().listen((uids) async {
+    _connectionSub = ConnectionService.instance.streamMutualConnectionUids().listen((uids) async {
       final users = <UserModel>[];
       for (final uid in uids) {
         final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
@@ -49,6 +51,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 
   @override
   void dispose() {
+    _connectionSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }

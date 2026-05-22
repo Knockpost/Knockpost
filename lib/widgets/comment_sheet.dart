@@ -60,6 +60,11 @@ class _CommentSheetState extends State<CommentSheet> {
   String? _selectedThreadUserId;
   bool _showChatPage = false;
   final Map<String, UserModel> _userCache = {};
+  bool _isSending = false;
+
+  /// Cached once in initState so widget rebuilds (keyboard, setState)
+  /// don't tear down and recreate the Firestore listener.
+  late final Stream<List<ReplyThread>> _threadsStream;
 
   UserModel get _viewer =>
       CurrentUserService.instance.currentUser!;
@@ -67,6 +72,14 @@ class _CommentSheetState extends State<CommentSheet> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize the threads stream ONCE
+    _threadsStream = CommentService.instance.getThreadsForPost(
+      postId: widget.postId,
+      currentUserId: CurrentUserService.instance.currentUser!.id,
+      isPostOwner: widget.isPostOwner,
+    );
+
     // If isPostOwner and there's an initialThreadUserId, jump directly to that chat
     if (widget.isPostOwner && widget.initialThreadUserId != null) {
       _selectedThreadUserId = widget.initialThreadUserId;
@@ -88,6 +101,8 @@ class _CommentSheetState extends State<CommentSheet> {
   @override
   void dispose() {
     _pageController.dispose();
+    // Release cached Firestore listeners so they don't leak
+    CommentService.instance.clearStreamCache();
     super.dispose();
   }
 
@@ -145,13 +160,24 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   void _sendMessage(String text, String threadUserId) {
-    CommentService.instance.sendMessage(
+    if (_isSending) return;
+    _isSending = true;
+
+    CommentService.instance.sendMessageWithRetry(
       postId: widget.postId,
       postAuthorId: widget.postAuthor.id,
       senderId: _viewer.id,
       threadUserId: threadUserId,
       text: text,
-    );
+    ).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send reply')),
+        );
+      }
+    }).whenComplete(() {
+      _isSending = false;
+    });
   }
 
   void _openProfile(UserModel user) {
@@ -267,11 +293,7 @@ class _CommentSheetState extends State<CommentSheet> {
 
               // ── Header ──
               StreamBuilder<List<ReplyThread>>(
-                stream: CommentService.instance.getThreadsForPost(
-                  postId: widget.postId,
-                  currentUserId: _viewer.id,
-                  isPostOwner: widget.isPostOwner,
-                ),
+                stream: _threadsStream,
                 builder: (context, snapshot) {
                   final threads = snapshot.data ?? [];
 

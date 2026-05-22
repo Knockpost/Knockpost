@@ -1,5 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+enum MessageStatus {
+  sending,
+  sent,
+  delivered,
+  failed,
+}
+
 /// A single chat message inside a conversation.
 class ChatMessage {
   final String id;
@@ -9,6 +16,9 @@ class ChatMessage {
   final String? replyToId;
   final bool seen;
   final String? imageUrl;
+  final MessageStatus status;
+  final String? clientId;
+  final bool hasPendingWrites;
 
   const ChatMessage({
     required this.id,
@@ -18,19 +28,44 @@ class ChatMessage {
     this.replyToId,
     this.seen = false,
     this.imageUrl,
+    this.status = MessageStatus.sent,
+    this.clientId,
+    this.hasPendingWrites = false,
   });
 
   bool get isImage => imageUrl != null && imageUrl!.isNotEmpty;
+  bool get isPending => status == MessageStatus.sending || hasPendingWrites;
 
-  factory ChatMessage.fromMap(Map<String, dynamic> map, String docId) {
+  factory ChatMessage.fromMap(Map<String, dynamic> map, String docId, {bool hasPendingWrites = false}) {
+    DateTime parseTimestamp(dynamic ts) {
+      if (ts is Timestamp) return ts.toDate();
+      if (ts is int) return DateTime.fromMillisecondsSinceEpoch(ts);
+      if (ts is String) return DateTime.tryParse(ts) ?? DateTime.now();
+      // Use current time for pending writes — close enough to server time, avoids "Jan 1" flash
+      return DateTime.now();
+    }
+
+    MessageStatus parseStatus(String? statusStr) {
+      switch (statusStr) {
+        case 'sending': return MessageStatus.sending;
+        case 'sent': return MessageStatus.sent;
+        case 'delivered': return MessageStatus.delivered;
+        case 'failed': return MessageStatus.failed;
+        default: return MessageStatus.sent;
+      }
+    }
+
     return ChatMessage(
       id: docId,
       senderId: map['senderId'] as String? ?? '',
       text: map['text'] as String? ?? '',
-      timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      timestamp: parseTimestamp(map['timestamp']),
       replyToId: map['replyToId'] as String?,
       seen: map['seen'] as bool? ?? false,
       imageUrl: map['imageUrl'] as String?,
+      status: parseStatus(map['status'] as String?),
+      clientId: map['clientId'] as String?,
+      hasPendingWrites: hasPendingWrites,
     );
   }
 
@@ -41,6 +76,8 @@ class ChatMessage {
         if (replyToId != null) 'replyToId': replyToId,
         'seen': seen,
         if (imageUrl != null) 'imageUrl': imageUrl,
+        'status': status.name,
+        if (clientId != null) 'clientId': clientId,
       };
 }
 

@@ -23,10 +23,12 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  late final Stream<List<ChatRoom>> _chatsStream;
 
   @override
   void initState() {
     super.initState();
+    _chatsStream = ChatService.instance.streamUserChats();
     _searchController.addListener(() {
       final q = _searchController.text.trim();
       if (q != _searchQuery) setState(() => _searchQuery = q);
@@ -104,7 +106,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           // ── Message List ──
           Expanded(
             child: StreamBuilder<List<ChatRoom>>(
-              stream: ChatService.instance.streamUserChats(),
+              stream: _chatsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const KnockpostLoadingIndicator();
@@ -175,7 +177,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 // Per-room tile (fetches user profile lazily)
 // ─────────────────────────────────────────────
 
-class _ChatRoomTile extends StatelessWidget {
+class _ChatRoomTile extends StatefulWidget {
   final ChatRoom room;
   final String otherUid;
   final String myUid;
@@ -191,9 +193,30 @@ class _ChatRoomTile extends StatelessWidget {
   });
 
   @override
+  State<_ChatRoomTile> createState() => _ChatRoomTileState();
+}
+
+class _ChatRoomTileState extends State<_ChatRoomTile> {
+  Future<Map<String, dynamic>?>? _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = DatabaseService.instance.getUserProfile(widget.otherUid, useCache: true);
+  }
+
+  @override
+  void didUpdateWidget(_ChatRoomTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.otherUid != widget.otherUid) {
+      _profileFuture = DatabaseService.instance.getUserProfile(widget.otherUid, useCache: true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>?>(
-      future: DatabaseService.instance.getUserProfile(otherUid, useCache: true),
+      future: _profileFuture,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const SizedBox.shrink(); // Hide while loading
@@ -209,21 +232,21 @@ class _ChatRoomTile extends StatelessWidget {
             'Unknown User';
         final username = (data['username'] as String?) ?? '';
         final avatarUrl = (data['profileImageUrl'] as String?) ?? '';
-        final unread = room.unreadFor(myUid);
+        final unread = widget.room.unreadFor(widget.myUid);
 
         // Filter by search
-        if (searchQuery.isNotEmpty) {
-          final q = searchQuery.toLowerCase();
+        if (widget.searchQuery.isNotEmpty) {
+          final q = widget.searchQuery.toLowerCase();
           if (!name.toLowerCase().contains(q) &&
               !username.toLowerCase().contains(q) &&
-              !room.lastMessage.toLowerCase().contains(q)) {
+              !widget.room.lastMessage.toLowerCase().contains(q)) {
             return const SizedBox.shrink();
           }
         }
 
-        final textColor = isDark ? Colors.white : Colors.black;
+        final textColor = widget.isDark ? Colors.white : Colors.black;
         final subtitleColor =
-            isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+            widget.isDark ? Colors.grey.shade400 : Colors.grey.shade600;
         final isUnread = unread > 0;
 
         return InkWell(
@@ -231,7 +254,7 @@ class _ChatRoomTile extends StatelessWidget {
           onTap: () {
             KnockHaptics.selection();
             final user = UserModel(
-              id: otherUid,
+              id: widget.otherUid,
               displayName: name,
               username: username,
               avatarAsset: avatarUrl.isNotEmpty ? avatarUrl : null,
@@ -270,7 +293,7 @@ class _ChatRoomTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        room.lastMessage,
+                        widget.room.lastMessage,
                         style: TextStyle(
                           color: isUnread ? textColor : subtitleColor,
                           fontWeight: isUnread
@@ -288,7 +311,7 @@ class _ChatRoomTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _timeLabel(room.lastMessageTime),
+                      _timeLabel(widget.room.lastMessageTime),
                       style: TextStyle(
                         color: subtitleColor,
                         fontSize: 12,

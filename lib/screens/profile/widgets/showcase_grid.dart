@@ -214,19 +214,6 @@ class _GridTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             imageWidget,
-            if (post.type == PostType.waves)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black26,
-                  child: const Center(
-                    child: Icon(
-                      Icons.play_circle_fill_rounded,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                ),
-              ),
             if (post.imagePaths.length > 1 && post.type == PostType.media)
               Positioned(
                 top: 6,

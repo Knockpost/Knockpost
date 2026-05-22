@@ -14,6 +14,7 @@ import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
 import '../../services/current_user_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/connectivity_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'message_info_screen.dart';
@@ -73,6 +74,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Real-time messages from Firestore
   List<ChatMessage> _firestoreMessages = [];
+  StreamSubscription<List<ChatMessage>>? _messageSub;
+  bool _isLoadingMessages = true;
+
+  bool _isOffline = false;
+  StreamSubscription<bool>? _connectivitySub;
+  late final Stream<DocumentSnapshot> _otherUserStream;
 
   // Local-only list for optimistic image sends (not yet uploaded)
   final List<_LocalImageMessage> _localImages = [];
@@ -91,12 +98,32 @@ class _ChatScreenState extends State<ChatScreen> {
       if (hasText != _hasText) setState(() => _hasText = hasText);
     });
 
-    // Mark as read when the chat is opened
-    ChatService.instance.markChatAsRead(_chatId);
+    _otherUserStream = FirebaseFirestore.instance.collection('users').doc(widget.otherUser.id).snapshots();
+
+    _connectivitySub = ConnectivityService.instance.onConnectivityChanged.listen((isOnline) {
+      if (mounted) setState(() => _isOffline = !isOnline);
+    });
+    _isOffline = !ConnectivityService.instance.isOnline;
+
+    _messageSub = ChatService.instance.streamMessages(_chatId).listen((messages) {
+      if (!mounted) return;
+      setState(() {
+        if (messages.isNotEmpty || _firestoreMessages.isEmpty) {
+           _firestoreMessages = messages;
+        }
+        _isLoadingMessages = false;
+      });
+      ChatService.instance.markChatAsRead(_chatId);
+    }, onError: (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMessages = false);
+    });
   }
 
   @override
   void dispose() {
+    _messageSub?.cancel();
+    _connectivitySub?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -141,9 +168,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // ─── Message Actions ────────────────────────
 
-  void _sendMessage() {
+  bool _isSending = false;
+
+  void _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSending) return;
+    _isSending = true;
+
     KnockHaptics.impact();
     final replyId = _replyingToId;
     setState(() {
@@ -151,25 +182,45 @@ class _ChatScreenState extends State<ChatScreen> {
       _editingMessageId = null;
     });
     _messageController.clear();
+    
     if (_scrollController.hasClients) {
       _scrollController.animateTo(0.0,
           duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
-    ChatService.instance.sendMessage(
-      otherUid: widget.otherUser.id,
-      text: text,
-      replyToId: replyId,
-    ).catchError((e) {
+    
+    // Optimistic UI
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final optimisticMsg = ChatMessage(
+       id: tempId,
+       senderId: _myUid,
+       text: text,
+       timestamp: DateTime.now(),
+       replyToId: replyId,
+       status: MessageStatus.sending,
+    );
+    
+    setState(() {
+       _firestoreMessages.insert(0, optimisticMsg);
+    });
+
+    try {
+      await ChatService.instance.sendMessageWithRetry(
+        otherUid: widget.otherUser.id,
+        text: text,
+        replyToId: replyId,
+      );
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to send message')),
         );
       }
-    });
+    } finally {
+      if (mounted) _isSending = false;
+    }
   }
 
   void _sendImageMessage(Uint8List bytes, String caption) async {
-    // Store locally while upload happens
     KnockHaptics.impact();
     final localId = DateTime.now().millisecondsSinceEpoch.toString();
     setState(() {
@@ -182,37 +233,30 @@ class _ChatScreenState extends State<ChatScreen> {
           ));
     });
 
-    // Upload to Storage
-    final url = await StorageService.instance.uploadChatImage(
-      chatId: _chatId,
-      messageId: localId,
-      bytes: bytes,
-    );
+    try {
+      final url = await StorageService.instance.uploadChatImage(
+        chatId: _chatId,
+        messageId: localId,
+        bytes: bytes,
+      );
 
-    if (url != null) {
-      // Send message with the URL
-      await ChatService.instance.sendMessage(
-        otherUid: widget.otherUser.id,
-        text: caption,
-        imageUrl: url,
-      ).catchError((e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to send message')),
-          );
-        }
-      });
-      // Remove from local optimistic UI
-      if (mounted) {
-        setState(() {
-          _localImages.removeWhere((m) => m.id == localId);
-        });
+      if (url != null) {
+        await ChatService.instance.sendMessageWithRetry(
+          otherUid: widget.otherUser.id,
+          text: caption,
+          imageUrl: url,
+        );
+      } else {
+        throw Exception("Upload returned null");
       }
-    } else {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image')),
+          const SnackBar(content: Text('Failed to send image')),
         );
+      }
+    } finally {
+      if (mounted) {
         setState(() {
           _localImages.removeWhere((m) => m.id == localId);
         });
@@ -478,54 +522,62 @@ class _ChatScreenState extends State<ChatScreen> {
                 : _buildAppBar(isDark, textColor),
             body: Column(
               children: [
+                // ── Offline Banner ──
+                if (_isOffline)
+                  Container(
+                    width: double.infinity,
+                    color: Colors.red.withValues(alpha: 0.8),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: const Text(
+                      'Offline - Waiting for network...',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
                 // ── Message List ──
                 Expanded(
-                  child: StreamBuilder<List<ChatMessage>>(
-                    stream: ChatService.instance.streamMessages(_chatId),
-                    builder: (context, snapshot) {
-                      _firestoreMessages = snapshot.data ?? [];
-                      
-                      // Filter by search query
-                      final filtered = _filteredMessages;
+                  child: _isLoadingMessages
+                      ? const Center(child: CircularProgressIndicator())
+                      : Builder(
+                          builder: (context) {
+                            final filtered = _filteredMessages;
+                            final allItems = [
+                              ..._localImages.map((e) => _ChatListItem.localImage(e)),
+                              ...filtered.map((e) => _ChatListItem.firestore(e)),
+                            ];
 
-                      // Combine with local image messages for optimistic UI
-                      final allItems = [
-                        ..._localImages.map((e) => _ChatListItem.localImage(e)),
-                        ...filtered.map((e) => _ChatListItem.firestore(e)),
-                      ];
+                            return ListView.builder(
+                              controller: _scrollController,
+                              reverse: true,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              itemCount: allItems.length,
+                              itemBuilder: (context, index) {
+                                final item = allItems[index];
 
-                      return ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        itemCount: allItems.length,
-                        itemBuilder: (context, index) {
-                          final item = allItems[index];
+                                if (item.isLocalImage) {
+                                  final localImg = item.localImage!;
+                                  return _buildLocalImageRow(
+                                    localImg,
+                                    isDark, myBubbleColor,
+                                    textColor, subtleColor,
+                                  );
+                                }
 
-                          if (item.isLocalImage) {
-                            final localImg = item.localImage!;
-                            return _buildLocalImageRow(
-                              localImg,
-                              isDark, myBubbleColor,
-                              textColor, subtleColor,
+                                final msg = item.firestore!;
+                                ChatMessage? parentMsg;
+                                if (msg.replyToId != null) {
+                                  try { parentMsg = _firestoreMessages.firstWhere((m) => m.id == msg.replyToId); }
+                                  catch (_) {}
+                                }
+                                return _buildMessageRow(
+                                  msg, parentMsg,
+                                  isDark, myBubbleColor, otherBubbleColor,
+                                  textColor, subtleColor,
+                                );
+                              },
                             );
-                          }
-
-                          final msg = item.firestore!;
-                          ChatMessage? parentMsg;
-                          if (msg.replyToId != null) {
-                            try { parentMsg = _firestoreMessages.firstWhere((m) => m.id == msg.replyToId); }
-                            catch (_) {}
-                          }
-                          return _buildMessageRow(
-                            msg, parentMsg,
-                            isDark, myBubbleColor, otherBubbleColor,
-                            textColor, subtleColor,
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          },
+                        ),
                 ),
 
                 // ── Docks (only show when actively replying/editing) ──
@@ -582,7 +634,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(widget.otherUser.displayName, style: TextStyle(
               color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
             StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').doc(widget.otherUser.id).snapshots(),
+              stream: _otherUserStream,
               builder: (context, snapshot) {
                 String statusText = "";
                 bool isOnline = false;

@@ -124,11 +124,14 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
     }
   }
 
+  bool _isSending = false;
+
   void _sendMessage() {
     final text = _controller.text.trim();
-    if (text.isEmpty) {
+    if (text.isEmpty || _isSending) {
       return;
     }
+    _isSending = true;
 
     KnockHaptics.impact();
     final wasFocused = _focusNode.hasFocus;
@@ -137,6 +140,11 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
     if (wasFocused) {
       _focusNode.requestFocus();
     }
+
+    // Reset after a short delay to allow the send to complete
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _isSending = false;
+    });
   }
 
   void _insertQuickReaction(String emoji) {
