@@ -397,13 +397,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               actions: const [SizedBox(width: 48)],
             ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+            body: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
                     children: [
                       _buildMediaSection(
                         bg: bg,
@@ -545,17 +541,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ],
-                  ),
-                ),
-                _buildBottomActionBar(
-                  bg: bg,
-                  fieldBg: fieldBg,
-                  textColor: textColor,
-                  subColor: subColor,
-                  borderColor: borderColor,
-                  isDark: isDark,
-                ),
-              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomActionBar(
+              bg: bg,
+              fieldBg: fieldBg,
+              textColor: textColor,
+              subColor: subColor,
+              borderColor: borderColor,
+              isDark: isDark,
             ),
           ),
           SystemNavBarFill(color: bg),
@@ -690,14 +688,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required Color borderColor,
     required bool isDark,
   }) {
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
+    return Container(
+      decoration: BoxDecoration(
           color: bg,
           border: Border(top: BorderSide(color: borderColor)),
           boxShadow: [
@@ -748,8 +740,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
