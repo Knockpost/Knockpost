@@ -587,9 +587,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   borderRadius: BorderRadius.circular(16),
                   image: _coverImageAsset != null
                       ? DecorationImage(
-                          image: _coverImageAsset!.startsWith('assets/')
-                              ? AssetImage(_coverImageAsset!) as ImageProvider
-                              : FileImage(File(_coverImageAsset!)),
+                          image: _coverImageAsset!.startsWith('http')
+                              ? NetworkImage(_coverImageAsset!) as ImageProvider
+                              : _coverImageAsset!.startsWith('assets/')
+                                  ? AssetImage(_coverImageAsset!) as ImageProvider
+                                  : FileImage(File(_coverImageAsset!)),
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -634,9 +636,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       radius: 44,
                       backgroundColor: fieldBg,
                       backgroundImage: _avatarAsset != null
-                          ? (_avatarAsset!.startsWith('assets/')
-                                    ? AssetImage(_avatarAsset!)
-                                    : FileImage(File(_avatarAsset!)))
+                          ? (_avatarAsset!.startsWith('http')
+                              ? NetworkImage(_avatarAsset!)
+                              : _avatarAsset!.startsWith('assets/')
+                                  ? AssetImage(_avatarAsset!)
+                                  : FileImage(File(_avatarAsset!)))
                                 as ImageProvider
                           : null,
                       child: _avatarAsset == null
