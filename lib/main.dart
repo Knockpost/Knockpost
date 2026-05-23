@@ -5,8 +5,17 @@ import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'theme/theme_controller.dart';
 import 'utils/audio_lifecycle_manager.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint("Handling a background message: ${message.messageId}");
+}
 
 void main() async {
   try {
@@ -14,6 +23,8 @@ void main() async {
     AudioLifecycleManager.instance.init();
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
     // Enable true edge-to-edge mode — content renders behind system bars (like YouTube)
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(
@@ -83,6 +94,7 @@ class MyApp extends StatelessWidget {
       valueListenable: ThemeController.themeMode,
       builder: (context, themeMode, _) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'Knockpost',
           theme: AppTheme.lightTheme,

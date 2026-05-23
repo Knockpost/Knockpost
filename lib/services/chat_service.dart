@@ -186,7 +186,7 @@ class ChatService {
     await batch.commit();
 
     try {
-      NotificationService.instance.sendNotification(
+      await NotificationService.instance.sendNotification(
         receiverUid: otherUid,
         type: NotificationType.message,
         commentSnippet: text,

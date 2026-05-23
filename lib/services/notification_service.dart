@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import '../models/notification_model.dart';
+import '../widgets/custom_in_app_notification.dart';
+import '../main.dart';
 import 'auth_service.dart';
 
 class NotificationService {
@@ -34,7 +36,8 @@ class NotificationService {
       
       debugPrint('User granted permission: ${settings.authorizationStatus}');
 
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
         // 2. Get FCM token
         String? token = await _fcm.getToken();
         debugPrint('FCM Token: $token');
@@ -45,14 +48,63 @@ class NotificationService {
           });
         }
 
-        // 3. Listen to foreground messages (Optional: show local notification)
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          debugPrint('Got a message whilst in the foreground!');
-          debugPrint('Message data: ${message.data}');
-          if (message.notification != null) {
-            debugPrint('Message also contained a notification: ${message.notification}');
+        // 3. Listen for token refresh
+        _fcm.onTokenRefresh.listen((newToken) async {
+          debugPrint('FCM Token Refreshed: $newToken');
+          if (_myUid != null) {
+            await _db.collection('users').doc(_myUid).update({
+              'fcmToken': newToken,
+            });
           }
         });
+
+        // 4. Set foreground notification presentation options (iOS & Android 13+)
+        await _fcm.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+
+        // 5. Listen to foreground messages and show custom banner
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          debugPrint('Got a message whilst in the foreground: ${message.data}');
+          debugPrint('Notification title: ${message.notification?.title}');
+          debugPrint('Notification body: ${message.notification?.body}');
+          
+          if (message.notification != null) {
+            final context = navigatorKey.currentContext;
+            if (context != null && context.mounted) {
+              final type = message.data['type'] as String? ?? 'notification';
+              final profileImageUrl = message.data['profileImageUrl'] as String?;
+              
+              CustomInAppNotification.show(
+                context,
+                title: message.notification!.title ?? 'New Notification',
+                body: message.notification!.body ?? '',
+                type: type,
+                profileImageUrl: profileImageUrl,
+                onTap: () {
+                  // Handle tap if needed
+                },
+              );
+            }
+          }
+        });
+
+        // 6. Handle notification tap when app is in background (but not killed)
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          debugPrint('Notification opened app: ${message.data}');
+          // You can navigate to specific screen based on message.data here
+        });
+
+        // 7. Check if app was opened from a terminated state via notification
+        RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+        if (initialMessage != null) {
+          debugPrint('App opened from terminated state via notification: ${initialMessage.data}');
+          // You can navigate to specific screen based on initialMessage.data here
+        }
+      } else {
+        debugPrint('User declined or has not accepted notification permission');
       }
     } catch (e) {
       debugPrint("FCM Init error: $e");
@@ -157,3 +209,4 @@ class NotificationService {
     }
   }
 }
+
