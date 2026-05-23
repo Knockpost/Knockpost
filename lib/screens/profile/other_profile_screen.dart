@@ -12,8 +12,13 @@ import 'widgets/recents_section.dart';
 import 'widgets/showcase_grid.dart';
 import 'widgets/text_posts_section.dart';
 import 'widgets/profile_ui_helpers.dart';
+import '../../widgets/post_scroll_lock_scope.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../services/post_service.dart';
+import '../../services/connection_service.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 
 /// Viewing someone ELSE's profile.
 class OtherProfileScreen extends StatefulWidget {
@@ -34,42 +39,99 @@ class OtherProfileScreen extends StatefulWidget {
 
 class _OtherProfileScreenState extends State<OtherProfileScreen>
     with SingleTickerProviderStateMixin {
+  final ScrollController _scrollController = ScrollController();
+  late final PostScrollLockController _postScrollLockController;
   late TabController _tabController;
   late UserModel _user;
+  List<PostModel> _posts = [];
+  List<UserModel> _knockerUsers = [];
 
   @override
   void initState() {
     super.initState();
+    _postScrollLockController = PostScrollLockController()
+      ..register(_scrollController);
     _user = widget.user;
-    
+
     // Always fetch the freshest status from global state
-    final globalStatus = GlobalKnockState.getNotifier(_user.id, _user.knockStatus).value;
+    final globalStatus = GlobalKnockState.getNotifier(
+      _user.id,
+      _user.knockStatus,
+    ).value;
     if (_user.knockStatus != globalStatus) {
       _user = _user.copyWith(knockStatus: globalStatus);
     }
 
     _tabController = TabController(length: 3, vsync: this);
+
+    // Load posts from Firestore
+    PostService.instance.getUserPosts(_user.id).listen((posts) {
+      if (mounted) setState(() => _posts = posts);
+    });
+
+    // Fetch the latest knock status from Firestore
+    ConnectionService.instance.getKnockStatus(_user.id).then((status) {
+      if (mounted && _user.knockStatus != status) {
+        setState(() => _user = _user.copyWith(knockStatus: status));
+        GlobalKnockState.getNotifier(_user.id, status).value = status;
+      }
+    });
+
+    // Fetch people who knocked this profile
+    _loadKnockers();
+  }
+
+  Future<void> _loadKnockers() async {
+    try {
+      final uids = await ConnectionService.instance.getKnockerUids(_user.id);
+      if (uids.isEmpty || !mounted) return;
+
+      final results = await Future.wait(
+        uids.map((uid) => DatabaseService.instance.getUserById(uid)),
+      );
+      final users = results.whereType<UserModel>().toList();
+      if (mounted && users.isNotEmpty) {
+        setState(() => _knockerUsers = users);
+      }
+    } catch (e) {
+      debugPrint('OtherProfileScreen._loadKnockers error: $e');
+    }
   }
 
   @override
   void dispose() {
+    _postScrollLockController.dispose();
+    _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
-  void _sendKnock() {
+  void _sendKnock() async {
     final nextStatus = _user.isEffectivelyOpen
         ? KnockStatus.knocked
         : KnockStatus.pending;
+    
+    final previousStatus = _user.knockStatus;
     _updateKnockStatus(nextStatus);
+
+    try {
+      await ConnectionService.instance.sendKnock(
+        toUid: _user.id,
+        isOpenProfile: _user.isEffectivelyOpen,
+      );
+    } catch (e) {
+      if (mounted) {
+        _updateKnockStatus(previousStatus);
+      }
+    }
   }
 
   void _updateKnockStatus(KnockStatus status) {
     setState(() => _user = _user.copyWith(knockStatus: status));
-    
+
     // Broadcast status to all listeners (e.g. PostCard, SuggestionStrip)
     GlobalKnockState.getNotifier(_user.id, status).value = status;
-    
+
     widget.onKnockStatusChanged?.call(status);
   }
 
@@ -78,9 +140,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          userName: _user.displayName,
-          userAvatar: _user.avatarAsset ?? 'assets/test1.jpg',
-          userUsername: _user.username,
+          otherUser: _user,
         ),
       ),
     );
@@ -138,15 +198,14 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) {
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: div),
-            ),
-            child: Column(
+        return Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            border: Border.all(color: div),
+          ),
+          child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 8),
@@ -163,7 +222,9 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                   icon: Icons.share_outlined,
                   label: 'Share profile',
                   onTap: () {
-                    Share.share('Check out ${_user.username} on KnockPost!\nhttps://knockpost.app/@${_user.username}');
+                    Share.share(
+                      'Check out ${_user.username} on KnockPost!\nhttps://knockpost.app/@${_user.username}',
+                    );
                   },
                 ),
                 action(
@@ -196,8 +257,13 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                   icon: Icons.block_outlined,
                   label: 'Block',
                   color: danger,
-                  onTap: () {
+                  onTap: () async {
                     GlobalDismissState.dismiss(_user.id);
+                    final myUid = CurrentUserService.instance.currentUser?.id;
+                    if (myUid != null) {
+                      await DatabaseService.instance.blockUser(myUid: myUid, targetUid: _user.id);
+                      await CurrentUserService.instance.refresh();
+                    }
                     toast('@${_user.username} has been blocked');
                   },
                 ),
@@ -210,7 +276,6 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                 const SizedBox(height: 8),
               ],
             ),
-          ),
         );
       },
     );
@@ -226,75 +291,107 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
-        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Stack(
         children: [
           Scaffold(
             backgroundColor: bg,
-            body: NestedScrollView(
-              physics: const ClampingScrollPhysics(),
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                // Profile Header
-                SliverToBoxAdapter(
-                  child: ProfileHeader(
-                    user: _user,
-                    showBackButton: true,
-                    showSettingsButton: true,
-                    onBackTap: () => Navigator.of(context).maybePop(),
-                    onSettingsTap: _showProfileActions,
-                    onKnockStatusChanged: _updateKnockStatus,
-                    onMessageTap: _openChat,
-                  ),
-                ),
+            body: PostScrollLockScope(
+              controller: _postScrollLockController,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _postScrollLockController,
+                builder: (context, isScrollLocked, _) {
+                  return NestedScrollView(
+                    controller: _scrollController,
+                    physics: isScrollLocked
+                        ? const NeverScrollableScrollPhysics()
+                        : const ClampingScrollPhysics(),
+                    headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                      // Profile Header
+                      SliverToBoxAdapter(
+                        child: ProfileHeader(
+                          user: _user,
+                          showBackButton: true,
+                          showSettingsButton: true,
+                          onBackTap: () => Navigator.of(context).maybePop(),
+                          onSettingsTap: _showProfileActions,
+                          onKnockStatusChanged: _updateKnockStatus,
+                          onMessageTap: _openChat,
+                          knockerUsers: _knockerUsers,
+                        ),
+                      ),
 
-                if (!isLocked)
-                  SliverPersistentHeader(
-                    pinned: false,
-                    delegate: ProfileStickyTabBarDelegate(
-                      ProfileAnimatedTabBar(
-                        controller: _tabController,
-                        labels: const ['Recents', 'Showcase', 'Thoughts'],
-                        activeColor: textColor,
-                        inactiveColor: isDark
-                            ? Colors.white54
-                            : Colors.black45,
-                        backgroundColor: bg,
-                      ),
-                      bg: bg,
-                    ),
-                  ),
-              ],
-              body: isLocked
-                  ? SingleChildScrollView(
-                      child: PrivateLockOverlay(
-                        knockStatus: _user.knockStatus,
-                        onKnock: _sendKnock,
-                      ),
-                    )
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        SingleChildScrollView(
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: RecentsSection(posts: widget.posts, user: _user, tabController: _tabController, isOwnProfile: false),
+                      if (!isLocked)
+                        SliverPersistentHeader(
+                          pinned: false,
+                          delegate: ProfileStickyTabBarDelegate(
+                            ProfileAnimatedTabBar(
+                              controller: _tabController,
+                              labels: const ['Recents', 'Showcase', 'Thoughts'],
+                              activeColor: textColor,
+                              inactiveColor: isDark
+                                  ? Colors.white54
+                                  : Colors.black45,
+                              backgroundColor: bg,
+                            ),
+                            bg: bg,
+                          ),
                         ),
-                        SingleChildScrollView(
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: ShowcaseGrid(posts: widget.posts, user: _user, tabController: _tabController, isOwnProfile: false),
-                        ),
-                        SingleChildScrollView(
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: TextPostsSection(posts: widget.posts, user: _user, tabController: _tabController, isOwnProfile: false),
-                        ),
-                      ],
-                    ),
+                    ],
+                    body: isLocked
+                        ? SingleChildScrollView(
+                            child: PrivateLockOverlay(
+                              knockStatus: _user.knockStatus,
+                              onKnock: _sendKnock,
+                            ),
+                          )
+                        : TabBarView(
+                            controller: _tabController,
+                            children: [
+                              SingleChildScrollView(
+                                physics: const NeverScrollableScrollPhysics(),
+                                child: RecentsSection(
+                                  posts: _posts,
+                                  user: _user,
+                                  tabController: _tabController,
+                                  isOwnProfile: false,
+                                ),
+                              ),
+                              SingleChildScrollView(
+                                physics: const NeverScrollableScrollPhysics(),
+                                child: ShowcaseGrid(
+                                  posts: _posts,
+                                  user: _user,
+                                  tabController: _tabController,
+                                  isOwnProfile: false,
+                                ),
+                              ),
+                              SingleChildScrollView(
+                                physics: const NeverScrollableScrollPhysics(),
+                                child: TextPostsSection(
+                                  posts: _posts,
+                                  user: _user,
+                                  tabController: _tabController,
+                                  isOwnProfile: false,
+                                ),
+                              ),
+                            ],
+                          ),
+                  );
+                },
+              ),
             ),
           ),
-          
+
           // ── SOLID BAR BEHIND SYSTEM NAVIGATION BAR ──────────────────
           // On Android 15+ the system nav bar is always transparent.
           // This draws a solid color behind it so it looks opaque.

@@ -1,44 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../models/post_model.dart';
 import '../../models/user_model.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../profile/other_profile_screen.dart';
-
-enum ConnectionStatus { knock, requested, knocked, knockBack }
-
-class MockUser {
-  final String id;
-  final String name;
-  final String username;
-  final String profilePic;
-  final String coverPic;
-  final String bio;
-  final int friendsCount;
-  final PrivacyType privacyType;
-  final AccountType accountType;
-  final CreatorRank rank;
-  final List<PostModel> posts;
-  final List<String> mutualFriendsWhoKnocked;
-  ConnectionStatus connectionStatus;
-
-  MockUser({
-    required this.id,
-    required this.name,
-    required this.username,
-    required this.profilePic,
-    required this.coverPic,
-    required this.bio,
-    required this.friendsCount,
-    required this.privacyType,
-    required this.accountType,
-    required this.rank,
-    required this.posts,
-    this.mutualFriendsWhoKnocked = const [],
-    this.connectionStatus = ConnectionStatus.knock,
-  });
-}
-
+import '../../services/connection_service.dart';
+import '../../utils/global_knock_state.dart';
+import '../profile/widgets/knock_button.dart';
+import '../../widgets/knockpost_refresh.dart';
+import '../../widgets/knockpost_avatar.dart';
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -53,99 +24,9 @@ class _SearchScreenState extends State<SearchScreen> {
   String _searchQuery = '';
   Timer? _debounce;
 
-  late List<MockUser> _allUsers;
-  List<MockUser> _filteredUsers = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _allUsers = [
-      MockUser(
-        id: 'zayn01',
-        name: 'Zayn Malik',
-        username: 'zayn.malik',
-        profilePic: 'assets/test1.jpg',
-        coverPic: 'assets/test2.jpg',
-        bio: 'Singer & songwriter 🎤 | Former 1D | Night Thoughts',
-        friendsCount: 52400,
-        privacyType: PrivacyType.open,
-        accountType: AccountType.creator,
-        rank: CreatorRank.impact,
-        posts: getDemoPostsForUser('zayn01'),
-        mutualFriendsWhoKnocked: const ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-      ),
-      MockUser(
-        id: 'justin01',
-        name: 'Justin Bieber',
-        username: 'justin.bieber',
-        profilePic: 'assets/test2.jpg',
-        coverPic: 'assets/test3.jpg',
-        bio: 'Music is my life 🎶 | Believer',
-        friendsCount: 84200,
-        privacyType: PrivacyType.open,
-        accountType: AccountType.creator,
-        rank: CreatorRank.plus,
-        posts: getDemoPostsForUser('justin01'),
-        mutualFriendsWhoKnocked: const ['assets/test1.jpg', 'assets/test4.jpg'],
-      ),
-      MockUser(
-        id: 'suman01',
-        name: 'Suman Patra',
-        username: 'suman.patra',
-        profilePic: 'assets/test3.jpg',
-        coverPic: 'assets/test4.jpg',
-        bio: 'Keep it private 🔒',
-        friendsCount: 142,
-        privacyType: PrivacyType.private,
-        accountType: AccountType.normal,
-        rank: CreatorRank.echo,
-        posts: getDemoPostsForUser('suman01'),
-      ),
-      MockUser(
-        id: 'saptarshi01',
-        name: 'Saptarshi Nayak',
-        username: 'saptarshi.nayak',
-        profilePic: 'assets/test4.jpg',
-        coverPic: 'assets/test1.jpg',
-        bio: 'Open book 📖 | Exploring life one day at a time',
-        friendsCount: 890,
-        privacyType: PrivacyType.open,
-        accountType: AccountType.normal,
-        rank: CreatorRank.echo,
-        posts: getDemoPostsForUser('saptarshi01'),
-        connectionStatus: ConnectionStatus.knocked,
-      ),
-      MockUser(
-        id: 'arya01',
-        name: 'Arya Layek',
-        username: 'arya.layek',
-        profilePic: 'assets/test1.jpg',
-        coverPic: 'assets/test3.jpg',
-        bio: 'Creator & storyteller ✨ | Pro vibes',
-        friendsCount: 15400,
-        privacyType: PrivacyType.open,
-        accountType: AccountType.creator,
-        rank: CreatorRank.pro,
-        posts: getDemoPostsForUser('arya01'),
-        mutualFriendsWhoKnocked: const ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-      ),
-      MockUser(
-        id: 'leo01',
-        name: 'Leonardo DiCaprio',
-        username: 'leo.dicaprio',
-        profilePic: 'assets/test2.jpg',
-        coverPic: 'assets/test4.jpg',
-        bio: 'Actor & environmentalist 🌍 | Oscar winner',
-        friendsCount: 320,
-        privacyType: PrivacyType.open,
-        accountType: AccountType.normal,
-        rank: CreatorRank.echo,
-        posts: getDemoPostsForUser('leo01'),
-        connectionStatus: ConnectionStatus.knockBack,
-      ),
-    ];
-    _filteredUsers = _allUsers;
-  }
+  List<UserModel> _results = [];
+  bool _isLoading = false;
+  bool _hasSearched = false;
 
   @override
   void dispose() {
@@ -155,136 +36,48 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-
-
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (query.trim() == _searchQuery.trim()) return;
       setState(() {
-        _searchQuery = query;
-        _applyFilters();
+        _searchQuery = query.trim();
+        if (_searchQuery.isEmpty) {
+          _results = [];
+          _hasSearched = false;
+          _isLoading = false;
+        }
       });
+      if (_searchQuery.isNotEmpty) {
+        _runSearch(_searchQuery);
+      }
     });
   }
 
-  void _applyFilters() {
-    List<MockUser> results = _allUsers;
-
-    if (_searchQuery.isNotEmpty) {
-      results = results
-          .where(
-            (user) =>
-                user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                user.username.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ),
-          )
-          .toList();
-    }
-
-    _filteredUsers = results;
-  }
-
-  KnockStatus _toKnockStatus(ConnectionStatus status) {
-    switch (status) {
-      case ConnectionStatus.knock:
-        return KnockStatus.none;
-      case ConnectionStatus.requested:
-        return KnockStatus.pending;
-      case ConnectionStatus.knocked:
-        return KnockStatus.knocked;
-      case ConnectionStatus.knockBack:
-        return KnockStatus.theyKnockedYou;
-    }
-  }
-
-  ConnectionStatus _toConnectionStatus(KnockStatus status) {
-    switch (status) {
-      case KnockStatus.none:
-        return ConnectionStatus.knock;
-      case KnockStatus.pending:
-        return ConnectionStatus.requested;
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        return ConnectionStatus.knocked;
-      case KnockStatus.theyKnockedYou:
-        return ConnectionStatus.knockBack;
-    }
-  }
-
-  bool _isEffectivelyOpen(MockUser user) =>
-      user.accountType == AccountType.creator ||
-      user.privacyType == PrivacyType.open;
-
-  Widget _buildTrailingButton(MockUser user, bool isDark) {
-    final greyBg = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE5E5E5);
-    final greyFg = isDark ? Colors.white : Colors.black87;
-    final primaryBg = isDark ? Colors.white : Colors.black;
-    final primaryFg = isDark ? Colors.black : Colors.white;
-
-    late final String label;
-    late final Color bg;
-    late final Color fg;
-
-    switch (user.connectionStatus) {
-      case ConnectionStatus.knock:
-        label = 'Knock';
-        bg = primaryBg;
-        fg = primaryFg;
-        break;
-      case ConnectionStatus.requested:
-        label = 'Pending';
-        bg = greyBg;
-        fg = greyFg;
-        break;
-      case ConnectionStatus.knocked:
-        label = 'Knocked';
-        bg = greyBg;
-        fg = greyFg;
-        break;
-      case ConnectionStatus.knockBack:
-        label = 'Knock Back';
-        bg = primaryBg;
-        fg = primaryFg;
-        break;
-    }
-
-    return GestureDetector(
-      onTap: () {
-        KnockHaptics.tap();
-        setState(() {
-          switch (user.connectionStatus) {
-            case ConnectionStatus.knock:
-              user.connectionStatus = _isEffectivelyOpen(user)
-                  ? ConnectionStatus.knocked
-                  : ConnectionStatus.requested;
-              break;
-            case ConnectionStatus.requested:
-            case ConnectionStatus.knocked:
-              user.connectionStatus = ConnectionStatus.knock;
-              break;
-            case ConnectionStatus.knockBack:
-              user.connectionStatus = ConnectionStatus.knocked;
-              break;
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: fg,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
+  Future<void> _runSearch(String query) async {
+    setState(() => _isLoading = true);
+    final currentUid = CurrentUserService.instance.currentUser?.id;
+    final results = await DatabaseService.instance.searchUsers(
+      query,
+      excludeUid: currentUid,
     );
+    List<UserModel> finalResults = results;
+    
+    if (currentUid != null) {
+      final futures = results.map((user) async {
+        final status = await ConnectionService.instance.getKnockStatus(user.id);
+        GlobalKnockState.getNotifier(user.id, status).value = status;
+        return user.copyWith(knockStatus: status);
+      });
+      finalResults = await Future.wait(futures);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _results = finalResults;
+      _isLoading = false;
+      _hasSearched = true;
+    });
   }
 
   @override
@@ -312,7 +105,7 @@ class _SearchScreenState extends State<SearchScreen> {
             onChanged: _onSearchChanged,
             style: TextStyle(color: textColor, fontSize: 15),
             decoration: InputDecoration(
-              hintText: 'Search Knockpost',
+              hintText: 'Search people…',
               hintStyle: TextStyle(
                 color: isDark ? Colors.grey[500] : Colors.grey[600],
                 fontSize: 15,
@@ -333,8 +126,12 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       onPressed: () {
                         _searchController.clear();
-                        _onSearchChanged('');
-                        _searchFocus.unfocus();
+                        setState(() {
+                          _searchQuery = '';
+                          _results = [];
+                          _hasSearched = false;
+                        });
+                        _searchFocus.requestFocus();
                       },
                     )
                   : null,
@@ -342,95 +139,167 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 10),
-          Expanded(
-            child: _filteredUsers.isEmpty
-                ? Center(
-                    child: Text(
-                      'No results found',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[500] : Colors.grey[600],
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredUsers.length,
-                    itemBuilder: (context, index) {
-                      final user = _filteredUsers[index];
-                      return ListTile(
-                        dense: true,
-                        visualDensity: const VisualDensity(vertical: -2),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 2,
-                        ),
-                        leading: CircleAvatar(
-                          radius: 20,
-                          backgroundImage: AssetImage(user.profilePic),
-                          onBackgroundImageError: (_, __) {},
-                          backgroundColor: isDark
-                              ? Colors.grey[800]
-                              : Colors.grey[300],
-                        ),
-                        title: Text(
-                          user.username,
-                          style: TextStyle(
-                            color: textColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          user.name,
-                          style: TextStyle(
-                            color: isDark ? Colors.grey[500] : Colors.grey[600],
-                            fontSize: 13,
-                          ),
-                        ),
-                        trailing: _buildTrailingButton(user, isDark),
-                        onTap: () {
-                          KnockHaptics.tap();
-                          final userModel = UserModel(
-                            id: user.id,
-                            displayName: user.name,
-                            username: user.username,
-                            bio: user.bio,
-                            avatarAsset: user.profilePic,
-                            coverImageAsset: user.coverPic,
-                            friendsCount: user.friendsCount,
-                            accountType: user.accountType,
-                            privacyType: user.privacyType,
-                            rank: user.rank,
-                            mutualFriendsWhoKnocked:
-                                user.mutualFriendsWhoKnocked,
-                            knockStatus: _toKnockStatus(user.connectionStatus),
-                          );
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => OtherProfileScreen(
-                                user: userModel,
-                                posts: user.posts,
-                                onKnockStatusChanged: (status) {
-                                  setState(() {
-                                    user.connectionStatus = _toConnectionStatus(
-                                      status,
-                                    );
-                                  });
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
+      body: _buildBody(isDark, textColor),
+    );
+  }
+
+  Widget _buildBody(bool isDark, Color textColor) {
+    // Empty state — no query typed yet
+    if (_searchQuery.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_rounded,
+              size: 54,
+              color: isDark ? Colors.grey[700] : Colors.grey[400],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Search for people',
+              style: TextStyle(
+                fontSize: 16,
+                color: isDark ? Colors.grey[600] : Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Loading
+    if (_isLoading) {
+      return const KnockpostLoadingIndicator();
+    }
+
+    // No results
+    if (_hasSearched && _results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_search_rounded,
+              size: 54,
+              color: isDark ? Colors.grey[700] : Colors.grey[400],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No results for "$_searchQuery"',
+              style: TextStyle(
+                fontSize: 15,
+                color: isDark ? Colors.grey[600] : Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Results list
+    return ListView.builder(
+      itemCount: _results.length,
+      itemBuilder: (context, index) {
+        final user = _results[index];
+        return _UserResultTile(
+          key: ValueKey(user.id),
+          user: user,
+          isDark: isDark,
+        );
+      },
+    );
+  }
+}
+
+// ─── User Result Tile ────────────────────────────────────────────────────────
+
+class _UserResultTile extends StatefulWidget {
+  final UserModel user;
+  final bool isDark;
+
+  const _UserResultTile({super.key, required this.user, required this.isDark});
+
+  @override
+  State<_UserResultTile> createState() => _UserResultTileState();
+}
+
+class _UserResultTileState extends State<_UserResultTile> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
+
+
+  Widget _buildTrailingButton() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KnockButton(
+          userId: widget.user.id,
+          initialStatus: widget.user.knockStatus,
+          privacyType: widget.user.privacyType,
+          accountType: widget.user.accountType,
+          isCompact: true,
+          isOwnProfile: widget.user.isOwnProfile,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatar() {
+    return KnockpostAvatar(
+      url: widget.user.avatarAsset,
+      radius: 22,
+      name: widget.user.displayName,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = widget.isDark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    return ListTile(
+      dense: true,
+      visualDensity: const VisualDensity(vertical: -1),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: _buildAvatar(),
+      title: Text(
+        widget.user.username,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
       ),
+      subtitle: Text(
+        widget.user.displayName,
+        style: TextStyle(
+          color: isDark ? Colors.grey[500] : Colors.grey[600],
+          fontSize: 13,
+        ),
+      ),
+      trailing: _buildTrailingButton(),
+      onTap: () {
+        KnockHaptics.tap();
+        final currentStatus = GlobalKnockState.getNotifier(widget.user.id, widget.user.knockStatus).value;
+        final updatedUser = widget.user.copyWith(knockStatus: currentStatus);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtherProfileScreen(
+              user: updatedUser,
+              posts: const [],
+              onKnockStatusChanged: (status) {
+                // Handled natively by GlobalKnockState
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -13,7 +13,8 @@ enum KnockStatus {
   none, // No interaction yet
   pending, // Current user knocked, awaiting acceptance
   knocked, // Knock accepted (mutual / one-way accepted)
-  theyKnockedYou, // They knocked the current user first
+  theyKnockedYouPending, // They knocked but current user hasn't accepted yet
+  theyKnockedYou, // They knocked the current user and it is accepted
   mutualKnocked, // Both knocked and accepted
 }
 
@@ -45,6 +46,11 @@ class UserModel {
   // Mutual connections count
   final int mutualFriendsCount;
   final List<String> mutualFriendsAvatars;
+  final Map<String, String> socialLinks; // e.g. {'instagram': 'arjun.nayak', 'youtube': '...'}
+  final List<String> blockedUsers; // UIDs of blocked users
+  final bool isOnline;
+  final DateTime? lastSeen;
+  final List<String> interests;
 
   const UserModel({
     required this.id,
@@ -65,7 +71,89 @@ class UserModel {
     this.isOwnProfile = false,
     this.mutualFriendsCount = 0,
     this.mutualFriendsAvatars = const [],
+    this.socialLinks = const {},
+    this.blockedUsers = const [],
+    this.isOnline = false,
+    this.lastSeen,
+    this.interests = const [],
   });
+
+  factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
+    return UserModel(
+      id: documentId,
+      displayName: map['displayName'] ?? map['fullName'] ?? '',
+      username: map['username'] ?? '',
+      bio: map['bio'],
+      avatarAsset: map['profileImageUrl'] != null && map['profileImageUrl'].toString().isNotEmpty
+          ? map['profileImageUrl']
+          : null,
+      coverImageAsset: map['coverImageUrl'],
+      friendsCount: map['friendsCount'] ?? 0,
+      mutualFriendsWhoKnocked: List<String>.from(map['mutualFriendsWhoKnocked'] ?? []),
+      accountType: map['accountType'] == 'creator' ? AccountType.creator : AccountType.normal,
+      privacyType: map['privacyType'] == 'private' ? PrivacyType.private : PrivacyType.open,
+      rank: _parseRank(map['rank']),
+      totalViews: map['totalViews'] ?? 0,
+      totalLikes: map['totalLikes'] ?? 0,
+      totalKnocksReceived: map['totalKnocksReceived'] ?? 0,
+      knockStatus: _parseKnockStatus(map['knockStatus']),
+      mutualFriendsCount: map['mutualFriendsCount'] ?? 0,
+      socialLinks: Map<String, String>.from(map['socialLinks'] ?? {}),
+      blockedUsers: List<String>.from(map['blockedUsers'] ?? []),
+      isOnline: map['isOnline'] ?? false,
+      lastSeen: map['lastSeen'] != null 
+          ? (map['lastSeen'] as dynamic).toDate()
+          : null,
+      interests: List<String>.from(map['interests'] ?? []),
+    );
+  }
+
+
+
+  Map<String, dynamic> toMap() {
+    return {
+      'displayName': displayName,
+      'username': username,
+      'bio': bio,
+      'profileImageUrl': avatarAsset,
+      'coverImageUrl': coverImageAsset,
+      'friendsCount': friendsCount,
+      'accountType': accountType.name,
+      'privacyType': privacyType.name,
+      'rank': rank.name,
+      'totalViews': totalViews,
+      'totalLikes': totalLikes,
+      'totalKnocksReceived': totalKnocksReceived,
+      'mutualFriendsCount': mutualFriendsCount,
+      'socialLinks': socialLinks,
+      'blockedUsers': blockedUsers,
+      'isOnline': isOnline,
+      'lastSeen': lastSeen,
+      'interests': interests,
+    };
+  }
+
+  static CreatorRank _parseRank(String? rankStr) {
+    if (rankStr == null) return CreatorRank.echo;
+    switch (rankStr) {
+      case 'plus': return CreatorRank.plus;
+      case 'pro': return CreatorRank.pro;
+      case 'impact': return CreatorRank.impact;
+      default: return CreatorRank.echo;
+    }
+  }
+
+  static KnockStatus _parseKnockStatus(String? statusStr) {
+    if (statusStr == null) return KnockStatus.none;
+    switch (statusStr) {
+      case 'pending': return KnockStatus.pending;
+      case 'knocked': return KnockStatus.knocked;
+      case 'theyKnockedYouPending': return KnockStatus.theyKnockedYouPending;
+      case 'theyKnockedYou': return KnockStatus.theyKnockedYou;
+      case 'mutualKnocked': return KnockStatus.mutualKnocked;
+      default: return KnockStatus.none;
+    }
+  }
 
   /// Creator/professional profiles behave as open accounts.
   bool get isEffectivelyOpen =>
@@ -122,6 +210,11 @@ class UserModel {
     bool? isOwnProfile,
     int? mutualFriendsCount,
     List<String>? mutualFriendsAvatars,
+    Map<String, String>? socialLinks,
+    List<String>? blockedUsers,
+    bool? isOnline,
+    DateTime? lastSeen,
+    List<String>? interests,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -145,6 +238,11 @@ class UserModel {
       isOwnProfile: isOwnProfile ?? this.isOwnProfile,
       mutualFriendsCount: mutualFriendsCount ?? this.mutualFriendsCount,
       mutualFriendsAvatars: mutualFriendsAvatars ?? this.mutualFriendsAvatars,
+      socialLinks: socialLinks ?? this.socialLinks,
+      blockedUsers: blockedUsers ?? this.blockedUsers,
+      isOnline: isOnline ?? this.isOnline,
+      lastSeen: lastSeen ?? this.lastSeen,
+      interests: interests ?? this.interests,
     );
   }
 }
@@ -153,12 +251,12 @@ class UserModel {
 
 const demoOwnUser = UserModel(
   id: 'me',
-  displayName: 'Arjun Nayak',
-  username: 'arjun.nayak',
-  bio: 'Building things 🛠 | Coffee addict ☕ | Kolkata',
-  avatarAsset: 'assets/test1.jpg',
-  coverImageAsset: 'assets/test2.jpg',
-  friendsCount: 1200,
+  displayName: 'User',
+  username: 'user',
+  bio: '',
+  avatarAsset: null,
+  coverImageAsset: null,
+  friendsCount: 0,
   accountType: AccountType.normal,
   privacyType: PrivacyType.open,
   isOwnProfile: true,
@@ -259,19 +357,13 @@ const demoLeonardoDiCaprio = UserModel(
 );
 
 /// All demo users for easy lookup
-const List<UserModel> allDemoUsers = [
-  demoZaynMalik,
-  demoJustinBieber,
-  demoSumanPatra,
-  demoSaptarshiNayak,
-  demoAryaLayek,
-  demoLeonardoDiCaprio,
-];
+const List<UserModel> allDemoUsers = [];
 
-/// Find a full demo UserModel by username. Returns null if not found.
-UserModel? findDemoUserByUsername(String username) {
+UserModel? findDemoUserById(String id) {
+  if (demoOwnUser.id == id) return demoOwnUser;
   for (final u in allDemoUsers) {
-    if (u.username == username) return u;
+    if (u.id == id) return u;
   }
   return null;
 }
+

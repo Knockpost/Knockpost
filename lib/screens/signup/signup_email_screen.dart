@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -201,13 +202,10 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? SizedBox(
+                              ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(
-                                    color: isDark ? Colors.black : Colors.white,
-                                    strokeWidth: 2,
-                                  ),
+                                  child: KnockpostLoadingIndicator(),
                                 )
                               : Text(
                                   "Next",

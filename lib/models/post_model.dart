@@ -1,14 +1,18 @@
-// KnockPost — Post Model
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum PostDuration {
-  h24, // 24-hour post — stays in Recents for 3 days then disappears
-  h36, // 36-hour post — stays in Recents for 3 days then disappears
-  lifetime, // Lifetime post — stays in Recents for 3 days AND always in Showcase
+  h24,      // ২৪ ঘণ্টা — শুধু Recents-এ ২৪ ঘণ্টা, তারপর সব জায়গা থেকে চলে যায়
+  h36,      // ৩৬ ঘণ্টা — শুধু Recents-এ ৩৬ ঘণ্টা, তারপর সব জায়গা থেকে চলে যায়
+  lifetime, // Lifetime — Recents-এ ৩ দিন (৭২ ঘণ্টা) থাকে, তারপর Recents থেকে উঠে যায়
+            //            কিন্তু Showcase-এ সবসময় থাকে (কখনো সরে না)
 }
 
 enum PostType {
-  media, // Image(s) / video
-  text, // Text-only
+  media, // Image(s) — Post
+  text, // Text-only — Thoughts
+  glimps, // Photo + Music story — Glimps (Instagram Stories)
+  waves, // Video up to 2m30s — Waves (Instagram Reels)
 }
 
 class PostModel {
@@ -19,7 +23,29 @@ class PostModel {
   final PostDuration duration;
 
   final List<String> imagePaths; // empty for text posts
+  final double? mediaAspectRatio;
+  final bool mediaIsBaked;
+  final bool isVideoPost;
+  final bool videoHasSound;
+  final String? coverImagePath;
   final String text; // empty for media-only posts
+
+  final String? musicUrl;
+  final String? musicTitle;
+  final String? musicArtist;
+  final String? musicCoverUrl;
+  final int? musicStyle;
+  final String? musicLyrics;
+  final Map<String, dynamic>? musicLyricsConfig;
+  final int? musicTrimStart;
+  final double? musicOverlayX;
+  final double? musicOverlayY;
+  final double? musicOverlayScale;
+  final double? musicOverlayRotation;
+
+  final int? filterIndex;
+  final List<Map<String, dynamic>>? textOverlays;
+  final List<Map<String, dynamic>>? drawPaths;
 
   final DateTime createdAt;
   final int likes;
@@ -32,7 +58,27 @@ class PostModel {
     required this.type,
     required this.duration,
     this.imagePaths = const [],
+    this.mediaAspectRatio,
+    this.mediaIsBaked = false,
+    this.isVideoPost = false,
+    this.videoHasSound = false,
+    this.coverImagePath,
     this.text = '',
+    this.musicUrl,
+    this.musicTitle,
+    this.musicArtist,
+    this.musicCoverUrl,
+    this.musicStyle,
+    this.musicLyrics,
+    this.musicLyricsConfig,
+    this.musicTrimStart,
+    this.musicOverlayX,
+    this.musicOverlayY,
+    this.musicOverlayScale,
+    this.musicOverlayRotation,
+    this.filterIndex,
+    this.textOverlays,
+    this.drawPaths,
     required this.createdAt,
     this.likes = 0,
     this.views = 0,
@@ -40,15 +86,24 @@ class PostModel {
   });
 
   /// Whether this post is currently in the "Recents" window.
-  /// All post types stay in Recents for 3 days (72 hours).
+  /// h24  → ২৪ ঘণ্টার মধ্যে থাকলে Recents-এ দেখায়
+  /// h36  → ৩৬ ঘণ্টার মধ্যে থাকলে Recents-এ দেখায়
+  /// lifetime → ৩ দিন (৭২ ঘণ্টা) পর্যন্ত Recents-এ থাকে, তারপর শুধু Showcase-এ
   bool get isInRecentsWindow {
     final age = DateTime.now().difference(createdAt);
-    return age.inHours < 72; // 3-day window for all post types
+    switch (duration) {
+      case PostDuration.h24:
+        return age.inHours < 24;
+      case PostDuration.h36:
+        return age.inHours < 36;
+      case PostDuration.lifetime:
+        return age.inHours < 72; // ৩ দিন পর Recents থেকে সরে, Showcase-এ থাকে
+    }
   }
 
   /// Whether this post belongs in the Showcase section.
-  /// Only lifetime posts belong in Showcase — they appear here permanently.
-  /// Dynamic-time posts (24h / 36h) never go to Showcase.
+  /// Lifetime posts সবসময় Showcase-এ থাকে — Recents থেকে সরে গেলেও।
+  /// h24 / h36 posts কখনো Showcase-এ যায় না।
   bool get isInShowcase => duration == PostDuration.lifetime;
 
   /// Friendly relative time label
@@ -60,28 +115,166 @@ class PostModel {
     return '${diff.inDays}d';
   }
 
+  /// Formatted timestamp for post cards
+  String get timestampText {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago'; // e.g. 15m ago
+    if (diff.inHours < 24) return '${diff.inHours}h ago'; // exactly as user requested
+    if (diff.inDays < 7) return '${diff.inDays}d ago'; // e.g. 1d ago
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago'; // e.g. 1w ago
+    
+    // Older than ~a month, show date
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[createdAt.month - 1]} ${createdAt.day}, ${createdAt.year}';
+  }
+
   PostModel copyWith({
     bool? isLikedByMe,
     int? likes,
     int? views,
+    double? mediaAspectRatio,
+    bool? mediaIsBaked,
+    bool? isVideoPost,
+    bool? videoHasSound,
+    String? coverImagePath,
+    List<String>? imagePaths,
+    String? musicUrl,
+    String? musicTitle,
+    String? musicArtist,
+    String? musicCoverUrl,
+    int? musicStyle,
+    String? musicLyrics,
+    Map<String, dynamic>? musicLyricsConfig,
+    int? musicTrimStart,
+    double? musicOverlayX,
+    double? musicOverlayY,
+    double? musicOverlayScale,
+    double? musicOverlayRotation,
+    int? filterIndex,
+    List<Map<String, dynamic>>? textOverlays,
+    List<Map<String, dynamic>>? drawPaths,
   }) {
     return PostModel(
       id: id,
       authorId: authorId,
       type: type,
       duration: duration,
-      imagePaths: imagePaths,
+      imagePaths: imagePaths ?? this.imagePaths,
+      mediaAspectRatio: mediaAspectRatio ?? this.mediaAspectRatio,
+      mediaIsBaked: mediaIsBaked ?? this.mediaIsBaked,
+      isVideoPost: isVideoPost ?? this.isVideoPost,
+      videoHasSound: videoHasSound ?? this.videoHasSound,
+      coverImagePath: coverImagePath ?? this.coverImagePath,
       text: text,
+      musicUrl: musicUrl ?? this.musicUrl,
+      musicTitle: musicTitle ?? this.musicTitle,
+      musicArtist: musicArtist ?? this.musicArtist,
+      musicCoverUrl: musicCoverUrl ?? this.musicCoverUrl,
+      musicStyle: musicStyle ?? this.musicStyle,
+      musicLyrics: musicLyrics ?? this.musicLyrics,
+      musicLyricsConfig: musicLyricsConfig ?? this.musicLyricsConfig,
+      musicTrimStart: musicTrimStart ?? this.musicTrimStart,
+      musicOverlayX: musicOverlayX ?? this.musicOverlayX,
+      musicOverlayY: musicOverlayY ?? this.musicOverlayY,
+      musicOverlayScale: musicOverlayScale ?? this.musicOverlayScale,
+      musicOverlayRotation: musicOverlayRotation ?? this.musicOverlayRotation,
+      filterIndex: filterIndex ?? this.filterIndex,
+      textOverlays: textOverlays ?? this.textOverlays,
+      drawPaths: drawPaths ?? this.drawPaths,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       views: views ?? this.views,
       isLikedByMe: isLikedByMe ?? this.isLikedByMe,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'authorId': authorId,
+      'type': type.name,
+      'duration': duration.name,
+      'imagePaths': imagePaths,
+      'mediaAspectRatio': mediaAspectRatio,
+      'mediaIsBaked': mediaIsBaked,
+      'isVideoPost': isVideoPost,
+      'videoHasSound': videoHasSound,
+      'coverImagePath': coverImagePath,
+      'text': text,
+      'musicUrl': musicUrl,
+      'musicTitle': musicTitle,
+      'musicArtist': musicArtist,
+      'musicCoverUrl': musicCoverUrl,
+      'musicStyle': musicStyle,
+      'musicLyrics': musicLyrics,
+      'musicLyricsConfig': musicLyricsConfig,
+      'musicTrimStart': musicTrimStart,
+      'musicOverlayX': musicOverlayX,
+      'musicOverlayY': musicOverlayY,
+      'musicOverlayScale': musicOverlayScale,
+      'musicOverlayRotation': musicOverlayRotation,
+      'filterIndex': filterIndex,
+      'textOverlays': textOverlays,
+      'drawPaths': drawPaths,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'likes': likes,
+      'views': views,
+    };
+  }
+
+  factory PostModel.fromMap(Map<String, dynamic> map, String documentId) {
+    return PostModel(
+      id: documentId,
+      authorId: map['authorId'] ?? '',
+      type: PostType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => PostType.media,
+      ),
+      duration: PostDuration.values.firstWhere(
+        (e) => e.name == map['duration'],
+        orElse: () => PostDuration.h24,
+      ),
+      imagePaths: List<String>.from(map['imagePaths'] ?? []),
+      mediaAspectRatio: map['mediaAspectRatio']?.toDouble(),
+      mediaIsBaked: map['mediaIsBaked'] ?? false,
+      isVideoPost: map['isVideoPost'] ?? false,
+      videoHasSound: map['videoHasSound'] ?? false,
+      coverImagePath: map['coverImagePath'],
+      text: map['text'] ?? '',
+      musicUrl: map['musicUrl'],
+      musicTitle: map['musicTitle'],
+      musicArtist: map['musicArtist'],
+      musicCoverUrl: map['musicCoverUrl'],
+      musicStyle: map['musicStyle'],
+      musicLyrics: map['musicLyrics'],
+      musicLyricsConfig: map['musicLyricsConfig'] != null 
+          ? Map<String, dynamic>.from(map['musicLyricsConfig']) 
+          : null,
+      musicTrimStart: map['musicTrimStart'],
+      musicOverlayX: map['musicOverlayX']?.toDouble(),
+      musicOverlayY: map['musicOverlayY']?.toDouble(),
+      musicOverlayScale: map['musicOverlayScale']?.toDouble(),
+      musicOverlayRotation: map['musicOverlayRotation']?.toDouble(),
+      filterIndex: map['filterIndex'],
+      textOverlays: map['textOverlays'] != null 
+          ? List<Map<String, dynamic>>.from(map['textOverlays']) 
+          : null,
+      drawPaths: map['drawPaths'] != null 
+          ? List<Map<String, dynamic>>.from(map['drawPaths']) 
+          : null,
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      likes: map['likes'] ?? 0,
+      views: map['views'] ?? 0,
+      isLikedByMe: false, // This is determined client-side usually
+    );
+  }
 }
 
 // ─── Demo posts ──────────────────────────────────────────────────────────────
 final now = DateTime.now();
+
+final ValueNotifier<List<PostModel>> demoOwnPostsNotifier =
+    ValueNotifier<List<PostModel>>(demoOwnPosts);
 
 final List<PostModel> demoOwnPosts = [
   // Recents — 24h media post (still fresh)
@@ -97,31 +290,112 @@ final List<PostModel> demoOwnPosts = [
     views: 210,
     isLikedByMe: false,
   ),
-    // Recents — 36h media post
-    PostModel(
-      id: 'p2',
-      authorId: 'me',
-      type: PostType.media,
-      duration: PostDuration.h36,
-      imagePaths: ['assets/test3.jpg'],
-      text: 'Morning run hits different 🏃',
-      createdAt: now.subtract(const Duration(hours: 10)),
-      likes: 18,
-      views: 95,
-      isLikedByMe: true,
-    ),
-    // Recents — 24h text-only post (Thought)
-    PostModel(
-      id: 'p3',
-      authorId: 'me',
-      type: PostType.text,
-      duration: PostDuration.h24,
-      imagePaths: const [],
-      text: 'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
-      createdAt: now.subtract(const Duration(hours: 15)),
-      likes: 56,
-      views: 120,
-    ),
+  // Recents — 36h media post
+  PostModel(
+    id: 'p2',
+    authorId: 'me',
+    type: PostType.media,
+    duration: PostDuration.h36,
+    imagePaths: ['assets/test3.jpg'],
+    text: 'Morning run hits different 🏃',
+    createdAt: now.subtract(const Duration(hours: 10)),
+    likes: 18,
+    views: 95,
+    isLikedByMe: true,
+  ),
+  // Recents — 24h text-only post (Thought)
+  PostModel(
+    id: 'p3',
+    authorId: 'me',
+    type: PostType.text,
+    duration: PostDuration.h24,
+    imagePaths: const [],
+    text:
+        'Sometimes you just have to log off and step outside. Life is beautiful when you actually look at it without a screen in the way. 🍃✨',
+    createdAt: now.subtract(const Duration(hours: 15)),
+    likes: 56,
+    views: 120,
+  ),
+  // ── 24h Glimpse ────────────────────────────────────────────────────────
+  PostModel(
+    id: 'p_recent_glimpse',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.h24,
+    imagePaths: ['assets/test2.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(hours: 12)),
+    likes: 125,
+    views: 890,
+  ),
+
+  // ── Showcase (lifetime) glimpses ─────────────────────────────────────────
+  PostModel(
+    id: 'p_show_glimpse1',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test3.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(hours: 24)), // Shows in both Recents & Showcase
+    likes: 210,
+    views: 1200,
+  ),
+  PostModel(
+    id: 'p_show_glimpse2',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test4.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 4)), // Only in Showcase
+    likes: 450,
+    views: 2400,
+  ),
+  PostModel(
+    id: 'p_show_glimpse3',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test1.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 12)),
+    likes: 520,
+    views: 3100,
+  ),
+  PostModel(
+    id: 'p_show_glimpse4',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test2.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 18)),
+    likes: 315,
+    views: 1850,
+  ),
+  PostModel(
+    id: 'p_show_glimpse5',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test3.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 22)),
+    likes: 280,
+    views: 1900,
+  ),
+  PostModel(
+    id: 'p_show_glimpse6',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test1.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 35)),
+    likes: 670,
+    views: 4500,
+  ),
   // ── Showcase (lifetime) posts ────────────────────────────────────────────
   PostModel(
     id: 'p_show1',
@@ -156,45 +430,150 @@ final List<PostModel> demoOwnPosts = [
     likes: 540,
     views: 3200,
   ),
-    PostModel(
-      id: 'p_show4',
-      authorId: 'me',
-      type: PostType.media,
-      duration: PostDuration.lifetime,
-      imagePaths: ['assets/test1.jpg'],
-      text: 'First post on KnockPost 🚀',
-      createdAt: now.subtract(const Duration(days: 120)),
-      likes: 870,
-      views: 5100,
-    ),
-    PostModel(
-      id: 'p_show5',
-      authorId: 'me',
-      type: PostType.text,
-      duration: PostDuration.lifetime,
-      imagePaths: const [],
-      text: 'Dreaming big since day one. 💭',
-      createdAt: now.subtract(const Duration(days: 150)),
-      likes: 310,
-      views: 1400,
-    ),
-  ];
+  PostModel(
+    id: 'p_show4',
+    authorId: 'me',
+    type: PostType.media,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test1.jpg'],
+    text: 'First post on KnockPost 🚀',
+    createdAt: now.subtract(const Duration(days: 120)),
+    likes: 870,
+    views: 5100,
+  ),
+  PostModel(
+    id: 'p_show5',
+    authorId: 'me',
+    type: PostType.text,
+    duration: PostDuration.lifetime,
+    imagePaths: const [],
+    text: 'Dreaming big since day one. 💭',
+    createdAt: now.subtract(const Duration(days: 150)),
+    likes: 310,
+    views: 1400,
+  ),
+];
 
 List<PostModel> getDemoPostsForUser(String userId) {
   if (userId == 'leo01') return const [];
   if (userId == 'me') return demoOwnPosts;
-  
+
+  final now = DateTime.now();
+
+  if (userId == 'zayn01') {
+    // Only 1 lifetime glimpse. No recents. No normal posts.
+    return [
+      PostModel(
+        id: '${userId}_wave1',
+        authorId: userId,
+        type: PostType.waves,
+        duration: PostDuration.lifetime,
+        imagePaths: ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'],
+        text: 'Vibin in the studio 🎤🔥',
+        createdAt: now.subtract(const Duration(hours: 5)),
+        likes: 2400, views: 18000,
+        isVideoPost: true,
+        coverImagePath: 'assets/test3.jpg',
+      ),
+      PostModel(
+        id: '${userId}_glimpse1',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test1.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(days: 10)),
+        likes: 120, views: 500,
+      ),
+      PostModel(
+        id: '${userId}_thought1',
+        authorId: userId,
+        type: PostType.text,
+        duration: PostDuration.h24,
+        text: 'Sometimes quiet days are exactly what we need. 🌧️☕',
+        createdAt: now.subtract(const Duration(hours: 3)),
+        likes: 450, views: 2500,
+      ),
+    ];
+  }
+
+  if (userId == 'justin01') {
+    // Only glimpses (1 lifetime, 1 24h). No normal dashboard posts.
+    return [
+      PostModel(
+        id: '${userId}_glimpse1',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test3.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(days: 5)),
+        likes: 300, views: 1000,
+      ),
+      PostModel(
+        id: '${userId}_glimpse2',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.h24,
+        imagePaths: ['assets/test2.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(hours: 5)),
+        likes: 150, views: 800,
+      ),
+      PostModel(
+        id: '${userId}_thought1',
+        authorId: userId,
+        type: PostType.text,
+        duration: PostDuration.lifetime,
+        text: 'New music coming soon... maybe? 🎵🤷‍♂️',
+        createdAt: now.subtract(const Duration(days: 12)),
+        likes: 1200, views: 8500,
+      ),
+    ];
+  }
+
+  if (userId == 'suman01') {
+    // Showcase has exactly 1 glimpse and 1 post. No recents.
+    return [
+      PostModel(
+        id: '${userId}_glimpse1',
+        authorId: userId,
+        type: PostType.glimps,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test4.jpg'],
+        text: '',
+        createdAt: now.subtract(const Duration(days: 20)),
+        likes: 400, views: 1500,
+      ),
+      PostModel(
+        id: '${userId}_post1',
+        authorId: userId,
+        type: PostType.media,
+        duration: PostDuration.lifetime,
+        imagePaths: ['assets/test1.jpg'],
+        text: 'Just a single memory.',
+        createdAt: now.subtract(const Duration(days: 15)),
+        likes: 250, views: 900,
+      ),
+      PostModel(
+        id: '${userId}_thought1',
+        authorId: userId,
+        type: PostType.text,
+        duration: PostDuration.h24,
+        text: 'The code is compiling. Don\'t move anything. 💻😅',
+        createdAt: now.subtract(const Duration(hours: 1)),
+        likes: 180, views: 650,
+      ),
+    ];
+  }
+
+  // Fallback for saptarshi01, arya01
   int seed;
   switch (userId) {
-    case 'zayn01': seed = 1; break;
-    case 'justin01': seed = 2; break;
-    case 'suman01': seed = 3; break;
     case 'saptarshi01': seed = 4; break;
     case 'arya01': seed = 5; break;
     default: seed = userId.hashCode.abs() % 10 + 1; break;
   }
-  
-  final now = DateTime.now();
   const pool = [
     'assets/test1.jpg',
     'assets/test2.jpg',
@@ -206,6 +585,32 @@ List<PostModel> getDemoPostsForUser(String userId) {
   final third = pool[(seed + 2) % pool.length];
 
   return [
+    // Waves (short video)
+    PostModel(
+      id: '${userId}_wave1',
+      authorId: userId,
+      type: PostType.waves,
+      duration: PostDuration.lifetime,
+      imagePaths: ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4'],
+      text: 'Quick edit from today 🎬',
+      createdAt: now.subtract(Duration(hours: 2 + seed)),
+      likes: 980 + seed * 50, views: 6500 + seed * 200,
+      isVideoPost: true,
+      coverImagePath: first,
+    ),
+    // Glimpse (24h)
+    PostModel(
+      id: '${userId}_glimpse',
+      authorId: userId,
+      type: PostType.glimps,
+      duration: PostDuration.h24,
+      imagePaths: [second],
+      text: 'Good vibes only ✨',
+      musicTitle: 'Trending Track',
+      createdAt: now.subtract(Duration(hours: 1 + seed)),
+      likes: 85 + seed * 4,
+      views: 400 + seed * 25,
+    ),
     // Recent post
     PostModel(
       id: '${userId}_recent',
@@ -242,15 +647,24 @@ List<PostModel> getDemoPostsForUser(String userId) {
       views: 800 + seed * 80,
     ),
     PostModel(
-      id: '${userId}_show3',
+      id: '${userId}_thought1',
       authorId: userId,
-      type: PostType.media,
-      duration: PostDuration.lifetime,
-      imagePaths: [first, third, second],
-      text: 'This one hits different 🎯',
-      createdAt: now.subtract(Duration(days: 45 + seed * 7)),
-      likes: 200 + seed * 30,
-      views: 1200 + seed * 100,
+      type: PostType.text,
+      duration: PostDuration.h24,
+      text: seed == 4 
+          ? 'What an incredibly long day! So ready for the weekend. 🙌'
+          : 'Can\'t believe how fast this month went by! ⏳',
+      createdAt: now.subtract(Duration(hours: 5 + seed)),
+      likes: 40 + seed * 6,
+      views: 180 + seed * 20,
     ),
   ];
 }
+
+final List<PostModel> demoGlimpseFeed = [
+  ...getDemoPostsForUser('arya01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('saptarshi01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('justin01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('suman01').where((p) => p.type == PostType.glimps),
+  ...getDemoPostsForUser('zayn01').where((p) => p.type == PostType.glimps),
+];

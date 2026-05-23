@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
+import '../../services/connection_service.dart';
 import '../../widgets/people_suggestion_strip.dart';
 import '../../widgets/system_nav_bar_fill.dart';
+import '../../services/post_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../../utils/global_dismiss_state.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import '../profile/other_profile_screen.dart';
 import '../profile/widgets/knock_button.dart';
 
@@ -18,10 +24,53 @@ class DiscoverPeopleScreen extends StatefulWidget {
 }
 
 class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
+  List<UserModel> _users = [];
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
+    _fetchUsers();
     GlobalDismissState.dismissedUserIds.addListener(_rebuild);
+  }
+
+  Future<void> _fetchUsers() async {
+    final currentUserId = CurrentUserService.instance.currentUser?.id;
+    final fetchedUsers = await DatabaseService.instance.getSuggestedUsers(
+      excludeUid: currentUserId,
+      limitCount: 50,
+    );
+    
+    if (!mounted) return;
+
+    final statuses = await Future.wait(fetchedUsers.map((u) async {
+      var status = GlobalKnockState.getNotifier(u.id, u.knockStatus).value;
+      if (status == KnockStatus.none) {
+        status = await ConnectionService.instance.getKnockStatus(u.id);
+        GlobalKnockState.getNotifier(u.id, status).value = status;
+      }
+      return status;
+    }));
+
+    final validUsers = <UserModel>[];
+    for (int i = 0; i < fetchedUsers.length; i++) {
+      final u = fetchedUsers[i];
+      if (GlobalDismissState.isDismissed(u.id)) continue;
+      
+      final status = statuses[i];
+      if (status != KnockStatus.knocked &&
+          status != KnockStatus.pending &&
+          status != KnockStatus.mutualKnocked) {
+        validUsers.add(u);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _users = validUsers;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -39,16 +88,19 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
 
     // Filter out dismissed users
-    final users = demoSuggestedUsers
+    final filteredUsers = _users
         .where((u) => !GlobalDismissState.isDismissed(u.id))
         .toList();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bgColor,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bgColor,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Stack(
         children: [
@@ -76,26 +128,28 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
                 ),
               ),
             ),
-            body: users.isEmpty
-                ? _buildEmptyState(isDark)
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    itemCount: users.length,
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    cacheExtent: 600,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      thickness: 0.5,
-                      indent: 72,
-                      color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
-                    ),
-                    itemBuilder: (context, index) {
-                      final user = users[index];
-                      return _DiscoverUserTile(user: user);
-                    },
-                  ),
+            body: _isLoading 
+                ? const Center(child: KnockpostLoadingIndicator())
+                : filteredUsers.isEmpty
+                    ? _buildEmptyState(isDark)
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        itemCount: filteredUsers.length,
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        cacheExtent: 600,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          indent: 72,
+                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                        ),
+                        itemBuilder: (context, index) {
+                          final user = filteredUsers[index];
+                          return _DiscoverUserTile(user: user);
+                        },
+                      ),
           ),
           SystemNavBarFill(color: bgColor),
         ],
@@ -150,9 +204,10 @@ class _DiscoverUserTile extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            CircleAvatar(
+            KnockpostAvatar(
+              url: user.avatarAsset,
               radius: 28,
-              backgroundImage: AssetImage(user.avatarAsset ?? 'assets/test1.jpg'),
+              name: user.displayName,
             ),
             const SizedBox(width: 12),
 
@@ -218,9 +273,14 @@ class _DiscoverUserTile extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => OtherProfileScreen(
-          user: user,
-          posts: getDemoPostsForUser(user.id),
+        builder: (_) => StreamBuilder<List<PostModel>>(
+          stream: PostService.instance.getUserPosts(user.id),
+          builder: (context, snapshot) {
+            return OtherProfileScreen(
+              user: user,
+              posts: snapshot.data ?? [],
+            );
+          },
         ),
       ),
     );
@@ -249,12 +309,6 @@ class _DiscoverKnockButtonState extends State<_DiscoverKnockButton> {
     return ValueListenableBuilder<KnockStatus>(
       valueListenable: _notifier,
       builder: (context, status, _) {
-        final isKnocked = status == KnockStatus.knocked || 
-                           status == KnockStatus.pending || 
-                           status == KnockStatus.mutualKnocked;
-        
-        final label = status == KnockStatus.theyKnockedYou ? 'Knock Back' : 
-                      isKnocked ? 'Knocked' : 'Knock';
 
         return SizedBox(
           width: 96,

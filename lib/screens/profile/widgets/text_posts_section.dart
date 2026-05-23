@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../widgets/thought_card.dart';
+import '../../thoughts/thought_card.dart';
 import '../../../utils/global_post_state.dart';
+import '../../../widgets/staggered_entry_animation.dart';
 import 'profile_ui_helpers.dart';
 
 /// Scrollable list of text-only posts (Thoughts tab on profile).
@@ -22,7 +23,7 @@ class TextPostsSection extends StatelessWidget {
   });
 
   List<PostModel> get _textPosts =>
-      posts.where((p) => p.type == PostType.text).toList()
+      posts.where((p) => p.type == PostType.text && p.duration == PostDuration.lifetime).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   @override
@@ -61,25 +62,30 @@ class TextPostsSection extends StatelessWidget {
             final post = textPosts[i];
             final isLast = i == textPosts.length - 1;
 
-            return Column(
-              children: [
-                divider,
-                ThoughtCard(
-                  user: user ?? const UserModel(
-                    id: 'unknown',
-                    displayName: 'User',
-                    username: 'user',
-                    friendsCount: 0,
-                    accountType: AccountType.normal,
-                    knockStatus: KnockStatus.none,
+            return StaggeredEntryAnimation(
+              index: i,
+              child: Column(
+                children: [
+                  divider,
+                  ThoughtCard(
+                    user: user ?? const UserModel(
+                      id: 'unknown',
+                      displayName: 'User',
+                      username: 'user',
+                      friendsCount: 0,
+                      accountType: AccountType.normal,
+                      knockStatus: KnockStatus.none,
+                    ),
+                    text: post.text,
+                    likes: post.likes,
+                    views: post.views,
+                    postId: post.id,
+                    disableProfileNavigation: true,
+                    timestamp: post.timestampText,
                   ),
-                  text: post.text,
-                  likes: post.likes,
-                  views: post.views,
-                  postId: post.id,
-                ),
-                if (isLast) divider,
-              ],
+                  if (isLast) divider,
+                ],
+              ),
             );
           },
         );

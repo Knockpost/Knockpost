@@ -63,4 +63,16 @@ class ImageHelper {
     }
     return null;
   }
+  /// Resolves a path string (assets/, http(s)://, or local file) to an [ImageProvider].
+  /// Returns null if [path] is null or empty.
+  static ImageProvider? resolveImage(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('assets/')) return AssetImage(path);
+    if (path.startsWith('http')) return NetworkImage(path);
+    return FileImage(File(path));
+  }
+
+  /// Convenience wrapper for user avatar / cover paths.
+  static ImageProvider? resolveAvatar(String? avatarPath) =>
+      resolveImage(avatarPath);
 }

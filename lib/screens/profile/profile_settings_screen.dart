@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../theme/theme_controller.dart';
@@ -7,9 +8,13 @@ import '../../widgets/system_nav_bar_fill.dart';
 import 'widgets/creator_rank_badge.dart';
 import 'widgets/profile_ui_helpers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../login_screen.dart';
 import 'edit_profile_screen.dart';
+import 'blocked_accounts_screen.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
 class ProfileSettingsScreen extends StatefulWidget {
@@ -23,22 +28,86 @@ class ProfileSettingsScreen extends StatefulWidget {
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserModel _user;
-  final String _accountEmail = 'arya.lk@gmail.com';
+  late String _accountEmail;
 
   @override
   void initState() {
     super.initState();
     _user = widget.user;
+    _accountEmail = FirebaseAuth.instance.currentUser?.email ?? 'Unknown Email';
   }
 
-  void _toggleProfessional(bool value) {
+  Future<void> _toggleProfessional(bool value) async {
     KnockHaptics.impact();
+    final newType = value ? AccountType.creator : AccountType.normal;
     setState(() {
       _user = _user.copyWith(
-        accountType: value ? AccountType.creator : AccountType.normal,
+        accountType: newType,
         rank: CreatorRank.echo,
       );
     });
+    try {
+      await DatabaseService.instance.updateUserProfile(
+        uid: _user.id,
+        displayName: _user.displayName,
+        username: _user.username,
+        accountType: newType.name,
+      );
+      CurrentUserService.instance.refresh();
+    } catch (e) {
+      debugPrint('Error updating account type: $e');
+    }
+  }
+
+  Future<bool> _confirmPrivacyChange(bool isPrivate) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final dialogBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
+    final title = isPrivate ? 'Switch to Private Account?' : 'Switch to Public Account?';
+    final content = isPrivate
+        ? 'Only accepted Knocks will be able to see your profile & posts. This won\'t change who can message you.'
+        : 'Anyone will be able to see your profile & posts. You will no longer need to approve Knocks.';
+
+    final confirmText = isPrivate ? 'Switch to Private' : 'Switch to Public';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                title,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              content: Text(
+                content,
+                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 14, height: 1.4),
+                textAlign: TextAlign.center,
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(
+                    confirmText,
+                    style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -48,7 +117,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
@@ -57,12 +126,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Stack(
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            Navigator.pop(context, _user);
+          }
+        },
+        child: Stack(
         children: [
           Scaffold(
         backgroundColor: bg,
@@ -115,6 +191,39 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     }
                   },
                 ),
+                if (_user.accountType == AccountType.normal)
+                  ProfileSettingsRow(
+                    title: 'Private Account',
+                    subtitle: 'Only accepted Knocks can see your profile & posts.',
+                    trailing: Switch(
+                      value: _user.privacyType == PrivacyType.private,
+                      onChanged: (v) async {
+                        KnockHaptics.selection();
+                        
+                        final confirm = await _confirmPrivacyChange(v);
+                        if (!confirm) return;
+
+                        final newPrivacy = v ? PrivacyType.private : PrivacyType.open;
+                        setState(() {
+                          _user = _user.copyWith(
+                            privacyType: newPrivacy,
+                          );
+                        });
+                        try {
+                          await DatabaseService.instance.updateUserProfile(
+                            uid: _user.id,
+                            displayName: _user.displayName,
+                            username: _user.username,
+                            privacyType: newPrivacy.name,
+                          );
+                          CurrentUserService.instance.refresh();
+                        } catch (e) {
+                          debugPrint('Error updating privacy type: $e');
+                        }
+                      },
+                      activeThumbColor: textColor,
+                    ),
+                  ),
                 if (isPro)
                   ProfileSettingsRow(
                     title: 'Professional stats',
@@ -208,16 +317,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
-                  onTap: () {},
-                ),
-                ProfileSettingsRow(
-                  title: 'Knock requests',
-                  subtitle: 'Manage pending knocks',
-                  trailing: Icon(
-                    Icons.chevron_right_rounded,
-                    color: isDark ? Colors.white38 : Colors.black38,
-                  ),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BlockedAccountsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -326,7 +433,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: Colors.red.withOpacity(0.45),
+                      color: Colors.red.withValues(alpha: 0.45),
                     ),
                   ),
                   child: const Text(
@@ -347,6 +454,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       ),
           SystemNavBarFill(color: bg),
         ],
+      ),
       ),
     );
   }
@@ -435,16 +543,16 @@ class _DisplaySettingsScreenState extends State<_DisplaySettingsScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Stack(
@@ -567,16 +675,16 @@ class _AccountSettingsScreen extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Stack(
@@ -666,16 +774,64 @@ class _ManageInterestsScreen extends StatefulWidget {
 }
 
 class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
-  final Map<String, bool> _interests = {
-    'Photography': true,
-    'Travel': true,
-    'Music': false,
-    'Gaming': true,
-    'Fashion': false,
-    'Fitness': false,
-    'Tech': true,
-    'Food': true,
-  };
+  final List<String> _allTopics = [
+    "Culture", "Technology", "Business", "Science", "Music", "Sports", 
+    "Art", "Movies", "Books", "Lifestyle", "Health", "Food", 
+    "Politics", "Gaming", "Fashion", "Photography", "Travel", "Fitness"
+  ];
+
+  late Map<String, bool> _interests;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInterests();
+  }
+
+  void _loadUserInterests() {
+    final user = CurrentUserService.instance.currentUser;
+    final userInterests = user?.interests ?? [];
+    
+    _interests = {};
+    for (final topic in _allTopics) {
+      _interests[topic] = userInterests.contains(topic);
+    }
+    
+    for (final topic in userInterests) {
+      if (!_interests.containsKey(topic)) {
+        _interests[topic] = true;
+      }
+    }
+    
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _updateInterest(String topic, bool isSelected) async {
+    setState(() {
+      _interests[topic] = isSelected;
+    });
+    KnockHaptics.selection();
+
+    final user = CurrentUserService.instance.currentUser;
+    if (user == null) return;
+
+    final selectedList = _interests.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.id).update({
+        'interests': selectedList,
+      });
+      await CurrentUserService.instance.loadCurrentUser();
+    } catch (e) {
+      debugPrint('Error updating interests: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -684,16 +840,16 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Stack(
@@ -721,7 +877,9 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
             ),
           ),
         ),
-        body: ListView(
+        body: _isLoading 
+            ? const Center(child: KnockpostLoadingIndicator())
+            : ListView(
           padding: EdgeInsets.zero,
           children: [
             _SectionHeader('Topics', isDark: isDark),
@@ -737,10 +895,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
                           : 'Tap to add this interest',
                       trailing: Switch(
                         value: entry.value,
-                        onChanged: (value) {
-                          KnockHaptics.selection();
-                          setState(() => _interests[entry.key] = value);
-                        },
+                        onChanged: (value) => _updateInterest(entry.key, value),
                         activeThumbColor: textColor,
                       ),
                     ),
@@ -787,16 +942,16 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Stack(
@@ -862,7 +1017,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                     labelColor: isDark ? Colors.white54 : Colors.black45,
                     trackColor: isDark
                         ? Colors.white10
-                        : Colors.black.withOpacity(0.06),
+                        : Colors.black.withValues(alpha: 0.06),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -1015,7 +1170,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
   }
 
   int get _totalUsageMinutes =>
-      _weeklyUsageMinutes.values.fold(0, (sum, value) => sum + value);
+      _weeklyUsageMinutes.values.fold(0, (acc, value) => acc + value);
 
   int get _averageUsageMinutes =>
       (_totalUsageMinutes / _weeklyUsageMinutes.length).round();
@@ -1175,16 +1330,16 @@ class _ProfessionalStatsScreen extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black;
     final divColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
     final sectionBg = isDark
         ? const Color(0xFF111111)
         : const Color(0xFFF8F8F8);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: bg,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Stack(
@@ -1275,7 +1430,7 @@ class _ProfessionalStatsScreen extends StatelessWidget {
                     labelColor: isDark ? Colors.white54 : Colors.black45,
                     trackColor: isDark
                         ? Colors.white10
-                        : Colors.black.withOpacity(0.06),
+                        : Colors.black.withValues(alpha: 0.06),
                   ),
                 ],
               ),
@@ -1324,11 +1479,11 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
     final fieldBg = isDark ? const Color(0xFF1C1C1C) : const Color(0xFFF6F6F6);
     final borderColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: bg,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         systemNavigationBarColor: bg,
         systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
@@ -1397,7 +1552,7 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
                 decoration: InputDecoration(
                   hintText: 'Write your feedback...',
                   hintStyle: TextStyle(
-                    color: textColor.withOpacity(0.35),
+                    color: textColor.withValues(alpha: 0.35),
                     fontSize: 14.5,
                   ),
                   contentPadding: const EdgeInsets.all(14),

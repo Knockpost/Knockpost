@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/knockpost_avatar.dart';
 import 'chat_screen.dart';
+import '../../services/connection_service.dart';
+import '../../services/database_service.dart';
 
 class NewMessageScreen extends StatefulWidget {
   const NewMessageScreen({super.key});
@@ -14,22 +18,8 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static const List<UserModel> _allUsers = [
-    demoAryaLayek,
-    demoJustinBieber,
-    demoLeonardoDiCaprio,
-    demoSaptarshiNayak,
-    demoSumanPatra,
-    demoZaynMalik,
-  ];
-
-  List<UserModel> get _filteredUsers {
-    if (_searchQuery.isEmpty) return _allUsers;
-    final query = _searchQuery.toLowerCase();
-    return _allUsers.where((u) =>
-        u.displayName.toLowerCase().contains(query) ||
-        u.username.toLowerCase().contains(query)).toList();
-  }
+  List<UserModel> _mutualConnections = [];
+  StreamSubscription? _connectionSub;
 
   @override
   void initState() {
@@ -38,10 +28,30 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
       final q = _searchController.text.trim();
       if (q != _searchQuery) setState(() => _searchQuery = q);
     });
+
+    _connectionSub = ConnectionService.instance.streamMutualConnectionUids().listen((uids) async {
+      final users = <UserModel>[];
+      for (final uid in uids) {
+        final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
+        if (data != null) users.add(UserModel.fromMap(data, uid));
+      }
+      if (mounted) {
+        setState(() => _mutualConnections = users);
+      }
+    });
+  }
+
+  List<UserModel> get _filteredUsers {
+    if (_searchQuery.isEmpty) return _mutualConnections;
+    final query = _searchQuery.toLowerCase();
+    return _mutualConnections.where((u) =>
+        u.displayName.toLowerCase().contains(query) ||
+        u.username.toLowerCase().contains(query)).toList();
   }
 
   @override
   void dispose() {
+    _connectionSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -134,11 +144,7 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final user = filtered[index];
-                      return _UserTile(
-                        name: user.displayName,
-                        username: user.username,
-                        avatarAsset: user.avatarAsset ?? '',
-                      );
+                      return _UserTile(user: user);
                     },
                   ),
           ),
@@ -149,14 +155,10 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 }
 
 class _UserTile extends StatelessWidget {
-  final String name;
-  final String username;
-  final String avatarAsset;
+  final UserModel user;
 
   const _UserTile({
-    required this.name,
-    required this.username,
-    required this.avatarAsset,
+    required this.user,
   });
 
   @override
@@ -171,9 +173,7 @@ class _UserTile extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => ChatScreen(
-              userName: name,
-              userAvatar: avatarAsset,
-              userUsername: username,
+              otherUser: user,
             ),
           ),
         );
@@ -182,17 +182,18 @@ class _UserTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundImage: AssetImage(avatarAsset),
+            KnockpostAvatar(
+              url: user.avatarAsset,
+              radius: 26,
+              name: user.displayName,
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    user.displayName,
                     style: TextStyle(
                       color: textColor,
                       fontWeight: FontWeight.w600,
@@ -201,7 +202,7 @@ class _UserTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "@$username",
+                    "@${user.username}",
                     style: TextStyle(
                       color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                       fontSize: 13,

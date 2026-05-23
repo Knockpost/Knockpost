@@ -1,0 +1,273 @@
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/post_model.dart';
+import '../models/user_model.dart';
+import 'storage_service.dart';
+import 'connection_service.dart';
+import 'database_service.dart';
+
+class PostService {
+  PostService._internal();
+  static final PostService instance = PostService._internal();
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  CollectionReference get postsCollection => _firestore.collection('posts');
+
+  /// Helper to bidirectionally filter out posts from blocked users AND private accounts.
+  Future<List<PostModel>> _filterBlockedAndPrivatePosts(List<PostModel> posts) async {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null) return posts;
+
+    // Fetch my profile for my blocked users
+    final myDoc = await _firestore.collection('users').doc(myUid).get();
+    final myBlockedUsers = myDoc.exists ? List<String>.from(myDoc.data()?['blockedUsers'] ?? []) : <String>[];
+
+    final Set<String> uniqueAuthorIds = posts.map((p) => p.authorId).toSet();
+    uniqueAuthorIds.remove(myUid);
+
+    final Map<String, UserModel> authorMap = {};
+    final Map<String, KnockStatus> knockStatusMap = {};
+
+    await Future.wait(uniqueAuthorIds.map((uid) async {
+      try {
+        final data = await _firestore.collection('users').doc(uid).get();
+        if (data.exists && data.data() != null) {
+          final user = UserModel.fromMap(data.data()!, uid);
+          authorMap[uid] = user;
+          
+          if (user.accountType == AccountType.normal && user.privacyType == PrivacyType.private) {
+             knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
+          }
+        }
+      } catch (e) {
+        debugPrint('PostService: failed to fetch author $uid: $e');
+      }
+    }));
+
+    return posts.where((post) {
+      if (post.authorId == myUid) return true;
+      final author = authorMap[post.authorId];
+      if (author == null) return false;
+
+      if (myBlockedUsers.contains(author.id)) return false;
+      if (author.blockedUsers.contains(myUid)) return false;
+
+      // Privacy Check
+      if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+        final status = knockStatusMap[author.id];
+        if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Creates a new post in Firestore and uploads media to Storage.
+  Future<void> createPost({
+    required PostModel post,
+    required List<File> mediaFiles,
+    File? coverFile,
+  }) async {
+    try {
+      List<String> imageUrls = [];
+      String? coverUrl;
+
+      if (mediaFiles.isNotEmpty) {
+        for (var file in mediaFiles) {
+          final url = await StorageService.instance.uploadPostMedia(
+            userId: post.authorId,
+            postId: post.id,
+            file: file,
+          );
+          if (url != null) {
+            imageUrls.add(url);
+          }
+        }
+        
+        // If media files were provided but none uploaded successfully, fail the post
+        if (imageUrls.isEmpty) {
+          throw Exception('Failed to upload media files. Please check your connection.');
+        }
+      }
+
+      if (coverFile != null) {
+        coverUrl = await StorageService.instance.uploadPostCoverImage(
+          userId: post.authorId,
+          postId: post.id,
+          file: coverFile,
+        );
+      }
+
+      final updatedPost = post.copyWith(
+        imagePaths: imageUrls,
+        coverImagePath: coverUrl,
+      );
+
+      await postsCollection.doc(post.id).set(updatedPost.toMap());
+    } catch (e) {
+      debugPrint("Error creating post: $e");
+      rethrow;
+    }
+  }
+
+  /// Streams posts for the home feed, ordered by newest first.
+  /// Filters out expired h24/h36 posts client-side (lifetime posts always show).
+  Stream<List<PostModel>> getFeedPosts({int limit = 20}) {
+    return postsCollection
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .where((post) =>
+              post.duration == PostDuration.lifetime || post.isInRecentsWindow)
+          .toList();
+    });
+  }
+
+  /// Streams feed posts along with their resolved author [UserModel].
+  /// Author profiles are batch-fetched from Firestore whenever the post list changes.
+  /// Returns a list of (PostModel, UserModel) records.
+  Stream<List<({PostModel post, UserModel author})>> getFeedPostsWithAuthors({
+    int limit = 20,
+    required String currentUserId,
+    required UserModel? currentUserModel,
+  }) {
+    return getFeedPosts(limit: limit).asyncMap((posts) async {
+      // Collect unique author IDs (excluding current user — we already have their data)
+      final Set<String> uniqueAuthorIds = {};
+      for (final p in posts) {
+        if (p.authorId != currentUserId) {
+          uniqueAuthorIds.add(p.authorId);
+        }
+      }
+
+      // Batch-fetch all author profiles in parallel
+      final Map<String, UserModel> authorMap = {};
+      await Future.wait(uniqueAuthorIds.map((uid) async {
+        try {
+          final data = await _firestore.collection('users').doc(uid).get();
+          if (data.exists && data.data() != null) {
+            authorMap[uid] = UserModel.fromMap(data.data()!, uid);
+          }
+        } catch (e) {
+          debugPrint('PostService: failed to fetch author $uid: $e');
+        }
+      }));
+
+      // Fetch privacy statuses in parallel for any private users
+      final Map<String, KnockStatus> knockStatusMap = {};
+      await Future.wait(uniqueAuthorIds.map((uid) async {
+        final author = authorMap[uid];
+        if (author != null && author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+            knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
+        }
+      }));
+
+      // Map each post to its author, applying bidirectional block filter & privacy check
+      final List<({PostModel post, UserModel author})> validPosts = [];
+      for (final post in posts) {
+        if (post.authorId == currentUserId) {
+          if (currentUserModel != null) {
+             validPosts.add((post: post, author: currentUserModel));
+          }
+          continue;
+        }
+        
+        final author = authorMap[post.authorId];
+        if (author == null) continue;
+        
+        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) continue;
+        if (author.blockedUsers.contains(currentUserId)) continue;
+        
+        if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+          final status = knockStatusMap[author.id];
+          if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+            continue;
+          }
+        }
+        
+        validPosts.add((post: post, author: author));
+      }
+      return validPosts;
+    });
+  }
+
+  /// Streams waves (video posts marked as waves) for the Waves Feed.
+  Stream<List<PostModel>> getWavesStream({int limit = 30}) {
+    return postsCollection
+        .where('type', isEqualTo: PostType.waves.name)
+        .snapshots()
+        .map((snapshot) {
+      final posts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(limit).toList();
+    }).asyncMap(_filterBlockedAndPrivatePosts);
+  }
+
+  /// Streams active glimpses (stories) for the GlimpsStrip.
+  /// Filters out expired glimpses locally to avoid needing a complex composite index.
+  Stream<List<PostModel>> getGlimpsesStream({int limit = 30}) {
+    return postsCollection
+        .where('type', isEqualTo: PostType.glimps.name)
+        .snapshots()
+        .map((snapshot) {
+      final posts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).where((post) => post.isInRecentsWindow).toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(limit).toList();
+    }).asyncMap(_filterBlockedAndPrivatePosts);
+  }
+
+  /// Streams a specific user's posts.
+  Stream<List<PostModel>> getUserPosts(String userId) {
+    return postsCollection
+        .where('authorId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      final posts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts;
+    });
+  }
+
+  /// Deletes a post from Firestore.
+  Future<void> deletePost(String postId) async {
+    try {
+      await postsCollection.doc(postId).delete();
+    } catch (e) {
+      debugPrint("Error deleting post: $e");
+    }
+  }
+
+  /// Increments the view count for a post and the total views for its author.
+  /// To avoid excessive writes, we could debounce this or track viewed post IDs locally.
+  Future<void> incrementViewCount(String postId, String authorId) async {
+    try {
+      // Increment post views
+      await postsCollection.doc(postId).update({
+        'views': FieldValue.increment(1),
+      });
+
+      // Increment author's total views
+      await _firestore.collection('users').doc(authorId).update({
+        'totalViews': FieldValue.increment(1),
+      });
+
+      // Recalculate rank asynchronously
+      DatabaseService.instance.recalculateCreatorRank(authorId);
+    } catch (e) {
+      debugPrint("Error incrementing view count: $e");
+    }
+  }
+}

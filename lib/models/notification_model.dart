@@ -1,11 +1,12 @@
-import 'user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─── Notification Types ──────────────────────────────────────────────────────
 
 enum NotificationType {
   knock,    // Someone knocked on your post/profile
-  like,     // Someone liked your knock
-  comment,  // Someone commented on your knock
+  like,     // Someone liked your post
+  comment,  // Someone commented on your post
+  message,  // Someone sent you a message
 }
 
 // ─── Model ───────────────────────────────────────────────────────────────────
@@ -13,12 +14,12 @@ enum NotificationType {
 class NotificationModel {
   final String id;
   final NotificationType type;
-  final UserModel triggerUser;
+  final String triggerUserId; // The UID of the person who caused this
   final DateTime timestamp;
   final bool isRead;
 
   // For like / comment: thumbnail of the post
-  final String? postThumbnail;
+  final String? postThumbnailUrl;
 
   // For comment: the comment text preview
   final String? commentSnippet;
@@ -29,85 +30,41 @@ class NotificationModel {
   const NotificationModel({
     required this.id,
     required this.type,
-    required this.triggerUser,
+    required this.triggerUserId,
     required this.timestamp,
     this.isRead = false,
-    this.postThumbnail,
+    this.postThumbnailUrl,
     this.commentSnippet,
     this.postId,
   });
-}
 
-// ─── Dummy Data ───────────────────────────────────────────────────────────────
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type.name,
+      'triggerUserId': triggerUserId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'isRead': isRead,
+      if (postThumbnailUrl != null) 'postThumbnailUrl': postThumbnailUrl,
+      if (commentSnippet != null) 'commentSnippet': commentSnippet,
+      if (postId != null) 'postId': postId,
+    };
+  }
 
-List<NotificationModel> get dummyNotifications {
-  final now = DateTime.now();
+  factory NotificationModel.fromMap(Map<String, dynamic> map, String docId) {
+    NotificationType nType = NotificationType.knock;
+    try {
+      nType = NotificationType.values.byName(map['type'] ?? 'knock');
+    } catch (_) {}
 
-  return [
-    // ── This week ──────────────────────────────────────────────────────────
-    NotificationModel(
-      id: '1',
-      type: NotificationType.like,
-      triggerUser: demoAryaLayek,
-      timestamp: now.subtract(const Duration(minutes: 3)),
-      isRead: false,
-      postThumbnail: 'assets/test2.jpg',
-    ),
-    NotificationModel(
-      id: '2',
-      type: NotificationType.knock,
-      triggerUser: demoJustinBieber,
-      timestamp: now.subtract(const Duration(minutes: 25)),
-      isRead: false,
-    ),
-    NotificationModel(
-      id: '3',
-      type: NotificationType.comment,
-      triggerUser: demoSaptarshiNayak,
-      timestamp: now.subtract(const Duration(hours: 2)),
-      isRead: false,
-      commentSnippet: 'This is absolutely fire! 🔥',
-      postThumbnail: 'assets/test1.jpg',
-    ),
-    NotificationModel(
-      id: '4',
-      type: NotificationType.like,
-      triggerUser: demoZaynMalik,
-      timestamp: now.subtract(const Duration(hours: 5)),
-      isRead: true,
-      postThumbnail: 'assets/test3.jpg',
-    ),
-    NotificationModel(
-      id: '5',
-      type: NotificationType.knock,
-      triggerUser: demoSumanPatra,
-      timestamp: now.subtract(const Duration(hours: 18)),
-      isRead: true,
-    ),
-    // ── Earlier ────────────────────────────────────────────────────────────
-    NotificationModel(
-      id: '6',
-      type: NotificationType.comment,
-      triggerUser: demoLeonardoDiCaprio,
-      timestamp: now.subtract(const Duration(days: 3)),
-      isRead: true,
-      commentSnippet: 'Love this perspective, really made me think.',
-      postThumbnail: 'assets/test4.jpg',
-    ),
-    NotificationModel(
-      id: '7',
-      type: NotificationType.like,
-      triggerUser: demoAryaLayek,
-      timestamp: now.subtract(const Duration(days: 5)),
-      isRead: true,
-      postThumbnail: 'assets/test2.jpg',
-    ),
-    NotificationModel(
-      id: '8',
-      type: NotificationType.knock,
-      triggerUser: demoZaynMalik,
-      timestamp: now.subtract(const Duration(days: 7)),
-      isRead: true,
-    ),
-  ];
+    return NotificationModel(
+      id: docId,
+      type: nType,
+      triggerUserId: map['triggerUserId'] as String? ?? '',
+      timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isRead: map['isRead'] as bool? ?? false,
+      postThumbnailUrl: map['postThumbnailUrl'] as String?,
+      commentSnippet: map['commentSnippet'] as String?,
+      postId: map['postId'] as String?,
+    );
+  }
 }

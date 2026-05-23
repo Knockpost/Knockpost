@@ -69,6 +69,7 @@ class AppTheme {
       backgroundColor: Colors.white,
       foregroundColor: Colors.black,
       elevation: 0,
+      scrolledUnderElevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.dark,
     ),
     bottomSheetTheme: const BottomSheetThemeData(
@@ -97,6 +98,7 @@ class AppTheme {
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       elevation: 0,
+      scrolledUnderElevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.light,
     ),
     bottomSheetTheme: const BottomSheetThemeData(
@@ -117,7 +119,28 @@ class AppTheme {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-      systemNavigationBarColor: isDark ? Colors.black : Colors.white,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+    );
+  }
+
+  /// Fully-specified immersive overlay style for any screen.
+  /// [forceLight] forces light status bar icons (for always-dark screens like Waves).
+  static SystemUiOverlayStyle overlayStyle(
+    BuildContext context, {
+    bool forceLight = false,
+  }) {
+    final isDark =
+        forceLight || Theme.of(context).brightness == Brightness.dark;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
       systemNavigationBarIconBrightness:
           isDark ? Brightness.light : Brightness.dark,
       systemNavigationBarDividerColor: Colors.transparent,

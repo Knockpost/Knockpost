@@ -1,21 +1,29 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/global_knock_state.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
+import '../screens/profile/profile_screen.dart';
 import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
-import '../screens/reels/widgets/more_options_sheet.dart';
+import '../services/post_service.dart';
+import 'knockpost_avatar.dart';
+import '../screens/waves/widgets/more_options_sheet.dart';
 
 class PostHeader extends StatefulWidget {
   final UserModel user;
   final String? postId;
+  final bool disableProfileNavigation;
+  final String? timestamp;
+  final String postTypeName;
 
   const PostHeader({
     super.key,
     required this.user,
     this.postId,
+    this.disableProfileNavigation = false,
+    this.timestamp,
+    this.postTypeName = "Post",
   });
 
   @override
@@ -68,6 +76,7 @@ class _PostHeaderState extends State<PostHeader> {
     
     switch (_status) {
       case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
         nextStatus = isEffectivelyOpen ? KnockStatus.knocked : KnockStatus.pending;
         _showBlackFlash = true;
         break;
@@ -109,63 +118,96 @@ class _PostHeaderState extends State<PostHeader> {
           postId: widget.postId,
           isReel: false,
           isOwner: widget.user.isOwnProfile,
+          postTypeName: widget.postTypeName,
         );
       },
     );
   }
 
   void _openProfile() {
+    if (widget.disableProfileNavigation) return;
+    
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => OtherProfileScreen(
-          user: widget.user.copyWith(knockStatus: _status),
-          posts: getDemoPostsForUser(widget.user.id),
-          onKnockStatusChanged: (newStatus) {
-            if (mounted) {
-              setState(() => _status = newStatus);
+        builder: (context) {
+          Widget buildScreen(List<PostModel> currentPosts) {
+            if (widget.user.isOwnProfile) {
+              return ProfileScreen(
+                user: widget.user,
+                posts: currentPosts,
+              );
+            } else {
+              return OtherProfileScreen(
+                user: widget.user.copyWith(knockStatus: _status),
+                posts: currentPosts,
+                onKnockStatusChanged: (newStatus) {
+                  if (mounted) {
+                    setState(() => _status = newStatus);
+                  }
+                },
+              );
             }
-          },
-        ),
+          }
+
+          return StreamBuilder<List<PostModel>>(
+            stream: PostService.instance.getUserPosts(widget.user.id),
+            builder: (context, snapshot) {
+              // Show whatever we have so far (or empty list if loading)
+              return buildScreen(snapshot.data ?? []);
+            },
+          );
+        },
       ),
     );
+  }
+
+  // Whether to show the Knock button.
+  // Hide for already-connected states (like Instagram hides "Following" from feed).
+  bool get _shouldShowKnockButton {
+    if (widget.user.isOwnProfile) return false;
+    switch (_status) {
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+      case KnockStatus.pending:
+        return false;
+      case KnockStatus.none:
+      case KnockStatus.theyKnockedYou:
+      case KnockStatus.theyKnockedYouPending:
+        return true;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Determine button colors
-    Color bgColor;
-    Color textColor;
-    String label;
-
-    switch (_status) {
-      case KnockStatus.none:
-        label = "Knock";
-        break;
-      case KnockStatus.theyKnockedYou:
-        label = "Knock back";
-        break;
-      case KnockStatus.pending:
-        label = "Pending";
-        break;
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        label = "Knocked";
-        break;
-    }
-
-    if (_showBlackFlash) {
-      bgColor = isDark ? Colors.white : Colors.black;
-      textColor = isDark ? Colors.black : Colors.white;
-    } else {
-      bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
-      textColor = isDark ? Colors.white : Colors.black;
-    }
-
     final user = widget.user;
     final bool isCreator = user.accountType == AccountType.creator;
+    final bool showButton = _shouldShowKnockButton;
+
+    // Button styling — only computed when needed
+    Color bgColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2);
+    Color textColor = isDark ? Colors.white : Colors.black;
+    String label = '';
+
+    if (showButton) {
+      switch (_status) {
+        case KnockStatus.none:
+        case KnockStatus.theyKnockedYouPending:
+          label = 'Knock';
+          break;
+        case KnockStatus.theyKnockedYou:
+          label = 'Knock back';
+          break;
+        default:
+          break;
+      }
+
+      if (_showBlackFlash) {
+        bgColor = isDark ? Colors.white : Colors.black;
+        textColor = isDark ? Colors.black : Colors.white;
+      }
+    }
 
     return Row(
       children: [
@@ -175,38 +217,48 @@ class _PostHeaderState extends State<PostHeader> {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                CircleAvatar(
+                KnockpostAvatar(
+                  url: user.avatarAsset,
                   radius: 16,
-                  backgroundColor: Colors.grey.shade300,
-                  backgroundImage: user.avatarAsset != null
-                      ? (user.avatarAsset!.startsWith('assets/')
-                          ? AssetImage(user.avatarAsset!) as ImageProvider
-                          : FileImage(File(user.avatarAsset!)))
-                      : null,
-                  child: user.avatarAsset == null
-                      ? Icon(Icons.person, size: 18, color: Colors.grey.shade600)
-                      : null,
+                  name: user.displayName,
                 ),
                 const SizedBox(width: 10),
                 Flexible(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Flexible(
-                        child: Text(
-                          user.username,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15.75,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.username,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15.5,
+                              ),
+                            ),
+                          ),
+                          if (isCreator) ...[
+                            const SizedBox(width: 5),
+                            CreatorRankBadge(rank: user.rank, mini: true),
+                          ],
+                        ],
+                      ),
+                      if (widget.timestamp != null && user.isOwnProfile)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Text(
+                            widget.timestamp!,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.white54 : Colors.black54,
+                            ),
                           ),
                         ),
-                      ),
-                      if (isCreator) ...[
-                        const SizedBox(width: 5),
-                        CreatorRankBadge(rank: user.rank, mini: true),
-                      ],
                     ],
                   ),
                 ),
@@ -215,8 +267,8 @@ class _PostHeaderState extends State<PostHeader> {
           ),
         ),
 
-        // ── Knock / Knocked button ──
-        if (!user.isOwnProfile) ...[
+        // ── Knock button — only shown for non-connected users ──
+        if (showButton) ...[
           GestureDetector(
             onTap: _toggleKnock,
             child: AnimatedContainer(

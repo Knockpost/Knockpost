@@ -129,13 +129,13 @@ class _ProfileEmptySectionState extends State<ProfileEmptySection>
     final cardBg = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F8F8);
     final borderColor = isDark
         ? Colors.white12
-        : Colors.black.withOpacity(0.08);
+        : Colors.black.withValues(alpha: 0.08);
 
     // Default neutral gradient when none specified
     final colors = widget.gradientColors ??
         (isDark
             ? [Colors.white24, Colors.white12]
-            : [Colors.black12, Colors.black.withOpacity(0.06)]);
+            : [Colors.black12, Colors.black.withValues(alpha: 0.06)]);
 
     final iconColor = isDark ? Colors.white54 : Colors.black38;
     final titleColor = isDark ? Colors.white70 : Colors.black54;
@@ -327,15 +327,17 @@ class _ProfileAnimatedTabBarState extends State<ProfileAnimatedTabBar>
         return AnimatedBuilder(
           animation: Listenable.merge([widget.controller.animation, _pillAnim]),
           builder: (context, _) {
-            double pillLeft;
+            double currentPosition;
             if (widget.controller.indexIsChanging) {
-              final fromX = _previousIndex * tabWidth;
-              final toX = _currentIndex * tabWidth;
-              pillLeft = lerpDouble(fromX, toX, _pillAnim.value)!;
+              currentPosition = lerpDouble(
+                _previousIndex.toDouble(),
+                _currentIndex.toDouble(),
+                _pillAnim.value,
+              )!;
             } else {
-              final animValue = widget.controller.animation?.value ?? 0.0;
-              pillLeft = animValue * tabWidth;
+              currentPosition = widget.controller.animation?.value ?? 0.0;
             }
+            final pillLeft = currentPosition * tabWidth;
 
             return SizedBox(
               height: 40,
@@ -350,8 +352,8 @@ class _ProfileAnimatedTabBarState extends State<ProfileAnimatedTabBar>
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: isDark
-                            ? Colors.white.withOpacity(0.10)
-                            : Colors.black.withOpacity(0.07),
+                            ? Colors.white.withValues(alpha: 0.10)
+                            : Colors.black.withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
@@ -360,7 +362,21 @@ class _ProfileAnimatedTabBarState extends State<ProfileAnimatedTabBar>
                   // ── Labels ────────────────────────────────────────────────
                   Row(
                     children: List.generate(tabCount, (i) {
-                      final isSelected = widget.controller.index == i;
+                      final distance = (currentPosition - i).abs();
+                      final progress = 1.0 - distance.clamp(0.0, 1.0);
+
+                      final fontSize = lerpDouble(13.5, 14.5, progress)!;
+                      final letterSpacing = lerpDouble(0, -0.4, progress)!;
+                      final color = Color.lerp(
+                        widget.inactiveColor,
+                        widget.activeColor,
+                        progress,
+                      )!;
+                      final fontWeight = FontWeight.lerp(
+                        FontWeight.w500,
+                        FontWeight.w800,
+                        progress,
+                      );
 
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
@@ -373,18 +389,12 @@ class _ProfileAnimatedTabBarState extends State<ProfileAnimatedTabBar>
                           width: tabWidth,
                           height: 40,
                           child: Center(
-                            child: AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 260),
-                              curve: Curves.easeInOutCubic,
+                            child: DefaultTextStyle(
                               style: TextStyle(
-                                fontSize: isSelected ? 14.5 : 13.5,
-                                fontWeight: isSelected
-                                    ? FontWeight.w800
-                                    : FontWeight.w500,
-                                color: isSelected
-                                    ? widget.activeColor
-                                    : widget.inactiveColor,
-                                letterSpacing: isSelected ? -0.4 : 0,
+                                fontSize: fontSize,
+                                fontWeight: fontWeight,
+                                color: color,
+                                letterSpacing: letterSpacing,
                               ),
                               child: Text(widget.labels[i]),
                             ),

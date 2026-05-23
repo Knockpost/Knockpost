@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../widgets/post_card.dart';
-import '../../../widgets/thought_card.dart';
+import '../../post/post_card.dart';
+import '../../thoughts/thought_card.dart';
+import '../../waves/waves_feed_card.dart';
 import '../../../utils/global_post_state.dart';
+import '../../../widgets/staggered_entry_animation.dart';
+import 'profile_glimps_strip.dart';
 import 'profile_ui_helpers.dart';
 
 /// Shows posts that are within their 3-day active window.
@@ -21,8 +24,16 @@ class RecentsSection extends StatelessWidget {
     this.isOwnProfile = true,
   });
 
-  List<PostModel> get _recentPosts =>
-      posts.where((p) => p.isInRecentsWindow).toList()
+  List<PostModel> get _recentGlimpses =>
+      posts.where((p) => p.isInRecentsWindow && p.type == PostType.glimps && p.imagePaths.isNotEmpty).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  List<PostModel> get _recentNormalPosts =>
+      posts.where((p) => p.isInRecentsWindow && p.type != PostType.glimps && p.type != PostType.waves).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  List<PostModel> get _recentWaves =>
+      posts.where((p) => p.isInRecentsWindow && p.type == PostType.waves && p.imagePaths.isNotEmpty).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   @override
@@ -31,9 +42,11 @@ class RecentsSection extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
-        final recentPosts = _recentPosts.where((p) => !deletedIds.contains(p.id)).toList();
+        final recentPosts = _recentNormalPosts.where((p) => !deletedIds.contains(p.id)).toList();
+        final glimpses = _recentGlimpses.where((p) => !deletedIds.contains(p.id)).toList();
+        final waves = _recentWaves.where((p) => !deletedIds.contains(p.id)).toList();
 
-        if (recentPosts.isEmpty) {
+        if (recentPosts.isEmpty && glimpses.isEmpty && waves.isEmpty) {
           return ProfileEmptySection(
             icon: Icons.history_rounded,
             message: 'No recent posts',
@@ -52,43 +65,132 @@ class RecentsSection extends StatelessWidget {
 
         final divider = Divider(height: 1, thickness: 1, color: dividerColor);
 
-        return ListView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          padding: const EdgeInsets.only(bottom: 20),
-          itemCount: recentPosts.length,
-          itemBuilder: (context, i) {
-            final post = recentPosts[i];
-            final isLast = i == recentPosts.length - 1;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (glimpses.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 24, bottom: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Glimpses",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ProfileGlimpsStrip(glimpses: glimpses, user: user),
+            ],
+            // ── Waves Section ──
+            if (waves.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 16, top: 20, bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.play_circle_outline_rounded,
+                      size: 18,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Waves",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...waves.map((wavePost) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: WavesFeedCard(post: wavePost, user: user),
+              )),
+            ],
+            if (recentPosts.isNotEmpty) ...[
+              ListView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 20),
+                itemCount: recentPosts.length,
+                itemBuilder: (context, i) {
+                  final post = recentPosts[i];
+                  final isLast = i == recentPosts.length - 1;
 
-            Widget content;
-            if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
-              content = PostCard(
-                imagePaths: post.imagePaths,
-                user: user,
-                caption: post.text,
-                likes: post.likes,
-                views: post.views,
-                postId: post.id,
-              );
-            } else {
-              content = ThoughtCard(
-                user: user,
-                text: post.text,
-                likes: post.likes,
-                views: post.views,
-                postId: post.id,
-              );
-            }
+                  Widget content;
+                  if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
+                    content = PostCard(
+                      imagePaths: post.imagePaths,
+                      user: user,
+                      caption: post.text,
+                      likes: post.likes,
+                      views: post.views,
+                      postId: post.id,
+                      disableProfileNavigation: true,
+                      timestamp: post.timestampText,
+                      musicUrl: post.musicUrl,
+                      musicTitle: post.musicTitle,
+                      musicArtist: post.musicArtist,
+                      musicStyle: post.musicStyle,
+                      musicCoverUrl: post.musicCoverUrl,
+                      musicTrimStart: post.musicTrimStart,
+                      musicLyrics: post.musicLyrics,
+                      musicLyricsConfig: post.musicLyricsConfig,
+                      musicOverlayX: post.musicOverlayX,
+                      musicOverlayY: post.musicOverlayY,
+                      musicOverlayScale: post.musicOverlayScale,
+                      musicOverlayRotation: post.musicOverlayRotation,
+                      filterIndex: post.filterIndex,
+                      textOverlays: post.textOverlays,
+                      drawPaths: post.drawPaths,
+                      isVideoPost: post.isVideoPost,
+                      videoHasSound: post.videoHasSound,
+                      coverImagePath: post.coverImagePath,
+                      mediaAspectRatio: post.mediaAspectRatio,
+                      mediaIsBaked: post.mediaIsBaked,
+                    );
+                  } else {
+                    content = ThoughtCard(
+                      user: user,
+                      text: post.text,
+                      likes: post.likes,
+                      views: post.views,
+                      postId: post.id,
+                      disableProfileNavigation: true,
+                      timestamp: post.timestampText,
+                    );
+                  }
 
-            return Column(
-              children: [
-                divider,
-                content,
-                if (isLast) divider,
-              ],
-            );
-          },
+                  return StaggeredEntryAnimation(
+                    index: i,
+                    child: Column(
+                      children: [
+                        divider,
+                        content,
+                        if (isLast) divider,
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
         );
       },
     );

@@ -1,104 +1,22 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/global_knock_state.dart';
 import '../utils/global_dismiss_state.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../utils/haptic_helper.dart';
 import '../screens/profile/widgets/knock_button.dart';
-import '../screens/profile/other_profile_screen.dart';
 import '../screens/discover/discover_people_screen.dart';
+import '../screens/profile/other_profile_screen.dart';
+import '../services/post_service.dart';
+import '../services/database_service.dart';
+import '../services/current_user_service.dart';
+import '../services/connection_service.dart';
+import 'knockpost_avatar.dart';
 
 // ─── Demo suggested users ────────────────────────────────────────────────────
 
-final List<UserModel> demoSuggestedUsers = [
-  const UserModel(
-    id: 'zayn01',
-    displayName: 'Zayn Malik',
-    username: 'zayn.malik',
-    bio: 'Singer & songwriter 🎤 | Former 1D',
-    avatarAsset: 'assets/test1.jpg',
-    coverImageAsset: 'assets/test2.jpg',
-    friendsCount: 52400,
-    accountType: AccountType.creator,
-    rank: CreatorRank.impact,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 24,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'justin01',
-    displayName: 'Justin Bieber',
-    username: 'justin.bieber',
-    avatarAsset: 'assets/test2.jpg',
-    friendsCount: 84200,
-    accountType: AccountType.creator,
-    rank: CreatorRank.plus,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 15,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test4.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'suman01',
-    displayName: 'Suman Patra',
-    username: 'suman.patra',
-    bio: 'Keep it private 🔒',
-    avatarAsset: 'assets/test3.jpg',
-    coverImageAsset: 'assets/test4.jpg',
-    friendsCount: 142,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.private,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 3,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test3.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test1.jpg', 'assets/test3.jpg'],
-  ),
-  const UserModel(
-    id: 'saptarshi01',
-    displayName: 'Saptarshi Nayak',
-    username: 'saptarshi.nayak',
-    bio: 'Open book 📖 | Exploring life',
-    avatarAsset: 'assets/test4.jpg',
-    coverImageAsset: 'assets/test1.jpg',
-    friendsCount: 890,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.open,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 8,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg'],
-  ),
-  const UserModel(
-    id: 'arya01',
-    displayName: 'Arya Layek',
-    username: 'arya.layek',
-    bio: 'Creator & storyteller ✨ | Pro vibes',
-    avatarAsset: 'assets/test1.jpg',
-    coverImageAsset: 'assets/test3.jpg',
-    friendsCount: 15400,
-    accountType: AccountType.creator,
-    rank: CreatorRank.pro,
-    knockStatus: KnockStatus.theyKnockedYou,
-    mutualFriendsCount: 31,
-    mutualFriendsAvatars: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-    mutualFriendsWhoKnocked: ['assets/test2.jpg', 'assets/test3.jpg', 'assets/test4.jpg'],
-  ),
-  const UserModel(
-    id: 'leo01',
-    displayName: 'Leonardo DiCaprio',
-    username: 'leo.dicaprio',
-    bio: 'Actor & environmentalist 🌍',
-    avatarAsset: 'assets/test2.jpg',
-    coverImageAsset: 'assets/test4.jpg',
-    friendsCount: 320,
-    accountType: AccountType.normal,
-    privacyType: PrivacyType.open,
-    knockStatus: KnockStatus.none,
-    mutualFriendsCount: 5,
-    mutualFriendsAvatars: ['assets/test1.jpg', 'assets/test4.jpg'],
-  ),
-];
+
 
 
 
@@ -112,25 +30,64 @@ class PeopleSuggestionStrip extends StatefulWidget {
 }
 
 class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
-  late List<UserModel> _users;
-  late final Map<String, KnockStatus> _statuses;
+  List<UserModel> _users = [];
+  Map<String, KnockStatus> _statuses = {};
   final Map<String, GlobalKey<_AnimatedDismissCardState>> _cardKeys = {};
+
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Filter out already dismissed users for this session
-    _users = demoSuggestedUsers.where((u) => !GlobalDismissState.isDismissed(u.id)).toList();
-    
-    _statuses = {
-      for (final u in _users) u.id: u.knockStatus,
-    };
-    for (final u in _users) {
-      _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
-    }
-    
+    _fetchUsers();
     // Listen for global dismissals (e.g., from profile screen)
     GlobalDismissState.dismissedUserIds.addListener(_onGlobalDismissalChanged);
+  }
+
+  Future<void> _fetchUsers() async {
+    final currentUserId = CurrentUserService.instance.currentUser?.id;
+    final fetchedUsers = await DatabaseService.instance.getSuggestedUsers(
+      excludeUid: currentUserId,
+      limitCount: 30, // Fetch more to ensure we have enough after filtering
+    );
+    
+    if (!mounted) return;
+
+    final statuses = await Future.wait(fetchedUsers.map((u) async {
+      var status = GlobalKnockState.getNotifier(u.id, u.knockStatus).value;
+      if (status == KnockStatus.none) {
+        status = await ConnectionService.instance.getKnockStatus(u.id);
+        GlobalKnockState.getNotifier(u.id, status).value = status;
+      }
+      return status;
+    }));
+
+    final validUsers = <UserModel>[];
+    final validStatuses = <String, KnockStatus>{};
+
+    for (int i = 0; i < fetchedUsers.length; i++) {
+      final u = fetchedUsers[i];
+      if (GlobalDismissState.isDismissed(u.id)) continue;
+      
+      final status = statuses[i];
+      if (status != KnockStatus.knocked &&
+          status != KnockStatus.pending &&
+          status != KnockStatus.mutualKnocked) {
+        validUsers.add(u);
+        validStatuses[u.id] = status;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _users = validUsers.take(15).toList(); // Limit to 15 for the strip
+        _statuses = validStatuses;
+        for (final u in _users) {
+          _cardKeys[u.id] = GlobalKey<_AnimatedDismissCardState>();
+        }
+        _isLoading = false;
+      });
+    }
   }
 
   void _onGlobalDismissalChanged() {
@@ -164,6 +121,12 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: KnockpostLoadingIndicator()),
+      );
+    }
     if (_users.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -176,6 +139,12 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
           child: Row(
             children: [
+              Icon(
+                Icons.person_add_rounded,
+                color: isDark ? Colors.white : Colors.black87,
+                size: 20,
+              ),
+              const SizedBox(width: 6),
               Text(
                 'People you may know',
                 style: TextStyle(
@@ -188,18 +157,21 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
               const Spacer(),
               GestureDetector(
                 onTap: () {
-                  KnockHaptics.impact();
+                  KnockHaptics.tap();
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
                   );
                 },
-                child: Text(
-                  'See all',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white54 : Colors.black45,
-                    fontWeight: FontWeight.w500,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                  child: Text(
+                    'See all',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -241,7 +213,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -349,21 +321,10 @@ class _SuggestionCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Avatar
-                    CircleAvatar(
+                    KnockpostAvatar(
+                      url: user.avatarAsset,
                       radius: 30,
-                      backgroundImage: user.avatarAsset != null
-                          ? (user.avatarAsset!.startsWith('assets/')
-                              ? AssetImage(user.avatarAsset!) as ImageProvider
-                              : FileImage(File(user.avatarAsset!)))
-                          : null,
-                      backgroundColor: isDark
-                          ? const Color(0xFF2A2A2A)
-                          : const Color(0xFFE8E8E8),
-                      child: user.avatarAsset == null
-                          ? Icon(Icons.person,
-                              size: 30,
-                              color: isDark ? Colors.white54 : Colors.black38)
-                          : null,
+                      name: user.displayName,
                     ),
 
                     const SizedBox(height: 10),
@@ -439,14 +400,14 @@ class _SuggestionCard extends StatelessWidget {
               Divider(
                 height: 1, 
                 thickness: 0.5,
-                color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
               ),
 
               // Bottom Action Button (Text-only)
               _SuggestionAction(
                 userId: user.id,
                 status: knockStatus,
-                privacyType: user.privacyType,
+                isEffectivelyOpen: user.isEffectivelyOpen,
                 onChanged: onKnockChanged,
                 onDismiss: onDismiss,
               ),
@@ -461,10 +422,15 @@ class _SuggestionCard extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OtherProfileScreen(
-                      user: user.copyWith(knockStatus: knockStatus),
-                      posts: getDemoPostsForUser(user.id),
-                      onKnockStatusChanged: onKnockChanged,
+                    builder: (_) => StreamBuilder<List<PostModel>>(
+                      stream: PostService.instance.getUserPosts(user.id),
+                      builder: (context, snapshot) {
+                        return OtherProfileScreen(
+                          user: user.copyWith(knockStatus: knockStatus),
+                          posts: snapshot.data ?? [],
+                          onKnockStatusChanged: onKnockChanged,
+                        );
+                      },
                     ),
                   ),
                 );
@@ -500,14 +466,14 @@ class _SuggestionCard extends StatelessWidget {
 class _SuggestionAction extends StatefulWidget {
   final String userId;
   final KnockStatus status;
-  final PrivacyType privacyType;
+  final bool isEffectivelyOpen;
   final ValueChanged<KnockStatus> onChanged;
   final VoidCallback onDismiss;
 
   const _SuggestionAction({
     required this.userId,
     required this.status,
-    required this.privacyType,
+    required this.isEffectivelyOpen,
     required this.onChanged,
     required this.onDismiss,
   });
@@ -568,12 +534,17 @@ class _SuggestionActionState extends State<_SuggestionAction>
     final KnockStatus newStatus;
     switch (_status) {
       case KnockStatus.none:
-        newStatus = widget.privacyType == PrivacyType.open
-            ? KnockStatus.knocked
-            : KnockStatus.pending;
+      case KnockStatus.theyKnockedYouPending:
+        final isOpen = widget.isEffectivelyOpen;
+        newStatus = isOpen ? KnockStatus.knocked : KnockStatus.pending;
+        ConnectionService.instance.sendKnock(
+          toUid: widget.userId,
+          isOpenProfile: isOpen,
+        );
         break;
       case KnockStatus.theyKnockedYou:
         newStatus = KnockStatus.mutualKnocked;
+        ConnectionService.instance.acceptKnock(widget.userId);
         break;
       default:
         newStatus = KnockStatus.none;
@@ -601,6 +572,7 @@ class _SuggestionActionState extends State<_SuggestionAction>
 
     final label = switch (_status) {
       KnockStatus.none => 'Knock',
+      KnockStatus.theyKnockedYouPending => 'Knock',
       KnockStatus.pending => 'Knocked',
       KnockStatus.knocked => 'Knocked',
       KnockStatus.mutualKnocked => 'Knocked',
@@ -658,10 +630,9 @@ class _MutualFriendsOverlap extends StatelessWidget {
                 color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: CircleAvatar(
+              child: KnockpostAvatar(
+                url: displayAvatars[index],
                 radius: 8,
-                backgroundImage: AssetImage(displayAvatars[index]),
-                backgroundColor: Colors.grey[300],
               ),
             ),
           );
