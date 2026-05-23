@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 // ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
@@ -56,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _scrollDelta = 0;
   bool _showBars = true;
   int _currentNavIndex = 0;
+  int _feedSeed = 0;
 
   @override
   void initState() {
@@ -656,13 +658,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                   builder: (context, isScrollLocked, _) {
                                     return KnockpostRefreshIndicator(
                                       onRefresh: () async {
-                                        // Cosmetic refresh — StreamBuilder is already live
+                                        setState(() {
+                                          _feedSeed = DateTime.now().millisecondsSinceEpoch;
+                                        });
+                                        // Cosmetic delay
                                         await Future.delayed(const Duration(milliseconds: 400));
                                       },
                                       child: NestedScrollView(
-                                      physics: isScrollLocked
+                                        physics: isScrollLocked
                                           ? const NeverScrollableScrollPhysics()
-                                          : const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+                                          : const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                                       controller: _scrollController,
                                       headerSliverBuilder: (context, innerBoxIsScrolled) {
                                         return [
@@ -845,6 +850,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         );
                                                       }
                                                     }
+                                                  }
+
+                                                  if (_feedSeed != 0) {
+                                                    activeItems.shuffle(Random(_feedSeed));
                                                   }
 
                                                   return PostInnerScrollLockRegistrar(

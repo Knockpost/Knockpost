@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../theme/theme_controller.dart';
@@ -877,7 +878,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
           ),
         ),
         body: _isLoading 
-            ? const Center(child: CircularProgressIndicator(color: Colors.grey))
+            ? const Center(child: KnockpostLoadingIndicator())
             : ListView(
           padding: EdgeInsets.zero,
           children: [

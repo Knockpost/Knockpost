@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
@@ -128,7 +129,7 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
               ),
             ),
             body: _isLoading 
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: KnockpostLoadingIndicator())
                 : filteredUsers.isEmpty
                     ? _buildEmptyState(isDark)
                     : ListView.separated(

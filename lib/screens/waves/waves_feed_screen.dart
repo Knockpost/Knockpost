@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import 'wave_item.dart';
 import 'waves_camera_screen.dart';
@@ -96,7 +97,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
+                    child: KnockpostLoadingIndicator(),
                   );
                 }
 

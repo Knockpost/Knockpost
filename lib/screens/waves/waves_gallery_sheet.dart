@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -107,7 +108,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(
-        child: CircularProgressIndicator(color: _kAccentPrimary),
+        child: KnockpostLoadingIndicator(),
       ),
     );
 
@@ -431,7 +432,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: _kAccentPrimary),
+                      child: KnockpostLoadingIndicator(),
                     )
                   : !_hasPermission
                   ? Center(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
@@ -206,7 +207,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                 Expanded(
                   child: _isLoading
                       ? const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: KnockpostLoadingIndicator(),
                         )
                       : _blockedUsers.isEmpty
                           ? Center(

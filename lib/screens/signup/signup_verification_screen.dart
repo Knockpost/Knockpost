@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -311,7 +312,7 @@ class _SignupVerificationScreenState
                     const SizedBox(height: 48),
                     
                     isLoading 
-                      ? CircularProgressIndicator(color: isDark ? Colors.white : Colors.black)
+                      ? const KnockpostLoadingIndicator()
                       : Column(
                           children: [
                             Text(
@@ -336,7 +337,7 @@ class _SignupVerificationScreenState
                                 checkVerificationStatus(); 
                               },
                               child: isChecking 
-                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                  ? const SizedBox(width: 20, height: 20, child: KnockpostLoadingIndicator())
                                   : Text("I've already verified", style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 16)),
                             ),
                             const SizedBox(height: 10),

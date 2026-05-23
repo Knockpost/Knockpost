@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -309,10 +310,10 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                   }
 
                   if (_isLoadingTracks && tracks.isEmpty) {
-                    return Center(
+                    return const Center(
                       child: SizedBox(
                         width: 24, height: 24, 
-                        child: CircularProgressIndicator(color: accent, strokeWidth: 2),
+                        child: KnockpostLoadingIndicator(),
                       )
                     );
                   }
@@ -443,12 +444,9 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                     ),
                                   ),
                                   child: _isLoadingAudio && isPlaying
-                                      ? Padding(
-                                          padding: const EdgeInsets.all(10),
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: catAccent,
-                                          ),
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(10),
+                                          child: KnockpostLoadingIndicator(),
                                         )
                                       : Icon(
                                           isPlaying

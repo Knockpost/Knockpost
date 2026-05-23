@@ -95,8 +95,12 @@ class ChatService {
     required String text,
     String? replyToId,
     String? imageUrl,
+    String? audioUrl,
+    int? audioDuration,
   }) async {
-    final me = _myUid ?? 'unknown';
+    final me = _myUid;
+    if (me == null) throw Exception('Cannot send message: User is not authenticated');
+
     // Unique ID for deduplication
     final clientId = 'client_${me}_${DateTime.now().millisecondsSinceEpoch}_${_random.nextInt(100000)}';
     
@@ -106,6 +110,8 @@ class ChatService {
         text: text,
         replyToId: replyToId,
         imageUrl: imageUrl,
+        audioUrl: audioUrl,
+        audioDuration: audioDuration,
         clientId: clientId,
       );
       return SendResult(msgId, MessageStatus.sent);
@@ -117,6 +123,8 @@ class ChatService {
           text: text,
           replyToId: replyToId,
           imageUrl: imageUrl,
+          audioUrl: audioUrl,
+          audioDuration: audioDuration,
           clientId: clientId,
         );
       });
@@ -130,12 +138,16 @@ class ChatService {
     required String text,
     String? replyToId,
     String? imageUrl,
+    String? audioUrl,
+    int? audioDuration,
   }) async {
     await sendMessageWithRetry(
       otherUid: otherUid,
       text: text,
       replyToId: replyToId,
       imageUrl: imageUrl,
+      audioUrl: audioUrl,
+      audioDuration: audioDuration,
     );
   }
 
@@ -144,6 +156,8 @@ class ChatService {
     required String text,
     String? replyToId,
     String? imageUrl,
+    String? audioUrl,
+    int? audioDuration,
     required String clientId,
   }) async {
     final me = _myUid;
@@ -169,15 +183,23 @@ class ChatService {
       'clientId': clientId,
       if (replyToId != null) 'replyToId': replyToId,
       if (imageUrl != null) 'imageUrl': imageUrl,
+      if (audioUrl != null) 'audioUrl': audioUrl,
+      if (audioDuration != null) 'audioDuration': audioDuration,
     };
 
     batch.set(msgRef, msgData);
 
     // Upsert chat room metadata using set-with-merge
     // This works whether the chat doc exists or not, no read needed.
+    String snippet = text;
+    if (snippet.isEmpty) {
+      if (audioUrl != null) { snippet = '🎙 Audio message'; }
+      else if (imageUrl != null) { snippet = '📷 Image'; }
+    }
+
     batch.set(chatRef, {
       'participants': [me, otherUid],
-      'lastMessage': text,
+      'lastMessage': snippet,
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastSenderId': me,
       'unreadCount': {otherUid: FieldValue.increment(1), me: 0},

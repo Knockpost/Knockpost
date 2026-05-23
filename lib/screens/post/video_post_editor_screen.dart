@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
@@ -725,7 +726,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
           TextButton(
             onPressed: (_isExporting || _isLoading) ? null : _exportAndContinue,
             style: TextButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-            child: _isExporting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)) : const Text('Next', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+            child: _isExporting ? const SizedBox(width: 18, height: 18, child: KnockpostLoadingIndicator()) : const Text('Next', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           ),
           const SizedBox(width: 8),
         ],
@@ -735,7 +736,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
 
   Widget _buildPreviewSurface() {
     if (_isLoading || !_controller.value.isInitialized || _sourceInfo == null) {
-      return ClipRRect(borderRadius: BorderRadius.circular(12), child: Container(color: Colors.black, child: const Center(child: CircularProgressIndicator(color: Colors.white))));
+      return ClipRRect(borderRadius: BorderRadius.circular(12), child: Container(color: Colors.black, child: const Center(child: KnockpostLoadingIndicator())));
     }
 
     return LayoutBuilder(
@@ -1377,7 +1378,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
                 ),
               )
             else
-              const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3.0)),
+              const SizedBox(width: 32, height: 32, child: KnockpostLoadingIndicator()),
             
             const SizedBox(height: 18),
             Text(

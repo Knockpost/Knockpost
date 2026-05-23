@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -286,7 +287,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
     final asset = _focusedAsset;
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+        child: KnockpostLoadingIndicator(),
       );
     }
 
@@ -344,7 +345,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
       }
 
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white54),
+        child: KnockpostLoadingIndicator(),
       );
     }
 
@@ -538,10 +539,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.black,
-                            ),
+                            child: KnockpostLoadingIndicator(),
                           )
                         : const Text(
                             'Next',
@@ -642,7 +640,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white54),
+                      child: KnockpostLoadingIndicator(),
                     )
                   : !_hasPermission
                   ? Center(

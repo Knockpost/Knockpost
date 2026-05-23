@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
@@ -156,15 +157,12 @@ class _MessageInfoScreenState extends State<MessageInfoScreen> {
 
                   // Loading indicator below avatar
                   if (_isLoadingUser)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
                       child: SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: isDark ? Colors.white38 : Colors.black26,
-                        ),
+                        child: KnockpostLoadingIndicator(),
                       ),
                     ),
 

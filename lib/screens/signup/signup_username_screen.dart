@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../utils/haptic_helper.dart';
 import '../../services/database_service.dart';
 import 'signup_password_screen.dart';
@@ -205,13 +206,10 @@ class _SignupUsernameScreenState
                         ),
                         child: Center(
                           child: isLoading
-                              ? SizedBox(
+                              ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(
-                                    color: isDark ? Colors.black : Colors.white,
-                                    strokeWidth: 2,
-                                  ),
+                                  child: KnockpostLoadingIndicator(),
                                 )
                               : Text(
                                   "Next",

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
@@ -74,7 +75,7 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
           color: isDark ? Colors.black26 : Colors.white24,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: const Center(child: KnockpostLoadingIndicator()),
       );
     }
 

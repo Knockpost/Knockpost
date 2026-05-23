@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/global_knock_state.dart';
 import '../utils/global_dismiss_state.dart';
 import '../models/user_model.dart';
@@ -123,7 +124,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
     if (_isLoading) {
       return const SizedBox(
         height: 220,
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: KnockpostLoadingIndicator()),
       );
     }
     if (_users.isEmpty) return const SizedBox.shrink();

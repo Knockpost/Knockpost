@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 
 import 'package:flutter/material.dart';
 
@@ -118,7 +119,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => const Center(child: KnockpostLoadingIndicator()),
     );
 
     final type = widget.isWaves
@@ -728,13 +729,10 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                       ),
                     ),
                     child: _isPosting
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: isDark ? Colors.black : Colors.white,
-                            ),
+                            child: KnockpostLoadingIndicator(),
                           )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,

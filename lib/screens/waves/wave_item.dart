@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:video_player/video_player.dart';
 import 'widgets/wave_comment_sheet.dart';
 import 'widgets/share_sheet.dart';
@@ -267,10 +268,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
               : Container(
                   color: Colors.black,
                   child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
+                    child: KnockpostLoadingIndicator(),
                   ),
                 ),
 
