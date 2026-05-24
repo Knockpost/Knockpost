@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
-enum CropAspect { square, portrait }
+enum CropAspect { square, portrait, portrait3x4 }
 
 class ImageCropScreen extends StatefulWidget {
   final List<File> files;
@@ -69,6 +69,8 @@ class _ImageCropScreenState extends State<ImageCropScreen>
         return 1.0;
       case CropAspect.portrait:
         return 4.0 / 5.0;
+      case CropAspect.portrait3x4:
+        return 3.0 / 4.0;
     }
   }
 
@@ -90,14 +92,23 @@ class _ImageCropScreenState extends State<ImageCropScreen>
   }
 
   Future<Size> _decodeImageSize(File file) async {
-    final bytes = await file.readAsBytes();
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-    final size = Size(image.width.toDouble(), image.height.toDouble());
-    codec.dispose();
-    image.dispose();
-    return size;
+    final ImageProvider provider = FileImage(file);
+    final Completer<Size> completer = Completer();
+    final ImageStream stream = provider.resolve(ImageConfiguration.empty);
+    late ImageStreamListener listener;
+    listener = ImageStreamListener((ImageInfo info, bool synchronousCall) {
+      final size = Size(
+        info.image.width.toDouble(),
+        info.image.height.toDouble(),
+      );
+      stream.removeListener(listener);
+      completer.complete(size);
+    }, onError: (Object exception, StackTrace? stackTrace) {
+      stream.removeListener(listener);
+      completer.completeError(exception);
+    });
+    stream.addListener(listener);
+    return completer.future;
   }
 
   void _resetTransform() {
@@ -126,16 +137,29 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     });
   }
 
+  double _calculateIntelligentScale(Size frameSize, Size imageSize) {
+    // Smart Initial Scale algorithm for portrait/long images:
+    // 1. Maximize visible portrait content
+    // 2. Fully cover the frame
+    // 3. Avoid black edges
+    // 4. Minimize initial crop
+    final double widthScale = frameSize.width / imageSize.width;
+    final double heightScale = frameSize.height / imageSize.height;
+
+    // To prevent any black side areas and ensure safe full-frame coverage, 
+    // we use the larger of the two scales. This automatically finds the exact 
+    // minimum safe scale.
+    return max(widthScale, heightScale);
+  }
+
   void _clampOffset(_ImageTransform transform, Size frameSize) {
     final imageSize = _imageSizes[_currentIndex];
     if (imageSize == null) return;
 
-    final double coverScale = max(
-      frameSize.width / imageSize.width,
-      frameSize.height / imageSize.height,
-    );
-    final double drawnWidth = imageSize.width * coverScale * transform.scale;
-    final double drawnHeight = imageSize.height * coverScale * transform.scale;
+    final double baseScale = _calculateIntelligentScale(frameSize, imageSize);
+
+    final double drawnWidth = imageSize.width * baseScale * transform.scale;
+    final double drawnHeight = imageSize.height * baseScale * transform.scale;
     final double maxDx = max(0.0, (drawnWidth - frameSize.width) / 2.0);
     final double maxDy = max(0.0, (drawnHeight - frameSize.height) / 2.0);
 
@@ -150,11 +174,9 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     required Size imageSize,
     required _ImageTransform transform,
   }) {
-    final double coverScale = max(
-      frameSize.width / imageSize.width,
-      frameSize.height / imageSize.height,
-    );
-    final double displayScale = coverScale * transform.scale;
+    final double baseScale = _calculateIntelligentScale(frameSize, imageSize);
+
+    final double displayScale = baseScale * transform.scale;
     final double drawWidth = imageSize.width * displayScale;
     final double drawHeight = imageSize.height * displayScale;
 
@@ -301,68 +323,66 @@ class _ImageCropScreenState extends State<ImageCropScreen>
               _buildTopBar(),
               Expanded(
                 child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: AspectRatio(
-                      aspectRatio: _aspectRatio,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final frameSize = Size(
-                            constraints.maxWidth,
-                            constraints.maxHeight,
-                          );
-                          _lastFrameSize = frameSize;
+                  child: AspectRatio(
+                    aspectRatio: _aspectRatio,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final frameSize = Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                        _lastFrameSize = frameSize;
 
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: GestureDetector(
-                              onScaleStart: (details) {
-                                _gestureBaseScale = _currentTransform.scale;
-                                _gestureBaseOffset = _currentTransform.offset;
-                                _gestureStartFocal = details.focalPoint;
-                              },
-                              onScaleUpdate: (details) {
-                                if (_isLoading) return;
-                                setState(() {
-                                  final transform = _currentTransform;
-                                  transform.scale =
-                                      (_gestureBaseScale * details.scale)
-                                          .clamp(1.0, 5.0)
-                                          .toDouble();
-                                  transform.offset =
-                                      _gestureBaseOffset +
-                                      (details.focalPoint - _gestureStartFocal);
-                                  _clampOffset(transform, frameSize);
-                                });
-                              },
-                              onScaleEnd: (_) {
-                                setState(() {
-                                  _clampOffset(_currentTransform, frameSize);
-                                });
-                              },
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Container(color: Colors.black),
-                                  if (_isLoading)
-                                    const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  else
-                                    _buildCroppableImage(frameSize),
-                                  if (_showGrid)
-                                    FadeTransition(
-                                      opacity: _gridFadeCtrl,
-                                      child: _buildGrid(),
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: GestureDetector(
+                            onScaleStart: (details) {
+                              _gestureBaseScale = _currentTransform.scale;
+                              _gestureBaseOffset = _currentTransform.offset;
+                              _gestureStartFocal = details.focalPoint;
+                            },
+                            onScaleUpdate: (details) {
+                              if (_isLoading) return;
+                              setState(() {
+                                final transform = _currentTransform;
+                                
+                                transform.scale =
+                                    (_gestureBaseScale * details.scale)
+                                        .clamp(1.0, 5.0)
+                                        .toDouble();
+                                transform.offset =
+                                    _gestureBaseOffset +
+                                    (details.focalPoint - _gestureStartFocal);
+                                _clampOffset(transform, frameSize);
+                              });
+                            },
+                            onScaleEnd: (_) {
+                              setState(() {
+                                _clampOffset(_currentTransform, frameSize);
+                              });
+                            },
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Container(color: Colors.black),
+                                if (_isLoading)
+                                  const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
                                     ),
-                                ],
-                              ),
+                                  )
+                                else
+                                  _buildCroppableImage(frameSize),
+                                if (_showGrid)
+                                  FadeTransition(
+                                    opacity: _gridFadeCtrl,
+                                    child: _buildGrid(),
+                                  ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -452,7 +472,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
           rect: drawRect,
           child: Image.file(
             widget.files[_currentIndex],
-            fit: BoxFit.fill,
+            fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
           ),
         ),
@@ -524,6 +544,13 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                 icon: Icons.crop_portrait_rounded,
                 isSelected: _aspect == CropAspect.portrait,
                 onTap: () => _switchAspect(CropAspect.portrait),
+              ),
+              const SizedBox(width: 10),
+              _aspectChip(
+                label: '3:4',
+                icon: Icons.photo_size_select_large_rounded,
+                isSelected: _aspect == CropAspect.portrait3x4,
+                onTap: () => _switchAspect(CropAspect.portrait3x4),
               ),
             ],
           ),

@@ -11,12 +11,14 @@ class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
   final bool isVideoPost;
   final VoidCallback? onDoubleTap;
+  final double? mediaAspectRatio;
 
   const MediaCarousel({
     super.key,
     required this.imagePaths,
     this.isVideoPost = false,
     this.onDoubleTap,
+    this.mediaAspectRatio,
   });
 
   @override
@@ -106,6 +108,15 @@ class _MediaCarouselState extends State<MediaCarousel> {
     if (!_isParentPageSwipeLocked) return;
     _isParentPageSwipeLocked = false;
     _pageSwipeLockController?.unlock();
+  }
+
+  /// Feed-safe aspect ratio: never taller than 4:5 to preserve Knockpost's
+  /// visual rhythm. The actual image data is unchanged — only the display
+  /// container is constrained so tall posts don't overpower the feed.
+  double get _feedAspectRatio {
+    const double minFeedRatio = 4.0 / 5.0; // tallest allowed in feed
+    final raw = widget.mediaAspectRatio ?? minFeedRatio;
+    return raw < minFeedRatio ? minFeedRatio : raw;
   }
 
   @override
