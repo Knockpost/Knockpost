@@ -192,20 +192,13 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                   GestureDetector(
                     onTap: _sendAndClose,
                     child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF007AFF),
+                      width: 46,
+                      height: 46,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF007AFF).withValues(alpha: 0.35),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),
+                      child: const Icon(Icons.arrow_upward_rounded, color: Colors.black, size: 24),
                     ),
                   ),
                 ],
