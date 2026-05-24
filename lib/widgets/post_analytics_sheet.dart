@@ -116,9 +116,53 @@ class _PostAnalyticsSheetState extends State<PostAnalyticsSheet> with SingleTick
               labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               unselectedLabelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               dividerColor: isDark ? Colors.white10 : Colors.black12,
-              tabs: const [
-                Tab(text: "Reactions"),
-                Tab(text: "Views"),
+              tabs: [
+                Tab(
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: PostService.instance.getPostViewers(widget.postId),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData 
+                          ? (snapshot.data!.length > widget.totalViews ? snapshot.data!.length : widget.totalViews) 
+                          : widget.totalViews;
+                      return Text.rich(
+                        TextSpan(
+                          text: "Views ",
+                          children: [
+                            TextSpan(
+                              text: "($count)",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Tab(
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: LikeService.instance.getPostReactions(widget.postId),
+                    builder: (context, snapshot) {
+                      final count = snapshot.hasData ? snapshot.data!.length : 0;
+                      return Text.rich(
+                        TextSpan(
+                          text: "Reactions ",
+                          children: [
+                            TextSpan(
+                              text: "($count)",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -128,18 +172,18 @@ class _PostAnalyticsSheetState extends State<PostAnalyticsSheet> with SingleTick
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Reactions Tab
-                _ReactionsList(
-                  postId: widget.postId,
-                  isDark: isDark,
-                  bgColor: bgColor,
-                  textColor: textColor,
-                ),
-                
                 // Views Tab
                 _ViewsList(
                   postId: widget.postId,
                   totalViews: widget.totalViews,
+                  isDark: isDark,
+                  bgColor: bgColor,
+                  textColor: textColor,
+                ),
+
+                // Reactions Tab
+                _ReactionsList(
+                  postId: widget.postId,
                   isDark: isDark,
                   bgColor: bgColor,
                   textColor: textColor,
@@ -172,33 +216,6 @@ class _ViewsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (totalViews == 0) {
-      return const SizedBox.shrink();
-    }
-
-    final viewsHeader = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.visibility_rounded,
-            size: 20,
-            color: isDark ? Colors.white70 : Colors.black87,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$totalViews Total Views',
-            style: TextStyle(
-              color: isDark ? Colors.white70 : Colors.black87,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: PostService.instance.getPostViewers(postId),
       builder: (context, snapshot) {
@@ -208,24 +225,15 @@ class _ViewsList extends StatelessWidget {
 
         final viewers = snapshot.data ?? [];
         
-        return Column(
-          children: [
-            viewsHeader,
-            Expanded(
-              child: viewers.isEmpty
-                  ? Center(
-                      child: Text(
-                        totalViews > 0 
-                            ? "Older or anonymous views are not listed" 
-                            : "No views yet",
-                        style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: viewers.length,
-                      itemBuilder: (context, index) {
-                        final viewer = viewers[index];
+        if (viewers.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: viewers.length,
+          itemBuilder: (context, index) {
+            final viewer = viewers[index];
                         final String userId = viewer['userId'];
                         final String? cachedUsername = viewer['username'];
                         final String? cachedAvatar = viewer['profileImageUrl'];
@@ -234,11 +242,17 @@ class _ViewsList extends StatelessWidget {
                         String timeAgo = '';
                         if (viewedAt != null) {
                           final diff = DateTime.now().difference(viewedAt.toDate());
-                          if (diff.inMinutes < 1) timeAgo = 'Just now';
-                          else if (diff.inHours < 1) timeAgo = '${diff.inMinutes}m ago';
-                          else if (diff.inHours < 24) timeAgo = '${diff.inHours}h ago';
-                          else if (diff.inDays < 7) timeAgo = '${diff.inDays}d ago';
-                          else timeAgo = '${(diff.inDays / 7).floor()}w ago';
+                          if (diff.inMinutes < 1) {
+                            timeAgo = 'Just now';
+                          } else if (diff.inHours < 1) {
+                            timeAgo = '${diff.inMinutes}m ago';
+                          } else if (diff.inHours < 24) {
+                            timeAgo = '${diff.inHours}h ago';
+                          } else if (diff.inDays < 7) {
+                            timeAgo = '${diff.inDays}d ago';
+                          } else {
+                            timeAgo = '${(diff.inDays / 7).floor()}w ago';
+                          }
                         }
 
                         return FutureBuilder<Map<String, dynamic>?>(
@@ -269,9 +283,6 @@ class _ViewsList extends StatelessWidget {
                           },
                         );
                       },
-                    ),
-            ),
-          ],
         );
       },
     );
@@ -305,12 +316,7 @@ class _ReactionsList extends StatelessWidget {
         final reactors = snapshot.data ?? [];
 
         if (reactors.isEmpty) {
-          return Center(
-            child: Text(
-              "No reactions yet",
-              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-            ),
-          );
+          return const SizedBox.shrink();
         }
 
         final currentUser = CurrentUserService.instance.currentUser;

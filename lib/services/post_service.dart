@@ -210,9 +210,12 @@ class PostService {
         final author = authorMap[post.authorId];
         if (author == null) continue;
 
-        if (currentUserModel?.blockedUsers.contains(author.id) ?? false)
+        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) {
           continue;
-        if (author.blockedUsers.contains(currentUserId)) continue;
+        }
+        if (author.blockedUsers.contains(currentUserId)) {
+          continue;
+        }
 
         if (author.accountType == AccountType.normal &&
             author.privacyType == PrivacyType.private) {

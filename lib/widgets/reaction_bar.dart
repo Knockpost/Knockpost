@@ -638,13 +638,6 @@ class _ReactionSummary extends StatelessWidget {
     this.isOverlay = false,
   });
 
-  String _formatLikes(int count) {
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}k';
-    }
-    return count.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     if (likes <= 0) return const SizedBox.shrink();
@@ -677,13 +670,71 @@ class _ReactionSummary extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Views Button (Now on the left, without count)
             GestureDetector(
               onTap: () {
                 KnockHaptics.selection();
                 PostAnalyticsSheet.show(
                   context,
                   postId: postId,
-                  initialIndex: 0, // Reactions tab is now index 0
+                  initialIndex: 0, // Views tab is now index 0
+                  userReaction: userReaction,
+                  totalViews: views,
+                );
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isOverlay
+                            ? const Color(0x66000000)
+                            : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0)),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isOverlay
+                              ? Colors.white.withValues(alpha: 0.5)
+                              : (isDark ? Colors.black : Colors.white),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: CustomPaint(
+                        size: const Size(12, 12),
+                        painter: _CustomEyePainter(
+                          color: isOverlay
+                              ? Colors.white.withValues(alpha: 0.95)
+                              : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 16),
+            
+            // Reactions Button (Now on the right)
+            GestureDetector(
+              onTap: () {
+                KnockHaptics.selection();
+                PostAnalyticsSheet.show(
+                  context,
+                  postId: postId,
+                  initialIndex: 1, // Reactions tab is now index 1
                   userReaction: userReaction,
                   totalViews: views,
                 );
@@ -708,57 +759,6 @@ class _ReactionSummary extends StatelessWidget {
                             reversedIndex * 14.0,
                           );
                         }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Views Button
-            GestureDetector(
-              onTap: () {
-                KnockHaptics.selection();
-                PostAnalyticsSheet.show(
-                  context,
-                  postId: postId,
-                  initialIndex: 1, // Views tab is now index 1
-                  userReaction: userReaction,
-                  totalViews: views,
-                );
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.visibility_outlined,
-                      size: 18,
-                      color: isOverlay
-                          ? Colors.white.withValues(alpha: 0.95)
-                          : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatLikes(views),
-                      style: TextStyle(
-                        color: isOverlay
-                            ? Colors.white.withValues(alpha: 0.95)
-                            : (isDark ? Colors.white70 : Colors.black87),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        shadows: isOverlay
-                            ? [
-                                const Shadow(
-                                  color: Color(0x8A000000),
-                                  blurRadius: 4,
-                                ),
-                              ]
-                            : null,
                       ),
                     ),
                   ],
@@ -800,6 +800,61 @@ class _ReactionSummary extends StatelessWidget {
         child: Text(emoji, style: const TextStyle(fontSize: 12, height: 1.1)),
       ),
     );
+  }
+}
+
+class _CustomEyePainter extends CustomPainter {
+  final Color color;
+
+  _CustomEyePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Top arch
+    final path = Path();
+    path.moveTo(0, size.height * 0.4);
+    path.quadraticBezierTo(
+      size.width * 0.5,
+      -size.height * 0.25,
+      size.width,
+      size.height * 0.4,
+    );
+    canvas.drawPath(path, strokePaint);
+
+    // Pupil with a cutout
+    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
+    
+    // Draw solid pupil
+    canvas.drawCircle(
+      Offset(size.width * 0.5, size.height * 0.55),
+      size.width * 0.28,
+      fillPaint,
+    );
+
+    // Cutout
+    final clearPaint = Paint()..blendMode = BlendMode.clear;
+    canvas.drawCircle(
+      Offset(size.width * 0.68, size.height * 0.38),
+      size.width * 0.12,
+      clearPaint,
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _CustomEyePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 
