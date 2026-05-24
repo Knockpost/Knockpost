@@ -5,6 +5,7 @@ import '../../services/database_service.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
+import '../../widgets/instagram_username_field.dart';
 
 class SignupUsernameScreen extends StatefulWidget {
   final String email;
@@ -29,62 +30,30 @@ class _SignupUsernameScreenState
       TextEditingController();
   
   bool isLoading = false;
+  bool _isUsernameValid = false;
 
   void goNext() async {
-    final username = usernameController.text.trim();
-    if (username.isEmpty) {
+    if (!_isUsernameValid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please choose a username")),
+        const SnackBar(content: Text("Please enter a valid and available username")),
       );
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    final username = usernameController.text.trim();
+    if (username.isEmpty) return;
 
-    try {
-      // Check if username already exists in Firestore using DatabaseService
-      final isTaken = await DatabaseService.instance.checkUsernameTaken(username);
-
-      if (isTaken) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("This username is already taken. Please choose another.")),
-          );
-        }
-        setState(() {
-          isLoading = false;
-        });
-        return;
-      }
-
-      if (mounted) {
-        // In the new flow (Email -> Link -> Username -> Password)
-        // We always go to SignupPasswordScreen next to set/link the password.
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SignupPasswordScreen(
-              email: widget.email,
-              username: username,
-              isGoogleSignup: widget.isGoogleSignup, // if true, it handles linking or update
-            ),
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SignupPasswordScreen(
+            email: widget.email,
+            username: username,
+            isGoogleSignup: widget.isGoogleSignup,
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error checking username: $e")),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+        ),
+      );
     }
   }
 
@@ -173,35 +142,27 @@ class _SignupUsernameScreenState
 
                     const SizedBox(height: 36),
 
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: TextField(
-                        controller: usernameController,
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                        decoration: InputDecoration(
-                          hintText: "Username",
-                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 20,
-                          ),
-                        ),
-                      ),
+                    InstagramUsernameField(
+                      controller: usernameController,
+                      autofocus: true,
+                      onValidityChanged: (isValid) {
+                        setState(() {
+                          _isUsernameValid = isValid;
+                        });
+                      },
                     ),
 
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: isLoading ? null : () { KnockHaptics.tap(); goNext(); },
+                      onTap: (!_isUsernameValid || isLoading) ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white : Colors.black,
+                          color: _isUsernameValid 
+                              ? (isDark ? Colors.white : Colors.black)
+                              : (isDark ? Colors.white24 : Colors.black26),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(
