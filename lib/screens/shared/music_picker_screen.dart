@@ -203,14 +203,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
   }
 
   Color _accentForCategory(String cat) {
-    switch (cat) {
-      case 'Trending': return const Color(0xFFF15BB5);
-      case 'Pop': return const Color(0xFF4361EE);
-      case 'Hip-Hop': return const Color(0xFFFF6B35);
-      case 'Chill': return const Color(0xFF06D6A0);
-      case 'Bollywood': return const Color(0xFFFFBE0B);
-      default: return Colors.white;
-    }
+    return Colors.white;
   }
 
   @override

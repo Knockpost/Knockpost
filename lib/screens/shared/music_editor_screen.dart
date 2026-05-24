@@ -448,12 +448,18 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: widget.track.coverUrl.isNotEmpty
-                ? Image.network(
-                    widget.track.coverUrl,
-                    width: 52,
-                    height: 52,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _fallbackArt(52),
+                ? ColorFiltered(
+                    colorFilter: const ColorFilter.mode(
+                      Colors.grey,
+                      BlendMode.saturation,
+                    ),
+                    child: Image.network(
+                      widget.track.coverUrl,
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallbackArt(52),
+                    ),
                   )
                 : _fallbackArt(52),
           ),
@@ -1235,12 +1241,18 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(isSmall ? 7 : 10),
                     child: widget.coverUrl.isNotEmpty
-                        ? Image.network(
-                            widget.coverUrl,
-                            width: artSize,
-                            height: artSize,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _fallbackCover(artSize),
+                        ? ColorFiltered(
+                            colorFilter: const ColorFilter.mode(
+                              Colors.grey,
+                              BlendMode.saturation,
+                            ),
+                            child: Image.network(
+                              widget.coverUrl,
+                              width: artSize,
+                              height: artSize,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _fallbackCover(artSize),
+                            ),
                           )
                         : _fallbackCover(artSize),
                   ),
