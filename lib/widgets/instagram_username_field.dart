@@ -186,13 +186,13 @@ class _InstagramUsernameFieldState extends State<InstagramUsernameField> with Si
     final random = Random();
     
     // Suggestion 1: append random number
-    newSuggestions.add('${baseUsername}${random.nextInt(99) + 1}');
+    newSuggestions.add('$baseUsername${random.nextInt(99) + 1}');
     
     // Suggestion 2: insert underscore
     if (!baseUsername.contains('_')) {
       newSuggestions.add('${baseUsername}_');
     } else {
-      newSuggestions.add('${baseUsername}${random.nextInt(999) + 100}');
+      newSuggestions.add('$baseUsername${random.nextInt(999) + 100}');
     }
     
     // Suggestion 3: append letters or specific number
