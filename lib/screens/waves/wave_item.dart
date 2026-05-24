@@ -59,6 +59,8 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   /// Play/pause icon animation
   late AnimationController _playPauseAnimController;
   late Animation<double> _playPauseOpacity;
+  
+  Timer? _viewTimer;
 
   @override
   void initState() {
@@ -110,8 +112,12 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
           _controller.play();
           if (widget.post != null && widget.author != null && !widget.post!.id.startsWith('demo_')) {
             if (!_viewedWaves.contains(widget.post!.id)) {
-              _viewedWaves.add(widget.post!.id);
-              PostService.instance.incrementViewCount(widget.post!.id, widget.author!.id);
+              _viewTimer = Timer(const Duration(seconds: 3), () {
+                if (mounted && widget.isActive) {
+                  _viewedWaves.add(widget.post!.id);
+                  PostService.instance.incrementViewCount(widget.post!.id, widget.author!.id);
+                }
+              });
             }
           }
         } else {
@@ -134,11 +140,17 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       
       if (widget.post != null && widget.author != null && !widget.post!.id.startsWith('demo_')) {
         if (!_viewedWaves.contains(widget.post!.id)) {
-          _viewedWaves.add(widget.post!.id);
-          PostService.instance.incrementViewCount(widget.post!.id, widget.author!.id);
+          _viewTimer ??= Timer(const Duration(seconds: 2), () {
+            if (mounted && widget.isActive) {
+              _viewedWaves.add(widget.post!.id);
+              PostService.instance.incrementViewCount(widget.post!.id, widget.author!.id);
+            }
+          });
         }
       }
     } else {
+      _viewTimer?.cancel();
+      _viewTimer = null;
       _controller.pause();
       isPlaying = false;
     }
@@ -173,7 +185,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-
+    _viewTimer?.cancel();
     _controller.dispose();
     _heartAnimController.dispose();
     _playPauseAnimController.dispose();

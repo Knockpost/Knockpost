@@ -9,6 +9,7 @@ import '../shared/music_editor_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../services/post_service.dart';
+import 'dart:async';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PostCard — Unified post rendering with proper music mode separation
@@ -94,6 +95,7 @@ class _PostCardState extends State<PostCard> {
   bool _isPlaying = false;
   int _audioPositionMs = 0;
   bool _isVisible = false;
+  Timer? _viewTimer;
 
   bool get _hasMusic =>
       widget.musicUrl != null && widget.musicUrl!.isNotEmpty;
@@ -142,6 +144,7 @@ class _PostCardState extends State<PostCard> {
 
   @override
   void dispose() {
+    _viewTimer?.cancel();
     if (_audioPlayer != null) {
       AudioLifecycleManager.instance.unregister(_audioPlayer!);
       _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
@@ -178,13 +181,20 @@ class _PostCardState extends State<PostCard> {
       onVisibilityChanged: (info) {
         if (!mounted) return;
         final visibleFraction = info.visibleFraction;
-        _isVisible = visibleFraction > 0.4; // Consider visible if 40% is on screen
+        _isVisible = visibleFraction >= 0.5;
 
         if (_isVisible && widget.postId != null && !widget.postId!.startsWith('demo_')) {
           if (!_viewedPosts.contains(widget.postId!)) {
-            _viewedPosts.add(widget.postId!);
-            PostService.instance.incrementViewCount(widget.postId!, widget.user.id);
+            _viewTimer ??= Timer(const Duration(seconds: 2), () {
+              if (mounted && _isVisible) {
+                _viewedPosts.add(widget.postId!);
+                PostService.instance.incrementViewCount(widget.postId!, widget.user.id);
+              }
+            });
           }
+        } else {
+          _viewTimer?.cancel();
+          _viewTimer = null;
         }
 
         if (_audioPlayer != null) {

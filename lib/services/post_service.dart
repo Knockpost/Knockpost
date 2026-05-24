@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import 'storage_service.dart';
 import 'connection_service.dart';
 import 'database_service.dart';
+import 'current_user_service.dart';
 
 class PostService {
   PostService._internal();
@@ -16,13 +17,17 @@ class PostService {
   CollectionReference get postsCollection => _firestore.collection('posts');
 
   /// Helper to bidirectionally filter out posts from blocked users AND private accounts.
-  Future<List<PostModel>> _filterBlockedAndPrivatePosts(List<PostModel> posts) async {
+  Future<List<PostModel>> _filterBlockedAndPrivatePosts(
+    List<PostModel> posts,
+  ) async {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     if (myUid == null) return posts;
 
     // Fetch my profile for my blocked users
     final myDoc = await _firestore.collection('users').doc(myUid).get();
-    final myBlockedUsers = myDoc.exists ? List<String>.from(myDoc.data()?['blockedUsers'] ?? []) : <String>[];
+    final myBlockedUsers = myDoc.exists
+        ? List<String>.from(myDoc.data()?['blockedUsers'] ?? [])
+        : <String>[];
 
     final Set<String> uniqueAuthorIds = posts.map((p) => p.authorId).toSet();
     uniqueAuthorIds.remove(myUid);
@@ -30,21 +35,25 @@ class PostService {
     final Map<String, UserModel> authorMap = {};
     final Map<String, KnockStatus> knockStatusMap = {};
 
-    await Future.wait(uniqueAuthorIds.map((uid) async {
-      try {
-        final data = await _firestore.collection('users').doc(uid).get();
-        if (data.exists && data.data() != null) {
-          final user = UserModel.fromMap(data.data()!, uid);
-          authorMap[uid] = user;
-          
-          if (user.accountType == AccountType.normal && user.privacyType == PrivacyType.private) {
-             knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
+    await Future.wait(
+      uniqueAuthorIds.map((uid) async {
+        try {
+          final data = await _firestore.collection('users').doc(uid).get();
+          if (data.exists && data.data() != null) {
+            final user = UserModel.fromMap(data.data()!, uid);
+            authorMap[uid] = user;
+
+            if (user.accountType == AccountType.normal &&
+                user.privacyType == PrivacyType.private) {
+              knockStatusMap[uid] = await ConnectionService.instance
+                  .getKnockStatus(uid);
+            }
           }
+        } catch (e) {
+          debugPrint('PostService: failed to fetch author $uid: $e');
         }
-      } catch (e) {
-        debugPrint('PostService: failed to fetch author $uid: $e');
-      }
-    }));
+      }),
+    );
 
     return posts.where((post) {
       if (post.authorId == myUid) return true;
@@ -55,9 +64,11 @@ class PostService {
       if (author.blockedUsers.contains(myUid)) return false;
 
       // Privacy Check
-      if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+      if (author.accountType == AccountType.normal &&
+          author.privacyType == PrivacyType.private) {
         final status = knockStatusMap[author.id];
-        if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+        if (status != KnockStatus.knocked &&
+            status != KnockStatus.mutualKnocked) {
           return false;
         }
       }
@@ -87,10 +98,12 @@ class PostService {
             imageUrls.add(url);
           }
         }
-        
+
         // If media files were provided but none uploaded successfully, fail the post
         if (imageUrls.isEmpty) {
-          throw Exception('Failed to upload media files. Please check your connection.');
+          throw Exception(
+            'Failed to upload media files. Please check your connection.',
+          );
         }
       }
 
@@ -122,12 +135,20 @@ class PostService {
         .limit(limit)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-          .where((post) =>
-              post.duration == PostDuration.lifetime || post.isInRecentsWindow)
-          .toList();
-    });
+          return snapshot.docs
+              .map(
+                (doc) => PostModel.fromMap(
+                  doc.data() as Map<String, dynamic>,
+                  doc.id,
+                ),
+              )
+              .where(
+                (post) =>
+                    post.duration == PostDuration.lifetime ||
+                    post.isInRecentsWindow,
+              )
+              .toList();
+        });
   }
 
   /// Streams feed posts along with their resolved author [UserModel].
@@ -149,49 +170,59 @@ class PostService {
 
       // Batch-fetch all author profiles in parallel
       final Map<String, UserModel> authorMap = {};
-      await Future.wait(uniqueAuthorIds.map((uid) async {
-        try {
-          final data = await _firestore.collection('users').doc(uid).get();
-          if (data.exists && data.data() != null) {
-            authorMap[uid] = UserModel.fromMap(data.data()!, uid);
+      await Future.wait(
+        uniqueAuthorIds.map((uid) async {
+          try {
+            final data = await _firestore.collection('users').doc(uid).get();
+            if (data.exists && data.data() != null) {
+              authorMap[uid] = UserModel.fromMap(data.data()!, uid);
+            }
+          } catch (e) {
+            debugPrint('PostService: failed to fetch author $uid: $e');
           }
-        } catch (e) {
-          debugPrint('PostService: failed to fetch author $uid: $e');
-        }
-      }));
+        }),
+      );
 
       // Fetch privacy statuses in parallel for any private users
       final Map<String, KnockStatus> knockStatusMap = {};
-      await Future.wait(uniqueAuthorIds.map((uid) async {
-        final author = authorMap[uid];
-        if (author != null && author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
-            knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
-        }
-      }));
+      await Future.wait(
+        uniqueAuthorIds.map((uid) async {
+          final author = authorMap[uid];
+          if (author != null &&
+              author.accountType == AccountType.normal &&
+              author.privacyType == PrivacyType.private) {
+            knockStatusMap[uid] = await ConnectionService.instance
+                .getKnockStatus(uid);
+          }
+        }),
+      );
 
       // Map each post to its author, applying bidirectional block filter & privacy check
       final List<({PostModel post, UserModel author})> validPosts = [];
       for (final post in posts) {
         if (post.authorId == currentUserId) {
           if (currentUserModel != null) {
-             validPosts.add((post: post, author: currentUserModel));
+            validPosts.add((post: post, author: currentUserModel));
           }
           continue;
         }
-        
+
         final author = authorMap[post.authorId];
         if (author == null) continue;
-        
-        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) continue;
+
+        if (currentUserModel?.blockedUsers.contains(author.id) ?? false)
+          continue;
         if (author.blockedUsers.contains(currentUserId)) continue;
-        
-        if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+
+        if (author.accountType == AccountType.normal &&
+            author.privacyType == PrivacyType.private) {
           final status = knockStatusMap[author.id];
-          if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+          if (status != KnockStatus.knocked &&
+              status != KnockStatus.mutualKnocked) {
             continue;
           }
         }
-        
+
         validPosts.add((post: post, author: author));
       }
       return validPosts;
@@ -204,12 +235,16 @@ class PostService {
         .where('type', isEqualTo: PostType.waves.name)
         .snapshots()
         .map((snapshot) {
-      final posts = snapshot.docs.map((doc) {
-        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
-      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return posts.take(limit).toList();
-    }).asyncMap(_filterBlockedAndPrivatePosts);
+          final posts = snapshot.docs.map((doc) {
+            return PostModel.fromMap(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            );
+          }).toList();
+          posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return posts.take(limit).toList();
+        })
+        .asyncMap(_filterBlockedAndPrivatePosts);
   }
 
   /// Streams active glimpses (stories) for the GlimpsStrip.
@@ -219,26 +254,32 @@ class PostService {
         .where('type', isEqualTo: PostType.glimps.name)
         .snapshots()
         .map((snapshot) {
-      final posts = snapshot.docs.map((doc) {
-        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).where((post) => post.isInRecentsWindow).toList();
-      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return posts.take(limit).toList();
-    }).asyncMap(_filterBlockedAndPrivatePosts);
+          final posts = snapshot.docs
+              .map((doc) {
+                return PostModel.fromMap(
+                  doc.data() as Map<String, dynamic>,
+                  doc.id,
+                );
+              })
+              .where((post) => post.isInRecentsWindow)
+              .toList();
+          posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return posts.take(limit).toList();
+        })
+        .asyncMap(_filterBlockedAndPrivatePosts);
   }
 
   /// Streams a specific user's posts.
   Stream<List<PostModel>> getUserPosts(String userId) {
-    return postsCollection
-        .where('authorId', isEqualTo: userId)
-        .snapshots()
-        .map((snapshot) {
-      final posts = snapshot.docs.map((doc) {
-        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
-      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return posts;
-    });
+    return postsCollection.where('authorId', isEqualTo: userId).snapshots().map(
+      (snapshot) {
+        final posts = snapshot.docs.map((doc) {
+          return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        }).toList();
+        posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return posts;
+      },
+    );
   }
 
   /// Deletes a post from Firestore.
@@ -251,23 +292,57 @@ class PostService {
   }
 
   /// Increments the view count for a post and the total views for its author.
-  /// To avoid excessive writes, we could debounce this or track viewed post IDs locally.
+  /// Strictly allows only 1 view per account (no duplicates).
   Future<void> incrementViewCount(String postId, String authorId) async {
     try {
-      // Increment post views
-      await postsCollection.doc(postId).update({
-        'views': FieldValue.increment(1),
-      });
+      final currentUser = CurrentUserService.instance.currentUser;
+      final currentUserId = currentUser?.id;
 
-      // Increment author's total views
-      await _firestore.collection('users').doc(authorId).update({
-        'totalViews': FieldValue.increment(1),
-      });
+      // Skip tracking if anonymous or if it's the author's own post
+      if (currentUserId != null && currentUserId != authorId) {
+        final viewerRef = postsCollection
+            .doc(postId)
+            .collection('viewers')
+            .doc(currentUserId);
+        final docSnap = await viewerRef.get();
 
-      // Recalculate rank asynchronously
-      DatabaseService.instance.recalculateCreatorRank(authorId);
+        // Only count if this user has NEVER viewed this post before
+        if (!docSnap.exists) {
+          await viewerRef.set({
+            'userId': currentUserId,
+            'username': currentUser!.username,
+            'profileImageUrl': currentUser.avatarAsset,
+            'viewedAt': FieldValue.serverTimestamp(),
+          });
+
+          await postsCollection.doc(postId).update({
+            'views': FieldValue.increment(1),
+          });
+
+          await _firestore.collection('users').doc(authorId).update({
+            'totalViews': FieldValue.increment(1),
+          });
+
+          DatabaseService.instance.recalculateCreatorRank(authorId);
+        } else {
+          // Optionally update the last viewed timestamp without incrementing the count
+          await viewerRef.update({'viewedAt': FieldValue.serverTimestamp()});
+        }
+      }
     } catch (e) {
       debugPrint("Error incrementing view count: $e");
     }
+  }
+
+  /// Streams the list of viewers for a specific post.
+  Stream<List<Map<String, dynamic>>> getPostViewers(String postId) {
+    return postsCollection
+        .doc(postId)
+        .collection('viewers')
+        .orderBy('viewedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) => doc.data()).toList();
+        });
   }
 }

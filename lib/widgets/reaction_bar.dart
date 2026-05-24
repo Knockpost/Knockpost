@@ -6,6 +6,7 @@ import 'comment_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 import '../screens/waves/widgets/share_sheet.dart';
 import 'reactors_sheet.dart';
+import 'post_analytics_sheet.dart';
 import '../services/like_service.dart';
 import '../services/current_user_service.dart';
 import 'dart:async';
@@ -673,59 +674,98 @@ class _ReactionSummary extends StatelessWidget {
           }
         }
 
-        return GestureDetector(
-          onTap: () {
-            KnockHaptics.selection();
-            ReactorsSheet.show(
-              context,
-              postId: postId,
-              userReaction: userReaction,
-            );
-          },
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Overlapping reaction icons
-                SizedBox(
-                  width: 24.0 + (emojisToShow.length - 1) * 14.0,
-                  height: 24,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: List.generate(emojisToShow.length, (index) {
-                      // Ensure left-most is on top
-                      final reversedIndex = emojisToShow.length - 1 - index;
-                      return _miniEmoji(
-                        emojisToShow[reversedIndex],
-                        reversedIndex * 14.0,
-                      );
-                    }),
-                  ),
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () {
+                KnockHaptics.selection();
+                PostAnalyticsSheet.show(
+                  context,
+                  postId: postId,
+                  initialIndex: 0, // Reactions tab is now index 0
+                  userReaction: userReaction,
+                  totalViews: views,
+                );
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Overlapping reaction icons
+                    SizedBox(
+                      width: 24.0 + (emojisToShow.length - 1) * 14.0,
+                      height: 24,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: List.generate(emojisToShow.length, (index) {
+                          // Ensure left-most is on top
+                          final reversedIndex = emojisToShow.length - 1 - index;
+                          return _miniEmoji(
+                            emojisToShow[reversedIndex],
+                            reversedIndex * 14.0,
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  _formatLikes(likes),
-                  style: TextStyle(
-                    color: isOverlay
-                        ? Colors.white.withValues(alpha: 0.95)
-                        : (isDark ? Colors.white70 : Colors.black87),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    shadows: isOverlay
-                        ? [
-                            const Shadow(
-                              color: Color(0x8A000000),
-                              blurRadius: 4,
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            
+            const SizedBox(width: 16),
+            
+            // Views Button
+            GestureDetector(
+              onTap: () {
+                KnockHaptics.selection();
+                PostAnalyticsSheet.show(
+                  context,
+                  postId: postId,
+                  initialIndex: 1, // Views tab is now index 1
+                  userReaction: userReaction,
+                  totalViews: views,
+                );
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.visibility_outlined,
+                      size: 18,
+                      color: isOverlay
+                          ? Colors.white.withValues(alpha: 0.95)
+                          : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatLikes(views),
+                      style: TextStyle(
+                        color: isOverlay
+                            ? Colors.white.withValues(alpha: 0.95)
+                            : (isDark ? Colors.white70 : Colors.black87),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        shadows: isOverlay
+                            ? [
+                                const Shadow(
+                                  color: Color(0x8A000000),
+                                  blurRadius: 4,
+                                ),
+                              ]
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
