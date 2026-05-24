@@ -64,8 +64,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   final AudioPlayer _bgAudioPlayer = AudioPlayer();
   int _trimStartSeconds = 0;
-  int _bgAudioPosMs = 0;
-  StreamSubscription<Duration>? _bgPosSub;
 
   // ── Filter definitions ────────────────────────────────────────────────────
   final List<String> _filterNames = [
@@ -212,10 +210,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     AudioLifecycleManager.instance.register(_bgAudioPlayer);
     _editorBoxHeight = _editorBoxWidth / widget.aspectRatio;
 
-    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
-      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
-    });
-
     _toolbarAnimCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -238,7 +232,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   @override
   void dispose() {
-    _bgPosSub?.cancel();
     AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
     _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     _toolbarAnimCtrl.dispose();

@@ -81,7 +81,6 @@ class _PostCardState extends State<PostCard> {
   bool _doubleTapped = false;
   AudioPlayer? _audioPlayer;
   bool _isPlaying = false;
-  int _audioPositionMs = 0;
   bool _isVisible = false;
 
   bool get _hasMusic =>
@@ -117,12 +116,6 @@ class _PostCardState extends State<PostCard> {
 
       _audioPlayer!.playingStream.listen((playing) {
         if (mounted) setState(() => _isPlaying = playing);
-      });
-
-      _audioPlayer!.positionStream.listen((pos) {
-        if (mounted) {
-          setState(() => _audioPositionMs = pos.inMilliseconds);
-        }
       });
     } catch (e) {
       debugPrint('PostCard audio init error: $e');
@@ -219,12 +212,6 @@ class _PostCardState extends State<PostCard> {
         // ── Media + Overlays ──
         LayoutBuilder(
           builder: (context, constraints) {
-            final boxWidth = constraints.maxWidth;
-            final rawRatio = widget.mediaAspectRatio ?? (4 / 5);
-            // Clamp to 4:5 minimum — matches MediaCarousel feed clamp
-            final feedRatio = rawRatio < (4 / 5) ? (4 / 5) : rawRatio;
-            final boxHeight = boxWidth / feedRatio;
-
             return Stack(
               children: [
                 MediaCarousel(
