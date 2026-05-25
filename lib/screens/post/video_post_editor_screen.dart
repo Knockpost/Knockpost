@@ -96,16 +96,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
   File? _customCoverImage;
   File? _selectedMusicFile;
   MusicTrack? _selectedMusic;
-  int? _selectedMusicStyle;
-  Map<String, dynamic>? _selectedMusicLyricsConfig;
-
-  Offset? _musicOverlayPosition;
-  double _musicOverlayScale = 1.0;
-  double _musicOverlayRotation = 0.0;
-  double _baseMusicOverlayScale = 1.0;
-  double _baseMusicOverlayRotation = 0.0;
-  Offset? _dragStartOverlayPos;
-  Offset? _dragStartFocalPoint;
+  Map<String, dynamic>? _selectedMusicStickerConfig;
   _EditableVideoText? _selectedTextOverlay;
   _EditableSticker? _selectedStickerOverlay;
 
@@ -431,12 +422,14 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
       _selectedMusic = overlayResult['track'] as MusicTrack;
       _selectedMusicFile = null;
       _musicTrimStart = Duration(seconds: overlayResult['trimStartSeconds'] as int);
-      _musicVolume = 0.8;
+      _musicVolume = overlayResult['musicVolume'] as double? ?? 1.0;
+      _originalAudioVolume = overlayResult['originalVolume'] as double? ?? _originalAudioVolume;
       _isLoadingMusic = true;
       
-      _selectedMusicStyle = overlayResult['styleIndex'] as int? ?? 1;
-      _selectedMusicLyricsConfig = (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
+      _selectedMusicStickerConfig = (overlayResult['stickerConfig'] as Map?)?.cast<String, dynamic>();
     });
+    
+    await _sourceAudioPlayer.setVolume(_originalAudioVolume);
 
     try {
       await _musicPlayer.stop();
@@ -450,8 +443,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
       setState(() { 
         _isLoadingMusic = false; 
         _selectedMusic = null; 
-        _selectedMusicStyle = null; 
-        _selectedMusicLyricsConfig = null; 
+        _selectedMusicStickerConfig = null; 
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load this song.')));
     }
@@ -505,11 +497,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
     setState(() {
       _selectedMusic = null;
       _selectedMusicFile = null;
-      _selectedMusicStyle = null;
-      _selectedMusicLyricsConfig = null;
-      _musicOverlayPosition = null;
-      _musicOverlayScale = 1.0;
-      _musicOverlayRotation = 0.0;
+      _selectedMusicStickerConfig = null;
       _musicTrimStart = Duration.zero;
       _musicVolume = 0.0;
       _isLoadingMusic = false;
@@ -639,14 +627,9 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
             coverImageFile: result.coverFile,
             initialMusic: _selectedMusic,
             initialTrimSeconds: _musicTrimStart.inSeconds,
-            initialMusicCoverUrl: _selectedMusic?.coverUrl,
-            initialMusicLyrics: _selectedMusic?.syncedLyrics,
-            initialMusicStyle: _selectedMusicStyle,
-            initialMusicLyricsConfig: _selectedMusicLyricsConfig,
-            initialMusicOverlayX: _musicOverlayPosition != null ? _musicOverlayPosition!.dx / _previewFrameSize.width : null,
-            initialMusicOverlayY: _musicOverlayPosition != null ? _musicOverlayPosition!.dy / _previewFrameSize.height : null,
-            initialMusicOverlayScale: _musicOverlayScale,
-            initialMusicOverlayRotation: _musicOverlayRotation,
+            initialMusicStickerConfig: _selectedMusicStickerConfig,
+            initialMusicVolume: _musicVolume,
+            initialOriginalAudioVolume: _originalAudioVolume,
           ),
         ),
       );
@@ -796,59 +779,20 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
                 if (_effects.filter == CinematicEffect.blur)
                   BackdropFilter(filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), child: Container(color: Colors.transparent)),
                   
-                if (_selectedMusic != null && _selectedMusicStyle != null && _selectedMusicStyle != 0)
-                  Positioned(
-                    left: (_musicOverlayPosition ?? defaultMusicLyricsOverlayOffset(
-                      frameWidth: constraints.maxWidth,
-                      frameHeight: constraints.maxHeight,
-                      lyricsConfigData: _selectedMusicLyricsConfig,
-                    )).dx,
-                    top: (_musicOverlayPosition ?? defaultMusicLyricsOverlayOffset(
-                      frameWidth: constraints.maxWidth,
-                      frameHeight: constraints.maxHeight,
-                      lyricsConfigData: _selectedMusicLyricsConfig,
-                    )).dy,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onScaleStart: (details) {
-                        _dragStartFocalPoint = details.focalPoint;
-                        _dragStartOverlayPos = _musicOverlayPosition ?? defaultMusicLyricsOverlayOffset(
-                          frameWidth: constraints.maxWidth,
-                          frameHeight: constraints.maxHeight,
-                          lyricsConfigData: _selectedMusicLyricsConfig,
-                        );
-                        _baseMusicOverlayScale = _musicOverlayScale;
-                        _baseMusicOverlayRotation = _musicOverlayRotation;
-                        setState(() { _selectedTextOverlay = null; _selectedStickerOverlay = null; });
-                      },
-                      onScaleUpdate: (details) {
-                        if (_dragStartFocalPoint == null) return;
-                        final delta = details.focalPoint - _dragStartFocalPoint!;
+                if (_selectedMusic != null && _selectedMusicStickerConfig != null)
+                  RepaintBoundary(
+                    child: MusicStickerWidget(
+                      title: _selectedMusic!.title,
+                      artist: _selectedMusic!.artist,
+                      coverUrl: _selectedMusic!.coverUrl,
+                      configData: _selectedMusicStickerConfig,
+                      isPlaying: _controller.value.isPlaying,
+                      isEditable: true,
+                      onConfigChanged: (config) {
                         setState(() {
-                          _musicOverlayPosition = (_dragStartOverlayPos ?? Offset.zero) + delta;
-                          if (details.pointerCount > 1) {
-                            _musicOverlayScale = (_baseMusicOverlayScale * details.scale).clamp(0.4, 4.0);
-                            _musicOverlayRotation = _baseMusicOverlayRotation + details.rotation;
-                          }
+                          _selectedMusicStickerConfig = config.toMap();
                         });
                       },
-                      child: Transform.scale(
-                        scale: _musicOverlayScale,
-                        alignment: Alignment.center,
-                        child: Transform.rotate(
-                          angle: _musicOverlayRotation,
-                          alignment: Alignment.center,
-                          child: MusicStyleOverlayWidget(
-                            styleIndex: _selectedMusicStyle!,
-                            title: _selectedMusic!.title,
-                            artist: _selectedMusic!.artist,
-                            coverUrl: _selectedMusic!.coverUrl,
-                            lyricsLrc: _selectedMusic!.syncedLyrics,
-                            lyricsConfigData: _selectedMusicLyricsConfig,
-                            timelinePositionMs: (_playbackPosition.inMilliseconds - _trimStart.inMilliseconds + _musicTrimStart.inMilliseconds).toInt(),
-                          ),
-                        ),
-                      ),
                     ),
                   ),
                 ..._textOverlays.map((o) => _buildPreviewTextOverlay(o, frameSize)),

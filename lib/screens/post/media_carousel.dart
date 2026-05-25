@@ -12,12 +12,14 @@ class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
   final bool isVideoPost;
   final VoidCallback? onDoubleTap;
+  final double? mediaAspectRatio;
 
   const MediaCarousel({
     super.key,
     required this.imagePaths,
     this.isVideoPost = false,
     this.onDoubleTap,
+    this.mediaAspectRatio,
   });
 
   @override

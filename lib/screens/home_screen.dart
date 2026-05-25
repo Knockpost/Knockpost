@@ -719,6 +719,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 const NotificationsScreen(),
                                                           ),
                                                         );
+
                                                       },
                                                     ),
                                                     if (hasUnread)

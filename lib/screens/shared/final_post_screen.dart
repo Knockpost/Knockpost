@@ -24,14 +24,9 @@ class FinalPostScreen extends StatefulWidget {
   final PostAudience selectedAudience;
   final MusicTrack? initialMusic;
   final int? initialTrimSeconds;
-  final int? initialMusicStyle;
-  final String? initialMusicCoverUrl;
-  final String? initialMusicLyrics;
-  final Map<String, dynamic>? initialMusicLyricsConfig;
-  final double? initialMusicOverlayX;
-  final double? initialMusicOverlayY;
-  final double? initialMusicOverlayScale;
-  final double? initialMusicOverlayRotation;
+  final Map<String, dynamic>? initialMusicStickerConfig;
+  final double? initialMusicVolume;
+  final double? initialOriginalAudioVolume;
   final double? mediaAspectRatio;
   final bool mediaIsBaked;
   final bool isVideoPost;
@@ -52,14 +47,9 @@ class FinalPostScreen extends StatefulWidget {
     this.selectedAudience = PostAudience.myFriends,
     this.initialMusic,
     this.initialTrimSeconds,
-    this.initialMusicStyle,
-    this.initialMusicCoverUrl,
-    this.initialMusicLyrics,
-    this.initialMusicLyricsConfig,
-    this.initialMusicOverlayX,
-    this.initialMusicOverlayY,
-    this.initialMusicOverlayScale,
-    this.initialMusicOverlayRotation,
+    this.initialMusicStickerConfig,
+    this.initialMusicVolume,
+    this.initialOriginalAudioVolume,
     this.mediaAspectRatio,
     this.mediaIsBaked = false,
     this.isVideoPost = false,
@@ -143,15 +133,11 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       musicUrl: widget.initialMusic?.previewUrl,
       musicTitle: widget.initialMusic?.title,
       musicArtist: widget.initialMusic?.artist,
-      musicCoverUrl: widget.initialMusicCoverUrl ?? widget.initialMusic?.coverUrl,
-      musicStyle: widget.initialMusicStyle,
-      musicLyrics: widget.initialMusicLyrics ?? widget.initialMusic?.syncedLyrics,
-      musicLyricsConfig: widget.initialMusicLyricsConfig,
+      musicCoverUrl: widget.initialMusic?.coverUrl,
+      musicStickerConfig: widget.initialMusicStickerConfig,
       musicTrimStart: widget.initialTrimSeconds ?? 0,
-      musicOverlayX: widget.initialMusicOverlayX,
-      musicOverlayY: widget.initialMusicOverlayY,
-      musicOverlayScale: widget.initialMusicOverlayScale,
-      musicOverlayRotation: widget.initialMusicOverlayRotation,
+      musicVolume: widget.initialMusicVolume,
+      originalAudioVolume: widget.initialOriginalAudioVolume,
       filterIndex: widget.initialFilterIndex,
       textOverlays: widget.initialTextOverlays,
       drawPaths: widget.initialDrawPaths,

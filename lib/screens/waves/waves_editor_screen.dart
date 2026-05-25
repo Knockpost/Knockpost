@@ -99,22 +99,11 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
   bool _showFilters = false;
   final AudioPlayer _bgAudioPlayer = AudioPlayer();
   int _trimStartSeconds = 0;
-  int? _selectedMusicStyle;
-  Map<String, dynamic>? _selectedMusicLyricsConfig;
-  
-  // Music overlay dragging state
-  Offset? _musicOverlayPosition;
-  double _musicOverlayScale = 1.0;
-  double _musicOverlayRotation = 0.0;
-  double _baseMusicOverlayScale = 1.0;
-  double _baseMusicOverlayRotation = 0.0;
-  Offset? _dragStartFocalPoint;
-  Offset? _dragStartOverlayPos;
+  Map<String, dynamic>? _selectedMusicStickerConfig;
+  double _musicVolume = 1.0;
+  double _originalAudioVolume = 1.0;
   double _editorBoxWidth = 1080.0;
   double _editorBoxHeight = 1920.0;
-
-  int _bgAudioPosMs = 0;
-  StreamSubscription<Duration>? _bgPosSub;
 
   // -- Video State --
   late List<VideoPlayerController?> _videoControllers;
@@ -234,10 +223,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     super.initState();
     AudioLifecycleManager.instance.register(_bgAudioPlayer);
 
-    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
-      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
-    });
-
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
@@ -277,7 +262,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           await ctrl.setPlaybackSpeed(widget.playbackSpeed);
           await ctrl.setLooping(true);
           if (_selectedMusic != null) {
-            await ctrl.setVolume(0.0);
+            await ctrl.setVolume(_originalAudioVolume);
           }
           // Auto-play first video
           if (i == 0) await ctrl.play();
@@ -301,11 +286,12 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     try {
       for (final ctrl in _videoControllers) {
         if (ctrl != null && ctrl.value.isInitialized) {
-          await ctrl.setVolume(0.0);
+          await ctrl.setVolume(_originalAudioVolume);
         }
       }
       await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
       await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
+      await _bgAudioPlayer.setVolume(_musicVolume);
       await _bgAudioPlayer.setLoopMode(LoopMode.one);
       await _bgAudioPlayer.play();
     } catch (e) {
@@ -315,7 +301,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
   @override
   void dispose() {
-    _bgPosSub?.cancel();
     AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
     _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     for (var ctrl in _videoControllers) {
@@ -391,14 +376,9 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           isWaves: widget.isWaves,
           initialMusic: _selectedMusic,
           initialTrimSeconds: _trimStartSeconds,
-          initialMusicStyle: _selectedMusicStyle,
-          initialMusicCoverUrl: _selectedMusic?.coverUrl,
-          initialMusicLyrics: _selectedMusic?.syncedLyrics,
-          initialMusicLyricsConfig: _selectedMusicLyricsConfig,
-          initialMusicOverlayX: _musicOverlayPosition != null ? _musicOverlayPosition!.dx / _editorBoxWidth : null,
-          initialMusicOverlayY: _musicOverlayPosition != null ? _musicOverlayPosition!.dy / _editorBoxHeight : null,
-          initialMusicOverlayScale: _musicOverlayScale,
-          initialMusicOverlayRotation: _musicOverlayRotation,
+          initialMusicStickerConfig: _selectedMusicStickerConfig,
+          initialMusicVolume: _musicVolume,
+          initialOriginalAudioVolume: _originalAudioVolume,
           initialFilterIndex: _selectedFilterIndex > 0 ? _selectedFilterIndex : null,
           initialTextOverlays: serializedTexts.isEmpty ? null : serializedTexts,
           initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
@@ -573,7 +553,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                     if (_showFilters && !_isDrawingMode)
                       _buildFiltersScroller(),
 
-                    if (_selectedMusic != null && !_isDrawingMode && (_selectedMusicStyle == null || _selectedMusicStyle == 0))
+                    if (_selectedMusic != null && !_isDrawingMode && !(_selectedMusicStickerConfig?['showSticker'] ?? true))
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                         child: ClipRRect(
@@ -1100,12 +1080,9 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                           setState(() {
                             _selectedMusic = overlayResult['track'] as MusicTrack;
                             _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
-                            _selectedMusicStyle = overlayResult['styleIndex'] as int?;
-                            _selectedMusicLyricsConfig =
-                                (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
-                            _musicOverlayPosition = null;
-                            _musicOverlayScale = 1.0;
-                            _musicOverlayRotation = 0.0;
+                            _selectedMusicStickerConfig = (overlayResult['stickerConfig'] as Map?)?.cast<String, dynamic>();
+                            _musicVolume = overlayResult['musicVolume'] as double? ?? 1.0;
+                            _originalAudioVolume = overlayResult['originalVolume'] as double? ?? _originalAudioVolume;
                           });
                           _playSelectedMusic();
                         }
@@ -1409,15 +1386,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
               });
             }
 
-            const double minScale = 0.20;
-            const double maxScale = 2.5;
-            final pos =
-                _musicOverlayPosition ??
-                defaultMusicLyricsOverlayOffset(
-                  frameWidth: constraints.maxWidth,
-                  frameHeight: constraints.maxHeight,
-                  lyricsConfigData: _selectedMusicLyricsConfig,
-                );
+            // Scale constants removed since sticker is not draggable
 
             return Stack(
               fit: StackFit.expand,
@@ -1436,48 +1405,20 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                     ),
                   ),
                 ),
-                if (_selectedMusic != null && _selectedMusicStyle != null)
-                  Positioned(
-                    left: pos.dx,
-                    top: pos.dy,
-                    child: GestureDetector(
-                      onScaleStart: (details) {
-                        _baseMusicOverlayScale = _musicOverlayScale;
-                        _baseMusicOverlayRotation = _musicOverlayRotation;
-                        _dragStartFocalPoint = details.focalPoint;
-                        _dragStartOverlayPos = pos;
-                      },
-                      onScaleUpdate: (details) {
-                        final delta = details.focalPoint - (_dragStartFocalPoint ?? details.focalPoint);
-                        final newScale = (_baseMusicOverlayScale * details.scale).clamp(minScale, maxScale);
+                if (_selectedMusic != null && _selectedMusicStickerConfig != null)
+                  RepaintBoundary(
+                    child: MusicStickerWidget(
+                      title: _selectedMusic!.title,
+                      artist: _selectedMusic!.artist,
+                      coverUrl: _selectedMusic!.coverUrl,
+                      configData: _selectedMusicStickerConfig,
+                      isPlaying: true, // AudioPlayer doesn't expose stream here easily without more state, true is safe for static view or we can use the same pattern as before
+                      isEditable: true,
+                      onConfigChanged: (config) {
                         setState(() {
-                          _musicOverlayPosition = (_dragStartOverlayPos ?? pos) + delta;
-                          _musicOverlayScale = newScale;
-                          if (details.pointerCount >= 2) {
-                            _musicOverlayRotation =
-                                _baseMusicOverlayRotation + details.rotation;
-                          }
+                          _selectedMusicStickerConfig = config.toMap();
                         });
                       },
-                      child: Transform.rotate(
-                        angle: _musicOverlayRotation,
-                        alignment: Alignment.center,
-                        child: Transform.scale(
-                          scale: _musicOverlayScale,
-                          alignment: Alignment.center,
-                          child: RepaintBoundary(
-                            child: MusicStyleOverlayWidget(
-                              styleIndex: _selectedMusicStyle!,
-                              title: _selectedMusic!.title,
-                              artist: _selectedMusic!.artist,
-                              coverUrl: _selectedMusic!.coverUrl,
-                              lyricsLrc: _selectedMusic!.syncedLyrics,
-                              lyricsConfigData: _selectedMusicLyricsConfig,
-                              timelinePositionMs: _bgAudioPosMs,
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                   ),
 

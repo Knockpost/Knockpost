@@ -34,14 +34,10 @@ class PostModel {
   final String? musicTitle;
   final String? musicArtist;
   final String? musicCoverUrl;
-  final int? musicStyle;
-  final String? musicLyrics;
-  final Map<String, dynamic>? musicLyricsConfig;
+  final Map<String, dynamic>? musicStickerConfig;
   final int? musicTrimStart;
-  final double? musicOverlayX;
-  final double? musicOverlayY;
-  final double? musicOverlayScale;
-  final double? musicOverlayRotation;
+  final double? musicVolume;
+  final double? originalAudioVolume;
 
   final int? filterIndex;
   final List<Map<String, dynamic>>? textOverlays;
@@ -68,14 +64,10 @@ class PostModel {
     this.musicTitle,
     this.musicArtist,
     this.musicCoverUrl,
-    this.musicStyle,
-    this.musicLyrics,
-    this.musicLyricsConfig,
+    this.musicStickerConfig,
     this.musicTrimStart,
-    this.musicOverlayX,
-    this.musicOverlayY,
-    this.musicOverlayScale,
-    this.musicOverlayRotation,
+    this.musicVolume,
+    this.originalAudioVolume,
     this.filterIndex,
     this.textOverlays,
     this.drawPaths,
@@ -143,14 +135,10 @@ class PostModel {
     String? musicTitle,
     String? musicArtist,
     String? musicCoverUrl,
-    int? musicStyle,
-    String? musicLyrics,
-    Map<String, dynamic>? musicLyricsConfig,
+    Map<String, dynamic>? musicStickerConfig,
     int? musicTrimStart,
-    double? musicOverlayX,
-    double? musicOverlayY,
-    double? musicOverlayScale,
-    double? musicOverlayRotation,
+    double? musicVolume,
+    double? originalAudioVolume,
     int? filterIndex,
     List<Map<String, dynamic>>? textOverlays,
     List<Map<String, dynamic>>? drawPaths,
@@ -171,14 +159,10 @@ class PostModel {
       musicTitle: musicTitle ?? this.musicTitle,
       musicArtist: musicArtist ?? this.musicArtist,
       musicCoverUrl: musicCoverUrl ?? this.musicCoverUrl,
-      musicStyle: musicStyle ?? this.musicStyle,
-      musicLyrics: musicLyrics ?? this.musicLyrics,
-      musicLyricsConfig: musicLyricsConfig ?? this.musicLyricsConfig,
+      musicStickerConfig: musicStickerConfig ?? this.musicStickerConfig,
       musicTrimStart: musicTrimStart ?? this.musicTrimStart,
-      musicOverlayX: musicOverlayX ?? this.musicOverlayX,
-      musicOverlayY: musicOverlayY ?? this.musicOverlayY,
-      musicOverlayScale: musicOverlayScale ?? this.musicOverlayScale,
-      musicOverlayRotation: musicOverlayRotation ?? this.musicOverlayRotation,
+      musicVolume: musicVolume ?? this.musicVolume,
+      originalAudioVolume: originalAudioVolume ?? this.originalAudioVolume,
       filterIndex: filterIndex ?? this.filterIndex,
       textOverlays: textOverlays ?? this.textOverlays,
       drawPaths: drawPaths ?? this.drawPaths,
@@ -205,14 +189,10 @@ class PostModel {
       'musicTitle': musicTitle,
       'musicArtist': musicArtist,
       'musicCoverUrl': musicCoverUrl,
-      'musicStyle': musicStyle,
-      'musicLyrics': musicLyrics,
-      'musicLyricsConfig': musicLyricsConfig,
+      'musicStickerConfig': musicStickerConfig,
       'musicTrimStart': musicTrimStart,
-      'musicOverlayX': musicOverlayX,
-      'musicOverlayY': musicOverlayY,
-      'musicOverlayScale': musicOverlayScale,
-      'musicOverlayRotation': musicOverlayRotation,
+      'musicVolume': musicVolume,
+      'originalAudioVolume': originalAudioVolume,
       'filterIndex': filterIndex,
       'textOverlays': textOverlays,
       'drawPaths': drawPaths,
@@ -245,16 +225,12 @@ class PostModel {
       musicTitle: map['musicTitle'],
       musicArtist: map['musicArtist'],
       musicCoverUrl: map['musicCoverUrl'],
-      musicStyle: map['musicStyle'],
-      musicLyrics: map['musicLyrics'],
-      musicLyricsConfig: map['musicLyricsConfig'] != null 
-          ? Map<String, dynamic>.from(map['musicLyricsConfig']) 
+      musicStickerConfig: map['musicStickerConfig'] != null 
+          ? Map<String, dynamic>.from(map['musicStickerConfig']) 
           : null,
       musicTrimStart: map['musicTrimStart'],
-      musicOverlayX: map['musicOverlayX']?.toDouble(),
-      musicOverlayY: map['musicOverlayY']?.toDouble(),
-      musicOverlayScale: map['musicOverlayScale']?.toDouble(),
-      musicOverlayRotation: map['musicOverlayRotation']?.toDouble(),
+      musicVolume: map['musicVolume']?.toDouble(),
+      originalAudioVolume: map['originalAudioVolume']?.toDouble(),
       filterIndex: map['filterIndex'],
       textOverlays: map['textOverlays'] != null 
           ? List<Map<String, dynamic>>.from(map['textOverlays']) 

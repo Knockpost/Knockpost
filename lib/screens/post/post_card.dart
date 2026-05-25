@@ -12,12 +12,9 @@ import '../../services/post_service.dart';
 import 'dart:async';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PostCard — Unified post rendering with proper music mode separation
+// PostCard — Unified post rendering with music sticker overlay
 //
-// Mode System:
-//   - styleIndex == 0 or null  → Music Sticker mode (chip at bottom)
-//   - styleIndex >= 1          → Lyrics Overlay mode (animated lyrics on media)
-//
+// Uses MusicStickerWidget for the music sticker display.
 // When mediaIsBaked == true, filters/overlays are already in the image,
 // so we skip re-applying them.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,14 +30,10 @@ class PostCard extends StatefulWidget {
   final String? musicTitle;
   final String? musicArtist;
   final String? musicCoverUrl;
-  final int? musicStyle;
-  final String? musicLyrics;
-  final Map<String, dynamic>? musicLyricsConfig;
+  final Map<String, dynamic>? musicStickerConfig;
   final int? musicTrimStart;
-  final double? musicOverlayX;
-  final double? musicOverlayY;
-  final double? musicOverlayScale;
-  final double? musicOverlayRotation;
+  final double? musicVolume;
+  final double? originalAudioVolume;
   final int? filterIndex;
   final List<Map<String, dynamic>>? textOverlays;
   final List<Map<String, dynamic>>? drawPaths;
@@ -64,14 +57,10 @@ class PostCard extends StatefulWidget {
     this.musicTitle,
     this.musicArtist,
     this.musicCoverUrl,
-    this.musicStyle,
-    this.musicLyrics,
-    this.musicLyricsConfig,
+    this.musicStickerConfig,
     this.musicTrimStart,
-    this.musicOverlayX,
-    this.musicOverlayY,
-    this.musicOverlayScale,
-    this.musicOverlayRotation,
+    this.musicVolume,
+    this.originalAudioVolume,
     this.filterIndex,
     this.textOverlays,
     this.drawPaths,
@@ -93,7 +82,6 @@ class _PostCardState extends State<PostCard> {
   bool _doubleTapped = false;
   AudioPlayer? _audioPlayer;
   bool _isPlaying = false;
-  int _audioPositionMs = 0;
   bool _isVisible = false;
   Timer? _viewTimer;
 
@@ -130,12 +118,6 @@ class _PostCardState extends State<PostCard> {
 
       _audioPlayer!.playingStream.listen((playing) {
         if (mounted) setState(() => _isPlaying = playing);
-      });
-
-      _audioPlayer!.positionStream.listen((pos) {
-        if (mounted) {
-          setState(() => _audioPositionMs = pos.inMilliseconds);
-        }
       });
     } catch (e) {
       debugPrint('PostCard audio init error: $e');
@@ -240,44 +222,24 @@ class _PostCardState extends State<PostCard> {
         // ── Media + Overlays ──
         LayoutBuilder(
           builder: (context, constraints) {
-            final boxWidth = constraints.maxWidth;
-            final boxHeight = widget.mediaAspectRatio != null
-                ? boxWidth / widget.mediaAspectRatio!
-                : boxWidth * (5 / 4); // default 4:5
-
             return Stack(
               children: [
                 MediaCarousel(
                   imagePaths: widget.imagePaths,
                   isVideoPost: widget.isVideoPost,
                   onDoubleTap: _onDoubleTap,
+                  mediaAspectRatio: widget.mediaAspectRatio,
                 ),
 
-                // ── Music overlay (sticker or lyrics — handled by MusicStyleOverlayWidget) ──
-                if (_hasMusic && widget.musicStyle != null && !widget.mediaIsBaked)
-                  Positioned(
-                    left: widget.musicOverlayX != null
-                        ? widget.musicOverlayX! * boxWidth
-                        : boxWidth * 0.1,
-                    top: widget.musicOverlayY != null
-                        ? widget.musicOverlayY! * boxHeight
-                        : boxHeight * 0.42,
-                    child: Transform.rotate(
-                      angle: widget.musicOverlayRotation ?? 0,
-                      child: Transform.scale(
-                        scale: widget.musicOverlayScale ?? 1.0,
-                        child: RepaintBoundary(
-                          child: MusicStyleOverlayWidget(
-                            styleIndex: widget.musicStyle!,
-                            title: widget.musicTitle ?? '',
-                            artist: widget.musicArtist ?? '',
-                            coverUrl: widget.musicCoverUrl ?? '',
-                            lyricsLrc: widget.musicLyrics,
-                            lyricsConfigData: widget.musicLyricsConfig,
-                            timelinePositionMs: _audioPositionMs,
-                          ),
-                        ),
-                      ),
+                // ── Music overlay (handled by MusicStickerWidget) ──
+                if (_hasMusic && widget.musicStickerConfig != null && !widget.mediaIsBaked)
+                  RepaintBoundary(
+                    child: MusicStickerWidget(
+                      title: widget.musicTitle ?? '',
+                      artist: widget.musicArtist ?? '',
+                      coverUrl: widget.musicCoverUrl ?? '',
+                      configData: widget.musicStickerConfig,
+                      isPlaying: _isPlaying,
                     ),
                   ),
 
