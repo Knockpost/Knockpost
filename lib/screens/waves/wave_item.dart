@@ -14,6 +14,7 @@ import '../../services/current_user_service.dart';
 import '../../services/like_service.dart';
 import '../../services/post_service.dart';
 import '../../services/waves_controller_manager.dart';
+import '../../utils/global_knock_state.dart';
 import '../../widgets/knockpost_avatar.dart';
 import 'package:extended_image/extended_image.dart';
 import 'dart:async';
@@ -51,8 +52,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   bool isPlaying = true;
   bool showHeart = false;
   bool _doubleTapped = false;
-  bool _isKnocked = false;
   bool _showBlackFlash = false;
+  
+  late ValueNotifier<KnockStatus>? _globalNotifier;
+  KnockStatus _status = KnockStatus.none;
 
   /// Like animation
   late AnimationController _heartAnimController;
@@ -68,6 +71,14 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    if (widget.author != null) {
+      _globalNotifier = GlobalKnockState.getNotifier(widget.author!.id, widget.author!.knockStatus);
+      _status = _globalNotifier!.value;
+      _globalNotifier!.addListener(_onGlobalStatusChanged);
+    } else {
+      _globalNotifier = null;
+    }
 
     /// Heart animation setup
     _heartAnimController = AnimationController(
@@ -107,6 +118,12 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
     /// Video
     _initVideoController();
+  }
+
+  void _onGlobalStatusChanged() {
+    if (mounted && _globalNotifier != null && _status != _globalNotifier!.value) {
+      setState(() => _status = _globalNotifier!.value);
+    }
   }
 
   Future<void> _initVideoController() async {
@@ -160,6 +177,21 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   @override
   void didUpdateWidget(covariant WaveItem oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
+    if (widget.author?.id != oldWidget.author?.id) {
+      if (oldWidget.author != null && _globalNotifier != null) {
+        _globalNotifier!.removeListener(_onGlobalStatusChanged);
+      }
+      if (widget.author != null) {
+        _globalNotifier = GlobalKnockState.getNotifier(widget.author!.id, widget.author!.knockStatus);
+        _status = _globalNotifier!.value;
+        _globalNotifier!.addListener(_onGlobalStatusChanged);
+      } else {
+        _globalNotifier = null;
+        _status = KnockStatus.none;
+      }
+    }
+
     if (_controller == null || !_isControllerInitialized) return;
 
     if (widget.isActive) {
@@ -204,6 +236,9 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    if (_globalNotifier != null) {
+      _globalNotifier!.removeListener(_onGlobalStatusChanged);
+    }
     _viewTimer?.cancel();
     _controller?.removeListener(_controllerListener);
     // DO NOT dispose _controller here because WavesControllerManager owns it.
@@ -229,22 +264,59 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   }
 
   void _toggleKnock() {
+    if (widget.author == null) return;
     KnockHaptics.tap();
-    if (_isKnocked) {
-      setState(() => _isKnocked = false);
-      return;
+
+    final isEffectivelyOpen = widget.author!.accountType == AccountType.creator || 
+                              widget.author!.privacyType == PrivacyType.open;
+
+    KnockStatus nextStatus = _status;
+    
+    switch (_status) {
+      case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
+        nextStatus = isEffectivelyOpen ? KnockStatus.knocked : KnockStatus.pending;
+        _showBlackFlash = true;
+        break;
+      case KnockStatus.theyKnockedYou:
+        nextStatus = KnockStatus.mutualKnocked;
+        _showBlackFlash = true;
+        break;
+      case KnockStatus.pending:
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+        nextStatus = KnockStatus.none;
+        break;
     }
 
     setState(() {
-      _isKnocked = true;
-      _showBlackFlash = true;
+      _status = nextStatus;
     });
+    
+    if (_globalNotifier != null) {
+      _globalNotifier!.value = nextStatus;
+    }
 
-    Future.delayed(const Duration(milliseconds: 900), () {
-      if (mounted) {
-        setState(() => _showBlackFlash = false);
-      }
-    });
+    if (_showBlackFlash) {
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (mounted) setState(() => _showBlackFlash = false);
+      });
+    }
+  }
+
+  bool get _shouldShowKnockButton {
+    if (widget.author == null || widget.author!.isOwnProfile) return false;
+    if (_showBlackFlash) return true; // Keep visible while flashing
+    switch (_status) {
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+      case KnockStatus.pending:
+        return false;
+      case KnockStatus.none:
+      case KnockStatus.theyKnockedYou:
+      case KnockStatus.theyKnockedYouPending:
+        return true;
+    }
   }
 
   void handleDoubleTap() {
@@ -270,15 +342,19 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     Color knockBgColor;
     Color knockTextColor;
 
-    if (!_isKnocked) {
-      knockBgColor = const Color(0xfff2f2f2);
-      knockTextColor = Colors.black;
-    } else if (_showBlackFlash) {
+    if (_showBlackFlash) {
       knockBgColor = Colors.black;
       knockTextColor = Colors.white;
     } else {
       knockBgColor = const Color(0xfff2f2f2);
       knockTextColor = Colors.black;
+    }
+
+    String knockLabel = 'Knock';
+    if (_showBlackFlash) {
+      knockLabel = _status == KnockStatus.pending ? 'Pending' : 'Knocked';
+    } else if (_status == KnockStatus.theyKnockedYou) {
+      knockLabel = 'Knock back';
     }
 
     return GestureDetector(
@@ -495,11 +571,9 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                       const SizedBox(width: 8),
 
                       /// Knock Button (only for other users)
-                      if (widget.author != null && !widget.author!.isOwnProfile)
+                      if (_shouldShowKnockButton)
                       GestureDetector(
-                        onTap: () {
-                          _toggleKnock();
-                        },
+                        onTap: _toggleKnock,
                         onDoubleTap: () {}, // Prevent 300ms delay
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
@@ -519,7 +593,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                               fontWeight: FontWeight.w600,
                               color: knockTextColor,
                             ),
-                            child: Text(_isKnocked ? "Knocked" : "Knock"),
+                            child: Text(knockLabel),
                           ),
                         ),
                       ),
