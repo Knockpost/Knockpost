@@ -418,6 +418,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
         return MoreOptionsSheet(
           userId: widget.user.id,
           username: widget.user.username,
+          user: widget.user,
           postId: widget.post.id,
           isReel: true,
           isOwner: isOwner,
