@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../models/user_model.dart';
@@ -388,10 +389,7 @@ class _ShareSheetState extends State<ShareSheet>
                                   ? const SizedBox(
                                       width: 22,
                                       height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.white,
-                                      ),
+                                      child: KnockpostLoadingIndicator(),
                                     )
                                   : Row(
                                       mainAxisAlignment:

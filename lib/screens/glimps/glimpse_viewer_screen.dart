@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -327,7 +328,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     if (_user == null) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: _accentColor)),
+        body: Center(child: KnockpostLoadingIndicator()),
       );
     }
     final glimpse = widget.glimpses[_currentIndex];
@@ -603,6 +604,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
             return MoreOptionsSheet(
               userId: glimpse.authorId,
               username: isOwner ? currentUser.username : '',
+              user: _user,
               postId: glimpse.id,
               isReel: false,
               isOwner: isOwner,

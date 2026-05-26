@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -291,10 +292,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                 if (_isLoading)
                   const Expanded(
                     child: Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.white24,
-                        strokeWidth: 2,
-                      ),
+                      child: KnockpostLoadingIndicator(),
                     ),
                   )
                 else

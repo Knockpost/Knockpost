@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -767,10 +768,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.black,
-                      ),
+                      child: KnockpostLoadingIndicator(),
                     )
                   : const Text(
                       'Next',

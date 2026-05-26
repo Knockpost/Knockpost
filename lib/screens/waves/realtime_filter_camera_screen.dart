@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:ui';
 
 import 'package:camera/camera.dart';
@@ -344,7 +345,7 @@ class _RealtimeFilterCameraScreenState
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.26),
                         child: const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
+                          child: KnockpostLoadingIndicator(),
                         ),
                       ),
                     ),
@@ -359,7 +360,7 @@ class _RealtimeFilterCameraScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const CircularProgressIndicator(color: Colors.white),
+          const KnockpostLoadingIndicator(),
           const SizedBox(height: 16),
           Text(
             _isCameraLoading

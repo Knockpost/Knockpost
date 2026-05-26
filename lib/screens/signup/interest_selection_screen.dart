@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -198,13 +199,10 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                   ),
                   child: Center(
                     child: isLoading
-                        ? SizedBox(
+                        ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(
-                              color: isDark ? Colors.black : Colors.white,
-                              strokeWidth: 2,
-                            ),
+                            child: KnockpostLoadingIndicator(),
                           )
                         : Text(
                             "Continue",

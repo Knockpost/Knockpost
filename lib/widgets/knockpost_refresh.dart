@@ -34,7 +34,6 @@ class KnockpostRefreshIndicator extends StatefulWidget {
 class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
     with SingleTickerProviderStateMixin {
   static const double _triggerDistance = 100.0; // px to trigger refresh
-  static const double _indicatorSize = 28.0;
   static const double _maxDisplacement = 70.0; // max visible drop distance
 
   double _dragOffset = 0;
@@ -130,9 +129,6 @@ class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final arcColor = isDark
-        ? Colors.white.withValues(alpha: 0.55)
-        : Colors.black.withValues(alpha: 0.40);
 
     return Stack(
       children: [
@@ -145,7 +141,7 @@ class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
         // ── Custom indicator ──
         if (_dragOffset > 0 || _isRefreshing)
           Positioned(
-            top: 0,
+            top: MediaQuery.paddingOf(context).top + 60,
             left: 0,
             right: 0,
             child: AnimatedContainer(
@@ -163,26 +159,23 @@ class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
                   scale: (_pullProgress > 0.05 || _isRefreshing)
                       ? 0.7 + (_pullProgress * 0.3)
                       : 0.3,
-                  child: _isRefreshing
-                      ? AnimatedBuilder(
-                          animation: _spinController,
-                          builder: (context, _) {
-                            return CustomPaint(
-                              size: const Size.square(_indicatorSize),
-                              painter: _ArcSpinnerPainter(
-                                progress: _spinController.value,
-                                color: arcColor,
-                              ),
-                            );
-                          },
-                        )
-                      : CustomPaint(
-                          size: const Size.square(_indicatorSize),
-                          painter: _ArcPullPainter(
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: AnimatedBuilder(
+                      animation: _spinController,
+                      builder: (context, _) {
+                        return CustomPaint(
+                          painter: _ThreeDotPainter(
+                            progress: _spinController.value,
                             pullProgress: _pullProgress,
-                            color: arcColor,
+                            isRefreshing: _isRefreshing,
+                            isDark: isDark,
                           ),
-                        ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -192,47 +185,6 @@ class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ArcPullPainter — draws a thin arc that grows as the user pulls down.
-// At 0% pull → nothing. At 100% pull → full 270° open arc.
-// ─────────────────────────────────────────────────────────────────────────────
-class _ArcPullPainter extends CustomPainter {
-  final double pullProgress; // 0..1
-  final Color color;
-
-  const _ArcPullPainter({required this.pullProgress, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (pullProgress <= 0) return;
-
-    final paint = Paint()
-      ..color = color.withValues(alpha: color.a * pullProgress)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - paint.strokeWidth) / 2;
-
-    // Arc sweep grows from 0° to 270° as user pulls
-    final sweepAngle = math.pi * 1.5 * pullProgress;
-    // Start from top (−90°)
-    const startAngle = -math.pi / 2;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArcPullPainter oldDelegate) =>
-      pullProgress != oldDelegate.pullProgress || color != oldDelegate.color;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KnockpostLoadingIndicator
@@ -245,7 +197,7 @@ class _ArcPullPainter extends CustomPainter {
 class KnockpostLoadingIndicator extends StatefulWidget {
   final double size;
 
-  const KnockpostLoadingIndicator({super.key, this.size = 28});
+  const KnockpostLoadingIndicator({super.key, this.size = 44});
 
   @override
   State<KnockpostLoadingIndicator> createState() =>
@@ -281,11 +233,11 @@ class _KnockpostLoadingIndicatorState extends State<KnockpostLoadingIndicator>
         builder: (context, child) {
           return CustomPaint(
             size: Size.square(widget.size),
-            painter: _ArcSpinnerPainter(
+            painter: _ThreeDotPainter(
               progress: _controller.value,
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.45)
-                  : Colors.black.withValues(alpha: 0.35),
+              pullProgress: 1.0,
+              isRefreshing: true,
+              isDark: isDark,
             ),
           );
         },
@@ -294,44 +246,80 @@ class _KnockpostLoadingIndicatorState extends State<KnockpostLoadingIndicator>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ArcSpinnerPainter — draws a thin open-arc ring that rotates smoothly.
-// Used by both the pull-to-refresh (during spin phase) and the standalone
-// loading indicator.
-// ─────────────────────────────────────────────────────────────────────────────
-class _ArcSpinnerPainter extends CustomPainter {
-  final double progress; // 0..1
-  final Color color;
 
-  const _ArcSpinnerPainter({required this.progress, required this.color});
+// ─────────────────────────────────────────────────────────────────────────────
+// _ThreeDotPainter — draws a minimal, premium 3-dot cluster animation.
+// 3 circular dots arranged in a tight triangle that pulse sequentially.
+// ─────────────────────────────────────────────────────────────────────────────
+class _ThreeDotPainter extends CustomPainter {
+  final double progress; // For spinning (0 to 1 repeatedly)
+  final double pullProgress; // For pulling down (0 to 1)
+  final bool isRefreshing;
+  final bool isDark;
+
+  const _ThreeDotPainter({
+    required this.progress,
+    required this.pullProgress,
+    required this.isRefreshing,
+    required this.isDark,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - paint.strokeWidth) / 2;
+    final color = isDark ? Colors.white : Colors.black;
 
-    // Arc sweep: ~270° (leaves a visible gap for premium feel)
-    const sweepAngle = math.pi * 1.5;
+    // Scale dynamically based on canvas size
+    final baseScale = size.width / 48.0;
+    final scale = (isRefreshing ? 1.0 : pullProgress) * baseScale;
+    if (scale <= 0) return;
 
-    // Smooth rotation
-    final startAngle = progress * math.pi * 2;
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.scale(scale);
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      paint,
-    );
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Spacing between dots
+    const double spacing = 12.0;
+    
+    // Draw a dot at a given index
+    void drawDot(int index) {
+      double r = 4.0; // constant base radius
+      double dy = 0.0;
+      
+      if (isRefreshing) {
+        // Horizontal wave bounce
+        // Slower, more relaxed wave (using just progress instead of progress * 2)
+        // Using - (index / 4.0) gives a natural left-to-right wave flow
+        final double phase = (progress - (index / 4.0)) * math.pi * 2;
+        // Math.sin gives -1 to 1. We multiply by amplitude.
+        // dy is negative to move UP in canvas coordinates.
+        dy = math.sin(phase) * 6.0; 
+      }
+
+      // x offset: index 0 -> -spacing, index 1 -> 0, index 2 -> spacing
+      final dx = (index - 1) * spacing;
+      
+      canvas.drawCircle(Offset(dx, dy), r, dotPaint);
+    }
+
+    // 3 dots arranged horizontally
+    drawDot(0);
+    drawDot(1);
+    drawDot(2);
+
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _ArcSpinnerPainter oldDelegate) =>
-      progress != oldDelegate.progress || color != oldDelegate.color;
+  bool shouldRepaint(covariant _ThreeDotPainter oldDelegate) {
+    return oldDelegate.progress != progress || 
+           oldDelegate.pullProgress != pullProgress ||
+           oldDelegate.isRefreshing != isRefreshing ||
+           oldDelegate.isDark != isDark;
+  }
 }
+

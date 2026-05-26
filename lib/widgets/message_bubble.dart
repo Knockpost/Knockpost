@@ -49,6 +49,20 @@ class MessageBubble extends StatelessWidget {
           ),
         );
 
+    final inlineTimeWidget = Padding(
+      padding: const EdgeInsets.only(left: 6.0, top: 2.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            timeLabel,
+            style: TextStyle(color: subtleColor, fontSize: 10.5),
+          ),
+        ],
+      ),
+    );
+
     final bubble = ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxBubbleWidth),
       child: Container(
@@ -57,8 +71,16 @@ class MessageBubble extends StatelessWidget {
           color: bubbleColor,
           borderRadius: radius,
         ),
-        child: Text(
-          message.text,
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: message.text),
+              WidgetSpan(
+                child: inlineTimeWidget,
+                alignment: PlaceholderAlignment.bottom,
+              ),
+            ],
+          ),
           style: TextStyle(
             color: textColor,
             fontSize: 14.5,
@@ -86,15 +108,6 @@ class MessageBubble extends StatelessWidget {
                     isUserSide ? MainAxisAlignment.end : MainAxisAlignment.start,
                 children: isUserSide
                     ? <Widget>[
-                        Text(
-                          timeLabel,
-                          style: TextStyle(
-                            color: subtleColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 7),
                         GestureDetector(
                           onTap: onUserTap,
                           child: Text(
@@ -121,15 +134,6 @@ class MessageBubble extends StatelessWidget {
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Text(
-                          timeLabel,
-                          style: TextStyle(
-                            color: subtleColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],

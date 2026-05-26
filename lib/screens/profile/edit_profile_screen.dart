@@ -13,6 +13,7 @@ import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
+import '../../widgets/instagram_username_field.dart';
 import 'social_links_screen.dart';
 
 /// Edit Profile — edit name, username, bio, avatar and cover photos.
@@ -35,6 +36,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool _hasChanges = false;
   bool _isSaving = false;
+  bool _isUsernameAvailable = true;
   final ImagePicker _picker = ImagePicker();
 
   int get _bioWordCount => _bioCtrl.text
@@ -59,7 +61,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool get _canSave {
     if (!_hasChanges || _isSaving) return false;
-    if (!_isNameValid || !_isUsernameValid) return false;
+    if (!_isNameValid || !_isUsernameValid || !_isUsernameAvailable) return false;
     if (_bioWordCount > 40) return false;
     return true;
   }
@@ -419,17 +421,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       _FieldLabel('Username', subColor),
-                      _EditField(
+                      InstagramUsernameField(
                         controller: _usernameCtrl,
-                        hint: 'your.username',
-                        bg: fieldBg,
+                        initialUsername: widget.user.username,
+                        backgroundColor: fieldBg,
                         borderColor: borderColor,
                         textColor: textColor,
-                        prefixText: '@',
-                        textCapitalization: TextCapitalization.none,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                        ],
+                        onValidityChanged: (isValid) {
+                          if (mounted) {
+                            setState(() {
+                              _isUsernameAvailable = isValid;
+                            });
+                            _syncHasChanges();
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
                       _FieldLabel('Bio', subColor),
@@ -773,9 +778,7 @@ class _EditField extends StatelessWidget {
   final Color borderColor;
   final Color textColor;
   final int maxLines;
-  final String? prefixText;
   final EdgeInsetsGeometry? contentPadding;
-  final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
 
   const _EditField({
@@ -785,9 +788,7 @@ class _EditField extends StatelessWidget {
     required this.borderColor,
     required this.textColor,
     this.maxLines = 1,
-    this.prefixText,
     this.contentPadding,
-    this.inputFormatters,
     this.textCapitalization = TextCapitalization.sentences,
   });
 
@@ -802,7 +803,6 @@ class _EditField extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        inputFormatters: inputFormatters,
         textCapitalization: textCapitalization,
         style: TextStyle(fontSize: 14.5, color: textColor),
         onTapOutside: (_) => FocusScope.of(context).unfocus(),
@@ -812,13 +812,7 @@ class _EditField extends StatelessWidget {
             color: textColor.withValues(alpha: 0.35),
             fontSize: 14.5,
           ),
-          prefixText: prefixText != null ? '$prefixText ' : null,
-          prefixStyle: TextStyle(
-            color: textColor.withValues(alpha: 0.5),
-            fontSize: 14.5,
-          ),
-          contentPadding:
-              contentPadding ??
+          contentPadding: contentPadding ??
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: InputBorder.none,
           counterText: '',

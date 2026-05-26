@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
+import '../../widgets/instagram_password_field.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
   final String email;
@@ -27,15 +28,20 @@ class _SignupPasswordScreenState
   final TextEditingController passwordController =
       TextEditingController();
 
-  bool isObscured = true;
   bool isLoading = false;
+  bool _isPasswordValid = false;
+  final GlobalKey<State<InstagramPasswordField>> _passwordFieldKey = GlobalKey();
 
   void goNext() async {
     final password = passwordController.text.trim();
-    if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password must be at least 6 characters")),
-      );
+    if (!_isPasswordValid) {
+      if (_passwordFieldKey.currentState != null) {
+        (_passwordFieldKey.currentState as dynamic).triggerShake();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enter a valid password")),
+        );
+      }
       return;
     }
 
@@ -168,50 +174,28 @@ class _SignupPasswordScreenState
 
                     const SizedBox(height: 36),
 
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: TextField(
-                        controller: passwordController,
-                        obscureText: isObscured,
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                        decoration: InputDecoration(
-                          hintText: "Password",
-                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 20,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              isObscured
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: isDark ? Colors.white54 : Colors.black54,
-                            ),
-                            onPressed: () {
-                              KnockHaptics.selection();
-                              setState(() {
-                                isObscured = !isObscured;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
+                    InstagramPasswordField(
+                      key: _passwordFieldKey,
+                      controller: passwordController,
+                      autofocus: true,
+                      onValidityChanged: (isValid) {
+                        setState(() {
+                          _isPasswordValid = isValid;
+                        });
+                      },
                     ),
 
                     const SizedBox(height: 28),
 
                     GestureDetector(
-                      onTap: () { KnockHaptics.tap(); goNext(); },
+                      onTap: (!_isPasswordValid || isLoading) ? null : () { KnockHaptics.tap(); goNext(); },
                       child: Container(
                         height: 58,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white : Colors.black,
+                          color: _isPasswordValid 
+                              ? (isDark ? Colors.white : Colors.black)
+                              : (isDark ? Colors.white24 : Colors.black26),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(

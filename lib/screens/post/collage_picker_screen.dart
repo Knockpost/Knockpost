@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -246,9 +247,7 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
             children: [
               SizedBox(
                 width: 28, height: 28,
-                child: CircularProgressIndicator(
-                  color: Colors.white, strokeWidth: 2.5,
-                ),
+                child: KnockpostLoadingIndicator(),
               ),
               SizedBox(height: 14),
               Text('Preparing...', style: TextStyle(color: Colors.white60, fontSize: 13)),
@@ -498,7 +497,7 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
         // ── Gallery grid ──
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const Center(child: KnockpostLoadingIndicator())
               : _assets.isEmpty
                   ? const Center(child: Text('No photos found', style: TextStyle(color: Colors.white30)))
                   : GridView.builder(
@@ -705,7 +704,7 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
                     child: _isExporting
                         ? const SizedBox(
                             width: 18, height: 18,
-                            child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
+                            child: KnockpostLoadingIndicator(),
                           )
                         : const Text(
                             'Next',

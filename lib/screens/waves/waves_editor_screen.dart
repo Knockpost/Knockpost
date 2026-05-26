@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -1342,9 +1343,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                       ),
                     )
                   : const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                      ),
+                      child: KnockpostLoadingIndicator(),
                     ))
             : Image.file(widget.files[i], fit: BoxFit.cover);
 

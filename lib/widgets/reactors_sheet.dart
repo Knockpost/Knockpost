@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
 import '../utils/haptic_helper.dart';
@@ -63,7 +64,7 @@ class ReactorsSheet extends StatelessWidget {
               stream: LikeService.instance.getPostReactions(postId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: KnockpostLoadingIndicator());
                 }
                 
                 final reactors = snapshot.data ?? [];

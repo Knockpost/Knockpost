@@ -10,4 +10,7 @@ class WavesFeedState {
   /// WavesFeedScreen এটা consume করার পর null করে দেয়।
   static final ValueNotifier<String?> requestedVideoUrl =
       ValueNotifier<String?>(null);
+
+  /// Event to skip to the next wave (e.g. from Hide action)
+  static final ValueNotifier<bool> skipToNextWave = ValueNotifier<bool>(false);
 }

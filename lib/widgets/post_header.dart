@@ -115,6 +115,7 @@ class _PostHeaderState extends State<PostHeader> {
         return MoreOptionsSheet(
           userId: widget.user.id,
           username: widget.user.username,
+          user: widget.user,
           postId: widget.postId,
           isReel: false,
           isOwner: widget.user.isOwnProfile,

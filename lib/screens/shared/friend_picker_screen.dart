@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../models/user_model.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
@@ -231,7 +232,7 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
           // ── Friends List ────────────────────────────────────────────────
           Expanded(
             child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: KnockpostLoadingIndicator())
               : _filteredFriends.isEmpty
                 ? Center(
                     child: Text(

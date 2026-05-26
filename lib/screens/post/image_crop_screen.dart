@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -323,7 +324,6 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                               if (_isLoading) return;
                               setState(() {
                                 final transform = _currentTransform;
-                                
                                 transform.scale =
                                     (_gestureBaseScale * details.scale)
                                         .clamp(1.0, 5.0)
@@ -345,9 +345,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                                 Container(color: Colors.black),
                                 if (_isLoading)
                                   const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                    ),
+                                    child: KnockpostLoadingIndicator(),
                                   )
                                 else
                                   _buildCroppableImage(frameSize),
@@ -411,10 +409,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.black,
-                    ),
+                    child: KnockpostLoadingIndicator(),
                   )
                 : const Text(
                     'Next',

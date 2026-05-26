@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -406,10 +407,7 @@ class _VideoItemState extends State<_VideoItem> {
           child: SizedBox(
             width: 24,
             height: 24,
-            child: CircularProgressIndicator(
-              color: Colors.white54,
-              strokeWidth: 2,
-            ),
+            child: KnockpostLoadingIndicator(),
           ),
         ),
       ),

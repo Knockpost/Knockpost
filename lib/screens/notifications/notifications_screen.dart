@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../models/notification_model.dart';
 import '../../models/user_model.dart';
 import '../../services/database_service.dart';
@@ -51,11 +52,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         stream: NotificationService.instance.streamNotifications(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: isDark ? Colors.white38 : Colors.black26,
-              ),
+            return const Center(
+              child: KnockpostLoadingIndicator(),
             );
           }
 

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/services.dart';
 import 'wave_item.dart';
 import 'waves_camera_screen.dart';
 import '../../utils/waves_feed_state.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
-import '../../services/post_service.dart';
 import '../../services/current_user_service.dart';
 import '../../services/database_service.dart';
+import '../../services/waves_feed_manager.dart';
+import '../../services/waves_controller_manager.dart';
 
 class WavesFeedScreen extends StatefulWidget {
   final bool isVisible;
@@ -35,8 +37,12 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
   void initState() {
     super.initState();
     _syncSystemUi();
-    // Home feed-এ wave tap করলে সেই video-তে jump করার listener
     WavesFeedState.requestedVideoUrl.addListener(_onVideoRequested);
+    WavesFeedState.skipToNextWave.addListener(_onSkipRequested);
+    
+    if (WavesFeedManager.instance.waves.isEmpty) {
+      WavesFeedManager.instance.loadInitial();
+    }
   }
 
   @override
@@ -58,9 +64,22 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
     // Intentionally empty, StreamBuilder handles navigation
   }
 
+  void _onSkipRequested() {
+    if (WavesFeedState.skipToNextWave.value) {
+      if (_pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+      WavesFeedState.skipToNextWave.value = false;
+    }
+  }
+
   @override
   void dispose() {
     WavesFeedState.requestedVideoUrl.removeListener(_onVideoRequested);
+    WavesFeedState.skipToNextWave.removeListener(_onSkipRequested);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     SystemChrome.setSystemUIOverlayStyle(
       (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
@@ -91,89 +110,108 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
         body: Stack(
           children: [
             /// 🎬 REEL PAGES (vertical scroll)
-            StreamBuilder<List<PostModel>>(
-              stream: PostService.instance.getWavesStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Text('Error loading waves.', style: TextStyle(color: Colors.white)),
-                  );
-                }
-
-                final waves = snapshot.data ?? [];
-                
-                if (waves.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No waves yet.\nBe the first to post!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54, fontSize: 16),
-                    ),
-                  );
-                }
-
-                // If a specific video was requested via home feed, handle navigation
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  final url = WavesFeedState.requestedVideoUrl.value;
-                  if (url != null) {
-                    final idx = waves.indexWhere((p) => p.imagePaths.isNotEmpty && p.imagePaths.first == url);
-                    if (idx != -1 && _pageController.hasClients && _pageController.page?.round() != idx) {
-                      _pageController.jumpToPage(idx);
-                      WavesFeedState.requestedVideoUrl.value = null;
-                    }
+            RefreshIndicator(
+              onRefresh: () async {
+                await WavesFeedManager.instance.refresh();
+              },
+              backgroundColor: Colors.black,
+              color: Colors.white,
+              edgeOffset: 80,
+              child: AnimatedBuilder(
+                animation: WavesFeedManager.instance,
+                builder: (context, _) {
+                  final feedManager = WavesFeedManager.instance;
+                  
+                  if (feedManager.isLoading && feedManager.waves.isEmpty) {
+                    return const Center(
+                      child: KnockpostLoadingIndicator(),
+                    );
                   }
-                });
 
-                return PageView.builder(
-                  controller: _pageController,
-                  scrollDirection: Axis.vertical,
-                  itemCount: waves.length,
-                  pageSnapping: true,
-                  physics: const _FastReelsPagePhysics(
-                    parent: BouncingScrollPhysics(
-                      decelerationRate: ScrollDecelerationRate.fast,
-                    ),
-                  ),
-                  onPageChanged: (index) {
-                    setState(() {
-                      currentIndex = index;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final post = waves[index];
-                    final currentUser = CurrentUserService.instance.currentUser;
-                    
-                    if (currentUser != null && post.authorId == currentUser.id) {
-                      return WaveItem(
-                        videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
-                        username: currentUser.username,
-                        caption: post.text,
-                        isActive: index == currentIndex && widget.isVisible,
-                        bottomPadding: bottomNavHeight,
-                        post: post,
-                        author: currentUser,
-                      );
+                  final waves = feedManager.waves;
+                  
+                  if (waves.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No waves yet.\nBe the first to post!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white54, fontSize: 16),
+                      ),
+                    );
+                  }
+
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final url = WavesFeedState.requestedVideoUrl.value;
+                    if (url != null) {
+                      final idx = waves.indexWhere((p) => p.imagePaths.isNotEmpty && p.imagePaths.first == url);
+                      if (idx != -1 && _pageController.hasClients && _pageController.page?.round() != idx) {
+                        _pageController.jumpToPage(idx);
+                        WavesFeedState.requestedVideoUrl.value = null;
+                      }
                     }
+                  });
 
-                    return FutureBuilder<Map<String, dynamic>?>(
-                      future: DatabaseService.instance.getUserProfile(post.authorId, useCache: true),
-                      builder: (context, snapshot) {
-                        final data = snapshot.data;
-                        final author = data != null
-                            ? UserModel(
-                                id: post.authorId,
-                                displayName: data['displayName'] ?? data['username'] ?? 'User',
-                                username: data['username'] ?? post.authorId,
-                                avatarAsset: data['profileImageUrl'],
-                              )
-                            : UserModel(id: post.authorId, displayName: 'Loading...', username: '...');
+                  return PageView.builder(
+                    controller: _pageController,
+                    scrollDirection: Axis.vertical,
+                    itemCount: waves.length + (feedManager.hasMore ? 1 : 0),
+                    pageSnapping: true,
+                    physics: const _FastReelsPagePhysics(
+                      parent: BouncingScrollPhysics(
+                        decelerationRate: ScrollDecelerationRate.fast,
+                      ),
+                    ),
+                    onPageChanged: (index) {
+                      setState(() {
+                        currentIndex = index;
+                      });
 
+                      // Preload logic
+                      if (index < waves.length) {
+                        final currentUrl = waves[index].imagePaths.isNotEmpty ? waves[index].imagePaths.first : null;
+                        if (currentUrl != null) {
+                          WavesControllerManager.instance.pauseAllExcept(currentUrl);
+                        }
+                      }
+                      
+                      // Preload next 2 videos
+                      for (int i = 1; i <= 2; i++) {
+                        if (index + i < waves.length) {
+                          final nextUrl = waves[index + i].imagePaths.isNotEmpty ? waves[index + i].imagePaths.first : null;
+                          if (nextUrl != null) {
+                            WavesControllerManager.instance.preload(nextUrl);
+                          }
+                        }
+                      }
+
+                      // Fetch next batch early
+                      if (index >= waves.length - 3) {
+                        feedManager.loadMore();
+                      }
+                    },
+                    itemBuilder: (context, index) {
+                      if (index == waves.length) {
+                        return const Center(child: KnockpostLoadingIndicator());
+                      }
+
+                      final post = waves[index];
+                      final currentUser = CurrentUserService.instance.currentUser;
+                      
+                      if (currentUser != null && post.authorId == currentUser.id) {
+                        return WaveItem(
+                          videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
+                          username: currentUser.username,
+                          caption: post.text,
+                          isActive: index == currentIndex && widget.isVisible,
+                          bottomPadding: bottomNavHeight,
+                          post: post,
+                          author: currentUser,
+                        );
+                      }
+
+                      UserModel? author = feedManager.authors[post.authorId];
+                      
+                      if (author != null) {
                         return WaveItem(
                           videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
                           username: author.username,
@@ -183,11 +221,36 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                           post: post,
                           author: author,
                         );
-                      },
-                    );
-                  },
-                );
-              },
+                      }
+
+                      return FutureBuilder<Map<String, dynamic>?>(
+                        future: DatabaseService.instance.getUserProfile(post.authorId, useCache: true),
+                        builder: (context, snapshot) {
+                          final data = snapshot.data;
+                          final fetchedAuthor = data != null
+                              ? UserModel(
+                                  id: post.authorId,
+                                  displayName: data['displayName'] ?? data['username'] ?? 'User',
+                                  username: data['username'] ?? post.authorId,
+                                  avatarAsset: data['profileImageUrl'],
+                                )
+                              : UserModel(id: post.authorId, displayName: 'Loading...', username: '...');
+
+                          return WaveItem(
+                            videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
+                            username: fetchedAuthor.username,
+                            caption: post.text,
+                            isActive: index == currentIndex && widget.isVisible,
+                            bottomPadding: bottomNavHeight,
+                            post: post,
+                            author: fetchedAuthor,
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
 
             /// 🔝 TOP HEADER
@@ -237,16 +300,12 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                           ),
                         );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
+                      child: const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Icon(
                           Icons.camera_alt_outlined,
                           color: Colors.white,
-                          size: 22,
+                          size: 28,
                         ),
                       ),
                     ),

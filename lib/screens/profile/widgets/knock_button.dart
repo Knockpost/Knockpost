@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../../utils/global_knock_state.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
@@ -222,13 +223,10 @@ class _KnockButtonState extends State<KnockButton>
           ),
           alignment: Alignment.center,
           child: _isLoading
-              ? SizedBox(
+              ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: fg,
-                  ),
+                  child: KnockpostLoadingIndicator(),
                 )
               : Text(
                   label,

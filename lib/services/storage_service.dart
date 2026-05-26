@@ -163,6 +163,24 @@ class StorageService {
     }
   }
 
+  /// Uploads a chat audio file to Storage.
+  /// Path: chats/{chatId}/{messageId}.m4a
+  Future<String?> uploadChatAudio({
+    required String chatId,
+    required String messageId,
+    required File file,
+  }) async {
+    try {
+      final ref = _storage.ref().child('chats/$chatId/$messageId.m4a');
+      final metadata = SettableMetadata(contentType: 'audio/mp4');
+      final uploadTask = await ref.putFile(file, metadata);
+      return await uploadTask.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint("Error uploading chat audio: $e");
+      return null;
+    }
+  }
+
   /// Uploads a profile picture to Storage.
   /// Automatically compresses before uploading.
   /// Path: users/{userId}/avatar_{timestamp}.jpg

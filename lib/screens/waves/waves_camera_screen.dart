@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:math';
 import 'dart:io';
 import 'dart:ui';
@@ -394,7 +395,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
         body: _isInitialized
             ? _buildCamera()
             : const Center(
-                child: CircularProgressIndicator(color: Colors.white70),
+                child: KnockpostLoadingIndicator(),
               ),
       ),
     );

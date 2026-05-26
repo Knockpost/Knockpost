@@ -16,6 +16,8 @@ class ChatMessage {
   final String? replyToId;
   final bool seen;
   final String? imageUrl;
+  final String? audioUrl;
+  final int? audioDuration; // in milliseconds
   final MessageStatus status;
   final String? clientId;
   final bool hasPendingWrites;
@@ -28,12 +30,15 @@ class ChatMessage {
     this.replyToId,
     this.seen = false,
     this.imageUrl,
+    this.audioUrl,
+    this.audioDuration,
     this.status = MessageStatus.sent,
     this.clientId,
     this.hasPendingWrites = false,
   });
 
   bool get isImage => imageUrl != null && imageUrl!.isNotEmpty;
+  bool get isAudio => audioUrl != null && audioUrl!.isNotEmpty;
   bool get isPending => status == MessageStatus.sending || hasPendingWrites;
 
   factory ChatMessage.fromMap(Map<String, dynamic> map, String docId, {bool hasPendingWrites = false}) {
@@ -63,6 +68,8 @@ class ChatMessage {
       replyToId: map['replyToId'] as String?,
       seen: map['seen'] as bool? ?? false,
       imageUrl: map['imageUrl'] as String?,
+      audioUrl: map['audioUrl'] as String?,
+      audioDuration: map['audioDuration'] as int?,
       status: parseStatus(map['status'] as String?),
       clientId: map['clientId'] as String?,
       hasPendingWrites: hasPendingWrites,
@@ -76,6 +83,8 @@ class ChatMessage {
         if (replyToId != null) 'replyToId': replyToId,
         'seen': seen,
         if (imageUrl != null) 'imageUrl': imageUrl,
+        if (audioUrl != null) 'audioUrl': audioUrl,
+        if (audioDuration != null) 'audioDuration': audioDuration,
         'status': status.name,
         if (clientId != null) 'clientId': clientId,
       };

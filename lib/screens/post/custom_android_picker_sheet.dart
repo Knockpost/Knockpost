@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -108,7 +109,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
           
           Expanded(
             child: widget.initialAssets.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: KnockpostLoadingIndicator())
                 : GridView.builder(
                     physics: const BouncingScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
