@@ -160,11 +160,24 @@ class CommentService {
 
       batch.set(threadRef, threadData, SetOptions(merge: true));
 
+      // Fast Path: Add notification to the SAME batch for INSTANT Cloud Function trigger.
+      // This eliminates the 500ms+ delay caused by sequential reads/writes.
+      if (senderId != receiverId) {
+        NotificationService.instance.sendNotificationInBatch(
+          batch,
+          receiverUid: receiverId,
+          type: NotificationType.comment,
+          postId: postId,
+          commentSnippet: text,
+        );
+      }
+
       await batch.commit();
 
       ChatLogger.instance.info('Reply', 'sent postId=$postId threadUser=$threadUserId msgId=$msgDocId');
 
-      // Send notification (fire-and-forget, never blocks the send)
+      // Slow Path: Fetch post thumbnail asynchronously and update the notification document.
+      // The Cloud Function's smart logic will safely ignore this duplicate update.
       if (senderId != receiverId) {
         _sendNotification(
           postId: postId,

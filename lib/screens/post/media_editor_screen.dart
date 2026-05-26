@@ -44,17 +44,8 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
   double _contrast = 1.0; // 0.5 to 1.5
   double _saturation = 1.0; // 0 to 2
   MusicTrack? _selectedMusic;
-  int? _selectedMusicStyle;
-  Map<String, dynamic>? _selectedMusicLyricsConfig;
-
-  // Music overlay dragging state
-  Offset? _musicOverlayPosition;
-  double _musicOverlayScale = 1.0;
-  double _musicOverlayRotation = 0.0;
-  double _baseMusicOverlayScale = 1.0;
-  double _baseMusicOverlayRotation = 0.0;
-  Offset? _dragStartFocalPoint;
-  Offset? _dragStartOverlayPos;
+  Map<String, dynamic>? _selectedMusicStickerConfig;
+  double _musicVolume = 1.0;
   double _editorBoxWidth = 1080.0;
   double _editorBoxHeight = 1350.0;
   final GlobalKey _previewBoundaryKey = GlobalKey();
@@ -74,8 +65,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   final AudioPlayer _bgAudioPlayer = AudioPlayer();
   int _trimStartSeconds = 0;
-  int _bgAudioPosMs = 0;
-  StreamSubscription<Duration>? _bgPosSub;
 
   // ── Filter definitions ────────────────────────────────────────────────────
   final List<String> _filterNames = [
@@ -222,10 +211,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     AudioLifecycleManager.instance.register(_bgAudioPlayer);
     _editorBoxHeight = _editorBoxWidth / widget.aspectRatio;
 
-    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
-      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
-    });
-
     _toolbarAnimCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -248,7 +233,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   @override
   void dispose() {
-    _bgPosSub?.cancel();
     AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
     _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     _toolbarAnimCtrl.dispose();
@@ -384,18 +368,8 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
           mediaIsBaked: true,
           initialMusic: _selectedMusic,
           initialTrimSeconds: _trimStartSeconds,
-          initialMusicStyle: _selectedMusicStyle,
-          initialMusicCoverUrl: _selectedMusic?.coverUrl,
-          initialMusicLyrics: _selectedMusic?.syncedLyrics,
-          initialMusicLyricsConfig: _selectedMusicLyricsConfig,
-          initialMusicOverlayX: _musicOverlayPosition != null
-              ? _musicOverlayPosition!.dx / _editorBoxWidth
-              : null,
-          initialMusicOverlayY: _musicOverlayPosition != null
-              ? _musicOverlayPosition!.dy / _editorBoxHeight
-              : null,
-          initialMusicOverlayScale: _musicOverlayScale,
-          initialMusicOverlayRotation: _musicOverlayRotation,
+          initialMusicStickerConfig: _selectedMusicStickerConfig,
+          initialMusicVolume: _musicVolume,
           initialFilterIndex: _selectedFilterIndex > 0
               ? _selectedFilterIndex
               : null,
@@ -426,30 +400,13 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
       );
 
       if (overlayResult != null && overlayResult is Map && mounted) {
-        debugPrint('[MediaEditor] overlayResult keys: ${overlayResult.keys}');
-        debugPrint(
-          '[MediaEditor] styleIndex from overlay: ${overlayResult['styleIndex']}',
-        );
         setState(() {
           _selectedMusic = overlayResult['track'] as MusicTrack;
           _trimStartSeconds = overlayResult['trimStartSeconds'] as int;
-          _selectedMusicStyle = overlayResult['styleIndex'] as int?;
-          _selectedMusicLyricsConfig =
-              (overlayResult['lyricsConfig'] as Map?)?.cast<String, dynamic>();
-          _musicOverlayPosition = null;
-          _musicOverlayScale = 1.0;
-          _musicOverlayRotation = 0.0;
+          _selectedMusicStickerConfig = (overlayResult['stickerConfig'] as Map?)?.cast<String, dynamic>();
+          _musicVolume = overlayResult['musicVolume'] as double? ?? 1.0;
           _activeTool = _EditorTool.none;
         });
-        debugPrint(
-          '[MediaEditor] _selectedMusicStyle after setState: $_selectedMusicStyle',
-        );
-        debugPrint(
-          '[MediaEditor] _selectedMusic title: ${_selectedMusic?.title}',
-        );
-        debugPrint(
-          '[MediaEditor] _selectedMusic coverUrl: ${_selectedMusic?.coverUrl}',
-        );
         _sheetAnimCtrl.reverse();
         _playSelectedMusic();
       } else {
@@ -468,6 +425,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     try {
       await _bgAudioPlayer.setUrl(_selectedMusic!.previewUrl);
       await _bgAudioPlayer.seek(Duration(seconds: _trimStartSeconds));
+      await _bgAudioPlayer.setVolume(_musicVolume);
       await _bgAudioPlayer.setLoopMode(LoopMode.one);
       await _bgAudioPlayer.play();
     } catch (e) {
@@ -520,15 +478,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                       });
                     }
 
-                    const double minScale = 0.20;
-                    const double maxScale = 2.5;
-                    final pos =
-                        _musicOverlayPosition ??
-                        defaultMusicLyricsOverlayOffset(
-                          frameWidth: constraints.maxWidth,
-                          frameHeight: constraints.maxHeight,
-                          lyricsConfigData: _selectedMusicLyricsConfig,
-                        );
+                    // Scale constants removed since sticker is not draggable
 
                     return RepaintBoundary(
                       key: _previewBoundaryKey,
@@ -563,59 +513,20 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                               colorFilter: ColorFilter.matrix(_activeMatrix),
                               child: Image.file(file, fit: BoxFit.cover),
                             ),
-                            if (_selectedMusic != null &&
-                                _selectedMusicStyle != null)
-                              Positioned(
-                                left: pos.dx,
-                                top: pos.dy,
-                                child: GestureDetector(
-                                  onScaleStart: (details) {
-                                    _baseMusicOverlayScale = _musicOverlayScale;
-                                    _baseMusicOverlayRotation =
-                                        _musicOverlayRotation;
-                                    _dragStartFocalPoint = details.focalPoint;
-                                    _dragStartOverlayPos = pos;
-                                  },
-                                  onScaleUpdate: (details) {
-                                    final delta =
-                                        details.focalPoint -
-                                        (_dragStartFocalPoint ??
-                                            details.focalPoint);
-                                    final newScale =
-                                        (_baseMusicOverlayScale * details.scale)
-                                            .clamp(minScale, maxScale)
-                                            .toDouble();
+                            if (_selectedMusic != null && _selectedMusicStickerConfig != null)
+                              RepaintBoundary(
+                                child: MusicStickerWidget(
+                                  title: _selectedMusic!.title,
+                                  artist: _selectedMusic!.artist,
+                                  coverUrl: _selectedMusic!.coverUrl,
+                                  configData: _selectedMusicStickerConfig,
+                                  isPlaying: true,
+                                  isEditable: true,
+                                  onConfigChanged: (config) {
                                     setState(() {
-                                      _musicOverlayPosition =
-                                          (_dragStartOverlayPos ?? pos) + delta;
-                                      _musicOverlayScale = newScale;
-                                      if (details.pointerCount >= 2) {
-                                        _musicOverlayRotation =
-                                            _baseMusicOverlayRotation +
-                                            details.rotation;
-                                      }
+                                      _selectedMusicStickerConfig = config.toMap();
                                     });
                                   },
-                                  child: Transform.rotate(
-                                    angle: _musicOverlayRotation,
-                                    alignment: Alignment.center,
-                                    child: Transform.scale(
-                                      scale: _musicOverlayScale,
-                                      alignment: Alignment.center,
-                                      child: RepaintBoundary(
-                                        child: MusicStyleOverlayWidget(
-                                          styleIndex: _selectedMusicStyle!,
-                                          title: _selectedMusic!.title,
-                                          artist: _selectedMusic!.artist,
-                                          coverUrl: _selectedMusic!.coverUrl,
-                                          lyricsLrc: _selectedMusic!.syncedLyrics,
-                                          lyricsConfigData:
-                                              _selectedMusicLyricsConfig,
-                                          timelinePositionMs: _bgAudioPosMs,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                                 ),
                               ),
 

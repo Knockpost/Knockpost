@@ -3,10 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // ─── Notification Types ──────────────────────────────────────────────────────
 
 enum NotificationType {
-  knock,    // Someone knocked on your post/profile
-  like,     // Someone liked your post
-  comment,  // Someone commented on your post
-  message,  // Someone sent you a message
+  knock,         // Someone knocked you or requested
+  knockAccept,   // Someone approved your knock request
+  knockBack,     // Someone knocked you back
+  like,          // Someone liked your post
+  comment,       // Someone commented on your post
+  message,       // Someone sent you a message
 }
 
 // ─── Model ───────────────────────────────────────────────────────────────────

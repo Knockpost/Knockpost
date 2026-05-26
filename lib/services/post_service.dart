@@ -17,7 +17,7 @@ class PostService {
   CollectionReference get postsCollection => _firestore.collection('posts');
 
   /// Helper to bidirectionally filter out posts from blocked users AND private accounts.
-  Future<List<PostModel>> _filterBlockedAndPrivatePosts(
+  Future<List<PostModel>> filterBlockedAndPrivatePosts(
     List<PostModel> posts,
   ) async {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
@@ -247,7 +247,69 @@ class PostService {
           posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return posts.take(limit).toList();
         })
-        .asyncMap(_filterBlockedAndPrivatePosts);
+        .asyncMap(filterBlockedAndPrivatePosts);
+  }
+
+  /// Paginated fetch for Waves feed
+  Future<({List<PostModel> posts, DocumentSnapshot? lastDoc})> getWavesPaginated({
+    DocumentSnapshot? startAfter,
+    int limit = 10,
+  }) async {
+    try {
+      Query query = postsCollection
+          .where('type', isEqualTo: PostType.waves.name)
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.isEmpty) {
+        return (posts: <PostModel>[], lastDoc: null);
+      }
+
+      final fetchedPosts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      final validPosts = await filterBlockedAndPrivatePosts(fetchedPosts);
+      
+      return (posts: validPosts, lastDoc: snapshot.docs.last);
+    } catch (e) {
+      debugPrint("Error fetching waves paginated: $e");
+      return (posts: <PostModel>[], lastDoc: null);
+    }
+  }
+
+  /// Fetches all waves up to a limit and sorts them client-side.
+  /// This is used to bypass the need for a Firebase Composite Index while still
+  /// maintaining perfect chronological order for the feed.
+  Future<List<PostModel>> getAllWaves({int limit = 500}) async {
+    try {
+      final snapshot = await postsCollection
+          .where('type', isEqualTo: PostType.waves.name)
+          .limit(limit)
+          .get();
+
+      if (snapshot.docs.isEmpty) return [];
+
+      final fetchedPosts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      final validPosts = await filterBlockedAndPrivatePosts(fetchedPosts);
+      
+      // Sort client-side to ensure newest waves are first
+      validPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      return validPosts;
+    } catch (e) {
+      debugPrint("Error in getAllWaves: $e");
+      return [];
+    }
   }
 
   /// Streams active glimpses (stories) for the GlimpsStrip.
@@ -269,7 +331,7 @@ class PostService {
           posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return posts.take(limit).toList();
         })
-        .asyncMap(_filterBlockedAndPrivatePosts);
+        .asyncMap(filterBlockedAndPrivatePosts);
   }
 
   /// Streams a specific user's posts.

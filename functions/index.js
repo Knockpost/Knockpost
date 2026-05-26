@@ -131,6 +131,7 @@ exports.sendPushNotification = functions.firestore
     }
 
     const notificationData = change.after.data();
+    const beforeData = change.before.exists ? change.before.data() : null;
     const receiverId = context.params.userId;
     const triggerUserId = notificationData.triggerUserId;
 
@@ -146,8 +147,20 @@ exports.sendPushNotification = functions.firestore
       return null;
     }
 
-    // Fetch the receiver's FCM token
-    const userDoc = await admin.firestore().collection("users").doc(receiverId).get();
+    // SMART SYSTEM: Prevent Push Notification Spam
+    // If the notification was ALREADY unread (e.g. consecutive messages/replies),
+    // don't buzz the phone again. The UI will update silently.
+    if (beforeData && beforeData.isRead === false) {
+      console.log("Notification was already unread. Skipping duplicate push to prevent spam.");
+      return null;
+    }
+
+    // Fetch both users in parallel for maximum speed
+    const [userDoc, triggerUserDoc] = await Promise.all([
+      admin.firestore().collection("users").doc(receiverId).get(),
+      admin.firestore().collection("users").doc(triggerUserId).get()
+    ]);
+
     if (!userDoc.exists) {
       console.log(`No user found for receiverId: ${receiverId}`);
       return null;
@@ -161,8 +174,6 @@ exports.sendPushNotification = functions.firestore
       return null;
     }
 
-    // Fetch the trigger user's data (to get their name/avatar)
-    const triggerUserDoc = await admin.firestore().collection("users").doc(triggerUserId).get();
     const triggerUserData = triggerUserDoc.exists ? triggerUserDoc.data() : {};
     const senderName = triggerUserData.username || triggerUserData.displayName || "Someone";
     const profileImageUrl = triggerUserData.avatarUrl || triggerUserData.profileImageUrl || "";
@@ -179,11 +190,34 @@ exports.sendPushNotification = functions.firestore
       title = "New Like";
       body = `${senderName} liked your post.`;
     } else if (type === "comment") {
-      title = "New Comment";
-      body = `${senderName} commented: "${notificationData.commentSnippet || ""}"`;
-    } else if (type === "knock") {
-      title = "New Knock";
-      body = `${senderName} knocked your post!`;
+      title = "New Reply";
+      body = `${senderName} replied: "${notificationData.commentSnippet || ""}"`;
+    } else if (type === "knock" || type === "knockAccept" || type === "knockBack") {
+      let actionText = "knocked you.";
+      
+      if (type === "knockAccept") {
+         actionText = "accepted your knock request.";
+      } else if (type === "knockBack") {
+         actionText = "knocked you back.";
+      } else {
+         try {
+           const [theirKnockDoc, myKnockDoc] = await Promise.all([
+             admin.firestore().collection('connections').doc(`${triggerUserId}_${receiverId}`).get(),
+             admin.firestore().collection('connections').doc(`${receiverId}_${triggerUserId}`).get()
+           ]);
+           
+           const theirKnock = theirKnockDoc.exists ? theirKnockDoc.data() : null;
+           
+           if (theirKnock && theirKnock.status === 'pending') {
+             actionText = "requested to knock you.";
+           }
+         } catch (error) {
+            console.error("Error checking connection status for push notification:", error);
+         }
+      }
+      
+      title = `${senderName} ${actionText}`;
+      body = "";
     } else if (type === "mention") {
       title = "New Mention";
       body = `${senderName} mentioned you in a post.`;

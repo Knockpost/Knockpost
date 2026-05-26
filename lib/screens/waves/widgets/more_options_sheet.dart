@@ -5,10 +5,15 @@ import '../../../utils/haptic_helper.dart';
 import '../../../services/post_service.dart';
 import '../../../services/database_service.dart';
 import '../../../services/current_user_service.dart';
+import '../../profile/other_profile_screen.dart';
+import '../../../utils/waves_feed_state.dart';
+
+import '../../../models/user_model.dart';
 
 class MoreOptionsSheet extends StatelessWidget {
   final String userId;
   final String username;
+  final UserModel? user;
   final String? postId;
   final bool isReel;
   final bool isOwner;
@@ -18,6 +23,7 @@ class MoreOptionsSheet extends StatelessWidget {
     super.key,
     required this.userId,
     required this.username,
+    this.user,
     this.postId,
     this.isReel = false,
     this.isOwner = false,
@@ -83,17 +89,41 @@ class MoreOptionsSheet extends StatelessWidget {
                   _OptionTile(
                     icon: Icons.info_outline_rounded,
                     label: "About this account",
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => OtherProfileScreen(
+                            user: user ?? UserModel(id: userId, displayName: username, username: username),
+                            posts: const [],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   _OptionTile(
                     icon: Icons.visibility_off_outlined,
                     label: "Hide this ${postTypeName.toLowerCase()}",
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (postId != null) {
+                        GlobalPostState.delete(postId!);
+                      }
+                      if (isReel) {
+                        WavesFeedState.skipToNextWave.value = true;
+                      }
+                    },
                   ),
                   _OptionTile(
                     icon: Icons.flag_outlined,
                     label: "Report",
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("$postTypeName reported")),
+                      );
+                    },
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),

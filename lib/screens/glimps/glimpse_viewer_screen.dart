@@ -604,6 +604,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
             return MoreOptionsSheet(
               userId: glimpse.authorId,
               username: isOwner ? currentUser.username : '',
+              user: _user,
               postId: glimpse.id,
               isReel: false,
               isOwner: isOwner,

@@ -1022,24 +1022,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               post.musicTitle,
                                                           musicArtist:
                                                               post.musicArtist,
-                                                          musicStyle:
-                                                              post.musicStyle,
                                                           musicCoverUrl: post
                                                               .musicCoverUrl,
                                                           musicTrimStart: post
                                                               .musicTrimStart,
-                                                          musicLyrics:
-                                                              post.musicLyrics,
-                                                          musicLyricsConfig: post
-                                                              .musicLyricsConfig,
-                                                          musicOverlayX: post
-                                                              .musicOverlayX,
-                                                          musicOverlayY: post
-                                                              .musicOverlayY,
-                                                          musicOverlayScale: post
-                                                              .musicOverlayScale,
-                                                          musicOverlayRotation:
-                                                              post.musicOverlayRotation,
+                                                          musicStickerConfig: post.musicStickerConfig,
+                                                          musicVolume: post.musicVolume,
+                                                          originalAudioVolume: post.originalAudioVolume,
                                                           filterIndex:
                                                               post.filterIndex,
                                                           textOverlays:
