@@ -104,8 +104,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
   double _editorBoxWidth = 1080.0;
   double _editorBoxHeight = 1920.0;
 
-  StreamSubscription<Duration>? _bgPosSub;
-
   // -- Video State --
   late List<VideoPlayerController?> _videoControllers;
 
@@ -224,8 +222,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     super.initState();
     AudioLifecycleManager.instance.register(_bgAudioPlayer);
 
-    _bgPosSub = _bgAudioPlayer.positionStream.listen((_) {});
-
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
@@ -304,7 +300,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
   @override
   void dispose() {
-    _bgPosSub?.cancel();
     AudioLifecycleManager.instance.unregister(_bgAudioPlayer);
     _bgAudioPlayer.stop().whenComplete(() => _bgAudioPlayer.dispose());
     for (var ctrl in _videoControllers) {

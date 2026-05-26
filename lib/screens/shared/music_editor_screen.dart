@@ -1178,8 +1178,19 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    // Always animate the mini waveform as a decorative element
-    _animCtrl.repeat(reverse: true);
+    if (widget.isPlaying) _animCtrl.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant MusicStickerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _animCtrl.repeat(reverse: true);
+      } else {
+        _animCtrl.stop();
+      }
+    }
   }
 
   @override
@@ -1193,7 +1204,6 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
     final config = MusicStickerConfig.fromMap(widget.configData);
     if (!config.showSticker) return const SizedBox.shrink();
 
-    const isSmall = false; // Always use medium size now, since user can scale it manually
     const artSize = 40.0;
     const borderRadius = 16.0;
     const hPad = 14.0;
@@ -1282,8 +1292,10 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            _buildMiniWaveform(isSmall),
+                            if (widget.isPlaying) ...[
+                              const SizedBox(width: 6),
+                              _buildMiniWaveform(false),
+                            ],
                           ],
                         ),
                       ],
