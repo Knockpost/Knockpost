@@ -8,6 +8,9 @@ import 'signup/signup_email_screen.dart';
 import 'signup/signup_username_screen.dart';
 import 'signup/signup_verification_screen.dart';
 import 'home_screen.dart';
+import 'profile/otp_verification_screen.dart';
+import '../widgets/legal_agreement_text.dart';
+import '../services/two_factor_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -258,7 +261,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 10),
+
+                        const LegalAgreementText(),
+
+                        const SizedBox(height: 10),
 
                         GestureDetector(
                           onTap: () {
@@ -334,13 +341,40 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (userProfile != null) {
-          await CurrentUserService.instance.loadCurrentUser();
-          if (!mounted) return;
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-            (route) => false,
-          );
+          // Check 2FA
+          final is2FA = await TwoFactorService.instance.is2FAEnabled();
+          if (is2FA) {
+            // Send OTP
+            await TwoFactorService.instance.sendOtp();
+            if (!mounted) return;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OtpVerificationScreen(
+                  email: user.email ?? '',
+                  purpose: 'Login Verification',
+                  onVerified: () async {
+                    await CurrentUserService.instance.loadCurrentUser();
+                    if (mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HomeScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                ),
+              ),
+            );
+          } else {
+            await CurrentUserService.instance.loadCurrentUser();
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+          }
         } else {
           Navigator.pushAndRemoveUntil(
             context,
@@ -385,13 +419,40 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           // Google users are pre-verified, so we skip SignupVerificationScreen entirely
           if (userProfile != null) {
-            await CurrentUserService.instance.loadCurrentUser();
-            if (!mounted) return;
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false,
-            );
+            // Check 2FA
+            final is2FA = await TwoFactorService.instance.is2FAEnabled();
+            if (is2FA) {
+              // Send OTP
+              await TwoFactorService.instance.sendOtp();
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OtpVerificationScreen(
+                    email: user.email ?? '',
+                    purpose: 'Login Verification',
+                    onVerified: () async {
+                      await CurrentUserService.instance.loadCurrentUser();
+                      if (mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HomeScreen()),
+                          (route) => false,
+                        );
+                      }
+                    },
+                  ),
+                ),
+              );
+            } else {
+              await CurrentUserService.instance.loadCurrentUser();
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (route) => false,
+              );
+            }
           } else {
             // New Google user -> Pick a username first
             Navigator.pushAndRemoveUntil(

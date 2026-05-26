@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'signup_verification_screen.dart';
 import '../login_screen.dart';
+import '../../widgets/legal_agreement_text.dart';
+import '../../services/database_service.dart';
 
 class SignupEmailScreen extends StatefulWidget {
   const SignupEmailScreen({super.key});
@@ -31,6 +33,22 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
     });
 
     try {
+      // Check if email already exists in Database
+      bool emailTaken = await DatabaseService.instance.checkEmailTaken(email);
+      if (emailTaken) {
+        if (mounted) {
+          setState(() { isLoading = false; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Account already exists with this email! Please log in."),
+              backgroundColor: Colors.redAccent,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       debugPrint("Auth Stage 1: Storing email $email for link");
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('email_for_link', email);
@@ -219,7 +237,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 22),
+                    const LegalAgreementText(),
 
                     Center(
                       child: GestureDetector(
