@@ -1178,19 +1178,8 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    if (widget.isPlaying) _animCtrl.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(covariant MusicStickerWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying != oldWidget.isPlaying) {
-      if (widget.isPlaying) {
-        _animCtrl.repeat(reverse: true);
-      } else {
-        _animCtrl.stop();
-      }
-    }
+    // Always animate the mini waveform as a decorative element
+    _animCtrl.repeat(reverse: true);
   }
 
   @override
@@ -1204,11 +1193,11 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
     final config = MusicStickerConfig.fromMap(widget.configData);
     if (!config.showSticker) return const SizedBox.shrink();
 
-    final isSmall = false; // Always use medium size now, since user can scale it manually
-    final artSize = 40.0;
-    final borderRadius = 16.0;
-    final hPad = 14.0;
-    final vPad = 10.0;
+    const isSmall = false; // Always use medium size now, since user can scale it manually
+    const artSize = 40.0;
+    const borderRadius = 16.0;
+    const hPad = 14.0;
+    const vPad = 10.0;
 
     Widget content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1218,7 +1207,7 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
           filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 260),
-            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+            padding: const EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(borderRadius),
@@ -1239,7 +1228,7 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
                 children: [
                   // Album art
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(isSmall ? 7 : 10),
+                    borderRadius: BorderRadius.circular(10),
                     child: widget.coverUrl.isNotEmpty
                         ? ColorFiltered(
                             colorFilter: const ColorFilter.mode(
@@ -1256,7 +1245,7 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
                           )
                         : _fallbackCover(artSize),
                   ),
-                  SizedBox(width: isSmall ? 8 : 12),
+                  const SizedBox(width: 12),
 
                   // Text + mini waveform
                   Flexible(
@@ -1268,9 +1257,9 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
                           widget.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
-                            fontSize: isSmall ? 11 : 13,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             height: 1.2,
                             letterSpacing: -0.2,
@@ -1287,16 +1276,14 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: isSmall ? 9 : 10.5,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w500,
                                   height: 1.2,
                                 ),
                               ),
                             ),
-                            if (widget.isPlaying) ...[
-                              const SizedBox(width: 6),
-                              _buildMiniWaveform(isSmall),
-                            ],
+                            const SizedBox(width: 6),
+                            _buildMiniWaveform(isSmall),
                           ],
                         ),
                       ],

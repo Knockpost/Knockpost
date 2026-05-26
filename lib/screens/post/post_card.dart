@@ -81,7 +81,6 @@ class _PostCardState extends State<PostCard> {
   bool _doubleTapped = false;
   AudioPlayer? _audioPlayer;
   bool _isPlaying = false;
-  int _audioPositionMs = 0;
   bool _isVisible = false;
 
   bool get _hasMusic =>
@@ -117,12 +116,6 @@ class _PostCardState extends State<PostCard> {
 
       _audioPlayer!.playingStream.listen((playing) {
         if (mounted) setState(() => _isPlaying = playing);
-      });
-
-      _audioPlayer!.positionStream.listen((pos) {
-        if (mounted) {
-          setState(() => _audioPositionMs = pos.inMilliseconds);
-        }
       });
     } catch (e) {
       debugPrint('PostCard audio init error: $e');
@@ -217,44 +210,34 @@ class _PostCardState extends State<PostCard> {
         SizedBox(height: widget.caption.isNotEmpty ? 14 : 4),
 
         // ── Media + Overlays ──
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final boxWidth = constraints.maxWidth;
-            final rawRatio = widget.mediaAspectRatio ?? (4 / 5);
-            // Clamp to 4:5 minimum — matches MediaCarousel feed clamp
-            final feedRatio = rawRatio < (4 / 5) ? (4 / 5) : rawRatio;
-            final boxHeight = boxWidth / feedRatio;
+        Stack(
+          children: [
+            MediaCarousel(
+              imagePaths: widget.imagePaths,
+              isVideoPost: widget.isVideoPost,
+              onDoubleTap: _onDoubleTap,
+              mediaAspectRatio: widget.mediaAspectRatio,
+            ),
 
-            return Stack(
-              children: [
-                MediaCarousel(
-                  imagePaths: widget.imagePaths,
-                  isVideoPost: widget.isVideoPost,
-                  onDoubleTap: _onDoubleTap,
-                  mediaAspectRatio: widget.mediaAspectRatio,
+            // ── Music overlay (handled by MusicStickerWidget) ──
+            if (_hasMusic && widget.musicStickerConfig != null && !widget.mediaIsBaked)
+              RepaintBoundary(
+                child: MusicStickerWidget(
+                  title: widget.musicTitle ?? '',
+                  artist: widget.musicArtist ?? '',
+                  coverUrl: widget.musicCoverUrl ?? '',
+                  configData: widget.musicStickerConfig,
+                  isPlaying: _isPlaying,
                 ),
+              ),
 
-                // ── Music overlay (handled by MusicStickerWidget) ──
-                if (_hasMusic && widget.musicStickerConfig != null && !widget.mediaIsBaked)
-                  RepaintBoundary(
-                    child: MusicStickerWidget(
-                      title: widget.musicTitle ?? '',
-                      artist: widget.musicArtist ?? '',
-                      coverUrl: widget.musicCoverUrl ?? '',
-                      configData: widget.musicStickerConfig,
-                      isPlaying: _isPlaying,
-                    ),
-                  ),
-
-                if (_hasMusic)
-                  Positioned(
-                    bottom: 15,
-                    right: 15,
-                    child: _buildCompactMusicButton(),
-                  ),
-              ],
-            );
-          },
+            if (_hasMusic)
+              Positioned(
+                bottom: 15,
+                right: 15,
+                child: _buildCompactMusicButton(),
+              ),
+          ],
         ),
 
         const SizedBox(height: 10),

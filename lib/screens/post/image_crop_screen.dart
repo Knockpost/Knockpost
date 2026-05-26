@@ -30,12 +30,10 @@ class ImageCropScreen extends StatefulWidget {
 class _ImageCropScreenState extends State<ImageCropScreen>
     with SingleTickerProviderStateMixin {
   CropAspect _aspect = CropAspect.portrait;
-  bool _showGrid = true;
   bool _isLoading = true;
   bool _isCropping = false;
   int _currentIndex = 0;
 
-  late final AnimationController _gridFadeCtrl;
   late List<_ImageTransform> _transforms;
   late List<Size?> _imageSizes;
 
@@ -49,19 +47,9 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     super.initState();
     _transforms = widget.files.map((_) => _ImageTransform()).toList();
     _imageSizes = List<Size?>.filled(widget.files.length, null);
-    _gridFadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-      value: 1.0,
-    );
     _loadAllImageSizes();
   }
 
-  @override
-  void dispose() {
-    _gridFadeCtrl.dispose();
-    super.dispose();
-  }
 
   double get _aspectRatio {
     switch (_aspect) {
@@ -116,16 +104,6 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     setState(() {
       _transforms[_currentIndex] = _ImageTransform();
     });
-  }
-
-  void _toggleGrid() {
-    HapticFeedback.selectionClick();
-    setState(() => _showGrid = !_showGrid);
-    if (_showGrid) {
-      _gridFadeCtrl.forward();
-    } else {
-      _gridFadeCtrl.reverse();
-    }
   }
 
   void _switchAspect(CropAspect aspect) {
@@ -373,11 +351,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                                   )
                                 else
                                   _buildCroppableImage(frameSize),
-                                if (_showGrid)
-                                  FadeTransition(
-                                    opacity: _gridFadeCtrl,
-                                    child: _buildGrid(),
-                                  ),
+                                _buildGrid(),
                               ],
                             ),
                           ),
@@ -556,14 +530,6 @@ class _ImageCropScreenState extends State<ImageCropScreen>
           ),
           Row(
             children: [
-              _actionButton(
-                icon: _showGrid
-                    ? Icons.grid_on_rounded
-                    : Icons.grid_off_rounded,
-                label: 'Grid',
-                onTap: _toggleGrid,
-              ),
-              const SizedBox(width: 16),
               _actionButton(
                 icon: Icons.refresh_rounded,
                 label: 'Reset',

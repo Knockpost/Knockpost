@@ -104,7 +104,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
   double _editorBoxWidth = 1080.0;
   double _editorBoxHeight = 1920.0;
 
-  int _bgAudioPosMs = 0;
   StreamSubscription<Duration>? _bgPosSub;
 
   // -- Video State --
@@ -225,9 +224,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     super.initState();
     AudioLifecycleManager.instance.register(_bgAudioPlayer);
 
-    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
-      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
-    });
+    _bgPosSub = _bgAudioPlayer.positionStream.listen((_) {});
 
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",

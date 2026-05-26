@@ -64,7 +64,6 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
   final AudioPlayer _bgAudioPlayer = AudioPlayer();
   int _trimStartSeconds = 0;
-  int _bgAudioPosMs = 0;
   StreamSubscription<Duration>? _bgPosSub;
 
   // ── Filter definitions ────────────────────────────────────────────────────
@@ -212,9 +211,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     AudioLifecycleManager.instance.register(_bgAudioPlayer);
     _editorBoxHeight = _editorBoxWidth / widget.aspectRatio;
 
-    _bgPosSub = _bgAudioPlayer.positionStream.listen((pos) {
-      if (mounted) setState(() => _bgAudioPosMs = pos.inMilliseconds);
-    });
+    _bgPosSub = _bgAudioPlayer.positionStream.listen((_) {});
 
     _toolbarAnimCtrl = AnimationController(
       vsync: this,
