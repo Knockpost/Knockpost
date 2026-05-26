@@ -59,6 +59,7 @@ class _KnockButtonState extends State<KnockButton>
   void _onGlobalChange() {
     if (mounted && _status != _globalNotifier.value) {
       setState(() => _status = _globalNotifier.value);
+      widget.onStatusChanged?.call(_status);
     }
   }
 
@@ -90,37 +91,10 @@ class _KnockButtonState extends State<KnockButton>
     KnockHaptics.tap();
     _scaleController.reverse().then((_) => _scaleController.forward());
 
-    // Compute the optimistic next status
-    KnockStatus nextStatus = _status;
-    switch (_status) {
-      case KnockStatus.none:
-      case KnockStatus.theyKnockedYouPending:
-        nextStatus = _isEffectivelyOpen
-            ? KnockStatus.knocked
-            : KnockStatus.pending;
-        break;
-      case KnockStatus.pending:
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        nextStatus = KnockStatus.none;
-        break;
-      case KnockStatus.theyKnockedYou:
-        nextStatus = KnockStatus.mutualKnocked;
-        break;
-    }
+    setState(() => _isLoading = true);
 
-    // Optimistic UI update
-    final previousStatus = _status;
-    setState(() {
-      _status = nextStatus;
-      _isLoading = true;
-    });
-    _globalNotifier.value = nextStatus;
-    widget.onStatusChanged?.call(_status);
-
-    // Persist to Firestore
     try {
-      switch (previousStatus) {
+      switch (_status) {
         case KnockStatus.none:
         case KnockStatus.theyKnockedYouPending:
           await ConnectionService.instance.sendKnock(
@@ -136,13 +110,6 @@ class _KnockButtonState extends State<KnockButton>
         case KnockStatus.theyKnockedYou:
           await ConnectionService.instance.acceptKnock(widget.userId);
           break;
-      }
-    } catch (_) {
-      // Rollback on error
-      if (mounted) {
-        setState(() => _status = previousStatus);
-        _globalNotifier.value = previousStatus;
-        widget.onStatusChanged?.call(previousStatus);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

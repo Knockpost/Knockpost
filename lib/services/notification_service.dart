@@ -146,6 +146,14 @@ class NotificationService {
     }
   }
 
+  Future<void> deleteSentNotification(String receiverUid, String docId) async {
+    try {
+      await _userNotifs(receiverUid).doc(docId).delete();
+    } catch (e) {
+      debugPrint('Error deleting sent notification: $e');
+    }
+  }
+
   Future<void> markAllAsRead() async {
     final uid = _myUid;
     if (uid == null) return;
@@ -178,14 +186,17 @@ class NotificationService {
 
     try {
       // Create a specific ID to prevent duplicate like/knock spam
-      // For comment, we let it be auto-generated so multiple comments notify multiple times
       String? docId;
       if (type == NotificationType.like && postId != null) {
         docId = 'like_${postId}_$triggerUid';
-      } else if (type == NotificationType.knock) {
+      } else if (type == NotificationType.knock || type == NotificationType.knockAccept || type == NotificationType.knockBack) {
         docId = 'knock_$triggerUid';
       } else if (type == NotificationType.message) {
         docId = 'message_$triggerUid'; // Update the same notification for consecutive messages
+      } else if (type == NotificationType.comment && postId != null) {
+        // SMART SYSTEM: Group ALL consecutive comments from the same user into ONE single notification.
+        // It automatically selects and shows only the latest reply, preventing UI spam.
+        docId = 'comment_$triggerUid'; 
       }
 
       final notifRef = docId != null 
@@ -207,6 +218,48 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error sending notification: $e');
     }
+  }
+
+  /// Adds a notification to an existing Firestore batch.
+  /// This eliminates sequential network round trips, ensuring notifications trigger instantly.
+  void sendNotificationInBatch(
+    WriteBatch batch, {
+    required String receiverUid,
+    required NotificationType type,
+    String? postId,
+    String? commentSnippet,
+    String? postThumbnailUrl,
+  }) {
+    final triggerUid = _myUid;
+    if (triggerUid == null || triggerUid == receiverUid) return;
+
+    String? docId;
+    if (type == NotificationType.like && postId != null) {
+      docId = 'like_${postId}_$triggerUid';
+    } else if (type == NotificationType.knock) {
+      docId = 'knock_$triggerUid';
+    } else if (type == NotificationType.message) {
+      docId = 'message_$triggerUid';
+    } else if (type == NotificationType.comment && postId != null) {
+      docId = 'comment_$triggerUid';
+    }
+
+    final notifRef = docId != null 
+        ? _userNotifs(receiverUid).doc(docId) 
+        : _userNotifs(receiverUid).doc();
+
+    final notif = NotificationModel(
+      id: notifRef.id,
+      type: type,
+      triggerUserId: triggerUid,
+      timestamp: DateTime.now(),
+      isRead: false,
+      postId: postId,
+      commentSnippet: commentSnippet,
+      postThumbnailUrl: postThumbnailUrl,
+    );
+
+    batch.set(notifRef, notif.toMap(), SetOptions(merge: true));
   }
 }
 

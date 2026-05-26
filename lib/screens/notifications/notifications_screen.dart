@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/notification_model.dart';
 import '../../models/user_model.dart';
 import '../../services/database_service.dart';
@@ -24,6 +25,25 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  final Set<String> _newlyReadIds = {};
+  bool _hasMarkedAsRead = false;
+
+  void _markAllRead(List<NotificationModel> notifications) {
+    if (_hasMarkedAsRead) return;
+    _hasMarkedAsRead = true;
+
+    bool hasUnread = false;
+    for (var n in notifications) {
+      if (!n.isRead) {
+        _newlyReadIds.add(n.id);
+        hasUnread = true;
+      }
+    }
+
+    if (hasUnread) {
+      NotificationService.instance.markAllAsRead();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,13 +58,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         iconTheme: IconThemeData(color: text),
-        title: Text(
-          'Notifications',
-          style: TextStyle(
-            color: text,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            letterSpacing: -0.5,
+        titleSpacing: 0,
+        centerTitle: false,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Text(
+            'Notifications',
+            style: TextStyle(
+              color: text,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              letterSpacing: -0.5,
+            ),
           ),
         ),
       ),
@@ -71,28 +96,71 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             );
           }
 
-          // Split into "This week" (< 7 days) and "Earlier" (>= 7 days)
-          final thisWeek = allNotifs
-              .where((n) => DateTime.now().difference(n.timestamp).inDays < 7)
-              .toList();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _markAllRead(allNotifs);
+            
+            // Auto-delete notifications older than 30 days
+            final todayUtc = DateTime.utc(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+            for (var n in allNotifs) {
+              final dateUtc = DateTime.utc(n.timestamp.year, n.timestamp.month, n.timestamp.day);
+              if (todayUtc.difference(dateUtc).inDays > 30) {
+                NotificationService.instance.deleteNotification(n.id);
+              }
+            }
+          });
 
-          final earlier = allNotifs
-              .where((n) => DateTime.now().difference(n.timestamp).inDays >= 7)
-              .toList();
+          final now = DateTime.now();
+          final todayUtc = DateTime.utc(now.year, now.month, now.day);
 
-          return ListView(
-            physics: const BouncingScrollPhysics(),
-            children: [
-              if (thisWeek.isNotEmpty) ...[
-                _SectionHeader(label: 'This Week', isDark: isDark),
-                ...thisWeek.map((n) => _NotifTileFuture(notif: n, isDark: isDark)),
+          final todayNotifs = <NotificationModel>[];
+          final yesterdayNotifs = <NotificationModel>[];
+          final earlierThisWeekNotifs = <NotificationModel>[];
+          final earlierThisMonthNotifs = <NotificationModel>[];
+
+          for (var n in allNotifs) {
+            final dateUtc = DateTime.utc(n.timestamp.year, n.timestamp.month, n.timestamp.day);
+            final differenceInDays = todayUtc.difference(dateUtc).inDays;
+
+            if (differenceInDays == 0) {
+              todayNotifs.add(n);
+            } else if (differenceInDays == 1) {
+              yesterdayNotifs.add(n);
+            } else if (differenceInDays <= 6) {
+              earlierThisWeekNotifs.add(n);
+            } else if (differenceInDays <= 30) {
+              earlierThisMonthNotifs.add(n);
+            }
+            // If > 30, it is ignored and auto-deleted by the callback above
+          }
+
+          return KnockpostRefreshIndicator(
+            onRefresh: () async {
+              // Wait a short duration to show the elegant loading animation
+              // since StreamBuilder already keeps data perfectly in sync.
+              await Future.delayed(const Duration(milliseconds: 1200));
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+              children: [
+                if (todayNotifs.isNotEmpty) ...[
+                  _SectionHeader(label: 'Today', isDark: isDark),
+                  ...todayNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
+                ],
+                if (yesterdayNotifs.isNotEmpty) ...[
+                  _SectionHeader(label: 'Yesterday', isDark: isDark),
+                  ...yesterdayNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
+                ],
+                if (earlierThisWeekNotifs.isNotEmpty) ...[
+                  _SectionHeader(label: 'Earlier This Week', isDark: isDark),
+                  ...earlierThisWeekNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
+                ],
+                if (earlierThisMonthNotifs.isNotEmpty) ...[
+                  _SectionHeader(label: 'Earlier This Month', isDark: isDark),
+                  ...earlierThisMonthNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
+                ],
+                const SizedBox(height: 24),
               ],
-              if (earlier.isNotEmpty) ...[
-                _SectionHeader(label: 'Earlier', isDark: isDark),
-                ...earlier.map((n) => _NotifTileFuture(notif: n, isDark: isDark)),
-              ],
-              const SizedBox(height: 24),
-            ],
+            ),
           );
         },
       ),
@@ -111,7 +179,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
       child: Text(
         label,
         style: TextStyle(
@@ -126,28 +194,64 @@ class _SectionHeader extends StatelessWidget {
 
 // ─── Wrapper to Fetch User Data ───────────────────────────────────────────────
 
-class _NotifTileFuture extends StatelessWidget {
+class _NotifTileFuture extends StatefulWidget {
   final NotificationModel notif;
   final bool isDark;
+  final bool isNewlyRead;
 
-  const _NotifTileFuture({required this.notif, required this.isDark});
+  const _NotifTileFuture({
+    super.key,
+    required this.notif,
+    required this.isDark,
+    required this.isNewlyRead,
+  });
+
+  @override
+  State<_NotifTileFuture> createState() => _NotifTileFutureState();
+}
+
+class _NotifTileFutureState extends State<_NotifTileFuture> with AutomaticKeepAliveClientMixin {
+  late Future<Map<String, dynamic>?> _profileFuture;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = DatabaseService.instance.getUserProfile(widget.notif.triggerUserId, useCache: true);
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return FutureBuilder<Map<String, dynamic>?>(
-      future: DatabaseService.instance.getUserProfile(notif.triggerUserId, useCache: true),
+      future: _profileFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink(); // Hide while loading
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Provide a fixed-height placeholder to prevent violent layout jumps during scroll
+          return const SizedBox(height: 74); 
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          // The user profile couldn't be loaded (e.g., deleted account or invalid data).
+          // Silently hide this notification and clean it up from the database to prevent blank spaces.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            NotificationService.instance.deleteNotification(widget.notif.id);
+          });
+          return const SizedBox.shrink();
+        }
 
         final data = snapshot.data!;
-        final user = UserModel(
-          id: notif.triggerUserId,
-          displayName: data['displayName'] ?? data['username'] ?? 'User',
-          username: data['username'] ?? '',
-          avatarAsset: data['profileImageUrl'],
-        );
+        final user = UserModel.fromMap(data, widget.notif.triggerUserId);
 
-        return _NotifTile(notif: notif, user: user, isDark: isDark);
+        return _NotifTile(
+          notif: widget.notif, 
+          user: user, 
+          isDark: widget.isDark, 
+          isNewlyRead: widget.isNewlyRead,
+        );
       },
     );
   }
@@ -160,8 +264,9 @@ class _NotifTile extends StatelessWidget {
   final NotificationModel notif;
   final UserModel user;
   final bool isDark;
+  final bool isNewlyRead;
 
-  const _NotifTile({required this.notif, required this.user, required this.isDark});
+  const _NotifTile({required this.notif, required this.user, required this.isDark, required this.isNewlyRead});
 
   String _timeAgo(DateTime t) {
     final d = DateTime.now().difference(t);
@@ -171,7 +276,7 @@ class _NotifTile extends StatelessWidget {
     return '${(d.inDays / 7).floor()}w';
   }
 
-  Widget _body(Color textColor, Color subColor) {
+  Widget _body(Color textColor, Color subColor, KnockStatus status) {
     final name    = user.displayName;
     final timeStr = _timeAgo(notif.timestamp);
 
@@ -181,10 +286,20 @@ class _NotifTile extends StatelessWidget {
         action = ' liked your post.';
         break;
       case NotificationType.comment:
-        action = ' commented on your post.';
+        action = ' replied on your post.';
         break;
       case NotificationType.knock:
-        action = ' sent you a knock.';
+        if (status == KnockStatus.theyKnockedYouPending) {
+          action = ' requested to knock you.';
+        } else {
+          action = ' knocked you.';
+        }
+        break;
+      case NotificationType.knockAccept:
+        action = ' accepted your knock request.';
+        break;
+      case NotificationType.knockBack:
+        action = ' knocked you back.';
         break;
       case NotificationType.message:
         action = ' sent you a message.';
@@ -223,23 +338,68 @@ class _NotifTile extends StatelessWidget {
     );
   }
 
-  Widget _right() {
-    if (notif.type == NotificationType.knock) {
-      return _KnockBackButton(isDark: isDark, user: user);
+  Widget _right(KnockStatus status, ValueNotifier<KnockStatus> notifier) {
+    if (notif.type == NotificationType.knock || notif.type == NotificationType.knockAccept || notif.type == NotificationType.knockBack) {
+      return _KnockBackButton(isDark: isDark, user: user, status: status, notifier: notifier);
     }
-    // No thumbnail for comment/like — keep it clean
+    
+    if (notif.type == NotificationType.like || notif.type == NotificationType.comment) {
+      if (notif.postThumbnailUrl != null && notif.postThumbnailUrl!.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: CachedNetworkImage(
+            imageUrl: notif.postThumbnailUrl!,
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              width: 44,
+              height: 44,
+              color: isDark ? Colors.white10 : Colors.black12,
+            ),
+            errorWidget: (context, url, error) => _buildPlaceholder(),
+          ),
+        );
+      } else {
+        return _buildPlaceholder();
+      }
+    }
     return const SizedBox.shrink();
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isDark ? Colors.white24 : Colors.black12,
+          width: 0.5,
+        ),
+      ),
+      child: Icon(
+        Icons.article_rounded,
+        size: 20,
+        color: isDark ? Colors.white54 : Colors.black45,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final textColor = isDark ? Colors.white : Colors.black;
     final subColor  = isDark ? Colors.white54 : Colors.black45;
-    final unreadBg  = !notif.isRead
+    
+    final isUnread = !notif.isRead || isNewlyRead;
+    final unreadBg = isUnread
         ? (isDark
-            ? Colors.white.withValues(alpha: 0.06)
-            : const Color(0xFFE8F4FD))
+            ? const Color(0xFF1C1C1E)
+            : const Color(0xFFF2F2F2))
         : Colors.transparent;
+
+    final notifier = GlobalKnockState.getNotifier(user.id, user.knockStatus);
 
     return Dismissible(
       key: ValueKey(notif.id),
@@ -299,13 +459,11 @@ class _NotifTile extends StatelessWidget {
         onTap: () async {
         KnockHaptics.selection();
 
-        // Mark as read
         if (!notif.isRead) {
           NotificationService.instance.markAsRead(notif.id);
         }
 
-        if (notif.type == NotificationType.knock) {
-          // Go to user profile
+        if (notif.type == NotificationType.knock || notif.type == NotificationType.knockAccept || notif.type == NotificationType.knockBack) {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -316,7 +474,6 @@ class _NotifTile extends StatelessWidget {
             ),
           );
         } else if (notif.type == NotificationType.message) {
-          // Go to chat screen
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -333,15 +490,11 @@ class _NotifTile extends StatelessWidget {
               if (doc.exists && doc.data() != null && context.mounted) {
                 final post = PostModel.fromMap(doc.data()!, doc.id);
                 
-                // Fetch actual post author
-                UserModel postAuthor = currentUser; // default fallback
+                UserModel postAuthor = currentUser;
                 try {
                   final authorDoc = await FirebaseFirestore.instance.collection('users').doc(post.authorId).get();
                   if (authorDoc.exists && authorDoc.data() != null) {
                     final fetchedAuthor = UserModel.fromMap(authorDoc.data()!, authorDoc.id);
-                    // ✅ Fix: UserModel.fromMap never sets isOwnProfile (not stored in DB).
-                    // PostCard/ThoughtCard use user.isOwnProfile to decide reaction bar style,
-                    // so we must set it correctly here based on who the current user is.
                     postAuthor = fetchedAuthor.copyWith(
                       isOwnProfile: currentUser.id == post.authorId,
                     );
@@ -366,7 +519,7 @@ class _NotifTile extends StatelessWidget {
                   ),
                 );
               } else {
-                // Post might have been deleted, fallback to just showing the sheet if needed, or do nothing.
+                // Post deleted fallback
               }
             } catch (e) {
               debugPrint('Error fetching post for notification: $e');
@@ -379,27 +532,26 @@ class _NotifTile extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         color: unreadBg,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // ── Avatar ────────────────────────────────────────────────────────
-          SizedBox(
-            width: 50,
-            height: 50,
-            child: _Avatar(url: user.avatarAsset ?? '', isDark: isDark),
-          ),
-          const SizedBox(width: 14),
-
-          // ── Text body ───────────────────────────────────────────────────
-          Expanded(child: _body(textColor, subColor)),
-
-          const SizedBox(width: 12),
-
-          // ── Right action ────────────────────────────────────────────────
-          _right(),
-        ],
+        child: ValueListenableBuilder<KnockStatus>(
+          valueListenable: notifier,
+          builder: (context, status, _) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: _Avatar(url: user.avatarAsset ?? '', isDark: isDark),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: _body(textColor, subColor, status)),
+                const SizedBox(width: 12),
+                _right(status, notifier),
+              ],
+            );
+          },
+        ),
       ),
-    ),
       ),
     );
   }
@@ -422,30 +574,30 @@ class _Avatar extends StatelessWidget {
 class _KnockBackButton extends StatelessWidget {
   final bool isDark;
   final UserModel user;
+  final KnockStatus status;
+  final ValueNotifier<KnockStatus> notifier;
 
-  const _KnockBackButton({required this.isDark, required this.user});
+  const _KnockBackButton({
+    required this.isDark, 
+    required this.user,
+    required this.status,
+    required this.notifier,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // If the notification data doesn't have the current knock status (e.g. from cache),
-    // get KnockStatus first. Usually `user.knockStatus` should be accurate if fetched recently.
-    final notifier = GlobalKnockState.getNotifier(user.id, user.knockStatus);
+    if (status == KnockStatus.none) {
+      return const SizedBox.shrink();
+    }
 
-    return ValueListenableBuilder<KnockStatus>(
-      valueListenable: notifier,
-      builder: (context, status, _) {
-        if (status == KnockStatus.none) {
-          return const SizedBox.shrink(); // declined or removed
-        }
-
-        if (status == KnockStatus.theyKnockedYouPending) {
-          return Row(
+    if (status == KnockStatus.theyKnockedYouPending) {
+      return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
                 onTap: () async {
                   KnockHaptics.selection();
-                  notifier.value = KnockStatus.theyKnockedYou; // transitions to "Knock Back"
+                  notifier.value = KnockStatus.theyKnockedYou;
                   try {
                     await ConnectionService.instance.approveKnock(user.id);
                   } catch (e) {
@@ -472,7 +624,7 @@ class _KnockBackButton extends StatelessWidget {
               GestureDetector(
                 onTap: () async {
                   KnockHaptics.selection();
-                  notifier.value = KnockStatus.none; // disappear
+                  notifier.value = KnockStatus.none;
                   try {
                     await ConnectionService.instance.declineKnock(user.id);
                   } catch (e) {
@@ -494,28 +646,9 @@ class _KnockBackButton extends StatelessWidget {
                               status == KnockStatus.pending;
 
         if (isKnockedBack) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              border: Border.all(
-                color: isDark ? Colors.white24 : Colors.black26,
-                width: 1,
-              ),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Text(
-              'Knocked',
-              style: TextStyle(
-                color: isDark ? Colors.white54 : Colors.black54,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          );
+          return const SizedBox.shrink();
         }
 
-        // Normal 'theyKnockedYou' state -> 'Knock Back'
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -526,7 +659,6 @@ class _KnockBackButton extends StatelessWidget {
                 try {
                   await ConnectionService.instance.acceptKnock(user.id);
                 } catch (e) {
-                  // Revert on error
                   notifier.value = KnockStatus.theyKnockedYou;
                 }
               },
@@ -548,7 +680,5 @@ class _KnockBackButton extends StatelessWidget {
             ),
           ],
         );
-      },
-    );
   }
 }

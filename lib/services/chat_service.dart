@@ -205,17 +205,15 @@ class ChatService {
       'unreadCount': {otherUid: FieldValue.increment(1), me: 0},
     }, SetOptions(merge: true));
 
-    await batch.commit();
+    // Add notification creation to the SAME batch so it triggers the Cloud Function instantly
+    NotificationService.instance.sendNotificationInBatch(
+      batch,
+      receiverUid: otherUid,
+      type: NotificationType.message,
+      commentSnippet: text,
+    );
 
-    try {
-      await NotificationService.instance.sendNotification(
-        receiverUid: otherUid,
-        type: NotificationType.message,
-        commentSnippet: text,
-      );
-    } catch (e) {
-      ChatLogger.instance.warning('Notification', 'Failed to send notification: $e');
-    }
+    await batch.commit();
     
     return msgRef.id;
   }
