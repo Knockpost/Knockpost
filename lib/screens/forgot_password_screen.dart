@@ -27,6 +27,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void sendCode() async {
+    // Dismiss the keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final email = emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

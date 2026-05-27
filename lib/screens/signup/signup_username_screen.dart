@@ -5,7 +5,7 @@ import '../../services/database_service.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
-import '../../widgets/instagram_username_field.dart';
+import '../../widgets/knockpost_username_field.dart';
 
 class SignupUsernameScreen extends StatefulWidget {
   final String email;
@@ -142,7 +142,7 @@ class _SignupUsernameScreenState
 
                     const SizedBox(height: 36),
 
-                    InstagramUsernameField(
+                    KnockpostUsernameField(
                       controller: usernameController,
                       autofocus: true,
                       onValidityChanged: (isValid) {

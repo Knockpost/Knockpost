@@ -21,6 +21,9 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
   bool isLoading = false;
 
   void goNext() async {
+    // Dismiss the keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final email = emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

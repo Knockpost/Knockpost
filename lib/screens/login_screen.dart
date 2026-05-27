@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
@@ -333,6 +334,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> login() async {
+    // Dismiss the keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final email = userController.text.trim();
     final password = passwordController.text.trim();
 
@@ -420,11 +424,26 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       }
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Login Auth Error: ${e.code}");
+      if (mounted) {
+        String message = "Authentication failed.";
+        if (e.code == 'invalid-credential' || e.code == 'user-not-found' || e.code == 'wrong-password') {
+          message = "Invalid email or password. Please try again.";
+        } else if (e.code == 'too-many-requests') {
+          message = "Too many failed attempts. Please try again later.";
+        } else if (e.code == 'invalid-email') {
+          message = "Please enter a valid email address.";
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     } catch (e) {
       debugPrint("Login Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          const SnackBar(content: Text("An unexpected error occurred. Please try again.")),
         );
       }
     } finally {

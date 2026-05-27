@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
-import '../../widgets/instagram_password_field.dart';
+import '../../widgets/knockpost_password_field.dart';
 import '../../services/auth_service.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
@@ -31,7 +31,7 @@ class _SignupPasswordScreenState
 
   bool isLoading = false;
   bool _isPasswordValid = false;
-  final GlobalKey<State<InstagramPasswordField>> _passwordFieldKey = GlobalKey();
+  final GlobalKey<State<KnockpostPasswordField>> _passwordFieldKey = GlobalKey();
 
   void goNext() async {
     final password = passwordController.text.trim();
@@ -178,7 +178,7 @@ class _SignupPasswordScreenState
 
                     const SizedBox(height: 36),
 
-                    InstagramPasswordField(
+                    KnockpostPasswordField(
                       key: _passwordFieldKey,
                       controller: passwordController,
                       autofocus: true,

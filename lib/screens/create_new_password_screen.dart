@@ -3,7 +3,7 @@ import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
-import '../../widgets/instagram_password_field.dart';
+import '../../widgets/knockpost_password_field.dart';
 
 class CreateNewPasswordScreen extends StatefulWidget {
   final String email;
@@ -19,7 +19,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   bool _isPasswordValid = false;
-  final GlobalKey<State<InstagramPasswordField>> _passwordFieldKey = GlobalKey();
+  final GlobalKey<State<KnockpostPasswordField>> _passwordFieldKey = GlobalKey();
 
   void updatePassword() async {
     final pass = passwordController.text.trim();
@@ -112,7 +112,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
                     ),
                     const SizedBox(height: 36),
                     
-                    InstagramPasswordField(
+                    KnockpostPasswordField(
                       key: _passwordFieldKey,
                       controller: passwordController,
                       autofocus: true,
