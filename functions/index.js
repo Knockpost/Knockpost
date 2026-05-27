@@ -285,17 +285,15 @@ exports.sendPushOnNotificationUpdate = functions.firestore
     // ── Guard: Don't send notification to self ──
     if (receiverId === triggerUserId) return null;
 
-    // ── Guard: Only re-push if the notification was PREVIOUSLY READ and is now UNREAD ──
-    // This handles the case where a user already read a notification,
-    // but then the same person interacts again (e.g., sends another comment).
-    // The merge-set resets isRead to false, and this triggers a new push.
-    if (!(beforeData.isRead === true && afterData.isRead === false)) {
-      console.log(`Update for ${notificationId}: not a re-trigger. Skipping.`);
-      return null;
-    }
+    // ── Guard: Ensure this is a GENUINE new interaction from the client ──
+    // The client always updates the `timestamp` field with FieldValue.serverTimestamp()
+    // on every new interaction. If the timestamp hasn't changed (e.g., just `isRead: true`
+    // or our own `pushSent: true` update), we safely ignore it.
+    const beforeTime = beforeData.timestamp ? beforeData.timestamp.toMillis() : 0;
+    const afterTime = afterData.timestamp ? afterData.timestamp.toMillis() : 0;
 
-    // ── Guard: Skip if just marked as read (no content change) ──
-    if (beforeData.isRead === false && afterData.isRead === true) {
+    if (afterTime <= beforeTime) {
+      console.log(`Update for ${notificationId}: timestamp unchanged (not a new interaction). Skipping.`);
       return null;
     }
 
