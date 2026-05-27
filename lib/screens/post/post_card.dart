@@ -172,9 +172,11 @@ class _PostCardState extends State<PostCard> {
                 _viewedPosts.add(widget.postId!);
                 PostService.instance.incrementViewCount(widget.postId!, widget.user.id);
               }
+              _viewTimer = null;
             });
           }
         } else {
+          // Post is not visible enough — cancel any pending view timer
           _viewTimer?.cancel();
           _viewTimer = null;
         }

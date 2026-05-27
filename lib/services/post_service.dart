@@ -358,6 +358,7 @@ class PostService {
 
   /// Increments the view count for a post and the total views for its author.
   /// Strictly allows only 1 view per account (no duplicates).
+  /// Does NOT update viewedAt on repeat views to avoid unnecessary stream churn.
   Future<void> incrementViewCount(String postId, String authorId) async {
     try {
       final currentUser = CurrentUserService.instance.currentUser;
@@ -389,10 +390,11 @@ class PostService {
           });
 
           DatabaseService.instance.recalculateCreatorRank(authorId);
-        } else {
-          // Optionally update the last viewed timestamp without incrementing the count
-          await viewerRef.update({'viewedAt': FieldValue.serverTimestamp()});
         }
+        // No else — do NOT update viewedAt on repeat views.
+        // Updating viewedAt causes the orderBy('viewedAt') stream to
+        // re-emit the document at a new position, leading to visual
+        // duplicates in the viewers list.
       }
     } catch (e) {
       debugPrint("Error incrementing view count: $e");
@@ -400,6 +402,8 @@ class PostService {
   }
 
   /// Streams the list of viewers for a specific post.
+  /// Deduplicates by userId to prevent any duplicate entries from appearing
+  /// (e.g. from stream re-fires or intermediate Firestore snapshot states).
   Stream<List<Map<String, dynamic>>> getPostViewers(String postId) {
     return postsCollection
         .doc(postId)
@@ -407,7 +411,16 @@ class PostService {
         .orderBy('viewedAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) => doc.data()).toList();
+          final seen = <String>{};
+          final viewers = <Map<String, dynamic>>[];
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final userId = data['userId'] as String? ?? doc.id;
+            if (seen.add(userId)) {
+              viewers.add(data);
+            }
+          }
+          return viewers;
         });
   }
 }

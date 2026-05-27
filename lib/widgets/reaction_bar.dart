@@ -667,77 +667,87 @@ class _ReactionSummary extends StatelessWidget {
 
         return Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Views Button (Now on the left, without count)
+            // Views Button
             GestureDetector(
               onTap: () {
                 KnockHaptics.selection();
                 PostAnalyticsSheet.show(
                   context,
                   postId: postId,
-                  initialIndex: 0, // Views tab is now index 0
+                  initialIndex: 0,
                   userReaction: userReaction,
                   totalViews: views,
                 );
               },
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      alignment: Alignment.center,
-                      child: CustomPaint(
-                        size: const Size(18, 18),
-                        painter: _CustomEyePainter(
-                          color: isOverlay
-                              ? Colors.white.withValues(alpha: 0.95)
-                              : (isDark ? Colors.white70 : Colors.black87),
-                        ),
-                      ),
+              child: SizedBox(
+                height: 26,
+                width: 26,
+                child: Center(
+                  child: CustomPaint(
+                    size: const Size(18, 18),
+                    painter: _CustomEyePainter(
+                      color: isOverlay
+                          ? Colors.white.withValues(alpha: 0.95)
+                          : (isDark ? Colors.white70 : Colors.black87),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
             
             if (emojisToShow.isNotEmpty) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               
-              // Reactions Button (Now on the right)
+              // Reactions Button — overlapping emoji chips
               GestureDetector(
                 onTap: () {
                   KnockHaptics.selection();
                   PostAnalyticsSheet.show(
                     context,
                     postId: postId,
-                    initialIndex: 1, // Reactions tab is now index 1
+                    initialIndex: 1,
                     userReaction: userReaction,
                     totalViews: views,
                   );
                 },
                 behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: emojisToShow.map((emoji) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 3.0),
-                        child: Text(
-                          emoji, 
-                          style: TextStyle(
-                            fontSize: 16, 
-                            height: 1.1,
-                            shadows: isOverlay 
-                                ? [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)]
-                                : null,
-                          )
+                child: SizedBox(
+                  width: 26.0 + (emojisToShow.length - 1) * 16.0,
+                  height: 26,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: List.generate(emojisToShow.length, (index) {
+                      final emoji = emojisToShow[index];
+                      
+                      return Positioned(
+                        left: index * 16.0,
+                        top: 0,
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isOverlay
+                                ? Colors.black.withValues(alpha: 0.45)
+                                : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5)),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isOverlay
+                                  ? Colors.white.withValues(alpha: 0.25)
+                                  : (isDark ? const Color(0xFF1A1A1A) : Colors.white),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 14, height: 1.1),
+                          ),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ),
                 ),
               ),

@@ -121,8 +121,10 @@ class _PostAnalyticsSheetState extends State<PostAnalyticsSheet> with SingleTick
                   child: StreamBuilder<List<Map<String, dynamic>>>(
                     stream: PostService.instance.getPostViewers(widget.postId),
                     builder: (context, snapshot) {
-                      final count = snapshot.hasData 
-                          ? (snapshot.data!.length > widget.totalViews ? snapshot.data!.length : widget.totalViews) 
+                      // Use actual subcollection count as single source of truth.
+                      // Fall back to totalViews only while loading.
+                      final count = snapshot.hasData
+                          ? snapshot.data!.length
                           : widget.totalViews;
                       return Text.rich(
                         TextSpan(
@@ -280,12 +282,7 @@ class _ViewsList extends StatelessWidget {
                           builder: (context, snap) {
                             final data = snap.data;
                             final user = data != null
-                                ? UserModel(
-                                    id: userId,
-                                    displayName: data['displayName'] ?? cachedUsername ?? 'User',
-                                    username: data['username'] ?? cachedUsername ?? '',
-                                    avatarAsset: data['profileImageUrl'] ?? cachedAvatar,
-                                  )
+                                ? UserModel.fromMap(data, userId)
                                 : UserModel(
                                     id: userId, 
                                     displayName: cachedUsername ?? '...', 
@@ -384,12 +381,7 @@ class _ReactionsList extends StatelessWidget {
               builder: (context, snap) {
                 final data = snap.data;
                 final user = data != null
-                    ? UserModel(
-                        id: userId,
-                        displayName: data['displayName'] ?? data['username'] ?? 'User',
-                        username: data['username'] ?? '',
-                        avatarAsset: data['profileImageUrl'],
-                      )
+                    ? UserModel.fromMap(data, userId)
                     : UserModel(id: userId, displayName: '...', username: '...');
 
                 return _UserTile(

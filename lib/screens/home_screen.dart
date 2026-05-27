@@ -663,9 +663,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: NestedScrollView(
                                     physics: isScrollLocked
                                         ? const NeverScrollableScrollPhysics()
-                                        : const BouncingScrollPhysics(
+                                        : const AlwaysScrollableScrollPhysics(
                                             parent:
-                                                AlwaysScrollableScrollPhysics(),
+                                                ClampingScrollPhysics(),
                                           ),
                                     controller: _scrollController,
                                     headerSliverBuilder: (context, innerBoxIsScrolled) {

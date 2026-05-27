@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 14),
 
                         Text(
-                          "Only You Matters",
+                          "Only You Matter",
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
