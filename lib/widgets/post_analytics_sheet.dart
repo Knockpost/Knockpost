@@ -226,7 +226,27 @@ class _ViewsList extends StatelessWidget {
         final viewers = snapshot.data ?? [];
         
         if (viewers.isEmpty) {
-          return const SizedBox.shrink();
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.visibility_off_outlined,
+                  size: 48,
+                  color: isDark ? Colors.white24 : Colors.black26,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No views yet",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         return ListView.builder(
@@ -316,7 +336,27 @@ class _ReactionsList extends StatelessWidget {
         final reactors = snapshot.data ?? [];
 
         if (reactors.isEmpty) {
-          return const SizedBox.shrink();
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.favorite_border_rounded,
+                  size: 48,
+                  color: isDark ? Colors.white24 : Colors.black26,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No reactions yet",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         final currentUser = CurrentUserService.instance.currentUser;
