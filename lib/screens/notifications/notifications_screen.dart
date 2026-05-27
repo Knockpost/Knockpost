@@ -6,7 +6,6 @@ import '../../models/user_model.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/current_user_service.dart';
-import '../../widgets/comment_sheet.dart';
 import '../profile/other_profile_screen.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
@@ -16,6 +15,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/post_model.dart';
 import '../single_post_screen.dart';
 import '../messages/chat_screen.dart';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS SCREEN v2.0
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Features:
+//   • Real-time sync via Firestore snapshots
+//   • Animated unread → read transition (subtle highlight fade)
+//   • Time-grouped sections: Today, Yesterday, This Week, This Month
+//   • Consistent human wording via NotificationModel.actionText()
+//   • Swipe-to-delete with confirmation
+//   • Auto-cleanup of 30-day-old notifications (server-side efficient)
+//   • Support for all notification types including mention and waveLike
+// ═══════════════════════════════════════════════════════════════════════════════
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -27,6 +40,13 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final Set<String> _newlyReadIds = {};
   bool _hasMarkedAsRead = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Clean up old notifications once per session (efficient server query)
+    NotificationService.instance.cleanupOldNotifications();
+  }
 
   void _markAllRead(List<NotificationModel> notifications) {
     if (_hasMarkedAsRead) return;
@@ -98,15 +118,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _markAllRead(allNotifs);
-            
-            // Auto-delete notifications older than 30 days
-            final todayUtc = DateTime.utc(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-            for (var n in allNotifs) {
-              final dateUtc = DateTime.utc(n.timestamp.year, n.timestamp.month, n.timestamp.day);
-              if (todayUtc.difference(dateUtc).inDays > 30) {
-                NotificationService.instance.deleteNotification(n.id);
-              }
-            }
           });
 
           final now = DateTime.now();
@@ -130,7 +141,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             } else if (differenceInDays <= 30) {
               earlierThisMonthNotifs.add(n);
             }
-            // If > 30, it is ignored and auto-deleted by the callback above
+            // > 30 days are cleaned up by cleanupOldNotifications()
           }
 
           return KnockpostRefreshIndicator(
@@ -280,30 +291,14 @@ class _NotifTile extends StatelessWidget {
     final name    = user.displayName;
     final timeStr = _timeAgo(notif.timestamp);
 
+    // ── Use centralized human-style wording from the model ──
     String action;
-    switch (notif.type) {
-      case NotificationType.like:
-        action = ' liked your post.';
-        break;
-      case NotificationType.comment:
-        action = ' replied on your post.';
-        break;
-      case NotificationType.knock:
-        if (status == KnockStatus.theyKnockedYouPending) {
-          action = ' requested to knock you.';
-        } else {
-          action = ' knocked you.';
-        }
-        break;
-      case NotificationType.knockAccept:
-        action = ' accepted your knock request.';
-        break;
-      case NotificationType.knockBack:
-        action = ' knocked you back.';
-        break;
-      case NotificationType.message:
-        action = ' sent you a message.';
-        break;
+    if (notif.type == NotificationType.knock) {
+      // For knock type, use connection status to determine wording
+      final knockConnectionStatus = (status == KnockStatus.theyKnockedYouPending) ? 'pending' : null;
+      action = ' ${notif.actionText(knockConnectionStatus: knockConnectionStatus)}';
+    } else {
+      action = ' ${notif.actionText()}';
     }
 
     return Column(
@@ -343,7 +338,7 @@ class _NotifTile extends StatelessWidget {
       return _KnockBackButton(isDark: isDark, user: user, status: status, notifier: notifier);
     }
     
-    if (notif.type == NotificationType.like || notif.type == NotificationType.comment) {
+    if (notif.type == NotificationType.like || notif.type == NotificationType.comment || notif.type == NotificationType.waveLike) {
       if (notif.postThumbnailUrl != null && notif.postThumbnailUrl!.isNotEmpty) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(6),
@@ -392,6 +387,7 @@ class _NotifTile extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black;
     final subColor  = isDark ? Colors.white54 : Colors.black45;
     
+    // ── Unread highlight: subtle background that fades when read ──
     final isUnread = !notif.isRead || isNewlyRead;
     final unreadBg = isUnread
         ? (isDark
@@ -482,49 +478,23 @@ class _NotifTile extends StatelessWidget {
               ),
             ),
           );
-        } else if ((notif.type == NotificationType.comment || notif.type == NotificationType.like) && notif.postId != null) {
-          final currentUser = CurrentUserService.instance.currentUser;
-          if (currentUser != null) {
-            try {
-              final doc = await FirebaseFirestore.instance.collection('posts').doc(notif.postId).get();
-              if (doc.exists && doc.data() != null && context.mounted) {
-                final post = PostModel.fromMap(doc.data()!, doc.id);
-                
-                UserModel postAuthor = currentUser;
-                try {
-                  final authorDoc = await FirebaseFirestore.instance.collection('users').doc(post.authorId).get();
-                  if (authorDoc.exists && authorDoc.data() != null) {
-                    final fetchedAuthor = UserModel.fromMap(authorDoc.data()!, authorDoc.id);
-                    postAuthor = fetchedAuthor.copyWith(
-                      isOwnProfile: currentUser.id == post.authorId,
-                    );
-                  }
-                } catch (e) {
-                  debugPrint('Failed to fetch post author: $e');
-                }
-
-                if (!context.mounted) return;
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SinglePostScreen(
-                      post: post,
-                      author: postAuthor,
-                      autoOpenComments: notif.type == NotificationType.comment,
-                      autoOpenReactions: notif.type == NotificationType.like,
-                      isPostOwner: currentUser.id == postAuthor.id,
-                      initialThreadUserId: notif.type == NotificationType.comment ? notif.triggerUserId : null,
-                    ),
-                  ),
-                );
-              } else {
-                // Post deleted fallback
-              }
-            } catch (e) {
-              debugPrint('Error fetching post for notification: $e');
-            }
+        } else if (notif.type == NotificationType.mention) {
+          // Navigate to the post where user was mentioned
+          if (notif.postId != null) {
+            _navigateToPost(context, notif.postId!);
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OtherProfileScreen(
+                  user: user,
+                  posts: const [],
+                ),
+              ),
+            );
           }
+        } else if ((notif.type == NotificationType.comment || notif.type == NotificationType.like || notif.type == NotificationType.waveLike) && notif.postId != null) {
+          _navigateToPost(context, notif.postId!, autoOpenComments: notif.type == NotificationType.comment, autoOpenReactions: notif.type == NotificationType.like || notif.type == NotificationType.waveLike);
         }
       },
 
@@ -554,6 +524,49 @@ class _NotifTile extends StatelessWidget {
       ),
       ),
     );
+  }
+
+  void _navigateToPost(BuildContext context, String postId, {bool autoOpenComments = false, bool autoOpenReactions = false}) async {
+    final currentUser = CurrentUserService.instance.currentUser;
+    if (currentUser != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('posts').doc(postId).get();
+        if (doc.exists && doc.data() != null && context.mounted) {
+          final post = PostModel.fromMap(doc.data()!, doc.id);
+          
+          UserModel postAuthor = currentUser;
+          try {
+            final authorDoc = await FirebaseFirestore.instance.collection('users').doc(post.authorId).get();
+            if (authorDoc.exists && authorDoc.data() != null) {
+              final fetchedAuthor = UserModel.fromMap(authorDoc.data()!, authorDoc.id);
+              postAuthor = fetchedAuthor.copyWith(
+                isOwnProfile: currentUser.id == post.authorId,
+              );
+            }
+          } catch (e) {
+            debugPrint('Failed to fetch post author: $e');
+          }
+
+          if (!context.mounted) return;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SinglePostScreen(
+                post: post,
+                author: postAuthor,
+                autoOpenComments: autoOpenComments,
+                autoOpenReactions: autoOpenReactions,
+                isPostOwner: currentUser.id == postAuthor.id,
+                initialThreadUserId: (notif.type == NotificationType.comment) ? notif.triggerUserId : null,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error fetching post for notification: $e');
+      }
+    }
   }
 }
 
