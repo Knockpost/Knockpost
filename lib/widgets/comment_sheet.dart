@@ -181,6 +181,13 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   void _openProfile(UserModel user) {
+    if (user.id != _viewer.id && !_userCache.containsKey(user.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account no longer exists')),
+      );
+      return;
+    }
+
     final resolvedUser = user;
     final posts = <PostModel>[];
 

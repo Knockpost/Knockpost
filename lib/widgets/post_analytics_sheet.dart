@@ -257,8 +257,6 @@ class _ViewsList extends StatelessWidget {
           itemBuilder: (context, index) {
             final viewer = viewers[index];
                         final String userId = viewer['userId'];
-                        final String? cachedUsername = viewer['username'];
-                        final String? cachedAvatar = viewer['profileImageUrl'];
                         final Timestamp? viewedAt = viewer['viewedAt'];
                         
                         String timeAgo = '';
@@ -281,14 +279,10 @@ class _ViewsList extends StatelessWidget {
                           future: DatabaseService.instance.getUserProfile(userId, useCache: true),
                           builder: (context, snap) {
                             final data = snap.data;
-                            final user = data != null
-                                ? UserModel.fromMap(data, userId)
-                                : UserModel(
-                                    id: userId, 
-                                    displayName: cachedUsername ?? '...', 
-                                    username: cachedUsername ?? '...',
-                                    avatarAsset: cachedAvatar,
-                                  );
+                            if (data == null) {
+                              return const SizedBox.shrink();
+                            }
+                            final user = UserModel.fromMap(data, userId);
 
                             return _UserTile(
                               user: user,
@@ -380,9 +374,10 @@ class _ReactionsList extends StatelessWidget {
               future: DatabaseService.instance.getUserProfile(userId, useCache: true),
               builder: (context, snap) {
                 final data = snap.data;
-                final user = data != null
-                    ? UserModel.fromMap(data, userId)
-                    : UserModel(id: userId, displayName: '...', username: '...');
+                if (data == null) {
+                  return const SizedBox.shrink();
+                }
+                final user = UserModel.fromMap(data, userId);
 
                 return _UserTile(
                   user: user,
