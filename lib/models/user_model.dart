@@ -51,6 +51,8 @@ class UserModel {
   final bool isOnline;
   final DateTime? lastSeen;
   final List<String> interests;
+  final String? acceptedPolicyVersion;
+  final DateTime? acceptedAt;
 
   const UserModel({
     required this.id,
@@ -76,6 +78,8 @@ class UserModel {
     this.isOnline = false,
     this.lastSeen,
     this.interests = const [],
+    this.acceptedPolicyVersion,
+    this.acceptedAt,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -105,6 +109,10 @@ class UserModel {
           ? (map['lastSeen'] as dynamic).toDate()
           : null,
       interests: List<String>.from(map['interests'] ?? []),
+      acceptedPolicyVersion: map['acceptedPolicyVersion'],
+      acceptedAt: map['acceptedAt'] != null 
+          ? (map['acceptedAt'] as dynamic).toDate()
+          : null,
     );
   }
 
@@ -130,6 +138,8 @@ class UserModel {
       'isOnline': isOnline,
       'lastSeen': lastSeen,
       'interests': interests,
+      'acceptedPolicyVersion': acceptedPolicyVersion,
+      'acceptedAt': acceptedAt,
     };
   }
 
@@ -215,6 +225,8 @@ class UserModel {
     bool? isOnline,
     DateTime? lastSeen,
     List<String>? interests,
+    String? acceptedPolicyVersion,
+    DateTime? acceptedAt,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -243,6 +255,8 @@ class UserModel {
       isOnline: isOnline ?? this.isOnline,
       lastSeen: lastSeen ?? this.lastSeen,
       interests: interests ?? this.interests,
+      acceptedPolicyVersion: acceptedPolicyVersion ?? this.acceptedPolicyVersion,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
     );
   }
 }

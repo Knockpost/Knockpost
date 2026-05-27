@@ -66,6 +66,19 @@ class DatabaseService {
     }
   }
 
+  /// Check if an email is already taken.
+  Future<bool> checkEmailTaken(String email) async {
+    try {
+      final result = await usersCollection
+          .where('email', isEqualTo: email.toLowerCase().trim())
+          .get();
+      return result.docs.isNotEmpty;
+    } catch (e) {
+      debugPrint("Error checking email: $e");
+      return false; // if it fails, don't block them, but ideally it works
+    }
+  }
+
   /// Create a user profile in Firestore
   Future<void> createUserProfile({
     required String uid,
@@ -86,6 +99,8 @@ class DatabaseService {
         'profileImageUrl': profileImageUrl,
         'interests': interests,
         'createdAt': FieldValue.serverTimestamp(),
+        'acceptedPolicyVersion': '1.0',
+        'acceptedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint("Error creating user profile: $e");

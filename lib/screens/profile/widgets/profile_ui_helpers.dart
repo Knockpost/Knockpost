@@ -455,6 +455,7 @@ class ProfileSettingsRow extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final Color? titleColor;
 
   const ProfileSettingsRow({
     super.key,
@@ -462,6 +463,7 @@ class ProfileSettingsRow extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.titleColor,
   });
 
   @override
@@ -486,7 +488,7 @@ class ProfileSettingsRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: textColor,
+                      color: titleColor ?? textColor,
                     ),
                   ),
                   if (subtitle != null) ...[

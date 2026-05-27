@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
 admin.initializeApp();
 
 const db = admin.firestore();
@@ -118,6 +119,124 @@ function buildNotificationContent(type, senderName, data) {
       };
   }
 }
+
+// ─── Email OTP 2FA ────────────────────────────────────────────
+
+const gmailTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_EMAIL || "knockpostofficial@gmail.com",
+    pass: process.env.GMAIL_PASSWORD || "",
+  },
+});
+
+/**
+ * sendOtp — Callable function that generates a 6-digit OTP,
+ * saves it in Firestore, and emails it to the user.
+ */
+exports.sendOtp = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const uid = context.auth.uid;
+  const userDoc = await admin.firestore().collection("users").doc(uid).get();
+
+  if (!userDoc.exists) {
+    throw new functions.https.HttpsError("not-found", "User not found.");
+  }
+
+  const email = context.auth.token.email;
+  if (!email) {
+    throw new functions.https.HttpsError("failed-precondition", "No email associated with this account.");
+  }
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = admin.firestore.Timestamp.fromDate(
+    new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
+  );
+
+  // Save OTP in Firestore
+  await admin.firestore().collection("users").doc(uid).collection("otp").doc("current").set({
+    code: otp,
+    expiresAt: expiresAt,
+    verified: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Send email
+  const mailOptions = {
+    from: `"Knockpost" <${process.env.GMAIL_EMAIL || "knockpostofficial@gmail.com"}>`,
+    to: email,
+    subject: "Your Knockpost Verification Code",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">Knockpost</h1>
+          <p style="color: #666; font-size: 14px;">Two-Step Verification</p>
+        </div>
+        <div style="background: #f8f8f8; border-radius: 12px; padding: 24px; text-align: center;">
+          <p style="color: #333; font-size: 14px; margin-bottom: 16px;">Your verification code is:</p>
+          <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1a1a1a; margin-bottom: 16px;">${otp}</div>
+          <p style="color: #999; font-size: 12px;">This code will expire in 5 minutes.</p>
+        </div>
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 24px;">
+          If you didn't request this code, please ignore this email.
+        </p>
+      </div>
+    `,
+  };
+
+  try {
+    await gmailTransporter.sendMail(mailOptions);
+    return { success: true, message: "OTP sent to your email." };
+  } catch (error) {
+    console.error("Error sending OTP email:", error);
+    throw new functions.https.HttpsError("internal", "Failed to send OTP email.");
+  }
+});
+
+/**
+ * verifyOtp — Callable function that verifies the user's OTP.
+ */
+exports.verifyOtp = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const uid = context.auth.uid;
+  const { code } = data;
+
+  if (!code || typeof code !== "string" || code.length !== 6) {
+    throw new functions.https.HttpsError("invalid-argument", "Invalid OTP format.");
+  }
+
+  const otpDoc = await admin.firestore().collection("users").doc(uid).collection("otp").doc("current").get();
+
+  if (!otpDoc.exists) {
+    throw new functions.https.HttpsError("not-found", "No OTP found. Please request a new one.");
+  }
+
+  const otpData = otpDoc.data();
+  const now = admin.firestore.Timestamp.now();
+
+  // Check expiry
+  if (otpData.expiresAt.toMillis() < now.toMillis()) {
+    await otpDoc.ref.delete();
+    throw new functions.https.HttpsError("deadline-exceeded", "OTP has expired. Please request a new one.");
+  }
+
+  // Check code
+  if (otpData.code !== code) {
+    throw new functions.https.HttpsError("permission-denied", "Incorrect OTP.");
+  }
+
+  // Mark as verified and delete
+  await otpDoc.ref.delete();
+
+  return { success: true, message: "OTP verified successfully." };
+});
 
 // ── Main Cloud Function ──────────────────────────────────────────────────────
 

@@ -15,6 +15,11 @@ import 'edit_profile_screen.dart';
 import 'blocked_accounts_screen.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/auth_service.dart';
+import 'change_password_screen.dart';
+import 'delete_account_screen.dart';
+import 'two_factor_setup_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
 class ProfileSettingsScreen extends StatefulWidget {
@@ -387,6 +392,21 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     MaterialPageRoute(builder: (_) => const _FeedbackScreen()),
                   ),
                 ),
+                ProfileSettingsRow(
+                  title: 'Support',
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                  onTap: () async {
+                    final url = Uri.parse('https://knockpost.com/support');
+                    try {
+                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    } catch(e) {
+                      debugPrint(e.toString());
+                    }
+                  },
+                ),
                 const ProfileSettingsRow(title: 'KnockPost v1.0.0'),
                 ProfileSettingsRow(
                   title: 'Privacy Policy',
@@ -394,7 +414,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
-                  onTap: () {},
+                  onTap: () async {
+                    final url = Uri.parse('https://knockpost.com/privacy');
+                    try {
+                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    } catch(e) {
+                      debugPrint(e.toString());
+                    }
+                  },
                 ),
                 ProfileSettingsRow(
                   title: 'Terms of Service',
@@ -402,7 +429,29 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
-                  onTap: () {},
+                  onTap: () async {
+                    final url = Uri.parse('https://knockpost.com/terms');
+                    try {
+                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    } catch(e) {
+                      debugPrint(e.toString());
+                    }
+                  },
+                ),
+                ProfileSettingsRow(
+                  title: 'Community Guidelines',
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                  onTap: () async {
+                    final url = Uri.parse('https://knockpost.com/community-guidelines');
+                    try {
+                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    } catch(e) {
+                      debugPrint(e.toString());
+                    }
+                  },
                 ),
               ],
             ),
@@ -743,7 +792,26 @@ class _AccountSettingsScreen extends StatelessWidget {
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
-                  onTap: () {},
+                  onTap: () {
+                    KnockHaptics.impact();
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
+                    
+                    bool isPasswordUser = user.providerData.any((p) => p.providerId == 'password');
+                    if (!isPasswordUser) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('You signed in with Google. Password cannot be changed here.')),
+                        );
+                      }
+                      return;
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                    );
+                  },
                 ),
                 ProfileSettingsRow(
                   title: 'Two-step verification',
@@ -752,7 +820,100 @@ class _AccountSettingsScreen extends StatelessWidget {
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
-                  onTap: () {},
+                  onTap: () {
+                    KnockHaptics.impact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TwoFactorSetupScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionHeader('Danger Zone', isDark: isDark),
+            _SettingsTile(
+              bg: sectionBg,
+              divColor: divColor,
+              children: [
+                ProfileSettingsRow(
+                  title: 'Delete account',
+                  subtitle: 'Permanently delete your account and data',
+                  titleColor: Colors.red,
+                  trailing: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red,
+                  ),
+                  onTap: () async {
+                    KnockHaptics.impact();
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
+                    
+                    bool isPasswordUser = user.providerData.any((p) => p.providerId == 'password');
+
+                    if (isPasswordUser) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DeleteAccountScreen()),
+                      );
+                    } else {
+                      bool confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: bg,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          title: Text('Verify to Delete', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
+                          content: Text('Because you signed in with Google, you must verify your identity by signing in again before deleting your account.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 14, height: 1.4), textAlign: TextAlign.center),
+                          actionsAlignment: MainAxisAlignment.center,
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15)),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                try {
+                                  // Re-authenticate with Google
+                                  await AuthService.instance.signInWithGoogle();
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx, true);
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Verification failed")));
+                                  }
+                                }
+                              },
+                              child: const Text('Verify & Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700, fontSize: 15)),
+                            ),
+                          ],
+                        ),
+                      ) ?? false;
+
+                      if (confirm) {
+                        try {
+                          await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+                          await user.delete();
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('is_registered', false);
+                          if (context.mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('Error deleting account: $e');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Error deleting account. You may need to log in again to perform this action.')),
+                            );
+                          }
+                        }
+                      }
+                    }
+                  },
                 ),
               ],
             ),
@@ -764,6 +925,8 @@ class _AccountSettingsScreen extends StatelessWidget {
       ),
     );
   }
+
+
 }
 
 class _ManageInterestsScreen extends StatefulWidget {
