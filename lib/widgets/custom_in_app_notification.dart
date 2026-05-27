@@ -2,12 +2,26 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'knockpost_avatar.dart';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOM IN-APP NOTIFICATION BANNER v2.0
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Instagram-quality in-app notification banner:
+//   • Slide-in from top with spring animation
+//   • Profile image + action text (never robotic titles)
+//   • Duplicate prevention: only one banner shown at a time
+//   • Swipe up to dismiss
+//   • Auto-dismiss after 3.5 seconds
+//   • Haptic feedback on tap
+// ═══════════════════════════════════════════════════════════════════════════════
+
 class CustomInAppNotification extends StatefulWidget {
   final String title;
   final String body;
   final String type;
   final String? profileImageUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onDismiss;
 
   const CustomInAppNotification({
     super.key,
@@ -16,7 +30,12 @@ class CustomInAppNotification extends StatefulWidget {
     required this.type,
     this.profileImageUrl,
     this.onTap,
+    this.onDismiss,
   });
+
+  // ── Active banner tracking (prevents duplicate banners) ──
+  static OverlayEntry? _currentEntry;
+  static Timer? _autoDismissTimer;
 
   static void show(
     BuildContext context, {
@@ -26,14 +45,16 @@ class CustomInAppNotification extends StatefulWidget {
     String? profileImageUrl,
     VoidCallback? onTap,
   }) {
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
+    // Dismiss any existing banner first (prevents stacking)
+    _dismiss();
 
-    overlayEntry = OverlayEntry(
+    final overlay = Overlay.of(context);
+
+    _currentEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 10,
-        left: 16,
-        right: 16,
+        top: MediaQuery.of(context).padding.top + 8,
+        left: 12,
+        right: 12,
         child: Material(
           color: Colors.transparent,
           child: CustomInAppNotification(
@@ -43,21 +64,28 @@ class CustomInAppNotification extends StatefulWidget {
             profileImageUrl: profileImageUrl,
             onTap: () {
               if (onTap != null) onTap();
-              overlayEntry.remove();
+              _dismiss();
             },
+            onDismiss: _dismiss,
           ),
         ),
       ),
     );
 
-    overlay.insert(overlayEntry);
+    overlay.insert(_currentEntry!);
 
-    // Auto dismiss after 4 seconds
-    Future.delayed(const Duration(seconds: 4), () {
-      if (overlayEntry.mounted) {
-        overlayEntry.remove();
-      }
-    });
+    // Auto dismiss after 3.5 seconds
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = Timer(const Duration(milliseconds: 3500), _dismiss);
+  }
+
+  static void _dismiss() {
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = null;
+    if (_currentEntry != null && _currentEntry!.mounted) {
+      _currentEntry!.remove();
+    }
+    _currentEntry = null;
   }
 
   @override
@@ -68,12 +96,13 @@ class _CustomInAppNotificationState extends State<CustomInAppNotification>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 450),
       vsync: this,
     );
 
@@ -82,7 +111,15 @@ class _CustomInAppNotificationState extends State<CustomInAppNotification>
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOutBack,
+    ));
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     ));
 
     _controller.forward();
@@ -94,24 +131,21 @@ class _CustomInAppNotificationState extends State<CustomInAppNotification>
     super.dispose();
   }
 
-  void _dismiss() {
-    _controller.reverse().then((_) {
-      if (mounted) {
-        if (widget.onTap != null) widget.onTap!();
-      }
-    });
-  }
-
   IconData _getIconForType() {
     switch (widget.type.toLowerCase()) {
       case 'message':
         return Icons.chat_bubble_outline;
       case 'like':
+      case 'wavelike':
         return Icons.favorite_border;
       case 'comment':
-        return Icons.comment_outlined;
+        return Icons.reply_rounded;
       case 'knock':
+      case 'knockaccept':
+      case 'knockback':
         return Icons.front_hand_outlined;
+      case 'mention':
+        return Icons.alternate_email_rounded;
       default:
         return Icons.notifications_none;
     }
@@ -123,78 +157,110 @@ class _CustomInAppNotificationState extends State<CustomInAppNotification>
 
     return SlideTransition(
       position: _offsetAnimation,
-      child: GestureDetector(
-        onTap: _dismiss,
-        onVerticalDragEnd: (details) {
-          if (details.primaryVelocity! < 0) {
-            _dismiss();
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          onVerticalDragEnd: (details) {
+            if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+              widget.onDismiss?.call();
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.12),
+                  blurRadius: 20,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 6),
+                ),
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 40,
+                    offset: const Offset(0, 2),
+                  ),
+              ],
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                width: 0.5,
               ),
-            ],
-            border: Border.all(
-              color: isDark ? Colors.white10 : Colors.black12,
-              width: 1,
             ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (widget.profileImageUrl != null && widget.profileImageUrl!.isNotEmpty)
-                KnockpostAvatar(
-                  url: widget.profileImageUrl!,
-                  radius: 20,
-                )
-              else
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                  child: Icon(
-                    _getIconForType(),
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 20,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // App icon or profile image
+                if (widget.profileImageUrl != null && widget.profileImageUrl!.isNotEmpty)
+                  KnockpostAvatar(
+                    url: widget.profileImageUrl!,
+                    radius: 19,
+                  )
+                else
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _getIconForType(),
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      size: 18,
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // App name label
+                      Text(
+                        widget.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: isDark ? Colors.white : Colors.black87,
+                          letterSpacing: -0.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (widget.body.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.body,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                // Subtle time indicator
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    'now',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white30 : Colors.black26,
+                      fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.body,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.white70 : Colors.black54,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

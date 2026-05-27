@@ -13,7 +13,6 @@ import '../widgets/knockpost_avatar.dart';
 
 import '../models/post_model.dart';
 import '../models/user_model.dart';
-import '../models/notification_model.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import '../widgets/knockpost_refresh.dart';
@@ -689,18 +688,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                           ),
                                           actions: [
-                                            StreamBuilder<
-                                              List<NotificationModel>
-                                            >(
+                                            StreamBuilder<int>(
                                               stream: NotificationService
                                                   .instance
-                                                  .streamNotifications(),
+                                                  .streamUnreadCount(),
                                               builder: (context, snapshot) {
-                                                final hasUnread =
-                                                    snapshot.data?.any(
-                                                      (n) => !n.isRead,
-                                                    ) ??
-                                                    false;
+                                                final unreadCount =
+                                                    snapshot.data ?? 0;
                                                 return Stack(
                                                   alignment: Alignment.center,
                                                   children: [
@@ -721,7 +715,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         );
                                                       },
                                                     ),
-                                                    if (hasUnread)
+                                                    if (unreadCount > 0)
                                                       Positioned(
                                                         top: 12,
                                                         right: 12,
