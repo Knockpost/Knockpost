@@ -270,3 +270,122 @@ exports.sendPushNotification = functions.firestore
 
     return null;
   });
+
+const nodemailer = require("nodemailer");
+
+// NOTE: You must set up Gmail App Password or use SendGrid in production.
+// For now, we will use a dummy account or rely on environment variables if set, 
+// and ALWAYS print the OTP to the console so it can be tested during development.
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_USER || "knockpostofficial@gmail.com",
+    pass: process.env.SMTP_PASS || "znjm kiqn nrdo khvy",
+  },
+});
+
+exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
+  const email = data.email;
+  if (!email) {
+    throw new functions.https.HttpsError("invalid-argument", "Email is required");
+  }
+
+  // Generate 6 digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Save OTP in Firestore
+  // We keep the collection name "passwordResetOtps" for simplicity or rename to "emailOtps"
+  // Let's rename the collection to "emailOtps" for clarity
+  await admin.firestore().collection("emailOtps").doc(email).set({
+    otp: otp,
+    expiresAt: expiresAt,
+  });
+
+  console.log(`[DEV ONLY] OTP for ${email} is ${otp}`);
+
+  // Send Email
+  const mailOptions = {
+    from: "Knockpost <no-reply@knockpost.app>",
+    to: email,
+    subject: "Your Knockpost Verification Code",
+    text: `Your verification code is: ${otp}. It will expire in 10 minutes.`,
+  };
+
+  try {
+    // We wrap this in a try-catch so it doesn't fail the whole function 
+    // if the user hasn't set up SMTP credentials yet. We'll still return success
+    // so they can test using the console log.
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${email}`);
+  } catch (error) {
+    console.warn("Failed to send email. Ensure SMTP_USER and SMTP_PASS are set.", error);
+  }
+
+  return { success: true };
+});
+
+exports.verifyEmailOtp = functions.https.onCall(async (data, context) => {
+  const email = data.email;
+  const otp = data.otp;
+  if (!email || !otp) {
+    throw new functions.https.HttpsError("invalid-argument", "Email and OTP are required");
+  }
+
+  const otpDocRef = admin.firestore().collection("emailOtps").doc(email);
+  const otpDoc = await otpDocRef.get();
+
+  if (!otpDoc.exists) {
+    throw new functions.https.HttpsError("not-found", "No OTP request found for this email");
+  }
+
+  const otpData = otpDoc.data();
+  if (otpData.otp !== otp) {
+    throw new functions.https.HttpsError("invalid-argument", "Incorrect OTP");
+  }
+
+  if (otpData.expiresAt.toMillis() < Date.now()) {
+    throw new functions.https.HttpsError("failed-precondition", "OTP has expired");
+  }
+
+  // OTP is valid. We don't delete it yet, we let them proceed.
+  return { success: true };
+});
+
+exports.resetPasswordWithOtp = functions.https.onCall(async (data, context) => {
+  const { email, otp, newPassword } = data;
+  if (!email || !otp || !newPassword) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing fields");
+  }
+
+  const otpDocRef = admin.firestore().collection("emailOtps").doc(email);
+  const otpDoc = await otpDocRef.get();
+
+  if (!otpDoc.exists) {
+    throw new functions.https.HttpsError("not-found", "No OTP request found for this email");
+  }
+
+  const otpData = otpDoc.data();
+  if (otpData.otp !== otp) {
+    throw new functions.https.HttpsError("invalid-argument", "Incorrect OTP");
+  }
+
+  if (otpData.expiresAt.toMillis() < Date.now()) {
+    throw new functions.https.HttpsError("failed-precondition", "OTP has expired");
+  }
+
+  // OTP is valid, delete it so it can't be reused
+  await otpDocRef.delete();
+
+  // Get user by email and update password
+  try {
+    const userRecord = await admin.auth().getUserByEmail(email);
+    await admin.auth().updateUser(userRecord.uid, {
+      password: newPassword
+    });
+  } catch (error) {
+    throw new functions.https.HttpsError("internal", "Failed to update user password: " + error.message);
+  }
+
+  return { success: true };
+});

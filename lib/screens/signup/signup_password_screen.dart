@@ -5,6 +5,7 @@ import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
 import '../../widgets/instagram_password_field.dart';
+import '../../services/auth_service.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
   final String email;
@@ -51,27 +52,30 @@ class _SignupPasswordScreenState
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Since user is already signed in via Email Link or Google Auth,
-        // we use updatePassword to set their permanent password.
+      if (widget.isGoogleSignup && user != null) {
+        // For Google Signup, user is already signed in
         await user.updatePassword(password);
-
-        if (mounted) {
-          // After setting password, go to Profile Setup
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProfileSetupScreen(
-                email: widget.email,
-                username: widget.username ?? "User", // Should have username from previous screen
-                password: password,
-              ),
-            ),
-            (route) => false,
-          );
-        }
       } else {
-        throw Exception("User session not found. Please try again.");
+        // For Email OTP Signup, user is NOT created yet
+        await AuthService.instance.createUserWithEmailAndPassword(
+          email: widget.email,
+          password: password,
+        );
+      }
+
+      if (mounted) {
+        // After setting password/creating account, go to Profile Setup
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              email: widget.email,
+              username: widget.username ?? "User", 
+              password: password,
+            ),
+          ),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {
