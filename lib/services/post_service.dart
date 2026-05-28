@@ -423,12 +423,22 @@ class PostService {
     return postsCollection
         .doc(postId)
         .collection('viewers')
-        .orderBy('viewedAt', descending: true)
         .snapshots()
         .map((snapshot) {
           final seen = <String>{};
           final viewers = <Map<String, dynamic>>[];
-          for (final doc in snapshot.docs) {
+          
+          final sortedDocs = snapshot.docs.toList()
+            ..sort((a, b) {
+              final aTs = a.data()['viewedAt'] as Timestamp?;
+              final bTs = b.data()['viewedAt'] as Timestamp?;
+              if (aTs == null && bTs == null) return 0;
+              if (aTs == null) return 1;
+              if (bTs == null) return -1;
+              return bTs.compareTo(aTs);
+            });
+
+          for (final doc in sortedDocs) {
             final data = doc.data();
             final userId = data['userId'] as String? ?? doc.id;
             if (seen.add(userId)) {

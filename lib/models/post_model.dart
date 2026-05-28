@@ -96,9 +96,26 @@ class PostModel {
   }
 
   /// Whether this post belongs in the Showcase section.
-  /// Lifetime posts সবসময় Showcase-এ থাকে — Recents থেকে সরে গেলেও।
-  /// h24 / h36 posts কখনো Showcase-এ যায় না।
+  /// Lifetime posts সবসময় Showcase-এ থাকে — Recents থেকে সরে গেলেও।
+  /// h24 / h36 posts কখনো Showcase-এ যায় না।
   bool get isInShowcase => duration == PostDuration.lifetime;
+
+  /// Returns true if this is a glimpse that has passed its allowed duration.
+  bool get isExpiredGlimpse {
+    if (type != PostType.glimps) return false;
+    final age = DateTime.now().difference(createdAt);
+    switch (duration) {
+      case PostDuration.h24:
+        return age.inHours >= 24;
+      case PostDuration.h36:
+        return age.inHours >= 36;
+      case PostDuration.lifetime:
+        return false; // Lifetime glimpses stay forever
+    }
+  }
+
+  /// Returns true if this glimpse should still be visible in the Daily Archive.
+  bool get isActiveForArchive => type == PostType.glimps && !isExpiredGlimpse;
 
   /// Friendly relative time label
   String get relativeTime {
@@ -302,7 +319,7 @@ final List<PostModel> demoOwnPosts = [
   ),
   // ── 24h Glimpse ────────────────────────────────────────────────────────
   PostModel(
-    id: 'p_recent_glimpse',
+    id: 'p_recent_glimpse1',
     authorId: 'me',
     type: PostType.glimps,
     duration: PostDuration.h24,
@@ -312,8 +329,20 @@ final List<PostModel> demoOwnPosts = [
     likes: 125,
     views: 890,
   ),
+  PostModel(
+    id: 'p_recent_glimpse2',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.h24,
+    imagePaths: ['assets/test3.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(hours: 14)), // Same day as recent_glimpse1
+    likes: 100,
+    views: 750,
+  ),
 
   // ── Showcase (lifetime) glimpses ─────────────────────────────────────────
+  // Group 1: 5 days ago (3 glimpses)
   PostModel(
     id: 'p_show_glimpse1',
     authorId: 'me',
@@ -321,7 +350,7 @@ final List<PostModel> demoOwnPosts = [
     duration: PostDuration.lifetime,
     imagePaths: ['assets/test3.jpg'],
     text: '',
-    createdAt: now.subtract(const Duration(hours: 24)), // Shows in both Recents & Showcase
+    createdAt: now.subtract(const Duration(days: 5, hours: 2)),
     likes: 210,
     views: 1200,
   ),
@@ -332,7 +361,7 @@ final List<PostModel> demoOwnPosts = [
     duration: PostDuration.lifetime,
     imagePaths: ['assets/test4.jpg'],
     text: '',
-    createdAt: now.subtract(const Duration(days: 4)), // Only in Showcase
+    createdAt: now.subtract(const Duration(days: 5, hours: 4)),
     likes: 450,
     views: 2400,
   ),
@@ -343,10 +372,11 @@ final List<PostModel> demoOwnPosts = [
     duration: PostDuration.lifetime,
     imagePaths: ['assets/test1.jpg'],
     text: '',
-    createdAt: now.subtract(const Duration(days: 12)),
+    createdAt: now.subtract(const Duration(days: 5, hours: 6)),
     likes: 520,
     views: 3100,
   ),
+  // Group 2: 12 days ago (6 glimpses to test +more overlay)
   PostModel(
     id: 'p_show_glimpse4',
     authorId: 'me',
@@ -354,7 +384,7 @@ final List<PostModel> demoOwnPosts = [
     duration: PostDuration.lifetime,
     imagePaths: ['assets/test2.jpg'],
     text: '',
-    createdAt: now.subtract(const Duration(days: 18)),
+    createdAt: now.subtract(const Duration(days: 12, hours: 1)),
     likes: 315,
     views: 1850,
   ),
@@ -365,7 +395,7 @@ final List<PostModel> demoOwnPosts = [
     duration: PostDuration.lifetime,
     imagePaths: ['assets/test3.jpg'],
     text: '',
-    createdAt: now.subtract(const Duration(days: 22)),
+    createdAt: now.subtract(const Duration(days: 12, hours: 2)),
     likes: 280,
     views: 1900,
   ),
@@ -376,10 +406,44 @@ final List<PostModel> demoOwnPosts = [
     duration: PostDuration.lifetime,
     imagePaths: ['assets/test1.jpg'],
     text: '',
-    createdAt: now.subtract(const Duration(days: 35)),
+    createdAt: now.subtract(const Duration(days: 12, hours: 3)),
     likes: 670,
     views: 4500,
   ),
+  PostModel(
+    id: 'p_show_glimpse7',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test4.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 12, hours: 4)),
+    likes: 120,
+    views: 900,
+  ),
+  PostModel(
+    id: 'p_show_glimpse8',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test2.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 12, hours: 5)),
+    likes: 430,
+    views: 2100,
+  ),
+  PostModel(
+    id: 'p_show_glimpse9',
+    authorId: 'me',
+    type: PostType.glimps,
+    duration: PostDuration.lifetime,
+    imagePaths: ['assets/test3.jpg'],
+    text: '',
+    createdAt: now.subtract(const Duration(days: 12, hours: 6)),
+    likes: 80,
+    views: 500,
+  ),
+
   // ── Showcase (lifetime) posts ────────────────────────────────────────────
   PostModel(
     id: 'p_show1',

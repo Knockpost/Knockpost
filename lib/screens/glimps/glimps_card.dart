@@ -144,7 +144,7 @@ class GlimpsCard extends StatelessWidget {
                           child: buildImage(BoxFit.cover),
                         ),
                         Container(color: Colors.black.withValues(alpha: 0.35)),
-                        buildForeground(buildImage(BoxFit.contain)),
+                        buildForeground(buildImage(BoxFit.cover)),
                       ],
                     );
                   },

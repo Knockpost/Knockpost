@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'notification_service.dart';
 import '../models/notification_model.dart';
 import 'database_service.dart';
+import 'post_service.dart';
 
 class LikeService {
   LikeService._internal();
@@ -64,6 +65,11 @@ class LikeService {
           postId: postId,
           postThumbnailUrl: postThumbnailUrl,
         );
+      }
+      
+      // Ensure reacting explicitly records a view
+      if (isLiking) {
+        PostService.instance.incrementViewCount(postId, postAuthorId);
       }
       
       // Recalculate rank asynchronously

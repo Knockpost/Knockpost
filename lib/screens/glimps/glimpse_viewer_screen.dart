@@ -16,6 +16,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:colorfilter_generator/presets.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../shared/music_editor_screen.dart';
+import '../../services/post_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GlimpseViewerScreen — Premium full-screen story viewer
@@ -195,8 +196,8 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   static const double _glimpseDuration = 6.0;
 
   // Knockpost accent
-  static const Color _accentColor = Color(0xFF6C63FF);
-  static const Color _accentGlow = Color(0xFF8B83FF);
+  static const Color _accentColor = Colors.white;
+  static const Color _accentGlow = Colors.white70;
 
   @override
   void initState() {
@@ -214,6 +215,12 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _loadUser();
+    _recordCurrentGlimpseView();
+  }
+
+  void _recordCurrentGlimpseView() {
+    final glimpse = widget.glimpses[_currentIndex];
+    PostService.instance.incrementViewCount(glimpse.id, glimpse.authorId);
   }
 
   Future<void> _loadUser() async {
@@ -250,6 +257,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   void _goToNext() {
     if (_currentIndex < widget.glimpses.length - 1) {
       setState(() => _currentIndex++);
+      _recordCurrentGlimpseView();
       _progressController.reset();
       _progressController.forward();
     } else {
@@ -261,6 +269,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   void _goToPrevious() {
     if (_currentIndex > 0) {
       setState(() => _currentIndex--);
+      _recordCurrentGlimpseView();
       _progressController.reset();
       _progressController.forward();
     } else {
@@ -464,6 +473,8 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
                      initialViews: glimpse.views,
                      timestamp: glimpse.relativeTime,
                      showShare: false,
+                     transparentButtons: true,
+                     alignSummaryRight: true,
                    ),
                  ),
                ],
@@ -648,13 +659,6 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Music info (if any)
-        if (glimpse.musicTitle != null && glimpse.musicTitle!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _buildMusicChip(glimpse),
-          ),
-
         // User row
         Row(
           children: [
@@ -666,7 +670,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [_accentColor, _accentGlow, Color(0xFFFF6B9D)],
+                  colors: [_accentColor, _accentGlow, Colors.white30],
                 ),
               ),
               child: Container(
@@ -721,47 +725,6 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     );
   }
 
-  // ── Music Chip ──────────────────────────────────────────────────────
-  Widget _buildMusicChip(PostModel glimpse) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Animated music icon
-              const _PulsingMusicIcon(),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  '${glimpse.musicTitle}${glimpse.musicArtist != null ? ' • ${glimpse.musicArtist}' : ''}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.2,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildGlimpseImage(PostModel glimpse, {Key? key}) {
     return _GlimpseMediaItem(

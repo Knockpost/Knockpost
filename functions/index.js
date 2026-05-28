@@ -515,3 +515,74 @@ exports.sendPushOnNotificationUpdate = functions.firestore
 
     return null;
   });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DAILY GLIMPSE CLEANUP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+exports.cleanupExpiredGlimpses = functions.pubsub
+  .schedule('every 24 hours')
+  .onRun(async (context) => {
+    console.log("Starting daily glimpse cleanup...");
+    
+    // Calculate cutoff times
+    const now = new Date();
+    
+    const cutoff24h = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    const cutoff36h = new Date(now.getTime() - (36 * 60 * 60 * 1000));
+
+    let deletedCount = 0;
+
+    try {
+      const glimpsesSnapshot = await db.collection("posts")
+        .where("type", "==", "glimps")
+        .get();
+
+      // We can't reuse the same batch object for more than 500 ops.
+      // So we commit and create a new one.
+      let batch = db.batch();
+      let batchCount = 0;
+
+      for (const doc of glimpsesSnapshot.docs) {
+        const data = doc.data();
+        if (!data.createdAt || !data.duration) continue;
+
+        const createdAt = data.createdAt.toDate();
+        let isExpired = false;
+
+        switch (data.duration) {
+          case "h24":
+            isExpired = createdAt < cutoff24h;
+            break;
+          case "h36":
+            isExpired = createdAt < cutoff36h;
+            break;
+          case "lifetime":
+            isExpired = false;
+            break;
+        }
+
+        if (isExpired) {
+          batch.delete(doc.ref);
+          batchCount++;
+          deletedCount++;
+        }
+
+        if (batchCount === 490) {
+          await batch.commit();
+          batch = db.batch();
+          batchCount = 0;
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      console.log(`Daily glimpse cleanup finished. Deleted ${deletedCount} expired glimpses.`);
+    } catch (error) {
+      console.error("Error during glimpse cleanup:", error);
+    }
+    
+    return null;
+  });

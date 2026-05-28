@@ -42,7 +42,9 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
   String _searchQuery = '';
   bool _isLoadingTracks = false;
   bool _isLoadingAudio = false;
+  bool _isConfirming = false;
   Timer? _debounceTimer;
+  MusicTrack? _selectedTrack;
 
   @override
   void initState() {
@@ -148,27 +150,35 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
     }
   }
 
-  Future<void> _onTrackTap(MusicTrack track) async {
+  void _onTrackTap(MusicTrack track) {
     KnockHaptics.tap();
+    setState(() => _selectedTrack = track);
+    // Also start playing preview
+    _togglePlayPause(track);
+  }
+
+  Future<void> _confirmSelection() async {
+    if (_selectedTrack == null) return;
+    KnockHaptics.impact();
     _audioPlayer.stop();
-    setState(() => _isLoadingAudio = true); // use it as generic loader for tap feedback
-    
+    setState(() => _isConfirming = true);
+
     // Fetch lyrics from LRCLIB
     try {
-      final uri = Uri.parse('https://lrclib.net/api/get?track_name=${Uri.encodeComponent(track.title)}&artist_name=${Uri.encodeComponent(track.artist)}');
+      final uri = Uri.parse('https://lrclib.net/api/get?track_name=${Uri.encodeComponent(_selectedTrack!.title)}&artist_name=${Uri.encodeComponent(_selectedTrack!.artist)}');
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['syncedLyrics'] != null && data['syncedLyrics'].toString().isNotEmpty) {
-          track.syncedLyrics = data['syncedLyrics'];
+          _selectedTrack!.syncedLyrics = data['syncedLyrics'];
         }
       }
     } catch (e) {
       debugPrint('LRCLIB Error: $e');
     }
 
-    setState(() => _isLoadingAudio = false);
-    if (mounted) Navigator.pop(context, track);
+    setState(() => _isConfirming = false);
+    if (mounted) Navigator.pop(context, _selectedTrack);
   }
 
   Future<void> _stopAudio() async {
@@ -232,7 +242,20 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                             fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                     ),
                   ),
-                  const SizedBox(width: 28),
+                  // ── Tick / Confirm button ──
+                  AnimatedOpacity(
+                    opacity: _selectedTrack != null ? 1.0 : 0.3,
+                    duration: const Duration(milliseconds: 200),
+                    child: GestureDetector(
+                      onTap: _selectedTrack != null ? _confirmSelection : null,
+                      child: _isConfirming
+                          ? const SizedBox(
+                              width: 28, height: 28,
+                              child: KnockpostLoadingIndicator(),
+                            )
+                          : const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -327,6 +350,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                     itemBuilder: (context, index) {
                       final track = tracks[index];
                       final isPlaying = _playingUrl == track.previewUrl;
+                      final isSelected = _selectedTrack?.previewUrl == track.previewUrl;
                       final catAccent = _accentForCategory(cat);
 
                       return GestureDetector(
@@ -338,11 +362,11 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                               horizontal: 16, vertical: 5),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isPlaying
+                            color: isSelected
                                 ? catAccent.withValues(alpha: 0.12)
                                 : Colors.white.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(14),
-                            border: isPlaying
+                            border: isSelected
                                 ? Border.all(
                                     color: catAccent.withValues(alpha: 0.3),
                                     width: 1)

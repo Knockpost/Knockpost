@@ -48,6 +48,9 @@ class ReactionBar extends StatefulWidget {
   /// (dark bg → white, light bg → black). Waves overlay-তে ব্যবহার হয়।
   final bool transparentButtons;
 
+  /// true হলে views এবং reactions summary ডানদিকে দেখাবে। (Glimpse-এ ব্যবহার হয়)
+  final bool alignSummaryRight;
+
   const ReactionBar({
     super.key,
     this.doubleTapped = false,
@@ -62,6 +65,7 @@ class ReactionBar extends StatefulWidget {
     this.timestamp,
     this.showShare = true,
     this.transparentButtons = false,
+    this.alignSummaryRight = false,
   });
 
   @override
@@ -301,7 +305,7 @@ class _ReactionBarState extends State<ReactionBar>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isOverlay = widget.transparentButtons;
     final bgColor = isOverlay
-        ? const Color(0x40000000) // black @ 0.25 — subtle dark translucent
+        ? Colors.transparent
         : (isDark ? const Color(0xFF2A2A2A) : const Color(0xfff2f2f2));
     final iconColor = isOverlay
         ? Colors.white.withValues(alpha: 0.95)
@@ -311,15 +315,7 @@ class _ReactionBarState extends State<ReactionBar>
     const buttonRadius = 12.0;
     const buttonSize = 40.0;
     const iconSize = 20.0;
-    final buttonShadow = isOverlay
-        ? [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.20),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ]
-        : <BoxShadow>[];
+    final buttonShadow = <BoxShadow>[];
 
     return Stack(
       clipBehavior: Clip.none,
@@ -356,7 +352,7 @@ class _ReactionBarState extends State<ReactionBar>
                         ),
                       ),
                     ),
-                  if (widget.isPostOwner)
+                  if (widget.isPostOwner && !widget.alignSummaryRight)
                     _ReactionSummary(
                       likes: _likesCount,
                       views: widget.initialViews,
@@ -371,6 +367,18 @@ class _ReactionBarState extends State<ReactionBar>
               // ── Right: Action Buttons ──
               Row(
                 children: [
+                  // Views & reactions summary (owner only)
+                  if (widget.isPostOwner && widget.alignSummaryRight) ...[
+                    _ReactionSummary(
+                      likes: _likesCount,
+                      views: widget.initialViews,
+                      postId: widget.postId,
+                      isDark: isDark,
+                      userReaction: _selectedEmoji,
+                      isOverlay: isOverlay,
+                    ),
+                    const SizedBox(width: 11),
+                  ],
                   // Reaction button
                   RawGestureDetector(
                     gestures: {
