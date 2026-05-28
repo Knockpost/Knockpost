@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
@@ -72,18 +73,83 @@ class GlimpsCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // ── Background Thumbnail ──
-              thumbnailPath.startsWith('assets/')
-                  ? Image.asset(thumbnailPath, fit: BoxFit.cover)
-                  : Image.network(
+              Builder(builder: (context) {
+                if (thumbnailPath.isEmpty) return const SizedBox.shrink();
+                
+                final isVideoUrl = thumbnailPath.toLowerCase().endsWith('.mp4') || 
+                                   thumbnailPath.toLowerCase().endsWith('.mov') || 
+                                   thumbnailPath.toLowerCase().endsWith('.mkv');
+                
+                if (isVideoUrl) {
+                   return Container(
+                     color: Colors.grey.shade900,
+                     child: const Center(
+                       child: Icon(Icons.videocam, color: Colors.white54, size: 30),
+                     ),
+                   );
+                }
+
+                Widget buildImage(BoxFit fit) {
+                  if (thumbnailPath.startsWith('assets/')) {
+                    return Image.asset(thumbnailPath, fit: fit);
+                  } else {
+                    return Image.network(
                       thumbnailPath,
-                      fit: BoxFit.cover,
+                      fit: fit,
                       errorBuilder: (_, __, ___) => Container(
                         color: Colors.grey.shade900,
                         child: const Center(
                           child: Icon(Icons.error, color: Colors.white54),
                         ),
                       ),
-                    ),
+                    );
+                  }
+                }
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenW = constraints.maxWidth;
+                    final screenH = constraints.maxHeight;
+
+                    Widget buildForeground(Widget child) {
+                      final transformMap = glimpse.mediaTransform;
+                      if (transformMap != null) {
+                        final double scale = transformMap['scale'] ?? 1.0;
+                        final double translateX = transformMap['translateX'] ?? 0.0;
+                        final double translateY = transformMap['translateY'] ?? 0.0;
+                        final double rotation = transformMap['rotation'] ?? 0.0;
+                        final double savedW = transformMap['containerWidth'] ?? screenW;
+                        final double savedH = transformMap['containerHeight'] ?? screenH;
+
+                        final scaleX = screenW / (savedW > 0 ? savedW : screenW);
+                        final scaleY = screenH / (savedH > 0 ? savedH : screenH);
+
+                        return Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..translateByDouble(translateX * scaleX, translateY * scaleY, 0.0, 1.0)
+                            ..scaleByDouble(scale, scale, scale, 1.0)
+                            ..rotateZ(rotation),
+                          child: child,
+                        );
+                      }
+                      return child;
+                    }
+
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ImageFiltered(
+                          imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                          child: buildImage(BoxFit.cover),
+                        ),
+                        Container(color: Colors.black.withValues(alpha: 0.35)),
+                        buildForeground(buildImage(BoxFit.contain)),
+                      ],
+                    );
+                  },
+                );
+              }),
 
               // ── Gradient Overlay ──
               Container(

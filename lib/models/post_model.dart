@@ -42,6 +42,7 @@ class PostModel {
   final int? filterIndex;
   final List<Map<String, dynamic>>? textOverlays;
   final List<Map<String, dynamic>>? drawPaths;
+  final Map<String, dynamic>? mediaTransform;
 
   final DateTime createdAt;
   final int likes;
@@ -71,6 +72,7 @@ class PostModel {
     this.filterIndex,
     this.textOverlays,
     this.drawPaths,
+    this.mediaTransform,
     required this.createdAt,
     this.likes = 0,
     this.views = 0,
@@ -142,6 +144,7 @@ class PostModel {
     int? filterIndex,
     List<Map<String, dynamic>>? textOverlays,
     List<Map<String, dynamic>>? drawPaths,
+    Map<String, dynamic>? mediaTransform,
   }) {
     return PostModel(
       id: id,
@@ -166,6 +169,7 @@ class PostModel {
       filterIndex: filterIndex ?? this.filterIndex,
       textOverlays: textOverlays ?? this.textOverlays,
       drawPaths: drawPaths ?? this.drawPaths,
+      mediaTransform: mediaTransform ?? this.mediaTransform,
       createdAt: createdAt,
       likes: likes ?? this.likes,
       views: views ?? this.views,
@@ -196,6 +200,7 @@ class PostModel {
       'filterIndex': filterIndex,
       'textOverlays': textOverlays,
       'drawPaths': drawPaths,
+      'mediaTransform': mediaTransform,
       'createdAt': Timestamp.fromDate(createdAt),
       'likes': likes,
       'views': views,
@@ -226,17 +231,20 @@ class PostModel {
       musicArtist: map['musicArtist'],
       musicCoverUrl: map['musicCoverUrl'],
       musicStickerConfig: map['musicStickerConfig'] != null 
-          ? Map<String, dynamic>.from(map['musicStickerConfig']) 
+          ? Map<String, dynamic>.from(map['musicStickerConfig'] as Map) 
           : null,
       musicTrimStart: map['musicTrimStart'],
       musicVolume: map['musicVolume']?.toDouble(),
       originalAudioVolume: map['originalAudioVolume']?.toDouble(),
       filterIndex: map['filterIndex'],
       textOverlays: map['textOverlays'] != null 
-          ? List<Map<String, dynamic>>.from(map['textOverlays']) 
+          ? (map['textOverlays'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList()
           : null,
       drawPaths: map['drawPaths'] != null 
-          ? List<Map<String, dynamic>>.from(map['drawPaths']) 
+          ? (map['drawPaths'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          : null,
+      mediaTransform: map['mediaTransform'] != null 
+          ? Map<String, dynamic>.from(map['mediaTransform'] as Map)
           : null,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       likes: map['likes'] ?? 0,

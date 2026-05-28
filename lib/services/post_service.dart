@@ -136,17 +136,21 @@ class PostService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
-              .map(
-                (doc) => PostModel.fromMap(
-                  doc.data() as Map<String, dynamic>,
-                  doc.id,
-                ),
-              )
-              .where(
-                (post) =>
-                    post.duration == PostDuration.lifetime ||
-                    post.isInRecentsWindow,
-              )
+              .map((doc) {
+                try {
+                  return PostModel.fromMap(
+                    doc.data() as Map<String, dynamic>,
+                    doc.id,
+                  );
+                } catch (e) {
+                  debugPrint('Error parsing feed post ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .where((post) =>
+                  post != null && (post.duration == PostDuration.lifetime ||
+                  post.isInRecentsWindow))
+              .cast<PostModel>()
               .toList();
         });
   }
@@ -239,11 +243,16 @@ class PostService {
         .snapshots()
         .map((snapshot) {
           final posts = snapshot.docs.map((doc) {
-            return PostModel.fromMap(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            );
-          }).toList();
+            try {
+              return PostModel.fromMap(
+                doc.data() as Map<String, dynamic>,
+                doc.id,
+              );
+            } catch (e) {
+              debugPrint('Error parsing waves post ${doc.id}: $e');
+              return null;
+            }
+          }).where((p) => p != null).cast<PostModel>().toList();
           posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return posts.take(limit).toList();
         })
@@ -321,12 +330,18 @@ class PostService {
         .map((snapshot) {
           final posts = snapshot.docs
               .map((doc) {
-                return PostModel.fromMap(
-                  doc.data() as Map<String, dynamic>,
-                  doc.id,
-                );
+                try {
+                  return PostModel.fromMap(
+                    doc.data() as Map<String, dynamic>,
+                    doc.id,
+                  );
+                } catch (e) {
+                  debugPrint('Error parsing glimpse ${doc.id}: $e');
+                  return null;
+                }
               })
-              .where((post) => post.isInRecentsWindow)
+              .where((post) => post != null && post.isInRecentsWindow)
+              .cast<PostModel>()
               .toList();
           posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return posts.take(limit).toList();

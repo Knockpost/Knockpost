@@ -30,7 +30,7 @@ class ImageCropScreen extends StatefulWidget {
 
 class _ImageCropScreenState extends State<ImageCropScreen>
     with SingleTickerProviderStateMixin {
-  CropAspect _aspect = CropAspect.portrait;
+  CropAspect _aspect = CropAspect.portrait3x4;
   bool _isLoading = true;
   bool _isCropping = false;
   int _currentIndex = 0;
@@ -53,13 +53,25 @@ class _ImageCropScreenState extends State<ImageCropScreen>
 
 
   double get _aspectRatio {
+    final imageSize = _imageSizes.isNotEmpty ? _imageSizes.first : null;
+    if (imageSize == null) {
+      switch (_aspect) {
+        case CropAspect.square: return 1.0;
+        case CropAspect.portrait: return 4.0 / 5.0;
+        case CropAspect.portrait3x4: return 3.0 / 4.0;
+      }
+    }
+
+    final double imgRatio = imageSize.width / imageSize.height;
+
     switch (_aspect) {
       case CropAspect.square:
         return 1.0;
       case CropAspect.portrait:
-        return 4.0 / 5.0;
+        // Instagram-style: if wider, frame shrinks to fit width exactly. If taller, caps at portrait limit.
+        return max(4.0 / 5.0, imgRatio);
       case CropAspect.portrait3x4:
-        return 3.0 / 4.0;
+        return max(3.0 / 4.0, imgRatio);
     }
   }
 

@@ -12,6 +12,10 @@ import '../../widgets/reaction_bar.dart';
 import '../../services/current_user_service.dart';
 import '../../utils/image_helper.dart';
 import '../waves/widgets/more_options_sheet.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:colorfilter_generator/presets.dart';
+import '../../utils/audio_lifecycle_manager.dart';
+import '../shared/music_editor_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GlimpseViewerScreen — Premium full-screen story viewer
@@ -332,9 +336,6 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
       );
     }
     final glimpse = widget.glimpses[_currentIndex];
-    final thumbnailPath = glimpse.imagePaths.isNotEmpty
-        ? glimpse.imagePaths.first
-        : '';
     final bottomPad = MediaQuery.of(context).padding.bottom;
     final dismissOpacity = (1.0 - (_dragOffsetY / 300)).clamp(0.0, 1.0);
 
@@ -376,7 +377,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
                         switchInCurve: Curves.easeOut,
                         switchOutCurve: Curves.easeIn,
                         child: _buildGlimpseImage(
-                          thumbnailPath,
+                          glimpse,
                           key: ValueKey('glimpse_$_currentIndex'),
                         ),
                       ),
@@ -762,22 +763,64 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     );
   }
 
-  Widget _buildGlimpseImage(String path, {Key? key}) {
+  Widget _buildGlimpseImage(PostModel glimpse, {Key? key}) {
     return _GlimpseMediaItem(
       key: key,
-      path: path,
+      glimpse: glimpse,
       progressController: _progressController,
     );
   }
 }
 
+class _DisplayPainter extends CustomPainter {
+  final List<Map<String, dynamic>> drawPaths;
+  final Size screenSize;
+
+  _DisplayPainter({required this.drawPaths, required this.screenSize});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final pathData in drawPaths) {
+      final pointsData = pathData['points'] as List?;
+      if (pointsData == null || pointsData.length < 2) continue;
+
+      final colorValue = pathData['color'] as int?;
+      final color = colorValue != null ? Color(colorValue) : Colors.white;
+      final strokeWidth = (pathData['strokeWidth'] as num?)?.toDouble() ?? 5.0;
+
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+
+      final uiPath = Path();
+      for (int i = 0; i < pointsData.length; i++) {
+        final pt = pointsData[i] as Map;
+        final x = (pt['x'] as num).toDouble() * screenSize.width;
+        final y = (pt['y'] as num).toDouble() * screenSize.height;
+        if (i == 0) {
+          uiPath.moveTo(x, y);
+        } else {
+          uiPath.lineTo(x, y);
+        }
+      }
+      canvas.drawPath(uiPath, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
 class _GlimpseMediaItem extends StatefulWidget {
-  final String path;
+  final PostModel glimpse;
   final AnimationController progressController;
 
   const _GlimpseMediaItem({
     super.key,
-    required this.path,
+    required this.glimpse,
     required this.progressController,
   });
 
@@ -787,11 +830,71 @@ class _GlimpseMediaItem extends StatefulWidget {
 
 class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
   VideoPlayerController? _videoController;
+  AudioPlayer? _audioPlayer;
+
+  final List<Map<String, dynamic>> _carouselEffects = [
+    {'id': 'none', 'label': 'Normal'},
+    {'id': 'aesthetic', 'label': 'Paris'},
+    {'id': 'suave', 'label': 'Oslo'},
+    {'id': 'losangeles', 'label': 'L.A.'},
+    {'id': 'bw', 'label': 'Classic'},
+    {'id': 'zohan', 'label': 'Tokyo'},
+    {'id': 'lowlight', 'label': 'Melbourne'},
+    {'id': 'camcorder', 'label': 'VHS'},
+    {'id': 'vivid', 'label': 'Jakarta'},
+    {'id': 'vintage', 'label': 'Retro'},
+    {'id': 'noir', 'label': 'Noir'},
+    {'id': 'warm', 'label': 'Golden'},
+    {'id': 'cool', 'label': 'Moody'},
+    {'id': 'dream', 'label': 'Dream'},
+    {'id': 'cinematic', 'label': 'Cinema'},
+    {'id': 'fade', 'label': 'Lo-Fi'},
+    {'id': 'dramatic', 'label': 'Dramatic'},
+    {'id': 'sunset', 'label': 'Peach'},
+  ];
+
+  ColorFilter _getActiveColorFilter(int index) {
+    if (index == 0) {
+      return const ColorFilter.matrix(<double>[
+        1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+      ]);
+    }
+    final effectId = _carouselEffects[index]['id'];
+    switch (effectId) {
+      case 'aesthetic': return ColorFilter.matrix(PresetFilters.reyes.matrix);
+      case 'suave': return ColorFilter.matrix(PresetFilters.slumber.matrix);
+      case 'losangeles': return ColorFilter.matrix(PresetFilters.valencia.matrix);
+      case 'bw': return ColorFilter.matrix(PresetFilters.willow.matrix);
+      case 'zohan': return ColorFilter.matrix(PresetFilters.juno.matrix);
+      case 'lowlight': return ColorFilter.matrix(PresetFilters.gingham.matrix);
+      case 'camcorder': return ColorFilter.matrix(PresetFilters.stinson.matrix);
+      case 'vivid': return ColorFilter.matrix(PresetFilters.clarendon.matrix);
+      case 'vintage': return ColorFilter.matrix(PresetFilters.maven.matrix);
+      case 'noir': return ColorFilter.matrix(PresetFilters.moon.matrix);
+      case 'warm': return ColorFilter.matrix(PresetFilters.rise.matrix);
+      case 'cool': return ColorFilter.matrix(PresetFilters.amaro.matrix);
+      case 'dream': return ColorFilter.matrix(PresetFilters.ludwig.matrix);
+      case 'cinematic': return ColorFilter.matrix(PresetFilters.xProII.matrix);
+      case 'fade': return ColorFilter.matrix(PresetFilters.brooklyn.matrix);
+      case 'dramatic': return ColorFilter.matrix(PresetFilters.mayfair.matrix);
+      case 'sunset': return ColorFilter.matrix(PresetFilters.aden.matrix);
+      default: return const ColorFilter.matrix(<double>[
+          1, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1, 0, 0,
+          0, 0, 0, 1, 0,
+        ]);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    final pathLower = widget.path.toLowerCase();
+    final path = widget.glimpse.imagePaths.isNotEmpty ? widget.glimpse.imagePaths.first : '';
+    final pathLower = path.toLowerCase();
     final isVideo =
         pathLower.contains('.mp4') ||
         pathLower.contains('.mov') ||
@@ -800,24 +903,21 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
         pathLower.contains('.avi');
 
     if (isVideo) {
-      if (widget.path.startsWith('http')) {
-        _videoController = VideoPlayerController.networkUrl(
-          Uri.parse(widget.path),
-        );
-      } else if (widget.path.startsWith('assets/')) {
-        _videoController = VideoPlayerController.asset(widget.path);
+      if (path.startsWith('http')) {
+        _videoController = VideoPlayerController.networkUrl(Uri.parse(path));
+      } else if (path.startsWith('assets/')) {
+        _videoController = VideoPlayerController.asset(path);
       } else {
-        _videoController = VideoPlayerController.file(File(widget.path));
+        _videoController = VideoPlayerController.file(File(path));
       }
 
-      // Pause progress while loading
       widget.progressController.stop();
 
       _videoController!.initialize().then((_) {
         if (mounted) {
           setState(() {});
           _videoController!.setLooping(false);
-          _videoController!.setVolume(1.0);
+          _videoController!.setVolume(widget.glimpse.originalAudioVolume ?? 1.0);
           _videoController!.play();
 
           widget.progressController.duration = _videoController!.value.duration;
@@ -825,47 +925,229 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
         }
       });
     } else {
-      // It's an image, reset duration to 6 seconds
       widget.progressController.duration = const Duration(seconds: 6);
       widget.progressController.forward(from: 0);
+    }
+
+    if (widget.glimpse.musicUrl != null && widget.glimpse.musicUrl!.isNotEmpty) {
+      _audioPlayer = AudioPlayer();
+      AudioLifecycleManager.instance.register(_audioPlayer!);
+      _setupAudioPlayer();
+    }
+  }
+
+  Future<void> _setupAudioPlayer() async {
+    try {
+      await _audioPlayer!.setUrl(widget.glimpse.musicUrl!);
+      await _audioPlayer!.seek(Duration(seconds: widget.glimpse.musicTrimStart ?? 0));
+      await _audioPlayer!.setVolume(widget.glimpse.musicVolume ?? 1.0);
+      await _audioPlayer!.setLoopMode(LoopMode.one);
+      await _audioPlayer!.play();
+    } catch (e) {
+      debugPrint("GlimpseAudioPlayer Error: $e");
     }
   }
 
   @override
   void dispose() {
     _videoController?.dispose();
+    if (_audioPlayer != null) {
+      AudioLifecycleManager.instance.unregister(_audioPlayer!);
+      _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
+    }
     super.dispose();
+  }
+
+  Widget _buildImageWidget(String path, BoxFit fit) {
+    if (path.startsWith('assets/')) {
+      return Image.asset(path, fit: fit);
+    } else if (path.startsWith('http')) {
+      return Image.network(path, fit: fit);
+    } else if (path.isNotEmpty) {
+      return Image.file(File(path), fit: fit);
+    }
+    return Container(color: Colors.black);
+  }
+
+  Widget _buildBaseMedia() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenW = constraints.maxWidth;
+        final screenH = constraints.maxHeight;
+
+        Widget buildForeground(Widget child) {
+          final transformMap = widget.glimpse.mediaTransform;
+          if (transformMap != null) {
+            final double scale = transformMap['scale'] ?? 1.0;
+            final double translateX = transformMap['translateX'] ?? 0.0;
+            final double translateY = transformMap['translateY'] ?? 0.0;
+            final double rotation = transformMap['rotation'] ?? 0.0;
+            final double savedW = transformMap['containerWidth'] ?? screenW;
+            final double savedH = transformMap['containerHeight'] ?? screenH;
+
+            // Normalize translation for current screen bounds
+            final scaleX = screenW / (savedW > 0 ? savedW : screenW);
+            final scaleY = screenH / (savedH > 0 ? savedH : screenH);
+
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..translateByDouble(translateX * scaleX, translateY * scaleY, 0.0, 1.0)
+                ..scaleByDouble(scale, scale, scale, 1.0)
+                ..rotateZ(rotation),
+              child: child,
+            );
+          }
+          return child;
+        }
+
+        final path = widget.glimpse.imagePaths.isNotEmpty ? widget.glimpse.imagePaths.first : '';
+        if (_videoController != null) {
+          final isInitialized = _videoController!.value.isInitialized;
+          
+          if (!isInitialized) return Container(color: Colors.black);
+
+          final videoWidget = SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoController!.value.size.width,
+                height: _videoController!.value.size.height,
+                child: VideoPlayer(_videoController!),
+              ),
+            ),
+          );
+
+          if (widget.glimpse.mediaTransform != null) {
+            // Apply transform to video if transform exists
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                if (widget.glimpse.type == PostType.glimps) ...[
+                   ImageFiltered(
+                     imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                     child: videoWidget,
+                   ),
+                   Container(color: Colors.black.withValues(alpha: 0.35)),
+                ],
+                SizedBox.expand(
+                  child: buildForeground(
+                    FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: _videoController!.value.size.width,
+                        height: _videoController!.value.size.height,
+                        child: VideoPlayer(_videoController!),
+                      ),
+                    )
+                  )
+                )
+              ]
+            );
+          }
+          return videoWidget;
+        }
+
+        if (path.isEmpty) return Container(color: Colors.black);
+
+        final isGlimpse = widget.glimpse.type == PostType.glimps;
+        if (isGlimpse || widget.glimpse.mediaTransform != null) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Blurred background (cover)
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                child: SizedBox.expand(child: _buildImageWidget(path, BoxFit.cover)),
+              ),
+              Container(color: Colors.black.withValues(alpha: 0.35)),
+              // Contained foreground (full image, no crop)
+              SizedBox.expand(child: buildForeground(_buildImageWidget(path, BoxFit.contain))),
+            ],
+          );
+        }
+
+        return SizedBox.expand(child: _buildImageWidget(path, BoxFit.cover));
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_videoController != null) {
-      return _videoController!.value.isInitialized
-          ? SizedBox.expand(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _videoController!.value.size.width,
-                  height: _videoController!.value.size.height,
-                  child: VideoPlayer(_videoController!),
+    Widget content = _buildBaseMedia();
+
+    final filterIndex = widget.glimpse.filterIndex ?? 0;
+    if (filterIndex > 0 && filterIndex < _carouselEffects.length) {
+      content = ColorFiltered(
+        colorFilter: _getActiveColorFilter(filterIndex),
+        child: content,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            content,
+
+            if (widget.glimpse.drawPaths != null && widget.glimpse.drawPaths!.isNotEmpty)
+              CustomPaint(
+                size: Size.infinite,
+                painter: _DisplayPainter(
+                  drawPaths: widget.glimpse.drawPaths!,
+                  screenSize: size,
                 ),
               ),
-            )
-          : Container(color: Colors.black);
-    }
 
-    Widget image;
-    if (widget.path.startsWith('assets/')) {
-      image = Image.asset(widget.path, fit: BoxFit.cover);
-    } else if (widget.path.startsWith('http')) {
-      image = Image.network(widget.path, fit: BoxFit.cover);
-    } else if (widget.path.isNotEmpty) {
-      image = Image.file(File(widget.path), fit: BoxFit.cover);
-    } else {
-      return Container(color: Colors.black);
-    }
+            if (widget.glimpse.textOverlays != null)
+              ...widget.glimpse.textOverlays!.map((textData) {
+                final text = textData['text'] as String? ?? '';
+                final xNormalized = (textData['x'] as num?)?.toDouble() ?? 0.5;
+                final yNormalized = (textData['y'] as num?)?.toDouble() ?? 0.5;
+                final scale = (textData['scale'] as num?)?.toDouble() ?? 1.0;
+                final colorValue = textData['color'] as int?;
+                final color = colorValue != null ? Color(colorValue) : Colors.white;
 
-    return SizedBox.expand(child: image);
+                final x = xNormalized * size.width;
+                final y = yNormalized * size.height;
+
+                return Positioned(
+                  left: x,
+                  top: y,
+                  child: Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 32 * scale,
+                      fontWeight: FontWeight.bold,
+                      shadows: const [
+                        Shadow(color: Colors.black54, blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+
+            if (widget.glimpse.musicStickerConfig != null &&
+                (widget.glimpse.musicStickerConfig!['showSticker'] ?? true))
+              RepaintBoundary(
+                child: MusicStickerWidget(
+                  title: widget.glimpse.musicTitle ?? '',
+                  artist: widget.glimpse.musicArtist ?? '',
+                  coverUrl: widget.glimpse.musicCoverUrl ?? '',
+                  configData: widget.glimpse.musicStickerConfig,
+                  isPlaying: true,
+                  isEditable: false,
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
