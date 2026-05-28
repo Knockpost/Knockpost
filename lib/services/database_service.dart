@@ -309,4 +309,18 @@ class DatabaseService {
       rethrow;
     }
   }
+
+  /// Submit user feedback
+  Future<void> submitFeedback({required String uid, required String message}) async {
+    try {
+      await _firestore.collection('feedback').add({
+        'uid': uid,
+        'message': message,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint("Error submitting feedback: $e");
+      rethrow;
+    }
+  }
 }
