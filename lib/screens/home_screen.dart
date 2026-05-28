@@ -235,38 +235,43 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: SizedBox(
                           width: 60,
                           height: 35,
-                          child: Material(
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF111111),
-                            shape: RoundedRectangleBorder(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
                               borderRadius: BorderRadius.circular(50),
                             ),
-                            child: InkWell(
-                              customBorder: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(50),
-                              ),
-                              onTap: () async {
-                                final text = captionController.text.trim();
-                                if (text.isEmpty) return;
-                                KnockHaptics.tap();
-                                Navigator.pop(ctx);
-                                if (!context.mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => FinalPostScreen(
-                                      files: const [],
-                                      initialCaption: text,
-                                      isGlimpse: false,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                customBorder: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                onTap: () async {
+                                  final text = captionController.text.trim();
+                                  if (text.isEmpty) return;
+                                  KnockHaptics.tap();
+                                  Navigator.pop(ctx);
+                                  if (!context.mounted) return;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FinalPostScreen(
+                                        files: const [],
+                                        initialCaption: text,
+                                        isGlimpse: false,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                              child: Icon(
-                                Icons.send_rounded,
-                                size: 18,
-                                color: isDark ? Colors.black : Colors.white,
+                                  );
+                                },
+                                child: const Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
                               ),
                             ),
                           ),

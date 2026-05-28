@@ -205,6 +205,8 @@ class _PostCardState extends State<PostCard> {
             postId: widget.postId,
             disableProfileNavigation: widget.disableProfileNavigation,
             timestamp: widget.timestamp,
+            musicTitle: widget.musicTitle,
+            musicArtist: widget.musicArtist,
           ),
         ),
 

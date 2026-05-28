@@ -5,19 +5,15 @@ import 'friend_picker_screen.dart';
 
 // ─── Audience Model ─────────────────────────────────────────────────────────
 
-enum PostAudience {
-  myFriends,
-  myFriendsExcept,
-  onlyShareWith,
-}
+enum PostAudience { myFriends, myFriendsExcept, onlyShareWith }
 
 extension PostAudienceLabel on PostAudience {
   String get label {
     switch (this) {
       case PostAudience.myFriends:
-        return 'My Friends';
+        return 'Everyone';
       case PostAudience.myFriendsExcept:
-        return 'My Friends Except…';
+        return 'Everyone Except…';
       case PostAudience.onlyShareWith:
         return 'Only Share With…';
     }
@@ -26,7 +22,7 @@ extension PostAudienceLabel on PostAudience {
   String get subtitle {
     switch (this) {
       case PostAudience.myFriends:
-        return 'All your connections can see this';
+        return 'Everyone / Connections can see this';
       case PostAudience.myFriendsExcept:
         return 'Hidden from specific friends';
       case PostAudience.onlyShareWith:
@@ -97,13 +93,10 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
     _slideController.forward();
   }
 
@@ -118,13 +111,13 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
     Navigator.pop(
       context,
       PostSettingsResult(
-        duration: _duration, 
+        duration: _duration,
         audience: _audience,
         selectedFriendIds: _audience == PostAudience.myFriendsExcept
             ? _selectedFriendsExcept
             : _audience == PostAudience.onlyShareWith
-                ? _selectedOnlyShareWith
-                : null,
+            ? _selectedOnlyShareWith
+            : null,
       ),
     );
   }
@@ -162,9 +155,7 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.grey.shade700
-                      : Colors.grey.shade300,
+                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -283,10 +274,12 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                     ),
                   ),
                   const SizedBox(height: 14),
-                  ...PostAudience.values.map((aud) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _buildAudienceOption(aud, isDark),
-                      )),
+                  ...PostAudience.values.map(
+                    (aud) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildAudienceOption(aud, isDark),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -302,10 +295,10 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                 child: ElevatedButton(
                   onPressed: _confirm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isDark ? Colors.white : const Color(0xFF0E0E0E),
-                    foregroundColor:
-                        isDark ? Colors.black : Colors.white,
+                    backgroundColor: isDark
+                        ? Colors.white
+                        : const Color(0xFF0E0E0E),
+                    foregroundColor: isDark ? Colors.black : Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -419,14 +412,15 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                           duration: const Duration(milliseconds: 200),
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight:
-                                isActive ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight: isActive
+                                ? FontWeight.w800
+                                : FontWeight.w600,
                             letterSpacing: 0.5,
                             color: isActive
                                 ? (isDark ? Colors.black : Colors.white)
                                 : (isDark
-                                    ? Colors.white.withValues(alpha: 0.5)
-                                    : Colors.black.withValues(alpha: 0.4)),
+                                      ? Colors.white.withValues(alpha: 0.5)
+                                      : Colors.black.withValues(alpha: 0.4)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -440,10 +434,12 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                                   color: isActive
                                       ? (isDark ? Colors.black : Colors.white)
                                       : (isDark
-                                          ? Colors.white
-                                              .withValues(alpha: 0.4)
-                                          : Colors.black
-                                              .withValues(alpha: 0.35)),
+                                            ? Colors.white.withValues(
+                                                alpha: 0.4,
+                                              )
+                                            : Colors.black.withValues(
+                                                alpha: 0.35,
+                                              )),
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -516,8 +512,8 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                 color: isSelected
                     ? (isDark ? Colors.white : Colors.black)
                     : (isDark
-                        ? Colors.white.withValues(alpha: 0.07)
-                        : Colors.black.withValues(alpha: 0.05)),
+                          ? Colors.white.withValues(alpha: 0.07)
+                          : Colors.black.withValues(alpha: 0.05)),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -538,7 +534,9 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                     aud.label,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
@@ -569,8 +567,8 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                   color: isSelected
                       ? (isDark ? Colors.white : Colors.black)
                       : (isDark
-                          ? Colors.white.withValues(alpha: 0.2)
-                          : Colors.black.withValues(alpha: 0.18)),
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : Colors.black.withValues(alpha: 0.18)),
                   width: 1.5,
                 ),
               ),

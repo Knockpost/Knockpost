@@ -13,6 +13,8 @@ class ThoughtCard extends StatefulWidget {
   final String? postId;
   final bool disableProfileNavigation;
   final String? timestamp;
+  final String? musicTitle;
+  final String? musicArtist;
 
   const ThoughtCard({
     super.key,
@@ -23,6 +25,8 @@ class ThoughtCard extends StatefulWidget {
     this.postId,
     this.disableProfileNavigation = false,
     this.timestamp,
+    this.musicTitle,
+    this.musicArtist,
   });
 
   @override
@@ -58,6 +62,8 @@ class _ThoughtCardState extends State<ThoughtCard> {
             disableProfileNavigation: widget.disableProfileNavigation,
             timestamp: widget.timestamp,
             postTypeName: 'Thought',
+            musicTitle: widget.musicTitle,
+            musicArtist: widget.musicArtist,
           ),
         ),
 
