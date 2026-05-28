@@ -640,8 +640,6 @@ class _ReactionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (likes <= 0) return const SizedBox.shrink();
-
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: LikeService.instance.getPostReactions(postId),
       builder: (context, snapshot) {
@@ -656,11 +654,11 @@ class _ReactionSummary extends StatelessWidget {
               if (emojisToShow.length == 3) break;
             }
           }
-        } else {
-          // Fallback while loading
+        } else if (likes > 0 || userReaction != null) {
+          // Fallback while loading ONLY if there are likes
           if (userReaction != null) {
             emojisToShow.add(userReaction!);
-          } else {
+          } else if (likes > 0) {
             emojisToShow.add('👍');
             if (likes >= 2) emojisToShow.add('❤');
             if (likes >= 3) emojisToShow.add('🔥');
@@ -669,136 +667,94 @@ class _ReactionSummary extends StatelessWidget {
 
         return Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Views Button (Now on the left, without count)
+            // Views Button
             GestureDetector(
               onTap: () {
                 KnockHaptics.selection();
                 PostAnalyticsSheet.show(
                   context,
                   postId: postId,
-                  initialIndex: 0, // Views tab is now index 0
+                  initialIndex: 0,
                   userReaction: userReaction,
                   totalViews: views,
                 );
               },
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: isOverlay
-                            ? const Color(0x66000000)
-                            : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0)),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isOverlay
-                              ? Colors.white.withValues(alpha: 0.5)
-                              : (isDark ? Colors.black : Colors.white),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+              child: SizedBox(
+                height: 26,
+                width: 26,
+                child: Center(
+                  child: CustomPaint(
+                    size: const Size(18, 18),
+                    painter: _CustomEyePainter(
+                      color: isOverlay
+                          ? Colors.white.withValues(alpha: 0.95)
+                          : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            if (emojisToShow.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              
+              // Reactions Button — overlapping emoji chips
+              GestureDetector(
+                onTap: () {
+                  KnockHaptics.selection();
+                  PostAnalyticsSheet.show(
+                    context,
+                    postId: postId,
+                    initialIndex: 1,
+                    userReaction: userReaction,
+                    totalViews: views,
+                  );
+                },
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 26.0 + (emojisToShow.length - 1) * 16.0,
+                  height: 26,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: List.generate(emojisToShow.length, (index) {
+                      final emoji = emojisToShow[index];
+                      
+                      return Positioned(
+                        left: index * 16.0,
+                        top: 0,
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isOverlay
+                                ? Colors.black.withValues(alpha: 0.45)
+                                : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5)),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isOverlay
+                                  ? Colors.white.withValues(alpha: 0.25)
+                                  : (isDark ? const Color(0xFF1A1A1A) : Colors.white),
+                              width: 1.5,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: CustomPaint(
-                        size: const Size(12, 12),
-                        painter: _CustomEyePainter(
-                          color: isOverlay
-                              ? Colors.white.withValues(alpha: 0.95)
-                              : (isDark ? Colors.white70 : Colors.black87),
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 14, height: 1.1),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      );
+                    }),
+                  ),
                 ),
               ),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Reactions Button (Now on the right)
-            GestureDetector(
-              onTap: () {
-                KnockHaptics.selection();
-                PostAnalyticsSheet.show(
-                  context,
-                  postId: postId,
-                  initialIndex: 1, // Reactions tab is now index 1
-                  userReaction: userReaction,
-                  totalViews: views,
-                );
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Overlapping reaction icons
-                    SizedBox(
-                      width: 24.0 + (emojisToShow.length - 1) * 14.0,
-                      height: 24,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: List.generate(emojisToShow.length, (index) {
-                          // Ensure left-most is on top
-                          final reversedIndex = emojisToShow.length - 1 - index;
-                          return _miniEmoji(
-                            emojisToShow[reversedIndex],
-                            reversedIndex * 14.0,
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            ],
           ],
         );
       },
-    );
-  }
-
-  Widget _miniEmoji(String emoji, double left) {
-    return Positioned(
-      left: left,
-      child: Container(
-        width: 24,
-        height: 24,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isOverlay
-              ? const Color(0x66000000) // translucent black for video
-              : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0F0F0)),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isOverlay
-                ? Colors.white.withValues(alpha: 0.5)
-                : (isDark ? Colors.black : Colors.white),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Text(emoji, style: const TextStyle(fontSize: 12, height: 1.1)),
-      ),
     );
   }
 }
@@ -810,10 +766,11 @@ class _CustomEyePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final strokeWidth = size.width * 0.12;
     final strokePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
     final fillPaint = Paint()
@@ -822,34 +779,21 @@ class _CustomEyePainter extends CustomPainter {
 
     // Top arch
     final path = Path();
-    path.moveTo(0, size.height * 0.4);
+    path.moveTo(strokeWidth / 2, size.height * 0.45);
     path.quadraticBezierTo(
       size.width * 0.5,
-      -size.height * 0.25,
-      size.width,
-      size.height * 0.4,
+      0.0, // control point to create a gentle curve
+      size.width - (strokeWidth / 2),
+      size.height * 0.45,
     );
     canvas.drawPath(path, strokePaint);
 
-    // Pupil with a cutout
-    canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
-    
-    // Draw solid pupil
+    // Draw perfectly solid pupil
     canvas.drawCircle(
-      Offset(size.width * 0.5, size.height * 0.55),
-      size.width * 0.28,
+      Offset(size.width * 0.5, size.height * 0.66),
+      size.width * 0.21,
       fillPaint,
     );
-
-    // Cutout
-    final clearPaint = Paint()..blendMode = BlendMode.clear;
-    canvas.drawCircle(
-      Offset(size.width * 0.68, size.height * 0.38),
-      size.width * 0.12,
-      clearPaint,
-    );
-
-    canvas.restore();
   }
 
   @override

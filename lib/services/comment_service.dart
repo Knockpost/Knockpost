@@ -160,18 +160,38 @@ class CommentService {
 
       batch.set(threadRef, threadData, SetOptions(merge: true));
 
+      // ── Notification: single write, no duplicates ──
+      // Fetch post thumbnail BEFORE the batch commit so we can include it
+      // in the single notification write. This eliminates the old dual-path
+      // (Fast Path + Slow Path) that caused duplicate push notifications.
+      if (senderId != receiverId) {
+        String? postThumbnailUrl;
+        try {
+          final postDoc = await _firestore.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            final data = postDoc.data()!;
+            final paths = data['imagePaths'] as List<dynamic>?;
+            if (paths != null && paths.isNotEmpty) {
+              postThumbnailUrl = paths.first as String;
+            }
+          }
+        } catch (_) {
+          // Thumbnail fetch failure should never block the message
+        }
+
+        NotificationService.instance.sendNotificationInBatch(
+          batch,
+          receiverUid: receiverId,
+          type: NotificationType.comment,
+          postId: postId,
+          commentSnippet: text,
+          postThumbnailUrl: postThumbnailUrl,
+        );
+      }
+
       await batch.commit();
 
       ChatLogger.instance.info('Reply', 'sent postId=$postId threadUser=$threadUserId msgId=$msgDocId');
-
-      // Send notification (fire-and-forget, never blocks the send)
-      if (senderId != receiverId) {
-        _sendNotification(
-          postId: postId,
-          receiverId: receiverId,
-          text: text,
-        );
-      }
     } catch (e) {
       ChatLogger.instance.error('Reply', 'send failed', e);
       rethrow;
@@ -227,37 +247,6 @@ class CommentService {
       );
     } catch (e) {
       debugPrint("Error marking thread read: $e");
-    }
-  }
-
-  // ── Notification helper (fire-and-forget) ─────────────────────────────
-
-  void _sendNotification({
-    required String postId,
-    required String receiverId,
-    required String text,
-  }) async {
-    try {
-      String? postThumbnailUrl;
-      final postDoc =
-          await _firestore.collection('posts').doc(postId).get();
-      if (postDoc.exists) {
-        final data = postDoc.data()!;
-        final paths = data['imagePaths'] as List<dynamic>?;
-        if (paths != null && paths.isNotEmpty) {
-          postThumbnailUrl = paths.first as String;
-        }
-      }
-
-      NotificationService.instance.sendNotification(
-        receiverUid: receiverId,
-        type: NotificationType.comment,
-        postId: postId,
-        commentSnippet: text,
-        postThumbnailUrl: postThumbnailUrl,
-      );
-    } catch (_) {
-      // Notification failures should never block user flow
     }
   }
 }

@@ -5,6 +5,7 @@ import 'auth_service.dart';
 import 'notification_service.dart';
 import '../models/notification_model.dart';
 import 'database_service.dart';
+import '../utils/knock_state_manager.dart';
 
 /// Handles all Knock / Connection logic.
 ///
@@ -38,8 +39,18 @@ class ConnectionService {
     final me = _myUid;
     if (me == null) return;
 
+    final currentStatus = KnockStateManager.instance.getNotifier(toUid).value;
+    if (currentStatus == KnockStatus.pending || currentStatus == KnockStatus.knocked || currentStatus == KnockStatus.mutualKnocked) {
+      return; // Prevent duplicate sending
+    }
+
     final docId = _docId(me, toUid);
     final status = isOpenProfile ? 'accepted' : 'pending';
+    
+    final previousStatus = currentStatus;
+    final nextStatus = isOpenProfile ? KnockStatus.knocked : KnockStatus.pending;
+    KnockStateManager.instance.setOptimisticStatus(toUid, nextStatus);
+
     try {
       await _col.doc(docId).set({
         'fromUid': me,
@@ -49,7 +60,7 @@ class ConnectionService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Send notification
+      // Send notification only on first knock
       NotificationService.instance.sendNotification(
         receiverUid: toUid,
         type: NotificationType.knock,
@@ -58,9 +69,10 @@ class ConnectionService {
       // Increment stats
       await _db.collection('users').doc(toUid).update({
         'totalKnocksReceived': FieldValue.increment(1),
-      }).catchError((_) {}); // Ignore if document doesn't exist
+      }).catchError((_) {}); 
       DatabaseService.instance.recalculateCreatorRank(toUid);
     } catch (e) {
+      KnockStateManager.instance.setOptimisticStatus(toUid, previousStatus);
       debugPrint('ConnectionService.sendKnock error: $e');
       rethrow;
     }
@@ -71,14 +83,21 @@ class ConnectionService {
   Future<void> acceptKnock(String fromUid) async {
     final me = _myUid;
     if (me == null) return;
+    
+    final currentStatus = KnockStateManager.instance.getNotifier(fromUid).value;
+    if (currentStatus == KnockStatus.mutualKnocked) return; 
+
+    final previousStatus = currentStatus;
+    KnockStateManager.instance.setOptimisticStatus(fromUid, KnockStatus.mutualKnocked);
+
     try {
       final batch = _db.batch();
       
       // Update their knock to accepted
-      batch.update(_col.doc(_docId(fromUid, me)), {
+      batch.set(_col.doc(_docId(fromUid, me)), {
         'status': 'accepted',
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
       
       // Create my knock to them as accepted
       batch.set(_col.doc(_docId(me, fromUid)), {
@@ -94,9 +113,10 @@ class ConnectionService {
       // Send a notification that we knocked back
       NotificationService.instance.sendNotification(
         receiverUid: fromUid,
-        type: NotificationType.knock,
+        type: NotificationType.knockBack,
       );
     } catch (e) {
+      KnockStateManager.instance.setOptimisticStatus(fromUid, previousStatus);
       debugPrint('ConnectionService.acceptKnock error: $e');
       rethrow;
     }
@@ -107,8 +127,21 @@ class ConnectionService {
   Future<void> removeKnock(String otherUid) async {
     final me = _myUid;
     if (me == null) return;
+    
+    final currentStatus = KnockStateManager.instance.getNotifier(otherUid).value;
+    final previousStatus = currentStatus;
+    
+    KnockStatus nextStatus = KnockStatus.none;
+    if (currentStatus == KnockStatus.mutualKnocked) {
+      nextStatus = KnockStatus.theyKnockedYou;
+    }
+    KnockStateManager.instance.setOptimisticStatus(otherUid, nextStatus);
+
     try {
       await _col.doc(_docId(me, otherUid)).delete();
+
+      // Clean up the notification we sent them
+      NotificationService.instance.deleteSentNotification(otherUid, 'knock_$me');
 
       // Decrement stats
       await _db.collection('users').doc(otherUid).update({
@@ -116,6 +149,7 @@ class ConnectionService {
       }).catchError((_) {});
       DatabaseService.instance.recalculateCreatorRank(otherUid);
     } catch (e) {
+      KnockStateManager.instance.setOptimisticStatus(otherUid, previousStatus);
       debugPrint('ConnectionService.removeKnock error: $e');
       rethrow;
     }
@@ -126,17 +160,24 @@ class ConnectionService {
   Future<void> approveKnock(String fromUid) async {
     final me = _myUid;
     if (me == null) return;
+    
+    final currentStatus = KnockStateManager.instance.getNotifier(fromUid).value;
+    final previousStatus = currentStatus;
+    
+    KnockStateManager.instance.setOptimisticStatus(fromUid, KnockStatus.theyKnockedYou);
+
     try {
-      await _col.doc(_docId(fromUid, me)).update({
+      await _col.doc(_docId(fromUid, me)).set({
         'status': 'accepted',
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
       // Optionally notify them that you accepted
       NotificationService.instance.sendNotification(
         receiverUid: fromUid,
-        type: NotificationType.knock, // Or a specific 'accepted' type if available
+        type: NotificationType.knockAccept,
       );
     } catch (e) {
+      KnockStateManager.instance.setOptimisticStatus(fromUid, previousStatus);
       debugPrint('ConnectionService.approveKnock error: $e');
       rethrow;
     }
@@ -146,8 +187,17 @@ class ConnectionService {
   Future<void> declineKnock(String fromUid) async {
     final me = _myUid;
     if (me == null) return;
+
+    final currentStatus = KnockStateManager.instance.getNotifier(fromUid).value;
+    final previousStatus = currentStatus;
+    
+    KnockStateManager.instance.setOptimisticStatus(fromUid, KnockStatus.none);
+
     try {
       await _col.doc(_docId(fromUid, me)).delete();
+
+      // Clean up their pending notification to us
+      NotificationService.instance.deleteNotification('knock_$fromUid');
 
       // Decrement stats
       await _db.collection('users').doc(me).update({
@@ -155,6 +205,7 @@ class ConnectionService {
       }).catchError((_) {});
       DatabaseService.instance.recalculateCreatorRank(me);
     } catch (e) {
+      KnockStateManager.instance.setOptimisticStatus(fromUid, previousStatus);
       debugPrint('ConnectionService.declineKnock error: $e');
       rethrow;
     }

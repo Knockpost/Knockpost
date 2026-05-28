@@ -58,7 +58,7 @@ class PrivateLockOverlay extends StatelessWidget {
           Text(
             hasPendingKnock
                 ? 'Your knock is pending.\nWaiting for them to accept.'
-                : 'Send a Knock to unlock this profile.',
+                : 'Send a Request to unlock this Profile.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13.5, color: subColor, height: 1.45),
           ),
@@ -77,7 +77,7 @@ class PrivateLockOverlay extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Text(
-                  'Send Knock',
+                  'Request',
                   style: TextStyle(
                     color: isDark ? Colors.black : Colors.white,
                     fontWeight: FontWeight.w700,

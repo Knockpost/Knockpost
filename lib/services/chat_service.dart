@@ -24,8 +24,7 @@ class ChatService {
   String? get _myUid => AuthService.instance.currentUser?.uid;
   CollectionReference get _chats => _db.collection('chats');
 
-  // Stream caching
-  final Map<String, Stream<List<ChatMessage>>> _messageStreams = {};
+  // Stream caching — only for chat rooms (shared across screens)
   Stream<List<ChatRoom>>? _chatRoomsStream;
 
   // ── Chat ID ────────────────────────────────────────────────────────────────
@@ -62,28 +61,27 @@ class ChatService {
     return _chatRoomsStream!;
   }
 
+  /// Returns a **fresh** stream each time it is called.
+  /// Each ChatScreen creates its own Firestore snapshot listener via
+  /// `initState` and cancels it in `dispose`. Caching broadcast streams
+  /// caused stale-stream bugs: the cached broadcast would stop emitting
+  /// after the first subscriber cancelled, leaving subsequent screens
+  /// stuck on the loading spinner.
   Stream<List<ChatMessage>> streamMessages(String chatId, {int limit = 50}) {
-    final cacheKey = '${chatId}_$limit';
-    
-    if (!_messageStreams.containsKey(cacheKey)) {
-      _messageStreams[cacheKey] = _chats
-          .doc(chatId)
-          .collection('messages')
-          .orderBy('timestamp', descending: true)
-          .limit(limit)
-          .snapshots()
-          .map((snap) {
-            return snap.docs.map((d) {
-              return ChatMessage.fromMap(d.data(), d.id);
-            }).toList();
-          }).asBroadcastStream();
-    }
-    
-    return _messageStreams[cacheKey]!;
+    return _chats
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) {
+          return snap.docs.map((d) {
+            return ChatMessage.fromMap(d.data(), d.id);
+          }).toList();
+        });
   }
 
   void clearStreamCache() {
-    _messageStreams.clear();
     _chatRoomsStream = null;
     ChatLogger.instance.info('StreamCache', 'Cleared stream caches');
   }
@@ -205,17 +203,15 @@ class ChatService {
       'unreadCount': {otherUid: FieldValue.increment(1), me: 0},
     }, SetOptions(merge: true));
 
-    await batch.commit();
+    // Add notification creation to the SAME batch so it triggers the Cloud Function instantly
+    NotificationService.instance.sendNotificationInBatch(
+      batch,
+      receiverUid: otherUid,
+      type: NotificationType.message,
+      commentSnippet: text,
+    );
 
-    try {
-      await NotificationService.instance.sendNotification(
-        receiverUid: otherUid,
-        type: NotificationType.message,
-        commentSnippet: text,
-      );
-    } catch (e) {
-      ChatLogger.instance.warning('Notification', 'Failed to send notification: $e');
-    }
+    await batch.commit();
     
     return msgRef.id;
   }

@@ -156,36 +156,6 @@ class _SignupVerificationScreenState
     }
   }
 
-  void _showPasteLinkDialog() {
-    final TextEditingController linkController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Paste Magic Link"),
-          content: TextField(
-            controller: linkController,
-            decoration: const InputDecoration(hintText: "https://knockpost..."),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                if (linkController.text.trim().isNotEmpty) {
-                  _handleIncomingLink(linkController.text.trim());
-                }
-              },
-              child: const Text("Verify"),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void goBackAndLogout() async {
     await AuthService.instance.signOut();
@@ -320,17 +290,7 @@ class _SignupVerificationScreenState
                               style: TextStyle(color: isDark ? Colors.white54 : Colors.black45, fontStyle: FontStyle.italic),
                             ),
                             const SizedBox(height: 20),
-                            // Fallback for emulator testing
-                            TextButton(
-                              onPressed: () {
-                                _showPasteLinkDialog();
-                              },
-                              child: Text(
-                                "Link opened in browser? Paste it here.",
-                                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, decoration: TextDecoration.underline),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
+
                             TextButton(
                               onPressed: isChecking ? null : () { 
                                 KnockHaptics.tap(); 

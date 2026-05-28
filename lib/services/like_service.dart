@@ -42,6 +42,7 @@ class LikeService {
             transaction.update(authorRef, {'totalLikes': FieldValue.increment(1)});
           }
           transaction.set(likeRef, {
+            'userId': userId,
             'timestamp': FieldValue.serverTimestamp(),
             'reaction': reactionType,
           });
@@ -90,19 +91,38 @@ class LikeService {
   }
 
   /// Streams the list of all reactions for a post.
+  /// Deduplicates by userId and handles docs with null timestamps
+  /// (which occur briefly when FieldValue.serverTimestamp() hasn't resolved).
   Stream<List<Map<String, dynamic>>> getPostReactions(String postId) {
     return _firestore
         .collection('posts')
         .doc(postId)
         .collection('likes')
-        .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final seen = <String>{};
+      final reactions = <Map<String, dynamic>>[];
+      
+      // Sort docs: non-null timestamps first (descending), null timestamps last
+      final sortedDocs = snapshot.docs.toList()
+        ..sort((a, b) {
+          final aTs = a.data()['timestamp'] as Timestamp?;
+          final bTs = b.data()['timestamp'] as Timestamp?;
+          if (aTs == null && bTs == null) return 0;
+          if (aTs == null) return 1;  // null goes to end
+          if (bTs == null) return -1; // null goes to end
+          return bTs.compareTo(aTs);  // descending
+        });
+      
+      for (final doc in sortedDocs) {
         final data = doc.data();
-        data['userId'] = doc.id;
-        return data;
-      }).toList();
+        final userId = data['userId'] as String? ?? doc.id;
+        data['userId'] = userId; // ensure userId is always set
+        if (seen.add(userId)) {
+          reactions.add(data);
+        }
+      }
+      return reactions;
     });
   }
 }

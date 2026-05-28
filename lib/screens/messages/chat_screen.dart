@@ -84,6 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatMessage> _filteredMessages = [];
   List<_ChatListItem> _allItems = [];
   StreamSubscription<List<ChatMessage>>? _messageSub;
+  Timer? _loadingTimeout;
   bool _isLoadingMessages = true;
 
   bool _isOffline = false;
@@ -129,19 +130,27 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _isOffline = !ConnectivityService.instance.isOnline;
 
+    // Safety timeout: if the stream never emits within 8s, force loading off.
+    // This guards against Firestore cold-start delays, empty chats, or network issues.
+    _loadingTimeout = Timer(const Duration(seconds: 8), () {
+      if (mounted && _isLoadingMessages) {
+        setState(() => _isLoadingMessages = false);
+      }
+    });
+
     _messageSub = ChatService.instance.streamMessages(_chatId).listen((messages) {
       if (!mounted) return;
+      _loadingTimeout?.cancel();
       setState(() {
-        if (messages.isNotEmpty || _firestoreMessages.isEmpty) {
-           _firestoreMessages = messages;
-           _messageMap = { for (var m in messages) m.id: m };
-           _applySearch();
-        }
+        _firestoreMessages = messages;
+        _messageMap = { for (var m in messages) m.id: m };
+        _applySearch();
         _isLoadingMessages = false;
       });
       ChatService.instance.markChatAsRead(_chatId);
     }, onError: (e) {
       if (!mounted) return;
+      _loadingTimeout?.cancel();
       setState(() => _isLoadingMessages = false);
     });
   }
@@ -191,6 +200,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _loadingTimeout?.cancel();
     _messageSub?.cancel();
     _connectivitySub?.cancel();
     _messageController.dispose();

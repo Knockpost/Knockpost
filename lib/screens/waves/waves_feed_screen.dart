@@ -110,13 +110,10 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
         body: Stack(
           children: [
             /// 🎬 REEL PAGES (vertical scroll)
-            RefreshIndicator(
+            KnockpostRefreshIndicator(
               onRefresh: () async {
                 await WavesFeedManager.instance.refresh();
               },
-              backgroundColor: Colors.black,
-              color: Colors.white,
-              edgeOffset: 80,
               child: AnimatedBuilder(
                 animation: WavesFeedManager.instance,
                 builder: (context, _) {
