@@ -14,6 +14,7 @@ import '../../services/current_user_service.dart';
 import '../../services/like_service.dart';
 import '../../services/post_service.dart';
 import '../../services/waves_controller_manager.dart';
+import '../../services/connection_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../../widgets/knockpost_avatar.dart';
 import 'package:extended_image/extended_image.dart';
@@ -56,6 +57,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   
   late ValueNotifier<KnockStatus>? _globalNotifier;
   KnockStatus _status = KnockStatus.none;
+  bool _isKnockLoading = false;
 
   /// Like animation
   late AnimationController _heartAnimController;
@@ -263,38 +265,41 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     });
   }
 
-  void _toggleKnock() {
-    if (widget.author == null) return;
+  void _toggleKnock() async {
+    if (widget.author == null || _isKnockLoading) return;
     KnockHaptics.tap();
 
     final isEffectivelyOpen = widget.author!.accountType == AccountType.creator || 
                               widget.author!.privacyType == PrivacyType.open;
 
-    KnockStatus nextStatus = _status;
-    
-    switch (_status) {
-      case KnockStatus.none:
-      case KnockStatus.theyKnockedYouPending:
-        nextStatus = isEffectivelyOpen ? KnockStatus.knocked : KnockStatus.pending;
-        _showBlackFlash = true;
-        break;
-      case KnockStatus.theyKnockedYou:
-        nextStatus = KnockStatus.mutualKnocked;
-        _showBlackFlash = true;
-        break;
-      case KnockStatus.pending:
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        nextStatus = KnockStatus.none;
-        break;
-    }
+    setState(() => _isKnockLoading = true);
 
-    setState(() {
-      _status = nextStatus;
-    });
-    
-    if (_globalNotifier != null) {
-      _globalNotifier!.value = nextStatus;
+    try {
+      switch (_status) {
+        case KnockStatus.none:
+        case KnockStatus.theyKnockedYouPending:
+          _showBlackFlash = true;
+          setState(() {});
+          await ConnectionService.instance.sendKnock(
+            toUid: widget.author!.id,
+            isOpenProfile: isEffectivelyOpen,
+          );
+          break;
+        case KnockStatus.theyKnockedYou:
+          _showBlackFlash = true;
+          setState(() {});
+          await ConnectionService.instance.acceptKnock(widget.author!.id);
+          break;
+        case KnockStatus.pending:
+        case KnockStatus.knocked:
+        case KnockStatus.mutualKnocked:
+          await ConnectionService.instance.removeKnock(widget.author!.id);
+          break;
+      }
+    } catch (e) {
+      debugPrint('WaveItem._toggleKnock error: $e');
+    } finally {
+      if (mounted) setState(() => _isKnockLoading = false);
     }
 
     if (_showBlackFlash) {

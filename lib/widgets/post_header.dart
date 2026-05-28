@@ -7,6 +7,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/widgets/creator_rank_badge.dart';
 import '../utils/haptic_helper.dart';
 import '../services/post_service.dart';
+import '../services/connection_service.dart';
 import 'knockpost_avatar.dart';
 import '../screens/waves/widgets/more_options_sheet.dart';
 
@@ -34,6 +35,7 @@ class _PostHeaderState extends State<PostHeader> {
   late ValueNotifier<KnockStatus> _globalNotifier;
   late KnockStatus _status;
   bool _showBlackFlash = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -66,37 +68,42 @@ class _PostHeaderState extends State<PostHeader> {
     super.dispose();
   }
 
-  void _toggleKnock() {
+  void _toggleKnock() async {
+    if (_isLoading) return;
     KnockHaptics.tap();
     
     final isEffectivelyOpen = widget.user.accountType == AccountType.creator || 
                               widget.user.privacyType == PrivacyType.open;
 
-    KnockStatus nextStatus = _status;
-    
-    switch (_status) {
-      case KnockStatus.none:
-      case KnockStatus.theyKnockedYouPending:
-        nextStatus = isEffectivelyOpen ? KnockStatus.knocked : KnockStatus.pending;
-        _showBlackFlash = true;
-        break;
-      case KnockStatus.theyKnockedYou:
-        nextStatus = KnockStatus.mutualKnocked;
-        _showBlackFlash = true;
-        break;
-      case KnockStatus.pending:
-      case KnockStatus.knocked:
-      case KnockStatus.mutualKnocked:
-        nextStatus = KnockStatus.none;
-        break;
-    }
+    setState(() => _isLoading = true);
 
-    setState(() {
-      _status = nextStatus;
-    });
-    
-    // Broadcast status globally
-    _globalNotifier.value = nextStatus;
+    try {
+      switch (_status) {
+        case KnockStatus.none:
+        case KnockStatus.theyKnockedYouPending:
+          _showBlackFlash = true;
+          setState(() {});
+          await ConnectionService.instance.sendKnock(
+            toUid: widget.user.id,
+            isOpenProfile: isEffectivelyOpen,
+          );
+          break;
+        case KnockStatus.theyKnockedYou:
+          _showBlackFlash = true;
+          setState(() {});
+          await ConnectionService.instance.acceptKnock(widget.user.id);
+          break;
+        case KnockStatus.pending:
+        case KnockStatus.knocked:
+        case KnockStatus.mutualKnocked:
+          await ConnectionService.instance.removeKnock(widget.user.id);
+          break;
+      }
+    } catch (e) {
+      debugPrint('PostHeader._toggleKnock error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
 
     if (_showBlackFlash) {
       Future.delayed(const Duration(milliseconds: 900), () {
