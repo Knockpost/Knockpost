@@ -3,6 +3,7 @@ import 'package:pinput/pinput.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../utils/haptic_helper.dart';
 import '../../services/auth_service.dart';
+import '../login_screen.dart';
 import 'signup_username_screen.dart';
 
 class SignupVerificationScreen extends StatefulWidget {
@@ -91,6 +92,18 @@ class _SignupVerificationScreenState extends State<SignupVerificationScreen> {
     }
   }
 
+  void goBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      AuthService.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -116,7 +129,7 @@ class _SignupVerificationScreenState extends State<SignupVerificationScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () { KnockHaptics.tap(); Navigator.pop(context); },
+                    onTap: () { KnockHaptics.tap(); goBack(); },
                     child: Icon(Icons.arrow_back, size: 25, color: isDark ? Colors.white : Colors.black),
                   ),
                   const Spacer(),

@@ -52,7 +52,10 @@ class _SignupPasswordScreenState
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (widget.isGoogleSignup && user != null) {
+      if (user != null && user.email == widget.email) {
+        // User already created an account but went back to change password
+        await user.updatePassword(password);
+      } else if (widget.isGoogleSignup && user != null) {
         // For Google Signup, user is already signed in
         await user.updatePassword(password);
       } else {
@@ -65,7 +68,7 @@ class _SignupPasswordScreenState
 
       if (mounted) {
         // After setting password/creating account, go to Profile Setup
-        Navigator.pushAndRemoveUntil(
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ProfileSetupScreen(
@@ -74,7 +77,6 @@ class _SignupPasswordScreenState
               password: password,
             ),
           ),
-          (route) => false,
         );
       }
     } catch (e) {
@@ -94,7 +96,15 @@ class _SignupPasswordScreenState
   }
 
   void goBack() {
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      AuthService.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void goLogin() {

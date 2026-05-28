@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'interest_selection_screen.dart';
 import '../login_screen.dart';
+import '../../services/auth_service.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final String email;
@@ -47,6 +48,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   // 🔥 CUSTOM DATE PICKER (SHORT MONTH VERSION)
   void pickDate() {
+    FocusManager.instance.primaryFocus?.unfocus(); // Dismiss keyboard
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
@@ -267,6 +269,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       );
       return;
     }
+    
+    if (selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select your date of birth")),
+      );
+      return;
+    }
+
+    final today = DateTime.now();
+    int age = today.year - selectedDate!.year;
+    if (today.month < selectedDate!.month ||
+        (today.month == selectedDate!.month && today.day < selectedDate!.day)) {
+      age--;
+    }
+
+    if (age <= 13) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You must be at least 13 years old to use this app.")),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -283,7 +307,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void goBack() {
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      AuthService.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void goLogin() {
@@ -306,8 +338,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: Column(
           children: [
 
             const SizedBox(height: 13),
@@ -575,6 +610,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
           ],
         ),
+      ),
       ),
     );
   }

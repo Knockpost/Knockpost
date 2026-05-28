@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../utils/haptic_helper.dart';
 import '../../services/database_service.dart';
+import '../../services/auth_service.dart';
 import 'signup_password_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
@@ -58,7 +59,15 @@ class _SignupUsernameScreenState
   }
 
   void goBack() {
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      AuthService.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void goLogin() {
