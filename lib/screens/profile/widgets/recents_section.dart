@@ -6,7 +6,8 @@ import '../../thoughts/thought_card.dart';
 import '../../waves/waves_feed_card.dart';
 import '../../../utils/global_post_state.dart';
 import '../../../widgets/staggered_entry_animation.dart';
-import 'profile_glimps_strip.dart';
+import 'daily_glimpse_strip.dart';
+import '../../../services/daily_glimpse_service.dart';
 import 'profile_ui_helpers.dart';
 
 /// Shows posts that are within their 3-day active window.
@@ -24,9 +25,7 @@ class RecentsSection extends StatelessWidget {
     this.isOwnProfile = true,
   });
 
-  List<PostModel> get _recentGlimpses =>
-      posts.where((p) => p.isInRecentsWindow && p.type == PostType.glimps && p.imagePaths.isNotEmpty).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  // Glimpses are now handled by DailyGlimpseService directly in build
 
   List<PostModel> get _recentNormalPosts =>
       posts.where((p) => p.isInRecentsWindow && p.type != PostType.glimps && p.type != PostType.waves).toList()
@@ -42,11 +41,19 @@ class RecentsSection extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
+        final validPosts = posts.where((p) => !deletedIds.contains(p.id)).toList();
         final recentPosts = _recentNormalPosts.where((p) => !deletedIds.contains(p.id)).toList();
-        final glimpses = _recentGlimpses.where((p) => !deletedIds.contains(p.id)).toList();
         final waves = _recentWaves.where((p) => !deletedIds.contains(p.id)).toList();
 
-        if (recentPosts.isEmpty && glimpses.isEmpty && waves.isEmpty) {
+        // Get all daily cards for the user, but only keep those that have at least one glimpse in the recents window
+        final allGlimpses = validPosts.where((p) => p.type == PostType.glimps).toList();
+        final allDailyCards = DailyGlimpseService.instance.getActiveDailyCards(allGlimpses);
+        final recentDailyCards = allDailyCards.where((card) {
+          final glimpses = DailyGlimpseService.instance.getGlimpsesForCard(card, validPosts);
+          return glimpses.any((g) => g.isInRecentsWindow);
+        }).toList();
+
+        if (recentPosts.isEmpty && recentDailyCards.isEmpty && waves.isEmpty) {
           return ProfileEmptySection(
             icon: Icons.history_rounded,
             message: 'No recent posts',
@@ -69,7 +76,7 @@ class RecentsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (glimpses.isNotEmpty) ...[
+            if (recentDailyCards.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(left: 16, top: 24, bottom: 4),
                 child: Row(
@@ -92,7 +99,11 @@ class RecentsSection extends StatelessWidget {
                   ],
                 ),
               ),
-              ProfileGlimpsStrip(glimpses: glimpses, user: user),
+              DailyGlimpseStrip(
+                dailyCards: recentDailyCards, 
+                allUserGlimpses: validPosts, 
+                user: user
+              ),
             ],
             // ── Waves Section ──
             if (waves.isNotEmpty) ...[

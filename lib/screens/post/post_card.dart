@@ -224,38 +224,34 @@ class _PostCardState extends State<PostCard> {
         SizedBox(height: widget.caption.isNotEmpty ? 14 : 4),
 
         // ── Media + Overlays ──
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return Stack(
-              children: [
-                MediaCarousel(
-                  imagePaths: widget.imagePaths,
-                  isVideoPost: widget.isVideoPost,
-                  onDoubleTap: _onDoubleTap,
-                  mediaAspectRatio: widget.mediaAspectRatio,
+        Stack(
+          children: [
+            MediaCarousel(
+              imagePaths: widget.imagePaths,
+              isVideoPost: widget.isVideoPost,
+              onDoubleTap: _onDoubleTap,
+              mediaAspectRatio: widget.mediaAspectRatio,
+            ),
+
+            // ── Music overlay (handled by MusicStickerWidget) ──
+            if (_hasMusic && widget.musicStickerConfig != null && !widget.mediaIsBaked)
+              RepaintBoundary(
+                child: MusicStickerWidget(
+                  title: widget.musicTitle ?? '',
+                  artist: widget.musicArtist ?? '',
+                  coverUrl: widget.musicCoverUrl ?? '',
+                  configData: widget.musicStickerConfig,
+                  isPlaying: _isPlaying,
                 ),
+              ),
 
-                // ── Music overlay (handled by MusicStickerWidget) ──
-                if (_hasMusic && widget.musicStickerConfig != null && !widget.mediaIsBaked)
-                  RepaintBoundary(
-                    child: MusicStickerWidget(
-                      title: widget.musicTitle ?? '',
-                      artist: widget.musicArtist ?? '',
-                      coverUrl: widget.musicCoverUrl ?? '',
-                      configData: widget.musicStickerConfig,
-                      isPlaying: _isPlaying,
-                    ),
-                  ),
-
-                if (_hasMusic)
-                  Positioned(
-                    bottom: 15,
-                    right: 15,
-                    child: _buildCompactMusicButton(),
-                  ),
-              ],
-            );
-          },
+            if (_hasMusic)
+              Positioned(
+                bottom: 15,
+                right: 15,
+                child: _buildCompactMusicButton(),
+              ),
+          ],
         ),
 
         const SizedBox(height: 10),

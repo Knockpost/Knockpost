@@ -516,7 +516,9 @@ exports.sendPushOnNotificationUpdate = functions.firestore
     return null;
   });
 
-const nodemailer = require("nodemailer");
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMAIL OTP FUNCTIONS (Forgot Password)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // NOTE: You must set up Gmail App Password or use SendGrid in production.
 // For now, we will use a dummy account or rely on environment variables if set, 
@@ -540,8 +542,6 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
   const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   // Save OTP in Firestore
-  // We keep the collection name "passwordResetOtps" for simplicity or rename to "emailOtps"
-  // Let's rename the collection to "emailOtps" for clarity
   await admin.firestore().collection("emailOtps").doc(email).set({
     otp: otp,
     expiresAt: expiresAt,
@@ -558,9 +558,6 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
   };
 
   try {
-    // We wrap this in a try-catch so it doesn't fail the whole function 
-    // if the user hasn't set up SMTP credentials yet. We'll still return success
-    // so they can test using the console log.
     await transporter.sendMail(mailOptions);
     console.log(`Email sent to ${email}`);
   } catch (error) {
@@ -634,3 +631,72 @@ exports.resetPasswordWithOtp = functions.https.onCall(async (data, context) => {
 
   return { success: true };
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DAILY GLIMPSE CLEANUP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+exports.cleanupExpiredGlimpses = functions.pubsub
+  .schedule('every 24 hours')
+  .onRun(async (context) => {
+    console.log("Starting daily glimpse cleanup...");
+    
+    // Calculate cutoff times
+    const now = new Date();
+    
+    const cutoff24h = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    const cutoff36h = new Date(now.getTime() - (36 * 60 * 60 * 1000));
+
+    let deletedCount = 0;
+
+    try {
+      const glimpsesSnapshot = await db.collection("posts")
+        .where("type", "==", "glimps")
+        .get();
+
+      let batch = db.batch();
+      let batchCount = 0;
+
+      for (const doc of glimpsesSnapshot.docs) {
+        const data = doc.data();
+        if (!data.createdAt || !data.duration) continue;
+
+        const createdAt = data.createdAt.toDate();
+        let isExpired = false;
+
+        switch (data.duration) {
+          case "h24":
+            isExpired = createdAt < cutoff24h;
+            break;
+          case "h36":
+            isExpired = createdAt < cutoff36h;
+            break;
+          case "lifetime":
+            isExpired = false;
+            break;
+        }
+
+        if (isExpired) {
+          batch.delete(doc.ref);
+          batchCount++;
+          deletedCount++;
+        }
+
+        if (batchCount === 490) {
+          await batch.commit();
+          batch = db.batch();
+          batchCount = 0;
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      console.log(`Daily glimpse cleanup finished. Deleted ${deletedCount} expired glimpses.`);
+    } catch (error) {
+      console.error("Error during glimpse cleanup:", error);
+    }
+    
+    return null;
+  });

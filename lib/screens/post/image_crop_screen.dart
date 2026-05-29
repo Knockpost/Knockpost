@@ -30,13 +30,11 @@ class ImageCropScreen extends StatefulWidget {
 
 class _ImageCropScreenState extends State<ImageCropScreen>
     with SingleTickerProviderStateMixin {
-  CropAspect _aspect = CropAspect.portrait;
-  bool _showGrid = true;
+  CropAspect _aspect = CropAspect.portrait3x4;
   bool _isLoading = true;
   bool _isCropping = false;
   int _currentIndex = 0;
 
-  late final AnimationController _gridFadeCtrl;
   late List<_ImageTransform> _transforms;
   late List<Size?> _imageSizes;
 
@@ -50,28 +48,30 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     super.initState();
     _transforms = widget.files.map((_) => _ImageTransform()).toList();
     _imageSizes = List<Size?>.filled(widget.files.length, null);
-    _gridFadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-      value: 1.0,
-    );
     _loadAllImageSizes();
   }
 
-  @override
-  void dispose() {
-    _gridFadeCtrl.dispose();
-    super.dispose();
-  }
 
   double get _aspectRatio {
+    final imageSize = _imageSizes.isNotEmpty ? _imageSizes.first : null;
+    if (imageSize == null) {
+      switch (_aspect) {
+        case CropAspect.square: return 1.0;
+        case CropAspect.portrait: return 4.0 / 5.0;
+        case CropAspect.portrait3x4: return 3.0 / 4.0;
+      }
+    }
+
+    final double imgRatio = imageSize.width / imageSize.height;
+
     switch (_aspect) {
       case CropAspect.square:
         return 1.0;
       case CropAspect.portrait:
-        return 4.0 / 5.0;
+        // Instagram-style: if wider, frame shrinks to fit width exactly. If taller, caps at portrait limit.
+        return max(4.0 / 5.0, imgRatio);
       case CropAspect.portrait3x4:
-        return 3.0 / 4.0;
+        return max(3.0 / 4.0, imgRatio);
     }
   }
 
@@ -117,16 +117,6 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     setState(() {
       _transforms[_currentIndex] = _ImageTransform();
     });
-  }
-
-  void _toggleGrid() {
-    HapticFeedback.selectionClick();
-    setState(() => _showGrid = !_showGrid);
-    if (_showGrid) {
-      _gridFadeCtrl.forward();
-    } else {
-      _gridFadeCtrl.reverse();
-    }
   }
 
   void _switchAspect(CropAspect aspect) {
@@ -371,11 +361,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                                   )
                                 else
                                   _buildCroppableImage(frameSize),
-                                if (_showGrid)
-                                  FadeTransition(
-                                    opacity: _gridFadeCtrl,
-                                    child: _buildGrid(),
-                                  ),
+                                _buildGrid(),
                               ],
                             ),
                           ),
@@ -551,14 +537,6 @@ class _ImageCropScreenState extends State<ImageCropScreen>
           ),
           Row(
             children: [
-              _actionButton(
-                icon: _showGrid
-                    ? Icons.grid_on_rounded
-                    : Icons.grid_off_rounded,
-                label: 'Grid',
-                onTap: _toggleGrid,
-              ),
-              const SizedBox(width: 16),
               _actionButton(
                 icon: Icons.refresh_rounded,
                 label: 'Reset',

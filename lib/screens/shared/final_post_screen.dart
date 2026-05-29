@@ -36,6 +36,7 @@ class FinalPostScreen extends StatefulWidget {
   final int? initialFilterIndex;
   final List<Map<String, dynamic>>? initialTextOverlays;
   final List<Map<String, dynamic>>? initialDrawPaths;
+  final Map<String, dynamic>? initialMediaTransform;
 
   const FinalPostScreen({
     super.key,
@@ -58,6 +59,7 @@ class FinalPostScreen extends StatefulWidget {
     this.initialFilterIndex,
     this.initialTextOverlays,
     this.initialDrawPaths,
+    this.initialMediaTransform,
   });
 
   @override
@@ -141,6 +143,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       filterIndex: widget.initialFilterIndex,
       textOverlays: widget.initialTextOverlays,
       drawPaths: widget.initialDrawPaths,
+      mediaTransform: widget.initialMediaTransform,
       createdAt: DateTime.now(),
       likes: 0,
       views: 0,

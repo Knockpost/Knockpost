@@ -111,6 +111,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
     _pageSwipeLockController?.unlock();
   }
 
+
   @override
   Widget build(BuildContext context) {
     if (widget.imagePaths.isEmpty) return const SizedBox.shrink();
@@ -124,7 +125,12 @@ class _MediaCarouselState extends State<MediaCarousel> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: _buildZoomableImage(widget.imagePaths.first),
+          child: widget.mediaAspectRatio != null
+              ? AspectRatio(
+                  aspectRatio: widget.mediaAspectRatio!,
+                  child: _buildZoomableImage(widget.imagePaths.first),
+                )
+              : _buildZoomableImage(widget.imagePaths.first),
         ),
       );
     }
@@ -144,8 +150,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
               onPointerCancel: _handleCarouselPointerEnd,
               child: SizedBox(
                 width: screenWidth - 12,
-                height: screenWidth - 12, // 1:1 square like Instagram
-                child: Stack(
+                child: AspectRatio(
+                  aspectRatio: widget.mediaAspectRatio ?? 1.0,
+                  child: Stack(
                   children: [
                     // Swipeable pages
                     NotificationListener<ScrollNotification>(
@@ -210,6 +217,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             ),

@@ -10,7 +10,8 @@ import '../../thoughts/thought_card.dart';
 import '../../../utils/global_post_state.dart';
 import '../../../utils/haptic_helper.dart';
 import '../../../widgets/staggered_entry_animation.dart';
-import 'profile_glimps_strip.dart';
+import 'daily_glimpse_strip.dart';
+import '../../../services/daily_glimpse_service.dart';
 import 'profile_ui_helpers.dart';
 import 'package:video_player/video_player.dart';
 import '../../../utils/image_helper.dart';
@@ -43,16 +44,7 @@ class ShowcaseGrid extends StatelessWidget {
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-  List<PostModel> get _showcaseGlimpses =>
-      posts
-          .where(
-            (p) =>
-                p.isInShowcase &&
-                p.type == PostType.glimps &&
-                p.imagePaths.isNotEmpty,
-          )
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  // Glimpses are now handled by DailyGlimpseService directly in build
 
   @override
   Widget build(BuildContext context) {
@@ -60,14 +52,16 @@ class ShowcaseGrid extends StatelessWidget {
     return ValueListenableBuilder<Set<String>>(
       valueListenable: GlobalPostState.deletedPostIds,
       builder: (context, deletedIds, _) {
+        final validPosts = posts.where((p) => !deletedIds.contains(p.id)).toList();
+        
         final gridPosts = _showcaseGridPosts
             .where((p) => !deletedIds.contains(p.id))
             .toList();
-        final glimpses = _showcaseGlimpses
-            .where((p) => !deletedIds.contains(p.id))
-            .toList();
+            
+        final lifetimePosts = validPosts.where((p) => p.type == PostType.glimps && p.duration == PostDuration.lifetime).toList();
+        final dailyCards = DailyGlimpseService.instance.getActiveDailyCards(lifetimePosts);
 
-        if (gridPosts.isEmpty && glimpses.isEmpty) {
+        if (gridPosts.isEmpty && dailyCards.isEmpty) {
           return ProfileEmptySection(
             icon: Icons.grid_view_rounded,
             message: 'Showcase is empty',
@@ -84,7 +78,7 @@ class ShowcaseGrid extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (glimpses.isNotEmpty) ...[
+            if (dailyCards.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(left: 16, top: 24, bottom: 4),
                 child: Row(
@@ -107,7 +101,11 @@ class ShowcaseGrid extends StatelessWidget {
                   ],
                 ),
               ),
-              ProfileGlimpsStrip(glimpses: glimpses, user: user),
+              DailyGlimpseStrip(
+                dailyCards: dailyCards, 
+                allUserGlimpses: validPosts, 
+                user: user,
+              ),
             ],
             if (gridPosts.isNotEmpty) ...[
               Padding(

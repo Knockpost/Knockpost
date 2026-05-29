@@ -12,6 +12,9 @@ import '../../services/post_service.dart';
 import '../profile/other_profile_screen.dart';
 import '../profile/profile_screen.dart';
 import 'widgets/more_options_sheet.dart';
+import 'package:just_audio/just_audio.dart';
+import '../../utils/audio_lifecycle_manager.dart';
+import '../shared/music_editor_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WavesFeedCard — Premium cinematic video card for Waves in Home Feed
@@ -45,10 +48,14 @@ class WavesFeedCard extends StatefulWidget {
 
 class _WavesFeedCardState extends State<WavesFeedCard> {
   VideoPlayerController? _controller;
+  AudioPlayer? _audioPlayer;
   bool _initialized = false;
   bool _isVisible = false;
   bool _isMuted = true;
   bool _doubleTapped = false;
+  bool _isPlayingMusic = false;
+
+  bool get _hasMusic => widget.post.musicUrl != null && widget.post.musicUrl!.isNotEmpty;
 
   // ── Interaction state ───────────────────────────────────────────────────
   bool _showSoundIndicator = false;
@@ -65,9 +72,6 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
   static const List<Shadow> _mediumShadow = [
     Shadow(color: Color(0x8A000000), blurRadius: 4),
   ];
-  static const List<Shadow> _lightShadow = [
-    Shadow(color: Color(0x61000000), blurRadius: 3),
-  ];
 
   // ── Icon shadow for bare icons on media ─────────────────────────────────
   static const List<Shadow> _iconShadow = [
@@ -78,6 +82,38 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
   void initState() {
     super.initState();
     _initVideo();
+    if (_hasMusic) {
+      _initAudio();
+    }
+  }
+
+  Future<void> _initAudio() async {
+    _audioPlayer = AudioPlayer();
+    AudioLifecycleManager.instance.register(_audioPlayer!);
+
+    try {
+      final start = widget.post.musicTrimStart ?? 0;
+      final uri = Uri.parse(widget.post.musicUrl!);
+      final source = ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(seconds: start),
+        end: Duration(seconds: start + 60),
+      );
+
+      await _audioPlayer!.setAudioSource(source);
+      _audioPlayer!.setLoopMode(LoopMode.one);
+      _audioPlayer!.setVolume(_isMuted ? 0 : (widget.post.musicVolume ?? 1.0));
+      
+      if (_isVisible) {
+        _audioPlayer!.play();
+      }
+
+      _audioPlayer!.playingStream.listen((playing) {
+        if (mounted) setState(() => _isPlayingMusic = playing);
+      });
+    } catch (e) {
+      debugPrint('Waves audio init error: $e');
+    }
   }
 
   void _initVideo() {
@@ -97,7 +133,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
     _controller!.initialize().then((_) {
       if (!mounted) return;
       _controller!.setLooping(true);
-      _controller!.setVolume(0); // Start muted
+      _controller!.setVolume(_isMuted ? 0 : (widget.post.originalAudioVolume ?? 1.0));
       setState(() => _initialized = true);
       if (_isVisible) {
         _controller!.play();
@@ -108,6 +144,10 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
   @override
   void dispose() {
     _controller?.dispose();
+    if (_audioPlayer != null) {
+      AudioLifecycleManager.instance.unregister(_audioPlayer!);
+      _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
+    }
     super.dispose();
   }
 
@@ -117,8 +157,10 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
 
     if (_isVisible && !wasVisible) {
       _controller?.play();
+      _audioPlayer?.play();
     } else if (!_isVisible && wasVisible) {
       _controller?.pause();
+      _audioPlayer?.pause();
     }
   }
 
@@ -129,7 +171,8 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
       _isMuted = !_isMuted;
       _showSoundIndicator = true;
     });
-    _controller?.setVolume(_isMuted ? 0 : 1);
+    _controller?.setVolume(_isMuted ? 0 : (widget.post.originalAudioVolume ?? 1.0));
+    _audioPlayer?.setVolume(_isMuted ? 0 : (widget.post.musicVolume ?? 1.0));
 
     // Brief indicator then fade
     Future.delayed(const Duration(milliseconds: 700), () {
@@ -151,11 +194,13 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
   void _onLongPressStart(LongPressStartDetails details) {
     KnockHaptics.tap();
     _controller?.pause();
+    _audioPlayer?.pause();
   }
 
   void _onLongPressEnd(LongPressEndDetails details) {
     if (_isVisible) {
       _controller?.play();
+      _audioPlayer?.play();
     }
   }
 
@@ -212,6 +257,18 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
               children: [
                 // ── Layer 1: Video / Thumbnail ──
                 _buildVideoLayer(),
+
+                // ── Music Sticker overlay ──
+                if (_hasMusic && widget.post.musicStickerConfig != null)
+                  RepaintBoundary(
+                    child: MusicStickerWidget(
+                      title: widget.post.musicTitle ?? '',
+                      artist: widget.post.musicArtist ?? '',
+                      coverUrl: widget.post.musicCoverUrl ?? '',
+                      configData: widget.post.musicStickerConfig,
+                      isPlaying: _isPlayingMusic || (_isVisible && !_isMuted),
+                    ),
+                  ),
 
                 // ── Layer 2: Adaptive gradient overlays ──
                 _buildGradients(cardHeight),
@@ -441,14 +498,6 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Music chip
-          if (widget.post.musicTitle != null &&
-              widget.post.musicTitle!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildMusicRow(),
-            ),
-
           // Creator row — tap করলে profile খুলবে
           GestureDetector(
             onTap: _openProfile,
@@ -558,31 +607,4 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
     );
   }
 
-  // ── Music Row ──────────────────────────────────────────────────────────
-  Widget _buildMusicRow() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.music_note_rounded,
-          color: Colors.white.withValues(alpha: 0.7),
-          size: 13,
-        ),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            '${widget.post.musicTitle}${widget.post.musicArtist != null ? ' • ${widget.post.musicArtist}' : ''}',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 11.5,
-              fontWeight: FontWeight.w500,
-              shadows: _lightShadow,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
 }

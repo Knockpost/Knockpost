@@ -218,6 +218,8 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     }
   }
 
+  final GlobalKey<_FloatingMediaViewerState> _mediaViewerKey = GlobalKey<_FloatingMediaViewerState>();
+
   @override
   void initState() {
     super.initState();
@@ -364,6 +366,19 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
       }
     }
 
+    Map<String, dynamic>? mediaTransform;
+    if (_mediaViewerKey.currentState != null) {
+      final state = _mediaViewerKey.currentState!;
+      mediaTransform = {
+        'scale': state.scale,
+        'translateX': state.offset.dx,
+        'translateY': state.offset.dy,
+        'rotation': state.rotation,
+        'containerWidth': _editorBoxWidth,
+        'containerHeight': _editorBoxHeight,
+      };
+    }
+
     if (!mounted) return;
 
     Navigator.pushReplacement(
@@ -384,6 +399,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
           isVideoPost: isVideo,
           videoHasSound: _selectedMusic == null,
+          initialMediaTransform: mediaTransform,
           coverImageFile: coverFile, // Pass the generated thumbnail!
         ),
       ),
@@ -1330,43 +1346,62 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
         final blendColor = layers['blendColor'] as Color?;
         final blendMode = layers['blendMode'] as BlendMode?;
 
-        Widget preview = isVideo
-            ? (vCtrl.value.isInitialized
-                  ? SizedBox.expand(
-                      child: FittedBox(
-                        fit: BoxFit.cover,
-                        child: SizedBox(
-                          width: vCtrl.value.size.width,
-                          height: vCtrl.value.size.height,
-                          child: VideoPlayer(vCtrl),
+        Widget buildPreview(BoxFit fit) {
+          Widget p = isVideo
+              ? (vCtrl.value.isInitialized
+                    ? SizedBox.expand(
+                        child: FittedBox(
+                          fit: fit,
+                          child: SizedBox(
+                            width: vCtrl.value.size.width,
+                            height: vCtrl.value.size.height,
+                            child: VideoPlayer(vCtrl),
+                          ),
                         ),
-                      ),
-                    )
-                  : const Center(
-                      child: KnockpostLoadingIndicator(),
-                    ))
-            : Image.file(widget.files[i], fit: BoxFit.cover);
+                      )
+                    : const Center(
+                        child: KnockpostLoadingIndicator(),
+                      ))
+              : Image.file(widget.files[i], fit: fit);
 
-        preview = ColorFiltered(
-          colorFilter: _getActiveColorFilter(_selectedFilterIndex),
-          child: preview,
-        );
-
-        if (blendColor != null && blendMode != null) {
-          preview = ColorFiltered(
-            colorFilter: ColorFilter.mode(blendColor, blendMode),
-            child: preview,
+          p = ColorFiltered(
+            colorFilter: _getActiveColorFilter(_selectedFilterIndex),
+            child: p,
           );
+
+          if (blendColor != null && blendMode != null) {
+            p = ColorFiltered(
+              colorFilter: ColorFilter.mode(blendColor, blendMode),
+              child: p,
+            );
+          }
+
+          if (blurSigma > 0) {
+            p = ImageFiltered(
+              imageFilter: ImageFilter.blur(
+                sigmaX: blurSigma,
+                sigmaY: blurSigma,
+                tileMode: TileMode.clamp,
+              ),
+              child: p,
+            );
+          }
+          return p;
         }
 
-        if (blurSigma > 0) {
-          preview = ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: blurSigma,
-              sigmaY: blurSigma,
-              tileMode: TileMode.clamp,
-            ),
-            child: preview,
+        Widget bg = buildPreview(BoxFit.cover);
+        Widget fg = buildPreview(widget.isGlimpse ? BoxFit.contain : BoxFit.cover);
+
+        if (widget.isGlimpse) {
+          bg = Stack(
+            fit: StackFit.expand,
+            children: [
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                child: bg,
+              ),
+              Container(color: Colors.black.withValues(alpha: 0.35)),
+            ],
           );
         }
 
@@ -1391,19 +1426,17 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
             return Stack(
               fit: StackFit.expand,
               children: [
-                InteractiveViewer(
-                  minScale: 1.0,
-                  maxScale: 5.0,
-                  child: Container(
-                    color: Colors.black,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        preview,
-                        ..._buildEffectOverlayLayers(_selectedFilterIndex),
-                      ],
+                Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _FloatingMediaViewer(
+                      key: _mediaViewerKey,
+                      background: bg,
+                      foreground: fg,
+                      isGlimpse: widget.isGlimpse,
                     ),
-                  ),
+                    ..._buildEffectOverlayLayers(_selectedFilterIndex),
+                  ],
                 ),
                 if (_selectedMusic != null && _selectedMusicStickerConfig != null)
                   RepaintBoundary(
@@ -1636,6 +1669,79 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FloatingMediaViewer extends StatefulWidget {
+  final Widget background;
+  final Widget foreground;
+  final bool isGlimpse;
+
+  const _FloatingMediaViewer({
+    super.key,
+    required this.background,
+    required this.foreground,
+    required this.isGlimpse,
+  });
+
+  @override
+  State<_FloatingMediaViewer> createState() => _FloatingMediaViewerState();
+}
+
+class _FloatingMediaViewerState extends State<_FloatingMediaViewer> {
+  double scale = 1.0;
+  double rotation = 0.0;
+  Offset offset = Offset.zero;
+
+  double _baseScale = 1.0;
+  double _baseRotation = 0.0;
+  Offset _baseOffset = Offset.zero;
+  Offset _focalPoint = Offset.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isGlimpse) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(color: Colors.black),
+          widget.background,
+        ],
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.background,
+        GestureDetector(
+          onScaleStart: (details) {
+            _baseScale = scale;
+            _baseRotation = rotation;
+            _baseOffset = offset;
+            _focalPoint = details.focalPoint;
+          },
+          onScaleUpdate: (details) {
+            setState(() {
+              scale = (_baseScale * details.scale).clamp(0.1, 10.0);
+              rotation = _baseRotation + details.rotation;
+              offset = _baseOffset + (details.focalPoint - _focalPoint);
+            });
+          },
+          child: Container(
+            color: Colors.transparent,
+            child: Transform(
+              transform: Matrix4.identity()
+                ..translateByDouble(offset.dx, offset.dy, 0.0, 1.0)
+                ..scaleByDouble(scale, scale, scale, 1.0)
+                ..rotateZ(rotation),
+              alignment: Alignment.center,
+              child: widget.foreground,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
