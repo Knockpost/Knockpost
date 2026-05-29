@@ -329,7 +329,7 @@ class _KnockpostPasswordFieldState extends State<KnockpostPasswordField> with Ti
                   style: TextStyle(
                     color: _strengthColorAnimation.value ?? Colors.grey, 
                     fontSize: 13, 
-                    fontWeight: FontWeight.w600
+                    fontWeight: FontWeight.w700
                   ),
                 ),
                 if (_isValid)

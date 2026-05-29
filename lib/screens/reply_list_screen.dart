@@ -48,7 +48,7 @@ class ReplyListScreen extends StatelessWidget {
                 style: TextStyle(
                   color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.8),
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.3,
                 ),
               ),

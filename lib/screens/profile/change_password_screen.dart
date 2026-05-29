@@ -106,7 +106,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             // Current Password Field
             Text(
               'CURRENT PASSWORD',
-              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -134,7 +134,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             // New Password Field
             Text(
               'NEW PASSWORD',
-              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -181,7 +181,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 },
                 child: _isLoading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Update Password', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                    : const Text('Update Password', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
             const SizedBox(height: 32),

@@ -207,7 +207,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   letterSpacing: 0.8,
                                 ),
                               ),

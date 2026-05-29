@@ -478,7 +478,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(children: [
             Icon(Icons.block_rounded, size: 20, color: Colors.red),
             SizedBox(width: 12),
-            Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
           ]),
         ),
         const PopupMenuItem(
@@ -486,7 +486,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(children: [
             Icon(Icons.flag_outlined, size: 20, color: Colors.red),
             SizedBox(width: 12),
-            Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
           ]),
         ),
       ],
@@ -579,7 +579,7 @@ class _ChatScreenState extends State<ChatScreen> {
         const PopupMenuItem(value: 'delete', child: Row(children: [
           Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
           SizedBox(width: 12),
-          Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+          Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
         ])),
       ],
     );
@@ -869,7 +869,7 @@ class _ChatScreenState extends State<ChatScreen> {
           style: TextStyle(
             color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -916,7 +916,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // Name & Time
     final nameWidget = Text(
       avatarUsername,
-      style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 12.5),
+      style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 12.5),
     );
 
     // Header Row (Avatar, Name)

@@ -462,7 +462,7 @@ class _ShareSheetState extends State<ShareSheet>
                                       style: TextStyle(
                                         color: textColor,
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ],
@@ -479,7 +479,7 @@ class _ShareSheetState extends State<ShareSheet>
                                       style: TextStyle(
                                         color: textColor,
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ],
@@ -743,7 +743,7 @@ class _UserCellState extends State<_UserCell>
               style: TextStyle(
                 color: widget.textColor,
                 fontSize: 11.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.1,
               ),
             ),

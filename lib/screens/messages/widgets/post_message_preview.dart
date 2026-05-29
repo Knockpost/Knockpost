@@ -144,7 +144,7 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
                       _author!.displayName,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: widget.isMe ? Colors.white : (isDark ? Colors.white : Colors.black87),
                       ),
                       maxLines: 1,

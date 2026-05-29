@@ -303,7 +303,7 @@ class _PostHeaderState extends State<PostHeader> {
                               user.username,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 15.5,
                               ),
                             ),
@@ -398,7 +398,7 @@ class _PostHeaderState extends State<PostHeader> {
                 duration: const Duration(milliseconds: 300),
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
                 child: Text(label),

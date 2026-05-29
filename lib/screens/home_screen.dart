@@ -13,6 +13,7 @@ import '../widgets/knockpost_avatar.dart';
 
 import '../models/post_model.dart';
 import '../models/user_model.dart';
+import '../theme/app_typography.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import '../widgets/knockpost_refresh.dart';
@@ -531,21 +532,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       label,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor,
-                        letterSpacing: -0.3,
-                      ),
+                      style: AppTypography.buttonLabel.copyWith(color: titleColor),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w400,
-                        color: subtitleColor,
-                      ),
+                      style: AppTypography.metadata.copyWith(color: subtitleColor),
                     ),
                   ],
                 ),
@@ -685,12 +677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           centerTitle: false,
                                           title: Text(
                                             "KnockPost",
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 21,
-                                              letterSpacing: -0.5,
-                                            ),
+                                            style: AppTypography.appTitle.copyWith(color: textColor),
                                           ),
                                           actions: [
                                             StreamBuilder<int>(

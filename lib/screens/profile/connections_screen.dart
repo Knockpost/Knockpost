@@ -198,7 +198,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15)),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w700, fontSize: 15)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -894,7 +894,7 @@ class _ConnectionCardState extends State<_ConnectionCard>
               style: TextStyle(
                 color: isDark ? Colors.black : Colors.white,
                 fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -960,7 +960,7 @@ class _ConnectionCardState extends State<_ConnectionCard>
         style: TextStyle(
           color: isDark ? Colors.white54 : Colors.black54,
           fontSize: 12.5,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -982,7 +982,7 @@ class _ConnectionCardState extends State<_ConnectionCard>
         style: TextStyle(
           color: isDark ? Colors.white54 : Colors.black54,
           fontSize: 12.5,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

@@ -474,7 +474,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   '$wordCount/40',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     color: isOver ? Colors.red : subColor,
                                   ),
                                 ),
@@ -763,7 +763,7 @@ class _FieldLabel extends StatelessWidget {
         text,
         style: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),

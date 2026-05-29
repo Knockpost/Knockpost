@@ -474,7 +474,7 @@ class _RealtimeFilterCameraScreenState
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.68),
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -524,7 +524,7 @@ class _RealtimeFilterCameraScreenState
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
@@ -554,7 +554,7 @@ class _RealtimeFilterCameraScreenState
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.76),
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 1.4,
               ),
             ),
@@ -838,7 +838,7 @@ class _RealtimeFilterCameraScreenState
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.75),
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

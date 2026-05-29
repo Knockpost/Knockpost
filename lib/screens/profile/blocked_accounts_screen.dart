@@ -102,7 +102,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                 'Cancel',
                 style: TextStyle(
                   color: textColor,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
               ),
@@ -285,7 +285,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                                         'Unblock',
                                         style: TextStyle(
                                           color: textColor,
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.w700,
                                           fontSize: 13.5,
                                         ),
                                       ),

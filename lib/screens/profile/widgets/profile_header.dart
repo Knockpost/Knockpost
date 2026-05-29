@@ -587,7 +587,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               style: TextStyle(
                 fontSize: 13.5,
                 color: textColor.withValues(alpha: 0.7),
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.1,
               ),
               maxLines: 1,
@@ -713,7 +713,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                                             friend.displayName,
                                             style: TextStyle(
                                               fontSize: 15,
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight: FontWeight.w700,
                                               color: textColor,
                                             ),
                                             maxLines: 1,

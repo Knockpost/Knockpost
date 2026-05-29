@@ -99,7 +99,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
                       'Dismiss',
                       style: TextStyle(
                         color: Color(0xFF1B4D90),
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -202,7 +202,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
                   label,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.grey.shade800,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
                 ),
@@ -244,7 +244,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
                     style: TextStyle(
                       color: Color(0xFF1B4D90),
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),

@@ -379,7 +379,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -468,7 +468,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

@@ -554,7 +554,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                         letterSpacing: 0.5,
                                       ),
                                     ),
@@ -607,7 +607,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 13,
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w700,
                                             letterSpacing: -0.2,
                                           ),
                                         ),
@@ -760,7 +760,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
                     ),
                   ),

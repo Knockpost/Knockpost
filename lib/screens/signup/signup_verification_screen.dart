@@ -111,7 +111,7 @@ class _SignupVerificationScreenState extends State<SignupVerificationScreen> {
     final defaultPinTheme = PinTheme(
       width: 56,
       height: 60,
-      textStyle: TextStyle(fontSize: 22, color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w600),
+      textStyle: TextStyle(fontSize: 22, color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w700),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
         borderRadius: BorderRadius.circular(16),
@@ -190,7 +190,7 @@ class _SignupVerificationScreenState extends State<SignupVerificationScreen> {
                           style: TextStyle(
                             fontSize: 15,
                             color: isDark ? Colors.white54 : Colors.black54,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),

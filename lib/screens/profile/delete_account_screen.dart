@@ -110,7 +110,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             
             Text(
               'PASSWORD',
-              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             TextField(

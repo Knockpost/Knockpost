@@ -441,7 +441,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                     aud.label,
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
@@ -498,7 +498,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       title,
       style: TextStyle(
         fontSize: 12,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
         color: isDark
             ? Colors.white.withValues(alpha: 0.35)
@@ -740,7 +740,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                                     'Send',
                                     style: TextStyle(
                                       fontSize: 15,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w700,
                                       letterSpacing: 0.2,
                                       color: Colors.white,
                                     ),

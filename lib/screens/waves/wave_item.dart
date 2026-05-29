@@ -595,7 +595,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                             duration: const Duration(milliseconds: 300),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: knockTextColor,
                             ),
                             child: Text(knockLabel),

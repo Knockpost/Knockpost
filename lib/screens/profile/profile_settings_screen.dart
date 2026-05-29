@@ -98,7 +98,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(
                     'Cancel',
-                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15),
+                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ),
                 TextButton(
@@ -886,7 +886,7 @@ class _AccountSettingsScreen extends StatelessWidget {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15)),
+                              child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w700, fontSize: 15)),
                             ),
                             TextButton(
                               onPressed: () async {
@@ -1205,7 +1205,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                     'This week total: $_totalUsageMinutes min',
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: textColor,
                     ),
                   ),
@@ -1453,7 +1453,7 @@ class _UsageBarChart extends StatelessWidget {
                     style: TextStyle(
                       color: labelColor,
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1486,7 +1486,7 @@ class _UsageBarChart extends StatelessWidget {
                     style: TextStyle(
                       color: labelColor,
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

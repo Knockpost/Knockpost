@@ -285,7 +285,7 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
                           color: textColor,
                           fontWeight: isUnread
                               ? FontWeight.bold
-                              : FontWeight.w600,
+                              : FontWeight.w700,
                           fontSize: 16,
                         ),
                         maxLines: 1,
@@ -297,7 +297,7 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
                         style: TextStyle(
                           color: isUnread ? textColor : subtitleColor,
                           fontWeight: isUnread
-                              ? FontWeight.w600
+                              ? FontWeight.w700
                               : FontWeight.normal,
                         ),
                         maxLines: 1,

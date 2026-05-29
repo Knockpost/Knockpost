@@ -414,7 +414,7 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
                             fontSize: 14,
                             fontWeight: isActive
                                 ? FontWeight.w800
-                                : FontWeight.w600,
+                                : FontWeight.w700,
                             letterSpacing: 0.5,
                             color: isActive
                                 ? (isDark ? Colors.black : Colors.white)
