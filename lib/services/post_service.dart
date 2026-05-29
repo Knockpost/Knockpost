@@ -424,7 +424,7 @@ class PostService {
         .doc(postId)
         .collection('viewers')
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
           final seen = <String>{};
           final viewers = <Map<String, dynamic>>[];
           
@@ -442,7 +442,11 @@ class PostService {
             final data = doc.data();
             final userId = data['userId'] as String? ?? doc.id;
             if (seen.add(userId)) {
-              viewers.add(data);
+              // Verify user exists to exclude deleted accounts from counts
+              final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
+              if (userMap != null) {
+                viewers.add(data);
+              }
             }
           }
           return viewers;

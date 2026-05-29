@@ -7,6 +7,7 @@ import 'signup_verification_screen.dart';
 import '../login_screen.dart';
 import '../../widgets/legal_agreement_text.dart';
 import '../../services/database_service.dart';
+import '../../services/auth_service.dart';
 
 class SignupEmailScreen extends StatefulWidget {
   const SignupEmailScreen({super.key});
@@ -20,6 +21,9 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
   bool isLoading = false;
 
   void goNext() async {
+    // Dismiss the keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final email = emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,22 +57,10 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('email_for_link', email);
 
-      debugPrint("Auth Stage 2: Configuring ActionCodeSettings");
-      final actionCodeSettings = ActionCodeSettings(
-        url: 'https://knockpost-84b21.firebaseapp.com', 
-        handleCodeInApp: true,
-        androidPackageName: 'com.example.knockpost',
-        androidInstallApp: true,
-        androidMinimumVersion: '12',
-      );
+      debugPrint("Auth Stage 2: Sending OTP to $email");
+      await AuthService.instance.sendEmailOtp(email: email);
 
-      debugPrint("Auth Stage 3: Sending link to $email");
-      await FirebaseAuth.instance.sendSignInLinkToEmail(
-        email: email,
-        actionCodeSettings: actionCodeSettings,
-      );
-
-      debugPrint("Auth Stage 4: Link sent successfully");
+      debugPrint("Auth Stage 3: OTP sent successfully");
       if (mounted) {
         Navigator.push(
           context,

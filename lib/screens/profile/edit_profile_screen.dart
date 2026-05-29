@@ -13,7 +13,7 @@ import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
-import '../../widgets/instagram_username_field.dart';
+import '../../widgets/knockpost_username_field.dart';
 import 'social_links_screen.dart';
 
 /// Edit Profile — edit name, username, bio, avatar and cover photos.
@@ -421,7 +421,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       _FieldLabel('Username', subColor),
-                      InstagramUsernameField(
+                      KnockpostUsernameField(
                         controller: _usernameCtrl,
                         initialUsername: widget.user.username,
                         backgroundColor: fieldBg,

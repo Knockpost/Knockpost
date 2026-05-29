@@ -29,7 +29,7 @@ class LegalAgreementText extends StatelessWidget {
         textAlign: TextAlign.center,
         text: TextSpan(
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10.5,
             height: 1.5,
             color: baseColor,
             fontFamily: 'Inter', // Assuming Inter based on styling

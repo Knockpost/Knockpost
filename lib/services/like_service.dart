@@ -105,7 +105,7 @@ class LikeService {
         .doc(postId)
         .collection('likes')
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
       final seen = <String>{};
       final reactions = <Map<String, dynamic>>[];
       
@@ -125,7 +125,11 @@ class LikeService {
         final userId = data['userId'] as String? ?? doc.id;
         data['userId'] = userId; // ensure userId is always set
         if (seen.add(userId)) {
-          reactions.add(data);
+          // Verify user exists to exclude deleted accounts from counts
+          final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
+          if (userMap != null) {
+            reactions.add(data);
+          }
         }
       }
       return reactions;

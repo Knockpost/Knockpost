@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
 import '../login_screen.dart';
-import '../../widgets/instagram_password_field.dart';
+import '../../widgets/knockpost_password_field.dart';
+import '../../services/auth_service.dart';
 
 class SignupPasswordScreen extends StatefulWidget {
   final String email;
@@ -30,7 +31,7 @@ class _SignupPasswordScreenState
 
   bool isLoading = false;
   bool _isPasswordValid = false;
-  final GlobalKey<State<InstagramPasswordField>> _passwordFieldKey = GlobalKey();
+  final GlobalKey<State<KnockpostPasswordField>> _passwordFieldKey = GlobalKey();
 
   void goNext() async {
     final password = passwordController.text.trim();
@@ -51,27 +52,32 @@ class _SignupPasswordScreenState
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Since user is already signed in via Email Link or Google Auth,
-        // we use updatePassword to set their permanent password.
+      if (user != null && user.email == widget.email) {
+        // User already created an account but went back to change password
         await user.updatePassword(password);
-
-        if (mounted) {
-          // After setting password, go to Profile Setup
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProfileSetupScreen(
-                email: widget.email,
-                username: widget.username ?? "User", // Should have username from previous screen
-                password: password,
-              ),
-            ),
-            (route) => false,
-          );
-        }
+      } else if (widget.isGoogleSignup && user != null) {
+        // For Google Signup, user is already signed in
+        await user.updatePassword(password);
       } else {
-        throw Exception("User session not found. Please try again.");
+        // For Email OTP Signup, user is NOT created yet
+        await AuthService.instance.createUserWithEmailAndPassword(
+          email: widget.email,
+          password: password,
+        );
+      }
+
+      if (mounted) {
+        // After setting password/creating account, go to Profile Setup
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              email: widget.email,
+              username: widget.username ?? "User", 
+              password: password,
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -90,7 +96,15 @@ class _SignupPasswordScreenState
   }
 
   void goBack() {
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      AuthService.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void goLogin() {
@@ -174,7 +188,7 @@ class _SignupPasswordScreenState
 
                     const SizedBox(height: 36),
 
-                    InstagramPasswordField(
+                    KnockpostPasswordField(
                       key: _passwordFieldKey,
                       controller: passwordController,
                       autofocus: true,

@@ -104,14 +104,16 @@ class ReactorsSheet extends StatelessWidget {
                       future: DatabaseService.instance.getUserProfile(userId, useCache: true),
                       builder: (context, snap) {
                         final data = snap.data;
-                        final user = data != null
-                            ? UserModel(
-                                id: userId,
-                                displayName: data['displayName'] ?? data['username'] ?? 'User',
-                                username: data['username'] ?? '',
-                                avatarAsset: data['profileImageUrl'],
-                              )
-                            : UserModel(id: userId, displayName: '...', username: '...');
+                        if (data == null) {
+                          return const SizedBox.shrink();
+                        }
+
+                        final user = UserModel(
+                          id: userId,
+                          displayName: data['displayName'] ?? data['username'] ?? 'User',
+                          username: data['username'] ?? '',
+                          avatarAsset: data['profileImageUrl'],
+                        );
 
                         return _ReactorTile(
                           user: user,

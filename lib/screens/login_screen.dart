@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
@@ -11,6 +12,7 @@ import 'home_screen.dart';
 import 'profile/otp_verification_screen.dart';
 import '../widgets/legal_agreement_text.dart';
 import '../services/two_factor_service.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -152,7 +154,38 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 8),
+
+                        /// FORGOT PASSWORD
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: _OpacityButton(
+                            onTap: () {
+                              KnockHaptics.tap();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ForgotPasswordScreen(
+                                    initialEmail: userController.text.trim(),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                              child: Text(
+                                "Forgot password?",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white54 : Colors.black54,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
 
                         /// LOGIN BUTTON (NO SHADOW)
                         SizedBox(
@@ -301,6 +334,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> login() async {
+    // Dismiss the keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final email = userController.text.trim();
     final password = passwordController.text.trim();
 
@@ -388,11 +424,26 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       }
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Login Auth Error: ${e.code}");
+      if (mounted) {
+        String message = "Authentication failed.";
+        if (e.code == 'invalid-credential' || e.code == 'user-not-found' || e.code == 'wrong-password') {
+          message = "Invalid email or password. Please try again.";
+        } else if (e.code == 'too-many-requests') {
+          message = "Too many failed attempts. Please try again later.";
+        } else if (e.code == 'invalid-email') {
+          message = "Please enter a valid email address.";
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     } catch (e) {
       debugPrint("Login Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          const SnackBar(content: Text("An unexpected error occurred. Please try again.")),
         );
       }
     } finally {
@@ -500,5 +551,36 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+}
+
+class _OpacityButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _OpacityButton({required this.child, required this.onTap});
+
+  @override
+  State<_OpacityButton> createState() => _OpacityButtonState();
+}
+
+class _OpacityButtonState extends State<_OpacityButton> {
+  bool _isDown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isDown = true),
+      onTapUp: (_) {
+        setState(() => _isDown = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isDown = false),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 100),
+        opacity: _isDown ? 0.5 : 1.0,
+        child: widget.child,
+      ),
+    );
   }
 }

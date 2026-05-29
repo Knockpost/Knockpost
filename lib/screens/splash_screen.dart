@@ -40,11 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (link != null) {
         final linkString = link.toString();
-        debugPrint("Splash Detected Email Link: $linkString");
-        if (FirebaseAuth.instance.isSignInWithEmailLink(linkString)) {
-          await _handleEmailLink(linkString);
-          return;
-        }
+        debugPrint("Splash Detected Deep Link: $linkString");
       }
 
       final user = AuthService.instance.currentUser;
@@ -111,34 +107,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  Future<void> _handleEmailLink(String link) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('email_for_link');
 
-      if (email == null) {
-        throw Exception("No email found in SharedPreferences.");
-      }
-
-      await AuthService.instance.signInWithEmailLink(
-        email: email,
-        emailLink: link,
-      );
-
-      final user = AuthService.instance.currentUser;
-      if (user != null && mounted) {
-        _navigate(SignupUsernameScreen(email: email, isGoogleSignup: true));
-      }
-    } catch (e) {
-      debugPrint("Email Link Sign-In Error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Link Verification Failed: $e")));
-        _navigate(const LoginScreen());
-      }
-    }
-  }
 
   void _navigate(Widget screen) {
     FlutterNativeSplash.remove();
