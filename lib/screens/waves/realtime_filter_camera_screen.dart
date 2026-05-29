@@ -345,7 +345,7 @@ class _RealtimeFilterCameraScreenState
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.26),
                         child: const Center(
-                          child: KnockpostLoadingIndicator(),
+                          child: KnockPostLoadingIndicator(),
                         ),
                       ),
                     ),
@@ -360,7 +360,7 @@ class _RealtimeFilterCameraScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const KnockpostLoadingIndicator(),
+          const KnockPostLoadingIndicator(),
           const SizedBox(height: 16),
           Text(
             _isCameraLoading

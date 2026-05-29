@@ -183,7 +183,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: KnockpostLoadingIndicator(),
+                                  child: KnockPostLoadingIndicator(),
                                 )
                               : Text(
                                   "Send Code",

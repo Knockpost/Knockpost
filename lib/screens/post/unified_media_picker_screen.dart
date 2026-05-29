@@ -287,7 +287,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
     final asset = _focusedAsset;
     if (_isLoading) {
       return const Center(
-        child: KnockpostLoadingIndicator(),
+        child: KnockPostLoadingIndicator(),
       );
     }
 
@@ -345,7 +345,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
       }
 
       return const Center(
-        child: KnockpostLoadingIndicator(),
+        child: KnockPostLoadingIndicator(),
       );
     }
 
@@ -539,7 +539,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: KnockpostLoadingIndicator(),
+                            child: KnockPostLoadingIndicator(),
                           )
                         : const Text(
                             'Next',
@@ -640,7 +640,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: KnockpostLoadingIndicator(),
+                      child: KnockPostLoadingIndicator(),
                     )
                   : !_hasPermission
                   ? Center(

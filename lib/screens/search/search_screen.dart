@@ -171,7 +171,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     // Loading
     if (_isLoading) {
-      return const KnockpostLoadingIndicator();
+      return const KnockPostLoadingIndicator();
     }
 
     // No results
@@ -250,7 +250,7 @@ class _UserResultTileState extends State<_UserResultTile> {
   }
 
   Widget _buildAvatar() {
-    return KnockpostAvatar(
+    return KnockPostAvatar(
       url: widget.user.avatarAsset,
       radius: 22,
       name: widget.user.displayName,

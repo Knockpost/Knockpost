@@ -31,7 +31,7 @@ class _SignupPasswordScreenState
 
   bool isLoading = false;
   bool _isPasswordValid = false;
-  final GlobalKey<State<KnockpostPasswordField>> _passwordFieldKey = GlobalKey();
+  final GlobalKey<State<KnockPostPasswordField>> _passwordFieldKey = GlobalKey();
 
   void goNext() async {
     final password = passwordController.text.trim();
@@ -188,7 +188,7 @@ class _SignupPasswordScreenState
 
                     const SizedBox(height: 36),
 
-                    KnockpostPasswordField(
+                    KnockPostPasswordField(
                       key: _passwordFieldKey,
                       controller: passwordController,
                       autofocus: true,

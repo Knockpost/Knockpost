@@ -98,7 +98,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: KnockpostLoadingIndicator(),
+              child: KnockPostLoadingIndicator(),
             );
           }
 
@@ -144,7 +144,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             // > 30 days are cleaned up by cleanupOldNotifications()
           }
 
-          return KnockpostRefreshIndicator(
+          return KnockPostRefreshIndicator(
             onRefresh: () async {
               // Wait a short duration to show the elegant loading animation
               // since StreamBuilder already keeps data perfectly in sync.
@@ -577,7 +577,7 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return KnockpostAvatar(
+    return KnockPostAvatar(
       url: url.isNotEmpty ? url : null,
       radius: 25,
     );

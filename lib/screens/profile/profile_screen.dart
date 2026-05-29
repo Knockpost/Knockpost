@@ -104,7 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           child: ValueListenableBuilder<bool>(
             valueListenable: _postScrollLockController,
             builder: (context, isScrollLocked, _) {
-              return KnockpostRefreshIndicator(
+              return KnockPostRefreshIndicator(
                 onRefresh: () async {
                   await Future.delayed(const Duration(milliseconds: 400));
                 },

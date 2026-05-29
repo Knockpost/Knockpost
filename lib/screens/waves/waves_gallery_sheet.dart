@@ -10,7 +10,7 @@ import '../shared/music_picker_screen.dart';
 import '../post/template_picker_screen.dart';
 import '../post/custom_android_picker_sheet.dart';
 
-// Knockpost brand colors – monochrome dark premium
+// KnockPost brand colors – monochrome dark premium
 const _kAccentPrimary = Color(0xFFFFFFFF); // Clean white
 const _kAccentSecondary = Color(0xFFE0E0E0); // Subtle grey
 
@@ -108,7 +108,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(
-        child: KnockpostLoadingIndicator(),
+        child: KnockPostLoadingIndicator(),
       ),
     );
 
@@ -402,7 +402,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                   children: [
                     Expanded(
                       child: Text(
-                        "You've given Knockpost access to a select number of photos and videos.",
+                        "You've given KnockPost access to a select number of photos and videos.",
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.4),
                           fontSize: 12,
@@ -432,7 +432,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: KnockpostLoadingIndicator(),
+                      child: KnockPostLoadingIndicator(),
                     )
                   : !_hasPermission
                   ? Center(

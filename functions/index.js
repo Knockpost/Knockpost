@@ -45,7 +45,7 @@ function buildNotificationContent(type, senderName, data) {
       // Check if this is a pending request or direct knock
       if (data.isPendingRequest === true) {
         return {
-          title: "knockpost",
+          title: "KnockPost",
           body: `${senderName} requested to knock you`,
         };
       }
@@ -82,7 +82,7 @@ function buildNotificationContent(type, senderName, data) {
       const snippet = data.commentSnippet || "";
       if (snippet) {
         return {
-          title: "knockpost",
+          title: "KnockPost",
           body: `${senderName} replied on your post: "${snippet}"`,
         };
       }
@@ -167,12 +167,12 @@ exports.sendOtp = functions.https.onCall(async (data, context) => {
 
   // Send email
   const mailOptions = {
-    from: `"Knockpost" <${process.env.GMAIL_EMAIL || "knockpostofficial@gmail.com"}>`,
+    from: `"KnockPost" <${process.env.GMAIL_EMAIL || "knockpostofficial@gmail.com"}>`,
     to: email,
-    subject: `Your Knockpost code is ${otp}`,
+    subject: `Your KnockPost code is ${otp}`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; color: #1a1a1a;">
-        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 32px; color: #000;">Knockpost</h1>
+        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 32px; color: #000;">KnockPost</h1>
         
         <p style="font-size: 16px; margin-bottom: 24px; color: #333;">Enter this temporary verification code to continue:</p>
         
@@ -181,20 +181,20 @@ exports.sendOtp = functions.https.onCall(async (data, context) => {
         </div>
         
         <p style="font-size: 14px; margin-bottom: 32px; color: #333; line-height: 1.5;">
-          If you were not trying to log in to Knockpost, please ignore this email or reset your password.
+          If you were not trying to log in to KnockPost, please ignore this email or reset your password.
         </p>
         
         <div style="margin-bottom: 48px;">
           <p style="font-size: 14px; color: #666; margin: 0;">Best,</p>
-          <p style="font-size: 14px; color: #666; margin: 0;">The Knockpost team</p>
+          <p style="font-size: 14px; color: #666; margin: 0;">The KnockPost team</p>
         </div>
         
         <hr style="border: none; border-top: 1px solid #eaeaea; margin-bottom: 24px;" />
         
-        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #000;">Knockpost</h2>
+        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #000;">KnockPost</h2>
         
         <div style="font-size: 12px; color: #888;">
-          <p style="margin: 0 0 4px 0;">Knockpost</p>
+          <p style="margin: 0 0 4px 0;">KnockPost</p>
           <p style="margin: 0;">Help center</p>
         </div>
       </div>
@@ -564,12 +564,12 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
 
   // Send Email
   const mailOptions = {
-    from: `"Knockpost" <${process.env.SMTP_USER || "no-reply@knockpost.app"}>`,
+    from: `"KnockPost" <${process.env.SMTP_USER || "no-reply@knockpost.app"}>`,
     to: email,
-    subject: `Your Knockpost code is ${otp}`,
+    subject: `Your KnockPost code is ${otp}`,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; color: #1a1a1a;">
-        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 32px; color: #000;">Knockpost</h1>
+        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 32px; color: #000;">KnockPost</h1>
         
         <p style="font-size: 16px; margin-bottom: 24px; color: #333;">Enter this temporary verification code to continue:</p>
         
@@ -578,20 +578,20 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
         </div>
         
         <p style="font-size: 14px; margin-bottom: 32px; color: #333; line-height: 1.5;">
-          If you were not trying to log in to Knockpost, please ignore this email or reset your password.
+          If you were not trying to log in to KnockPost, please ignore this email or reset your password.
         </p>
         
         <div style="margin-bottom: 48px;">
           <p style="font-size: 14px; color: #666; margin: 0;">Best,</p>
-          <p style="font-size: 14px; color: #666; margin: 0;">The Knockpost team</p>
+          <p style="font-size: 14px; color: #666; margin: 0;">The KnockPost team</p>
         </div>
         
         <hr style="border: none; border-top: 1px solid #eaeaea; margin-bottom: 24px;" />
         
-        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #000;">Knockpost</h2>
+        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #000;">KnockPost</h2>
         
         <div style="font-size: 12px; color: #888;">
-          <p style="margin: 0 0 4px 0;">Knockpost</p>
+          <p style="margin: 0 0 4px 0;">KnockPost</p>
           <p style="margin: 0;">Help center</p>
         </div>
       </div>

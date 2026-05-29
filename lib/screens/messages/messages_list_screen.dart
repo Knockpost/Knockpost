@@ -109,7 +109,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               stream: _chatsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const KnockpostLoadingIndicator();
+                  return const KnockPostLoadingIndicator();
                 }
 
                 final rooms = snapshot.data ?? [];
@@ -143,7 +143,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   );
                 }
 
-                return KnockpostRefreshIndicator(
+                return KnockPostRefreshIndicator(
                   onRefresh: () async {
                     await Future.delayed(const Duration(milliseconds: 400));
                   },
@@ -273,7 +273,7 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                KnockpostAvatar(url: avatarUrl, radius: 26, name: name),
+                KnockPostAvatar(url: avatarUrl, radius: 26, name: name),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -361,7 +361,7 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
 // Avatar helper
 // ─────────────────────────────────────────────
 
-// _Avatar removed — using KnockpostAvatar directly
+// _Avatar removed — using KnockPostAvatar directly
 
 
 // ─────────────────────────────────────────────

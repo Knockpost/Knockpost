@@ -195,7 +195,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                   child: Text(
-                    'Accounts you block won\'t be able to see your profile, posts, or knocks. Knockpost won\'t let them know you blocked them.',
+                    'Accounts you block won\'t be able to see your profile, posts, or knocks. KnockPost won\'t let them know you blocked them.',
                     style: TextStyle(
                       fontSize: 14,
                       color: subColor,
@@ -207,7 +207,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                 Expanded(
                   child: _isLoading
                       ? const Center(
-                          child: KnockpostLoadingIndicator(),
+                          child: KnockPostLoadingIndicator(),
                         )
                       : _blockedUsers.isEmpty
                           ? Center(
@@ -232,7 +232,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  KnockpostAvatar(
+                                  KnockPostAvatar(
                                     url: user.avatarAsset,
                                     radius: 26,
                                     name: user.displayName,

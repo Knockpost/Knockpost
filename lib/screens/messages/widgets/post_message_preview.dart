@@ -75,7 +75,7 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
           color: isDark ? Colors.black26 : Colors.white24,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Center(child: KnockpostLoadingIndicator()),
+        child: const Center(child: KnockPostLoadingIndicator()),
       );
     }
 
@@ -133,7 +133,7 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
               padding: const EdgeInsets.all(10),
               child: Row(
                 children: [
-                  KnockpostAvatar(
+                  KnockPostAvatar(
                     url: _author!.avatarAsset,
                     radius: 12,
                     name: _author!.displayName,

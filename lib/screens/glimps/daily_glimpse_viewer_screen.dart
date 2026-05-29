@@ -28,7 +28,7 @@ import '../../services/daily_glimpse_service.dart';
 // • Tap-left / tap-right navigation
 // • Vertical swipe-down to dismiss with parallax
 // • Fluid scale+fade route transition from card
-// • Unique Knockpost accent styling
+// • Unique KnockPost accent styling
 // ─────────────────────────────────────────────────────────────────────────────
 
 import '../../../services/database_service.dart';
@@ -194,7 +194,7 @@ class _SingleCardGlimpseViewerState extends State<_SingleCardGlimpseViewer>
   // Per-glimpse duration (seconds)
   static const double _glimpseDuration = 6.0;
 
-  // Knockpost accent
+  // KnockPost accent
   static const Color _accentColor = Colors.white;
   static const Color _accentGlow = Colors.white70;
 

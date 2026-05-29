@@ -139,7 +139,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(height: 20, width: 20, child: KnockpostLoadingIndicator())
+                              ? const SizedBox(height: 20, width: 20, child: KnockPostLoadingIndicator())
                               : Text("Verify", style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
                         ),
                       ),

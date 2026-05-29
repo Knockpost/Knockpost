@@ -203,7 +203,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
     [1.2, 0, 0.5, 0, 10, 0, 0.8, 0.5, 0, 0, 0.5, 0, 1.2, 0, 20, 0, 0, 0, 1, 0],
   ];
 
-  // ── Monochrome Knockpost dark premium theme ─────────────────────────────────
+  // ── Monochrome KnockPost dark premium theme ─────────────────────────────────
 
   @override
   void initState() {
@@ -768,7 +768,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: KnockpostLoadingIndicator(),
+                      child: KnockPostLoadingIndicator(),
                     )
                   : const Text(
                       'Next',

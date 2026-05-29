@@ -459,7 +459,7 @@ class _PostSettingsSheetState extends State<PostSettingsSheet>
     );
   }
 
-  // ─── Audience Card (Monochrome Knockpost style) ──────────────────────────
+  // ─── Audience Card (Monochrome KnockPost style) ──────────────────────────
 
   Widget _buildAudienceOption(PostAudience aud, bool isDark) {
     final isSelected = _audience == aud;

@@ -414,7 +414,7 @@ class _VideoItemState extends State<_VideoItem> {
           child: SizedBox(
             width: 24,
             height: 24,
-            child: KnockpostLoadingIndicator(),
+            child: KnockPostLoadingIndicator(),
           ),
         ),
       ),

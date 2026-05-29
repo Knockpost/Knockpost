@@ -13,7 +13,7 @@ import 'widgets/creator_rank_badge.dart';
 import '../messages/chat_screen.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 
-/// Knockpost-native connections screen with segmented toggle, card tiles,
+/// KnockPost-native connections screen with segmented toggle, card tiles,
 /// and staggered entrance animations.
 class ConnectionsScreen extends StatefulWidget {
   final int initialTab; // 0 = You Knocked, 1 = Knocked You
@@ -319,7 +319,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
                   const SizedBox(height: 6),
 
                   // ── Tab toggle with sliding pill ──
-                  _KnockpostPillToggle(
+                  _KnockPostPillToggle(
                     labels: [
                       'You Knocked (${_formatCount(_totalYouKnocked)})',
                       'Knocked You (${_formatCount(_totalKnockedYou)})',
@@ -514,14 +514,14 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 // KNOCKPOST-STYLE PILL TOGGLE — matches ProfileAnimatedTabBar
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _KnockpostPillToggle extends StatelessWidget {
+class _KnockPostPillToggle extends StatelessWidget {
   final List<String> labels;
   final int activeIndex;
   final ValueChanged<int> onChanged;
   final bool isDark;
   final Color textColor;
 
-  const _KnockpostPillToggle({
+  const _KnockPostPillToggle({
     required this.labels,
     required this.activeIndex,
     required this.onChanged,
@@ -844,7 +844,7 @@ class _ConnectionCardState extends State<_ConnectionCard>
           width: 1.5,
         ),
       ),
-      child: KnockpostAvatar(
+      child: KnockPostAvatar(
         url: user.avatarAsset,
         radius: 25,
         name: user.displayName,
@@ -880,7 +880,7 @@ class _ConnectionCardState extends State<_ConnectionCard>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Knock back button — solid fill, matching Knockpost style
+        // Knock back button — solid fill, matching KnockPost style
         GestureDetector(
           onTap: widget.onKnockBack,
           child: Container(

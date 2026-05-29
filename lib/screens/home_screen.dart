@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueListenable:
                             CurrentUserService.instance.userNotifier,
                         builder: (context, currentUser, _) {
-                          return KnockpostAvatar(
+                          return KnockPostAvatar(
                             url: currentUser?.avatarAsset,
                             radius: 21,
                             name: currentUser?.displayName,
@@ -646,7 +646,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: ValueListenableBuilder<bool>(
                               valueListenable: _postScrollLockController,
                               builder: (context, isScrollLocked, _) {
-                                return KnockpostRefreshIndicator(
+                                return KnockPostRefreshIndicator(
                                   onRefresh: () async {
                                     setState(() {
                                       _feedSeed =
@@ -755,7 +755,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                           builder: (context, snapshot) {
                                             if (!snapshot.hasData) {
-                                              return const KnockpostLoadingIndicator();
+                                              return const KnockPostLoadingIndicator();
                                             }
                                             final feedItems = snapshot.data!;
 
@@ -1084,7 +1084,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       },
                                     ),
                                   ), // NestedScrollView
-                                ); // KnockpostRefreshIndicator
+                                ); // KnockPostRefreshIndicator
                               },
                             ),
                           ),
@@ -1111,7 +1111,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             builder: (context, liveUser, child) {
                               final user = liveUser;
                               if (user == null) {
-                                return const KnockpostLoadingIndicator();
+                                return const KnockPostLoadingIndicator();
                               }
                               return StreamBuilder<List<PostModel>>(
                                 stream: PostService.instance.getUserPosts(

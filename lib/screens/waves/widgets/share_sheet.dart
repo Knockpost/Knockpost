@@ -385,7 +385,7 @@ class _ShareSheetState extends State<ShareSheet>
                                   ? const SizedBox(
                                       width: 22,
                                       height: 22,
-                                      child: KnockpostLoadingIndicator(),
+                                      child: KnockPostLoadingIndicator(),
                                     )
                                   : Row(
                                       mainAxisAlignment:

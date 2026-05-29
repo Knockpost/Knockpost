@@ -421,7 +421,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       _FieldLabel('Username', subColor),
-                      KnockpostUsernameField(
+                      KnockPostUsernameField(
                         controller: _usernameCtrl,
                         initialUsername: widget.user.username,
                         backgroundColor: fieldBg,

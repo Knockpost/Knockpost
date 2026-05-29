@@ -1059,7 +1059,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
           ),
         ),
         body: _isLoading 
-            ? const Center(child: KnockpostLoadingIndicator())
+            ? const Center(child: KnockPostLoadingIndicator())
             : ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -1672,7 +1672,7 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
         scheme: 'mailto',
         path: 'knockpostofficial@gmail.com',
         query: _encodeQueryParameters(<String, String>{
-          'subject': 'Knockpost Feedback',
+          'subject': 'KnockPost Feedback',
           'body': 'User ID: $uid\nEmail: ${user?.email ?? "Unknown"}\n\nFeedback:\n$text',
         }),
       );

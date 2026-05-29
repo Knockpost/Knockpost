@@ -193,7 +193,7 @@ class _KnockButtonState extends State<KnockButton>
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: KnockpostLoadingIndicator(),
+                  child: KnockPostLoadingIndicator(),
                 )
               : Text(
                   label,

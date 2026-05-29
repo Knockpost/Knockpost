@@ -395,7 +395,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
         body: _isInitialized
             ? _buildCamera()
             : const Center(
-                child: KnockpostLoadingIndicator(),
+                child: KnockPostLoadingIndicator(),
               ),
       ),
     );
@@ -867,7 +867,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
     );
   }
 
-  // ── Knockpost Signature Music Trimmer Overlay ──
+  // ── KnockPost Signature Music Trimmer Overlay ──
   Widget _buildMusicTrimmerOverlay() {
     return Positioned.fill(
       child: ClipRect(
@@ -1747,7 +1747,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
     );
   }
 
-  // ── Instagram-Style Full Bottom Effects Picker (Knockpost Native Style) ──
+  // ── Instagram-Style Full Bottom Effects Picker (KnockPost Native Style) ──
   Widget _buildEffectsOverlay() {
     return Positioned(
       bottom: 0,

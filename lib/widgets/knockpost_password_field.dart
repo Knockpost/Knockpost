@@ -6,7 +6,7 @@ import '../../utils/haptic_helper.dart';
 
 enum PasswordStrength { none, weak, medium, strong }
 
-class KnockpostPasswordField extends StatefulWidget {
+class KnockPostPasswordField extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<bool>? onValidityChanged;
   final bool autofocus;
@@ -14,7 +14,7 @@ class KnockpostPasswordField extends StatefulWidget {
   final Color? textColor;
   final Color? borderColor;
 
-  const KnockpostPasswordField({
+  const KnockPostPasswordField({
     super.key,
     required this.controller,
     this.onValidityChanged,
@@ -25,10 +25,10 @@ class KnockpostPasswordField extends StatefulWidget {
   });
 
   @override
-  State<KnockpostPasswordField> createState() => _KnockpostPasswordFieldState();
+  State<KnockPostPasswordField> createState() => _KnockPostPasswordFieldState();
 }
 
-class _KnockpostPasswordFieldState extends State<KnockpostPasswordField> with TickerProviderStateMixin {
+class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with TickerProviderStateMixin {
   bool _isObscured = true;
   bool _showErrors = false;
   

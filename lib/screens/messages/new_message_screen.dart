@@ -182,7 +182,7 @@ class _UserTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            KnockpostAvatar(
+            KnockPostAvatar(
               url: user.avatarAsset,
               radius: 26,
               name: user.displayName,

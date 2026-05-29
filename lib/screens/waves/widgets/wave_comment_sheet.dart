@@ -204,7 +204,7 @@ class _WaveCommentSheetState extends State<WaveCommentSheet> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    KnockpostAvatar(
+                    KnockPostAvatar(
                       url: CurrentUserService.instance.currentUser?.avatarAsset,
                       radius: 16,
                       name: CurrentUserService.instance.currentUser?.displayName,

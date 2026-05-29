@@ -215,7 +215,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: KnockpostLoadingIndicator(),
+                                  child: KnockPostLoadingIndicator(),
                                 )
                               : Text(
                                   "Next",

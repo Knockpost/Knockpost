@@ -20,7 +20,7 @@ class LowerCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-class KnockpostUsernameField extends StatefulWidget {
+class KnockPostUsernameField extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<bool>? onValidityChanged;
   final String? initialUsername;
@@ -29,7 +29,7 @@ class KnockpostUsernameField extends StatefulWidget {
   final Color? textColor;
   final Color? borderColor;
 
-  const KnockpostUsernameField({
+  const KnockPostUsernameField({
     super.key,
     required this.controller,
     this.onValidityChanged,
@@ -41,10 +41,10 @@ class KnockpostUsernameField extends StatefulWidget {
   });
 
   @override
-  State<KnockpostUsernameField> createState() => _KnockpostUsernameFieldState();
+  State<KnockPostUsernameField> createState() => _KnockPostUsernameFieldState();
 }
 
-class _KnockpostUsernameFieldState extends State<KnockpostUsernameField> with SingleTickerProviderStateMixin {
+class _KnockPostUsernameFieldState extends State<KnockPostUsernameField> with SingleTickerProviderStateMixin {
   Timer? _debounce;
   UsernameStatus _status = UsernameStatus.idle;
   String _errorMessage = '';

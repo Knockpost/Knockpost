@@ -146,7 +146,7 @@ class _MessageInfoScreenState extends State<MessageInfoScreen> {
                         width: 3,
                       ),
                     ),
-                    child: KnockpostAvatar(
+                    child: KnockPostAvatar(
                       url: displayAvatar,
                       radius: 60,
                       name: displayName,
@@ -162,7 +162,7 @@ class _MessageInfoScreenState extends State<MessageInfoScreen> {
                       child: SizedBox(
                         width: 16,
                         height: 16,
-                        child: KnockpostLoadingIndicator(),
+                        child: KnockPostLoadingIndicator(),
                       ),
                     ),
 

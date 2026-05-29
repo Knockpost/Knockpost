@@ -1,4 +1,4 @@
-/// Comment model for Knockpost's private 2-sided comment system.
+/// Comment model for KnockPost's private 2-sided comment system.
 ///
 /// Each viewer's comments are only visible to the poster + that viewer.
 /// The poster can see ALL viewers' comments.

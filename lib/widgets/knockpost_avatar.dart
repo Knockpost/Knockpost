@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-/// Production-grade avatar widget for the entire Knockpost app.
+/// Production-grade avatar widget for the entire KnockPost app.
 ///
 /// Handles all image source types (network, asset, local file, null/empty)
 /// with proper loading states, fade-in animations, error handling,
@@ -10,13 +10,13 @@ import 'package:flutter/material.dart';
 ///
 /// Usage:
 /// ```dart
-/// KnockpostAvatar(
+/// KnockPostAvatar(
 ///   url: user.avatarAsset,
 ///   radius: 22,
 ///   name: user.displayName,
 /// )
 /// ```
-class KnockpostAvatar extends StatelessWidget {
+class KnockPostAvatar extends StatelessWidget {
   /// The image URL. Handles:
   /// - `null` or empty → fallback icon/initial
   /// - `http://` or `https://` → network image with caching
@@ -31,7 +31,7 @@ class KnockpostAvatar extends StatelessWidget {
   /// If null, a person icon is shown instead.
   final String? name;
 
-  const KnockpostAvatar({
+  const KnockPostAvatar({
     super.key,
     this.url,
     required this.radius,
@@ -178,7 +178,7 @@ class _NetworkAvatar extends StatelessWidget {
     Object error,
     StackTrace? stackTrace,
   ) {
-    debugPrint('[KnockpostAvatar] ✗ Load failed: $url');
+    debugPrint('[KnockPostAvatar] ✗ Load failed: $url');
     return Center(
       child: _fallbackContent(),
     );

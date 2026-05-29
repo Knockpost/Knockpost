@@ -1,27 +1,27 @@
 # knockpost
 Modern social media is fundamentally broken. Platforms have devolved from spaces of connection into exhausting, performance-centric stages. Users are trapped in a relentless rat race for vanity metrics—chasing likes, hoarding followers, and constantly performing for public approval. The result is a toxic culture of comparison and a deep-seated fear of judgment.
 
-Knockpost completely flips the script. We are dismantling the stage. Knockpost is a privacy-first, calm, and breathable sanctuary built for authentic self-expression. By shifting the paradigm away from exhausting public validation and toward meaningful private connection, we are bringing the "social" back to social media—without the anxiety.
+KnockPost completely flips the script. We are dismantling the stage. KnockPost is a privacy-first, calm, and breathable sanctuary built for authentic self-expression. By shifting the paradigm away from exhausting public validation and toward meaningful private connection, we are bringing the "social" back to social media—without the anxiety.
 
 🧬 Core Foundation & Philosophy
-The "Anti-Stage" Architecture: Knockpost is designed to feel like a comfortable living room, not a global megaphone. It removes the pressure of the spotlight, allowing users to be themselves without a scoreboard.
+The "Anti-Stage" Architecture: KnockPost is designed to feel like a comfortable living room, not a global megaphone. It removes the pressure of the spotlight, allowing users to be themselves without a scoreboard.
 
 Zen UI/UX: The interface is intentionally minimalist, clean, and distraction-free. Every pixel is crafted to reduce digital fatigue and promote a peaceful user experience.
 
-Fluid Performance: Built entirely on the Flutter framework, Knockpost delivers a lightning-fast, buttery-smooth experience across all devices.
+Fluid Performance: Built entirely on the Flutter framework, KnockPost delivers a lightning-fast, buttery-smooth experience across all devices.
 
 > A Privacy-First, Anti-Performance Social Platform
 > Built to replace public validation with private connection.
 
 ---
 
-## 🧠 About Knockpost
+## 🧠 About KnockPost
 
-Knockpost is a next-generation social media platform designed to eliminate toxicity, comparison, and performance pressure.
+KnockPost is a next-generation social media platform designed to eliminate toxicity, comparison, and performance pressure.
 
 Modern platforms have turned expression into performance — where users chase likes, followers, and validation. This creates anxiety, comparison, and inauthentic behavior.
 
-**Knockpost flips this system.**
+**KnockPost flips this system.**
 
 > Instead of performing for attention, users connect with intention.
 
@@ -29,7 +29,7 @@ Modern platforms have turned expression into performance — where users chase l
 
 ## 🎯 Core Philosophy
 
-Knockpost is built on three core principles:
+KnockPost is built on three core principles:
 
 ### ❌ No Public Validation
 
@@ -62,7 +62,7 @@ Knockpost is built on three core principles:
 
 ## 🎨 The 4 Pillars of Expression
 
-Knockpost introduces four core content formats — each designed for a specific type of expression:
+KnockPost introduces four core content formats — each designed for a specific type of expression:
 
 ---
 
@@ -135,7 +135,7 @@ Designed for users who want to grow and be discovered — without pressure.
 
 ### 🎖 Creator Tier System
 
-Instead of followers and likes, Knockpost uses a structured recognition system:
+Instead of followers and likes, KnockPost uses a structured recognition system:
 
 1. **Echo**
 
@@ -175,7 +175,7 @@ Instead of followers and likes, Knockpost uses a structured recognition system:
 
 ## 🧩 Engagement System
 
-Knockpost redefines interaction:
+KnockPost redefines interaction:
 
 ### ❤️ Reactions
 
@@ -197,7 +197,7 @@ Knockpost redefines interaction:
 
 ## 🧬 Product Architecture
 
-Knockpost operates on a dual-layer system:
+KnockPost operates on a dual-layer system:
 
 * **Normal Mode** → Private, safe interaction
 * **Creator Mode** → Structured, pressure-free growth
@@ -215,7 +215,7 @@ Knockpost operates on a dual-layer system:
 
 ---
 
-## 💡 Why Knockpost?
+## 💡 Why KnockPost?
 
 Because current social media:
 
@@ -223,7 +223,7 @@ Because current social media:
 * Rewards vanity
 * Creates pressure
 
-👉 Knockpost solves this by:
+👉 KnockPost solves this by:
 
 * Removing public validation
 * Prioritizing private interaction
@@ -233,7 +233,7 @@ Because current social media:
 
 ## 🌱 Vision
 
-Knockpost is not just an app —
+KnockPost is not just an app —
 it is a shift in how social media works.
 
 If successful, it can:
@@ -253,7 +253,7 @@ https://knockpost.com *(Under Development)*
 ## 🧠 Final Thought
 
 > Social media was meant to connect people.
-> Knockpost is designed to make that possible again.
+> KnockPost is designed to make that possible again.
 
 ---
 

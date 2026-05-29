@@ -77,7 +77,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Manage photos and videos Knockpost has access to',
+                      'Manage photos and videos KnockPost has access to',
                       style: TextStyle(
                         color: Colors.grey.shade800,
                         fontSize: 14,
@@ -109,7 +109,7 @@ class _CustomAndroidPickerSheetState extends State<CustomAndroidPickerSheet> {
           
           Expanded(
             child: widget.initialAssets.isEmpty
-                ? const Center(child: KnockpostLoadingIndicator())
+                ? const Center(child: KnockPostLoadingIndicator())
                 : GridView.builder(
                     physics: const BouncingScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

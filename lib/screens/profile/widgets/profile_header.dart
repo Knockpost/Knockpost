@@ -568,7 +568,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           width: 1.5,
                         ),
                       ),
-                      child: KnockpostAvatar(
+                      child: KnockPostAvatar(
                         url: shown[i].avatarAsset,
                         radius: 11,
                         name: shown[i].displayName,
@@ -695,7 +695,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                           child: Row(
                             children: [
                               // Avatar
-                              KnockpostAvatar(
+                              KnockPostAvatar(
                                 url: friend.avatarAsset,
                                 radius: 23,
                                 name: friend.displayName,
@@ -915,7 +915,7 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar> {
           width: borderWidth,
         ),
       ),
-      child: KnockpostAvatar(
+      child: KnockPostAvatar(
         url: user.avatarAsset,
         radius: widget.radius,
         name: user.displayName,
@@ -1026,7 +1026,7 @@ class _ZoomOverlayState extends State<_ZoomOverlay> with SingleTickerProviderSta
           width: borderWidth,
         ),
       ),
-      child: KnockpostAvatar(
+      child: KnockPostAvatar(
         url: user.avatarAsset,
         radius: widget.radius,
         name: user.displayName,

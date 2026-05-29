@@ -42,7 +42,7 @@ class MessageBubble extends StatelessWidget {
 
     Widget buildAvatar() => GestureDetector(
           onTap: onUserTap,
-          child: KnockpostAvatar(
+          child: KnockPostAvatar(
             url: sender.avatarAsset,
             radius: 13,
             name: sender.displayName,

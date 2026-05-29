@@ -15,7 +15,7 @@ from PIL import Image
 import numpy as np
 import os
 
-OUTPUT_BASE = r'c:\Project\Knockpost\android\app\src\main\res'
+OUTPUT_BASE = r'c:\Project\KnockPost\android\app\src\main\res'
 
 DENSITIES = {
     'mdpi':    24,
@@ -33,7 +33,7 @@ CONTENT_RATIO = 0.80
 # Step 1: Load the brand icon (dark on light background)
 # ═══════════════════════════════════════════════════════════════
 
-source_path = r'c:\Project\Knockpost\assets\icon(light backgroud).png'
+source_path = r'c:\Project\KnockPost\assets\icon(light backgroud).png'
 brand = Image.open(source_path).convert('RGBA')
 print(f"Loaded brand icon: {brand.size[0]}x{brand.size[1]}")
 
@@ -283,6 +283,6 @@ draw.text((380, 210), "New (no dot)", fill=(100, 255, 100))
 
 draw.text((20, 5), "BEFORE                                    AFTER", fill=(180, 180, 180))
 
-comp_path = r'c:\Project\Knockpost\comparison_final.png'
+comp_path = r'c:\Project\KnockPost\comparison_final.png'
 comp.save(comp_path, 'PNG')
 print(f"Saved: {comp_path}")
