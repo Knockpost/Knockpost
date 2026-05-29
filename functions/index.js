@@ -169,21 +169,34 @@ exports.sendOtp = functions.https.onCall(async (data, context) => {
   const mailOptions = {
     from: `"Knockpost" <${process.env.GMAIL_EMAIL || "knockpostofficial@gmail.com"}>`,
     to: email,
-    subject: "Your Knockpost Verification Code",
+    subject: `Your Knockpost code is ${otp}`,
     html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-          <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">Knockpost</h1>
-          <p style="color: #666; font-size: 14px;">Two-Step Verification</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; color: #1a1a1a;">
+        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 32px; color: #000;">Knockpost</h1>
+        
+        <p style="font-size: 16px; margin-bottom: 24px; color: #333;">Enter this temporary verification code to continue:</p>
+        
+        <div style="background-color: #f3f3f4; border-radius: 12px; padding: 24px; text-align: left; margin-bottom: 24px;">
+          <span style="font-size: 32px; font-weight: 400; letter-spacing: 2px; color: #1a1a1a;">${otp}</span>
         </div>
-        <div style="background: #f8f8f8; border-radius: 12px; padding: 24px; text-align: center;">
-          <p style="color: #333; font-size: 14px; margin-bottom: 16px;">Your verification code is:</p>
-          <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1a1a1a; margin-bottom: 16px;">${otp}</div>
-          <p style="color: #999; font-size: 12px;">This code will expire in 5 minutes.</p>
-        </div>
-        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 24px;">
-          If you didn't request this code, please ignore this email.
+        
+        <p style="font-size: 14px; margin-bottom: 32px; color: #333; line-height: 1.5;">
+          If you were not trying to log in to Knockpost, please ignore this email or reset your password.
         </p>
+        
+        <div style="margin-bottom: 48px;">
+          <p style="font-size: 14px; color: #666; margin: 0;">Best,</p>
+          <p style="font-size: 14px; color: #666; margin: 0;">The Knockpost team</p>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #eaeaea; margin-bottom: 24px;" />
+        
+        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #000;">Knockpost</h2>
+        
+        <div style="font-size: 12px; color: #888;">
+          <p style="margin: 0 0 4px 0;">Knockpost</p>
+          <p style="margin: 0;">Help center</p>
+        </div>
       </div>
     `,
   };
@@ -551,10 +564,38 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
 
   // Send Email
   const mailOptions = {
-    from: "Knockpost <no-reply@knockpost.app>",
+    from: `"Knockpost" <${process.env.SMTP_USER || "no-reply@knockpost.app"}>`,
     to: email,
-    subject: "Your Knockpost Verification Code",
-    text: `Your verification code is: ${otp}. It will expire in 10 minutes.`,
+    subject: `Your Knockpost code is ${otp}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; color: #1a1a1a;">
+        <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 32px; color: #000;">Knockpost</h1>
+        
+        <p style="font-size: 16px; margin-bottom: 24px; color: #333;">Enter this temporary verification code to continue:</p>
+        
+        <div style="background-color: #f3f3f4; border-radius: 12px; padding: 24px; text-align: left; margin-bottom: 24px;">
+          <span style="font-size: 32px; font-weight: 400; letter-spacing: 2px; color: #1a1a1a;">${otp}</span>
+        </div>
+        
+        <p style="font-size: 14px; margin-bottom: 32px; color: #333; line-height: 1.5;">
+          If you were not trying to log in to Knockpost, please ignore this email or reset your password.
+        </p>
+        
+        <div style="margin-bottom: 48px;">
+          <p style="font-size: 14px; color: #666; margin: 0;">Best,</p>
+          <p style="font-size: 14px; color: #666; margin: 0;">The Knockpost team</p>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #eaeaea; margin-bottom: 24px;" />
+        
+        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #000;">Knockpost</h2>
+        
+        <div style="font-size: 12px; color: #888;">
+          <p style="margin: 0 0 4px 0;">Knockpost</p>
+          <p style="margin: 0;">Help center</p>
+        </div>
+      </div>
+    `,
   };
 
   try {
