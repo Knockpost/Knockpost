@@ -343,7 +343,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               children: [
                 ProfileSettingsRow(
                   title: 'Account',
-                  subtitle: _accountEmail,
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
@@ -764,18 +763,37 @@ class _AccountSettingsScreen extends StatelessWidget {
         body: ListView(
           padding: EdgeInsets.zero,
           children: [
-            _SectionHeader('Email', isDark: isDark),
+            _SectionHeader('Account Details', isDark: isDark),
             _SettingsTile(
               bg: sectionBg,
               divColor: divColor,
               children: [
                 ProfileSettingsRow(
-                  title: 'Google account',
+                  title: 'Account email',
                   subtitle: email,
                   trailing: Icon(
                     Icons.mail_outline_rounded,
                     color: isDark ? Colors.white38 : Colors.black38,
                   ),
+                ),
+                Builder(
+                  builder: (context) {
+                    final creationTime = FirebaseAuth.instance.currentUser?.metadata.creationTime;
+                    String formattedDate = 'Unknown';
+                    if (creationTime != null) {
+                      final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                      formattedDate = '${creationTime.day} ${months[creationTime.month - 1]} ${creationTime.year}';
+                    }
+                    return ProfileSettingsRow(
+                      title: 'Joined on',
+                      subtitle: formattedDate,
+                      trailing: Icon(
+                        Icons.calendar_today_rounded,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                        size: 20,
+                      ),
+                    );
+                  }
                 ),
               ],
             ),
@@ -1624,13 +1642,61 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_feedbackController.text.trim().isEmpty) return;
+  bool _isSubmitting = false;
+
+  String? _encodeQueryParameters(Map<String, String> params) {
+    return params.entries
+        .map((MapEntry<String, String> e) =>
+            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+  }
+
+  Future<void> _submit() async {
+    final text = _feedbackController.text.trim();
+    if (text.isEmpty || _isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
     KnockHaptics.impact();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Feedback submitted')));
-    Navigator.pop(context);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final uid = user?.uid ?? 'anonymous';
+      
+      // Save to Firestore just in case
+      await DatabaseService.instance.submitFeedback(
+        uid: uid,
+        message: text,
+      );
+
+      final Uri emailLaunchUri = Uri(
+        scheme: 'mailto',
+        path: 'knockpostofficial@gmail.com',
+        query: _encodeQueryParameters(<String, String>{
+          'subject': 'Knockpost Feedback',
+          'body': 'User ID: $uid\nEmail: ${user?.email ?? "Unknown"}\n\nFeedback:\n$text',
+        }),
+      );
+      
+      try {
+        await launchUrl(emailLaunchUri);
+      } catch (e) {
+        debugPrint('Could not launch email app: $e');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thank you! Redirecting to email app...')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to submit feedback. Please try again.')),
+        );
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
@@ -1677,11 +1743,20 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: _submit,
-              child: Text(
-                'Send',
-                style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
-              ),
+              onPressed: _isSubmitting ? null : _submit,
+              child: _isSubmitting
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: textColor,
+                      ),
+                    )
+                  : Text(
+                      'Send',
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
+                    ),
             ),
           ],
         ),

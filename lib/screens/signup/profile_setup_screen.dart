@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'interest_selection_screen.dart';
 import '../login_screen.dart';
+import '../../services/auth_service.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final String email;
@@ -34,19 +36,131 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final ImagePicker picker = ImagePicker();
 
   // 🔥 IMAGE PICKER
-  Future<void> pickImage() async {
-    final XFile? image =
-        await picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? image = await picker.pickImage(source: source);
+    if (image == null) return;
 
-    if (image != null) {
+    final CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Profile Photo',
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          backgroundColor: Colors.black,
+          activeControlsWidgetColor: Colors.white,
+          dimmedLayerColor: Colors.black.withValues(alpha: 0.8),
+          cropFrameColor: Colors.white,
+          cropGridColor: Colors.white24,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Profile Photo',
+          aspectRatioLockEnabled: true,
+          resetButtonHidden: true,
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
       setState(() {
-        selectedImage = File(image.path);
+        selectedImage = File(croppedFile.path);
       });
     }
   }
 
+  void _showImageSourceBottomSheet() {
+    KnockHaptics.selection();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1C1C1C) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subColor = isDark ? Colors.white54 : Colors.black54;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            top: 20,
+            bottom: 20 + MediaQuery.of(context).viewPadding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: subColor.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library_outlined, color: textColor),
+                title: Text(
+                  'Choose from library',
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.camera_alt_outlined, color: textColor),
+                title: Text(
+                  'Take photo',
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              if (selectedImage != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text(
+                    'Remove current picture',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      selectedImage = null;
+                    });
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // 🔥 CUSTOM DATE PICKER (SHORT MONTH VERSION)
   void pickDate() {
+    FocusManager.instance.primaryFocus?.unfocus(); // Dismiss keyboard
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
@@ -267,6 +381,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       );
       return;
     }
+    
+    if (selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select your date of birth")),
+      );
+      return;
+    }
+
+    final today = DateTime.now();
+    int age = today.year - selectedDate!.year;
+    if (today.month < selectedDate!.month ||
+        (today.month == selectedDate!.month && today.day < selectedDate!.day)) {
+      age--;
+    }
+
+    if (age <= 13) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You must be at least 13 years old to use this app.")),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -283,7 +419,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   void goBack() {
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      AuthService.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void goLogin() {
@@ -306,8 +450,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: Column(
           children: [
 
             const SizedBox(height: 13),
@@ -388,7 +535,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         children: [
 
                           GestureDetector(
-                            onTap: () { KnockHaptics.tap(); pickImage(); },
+                            onTap: () { KnockHaptics.tap(); _showImageSourceBottomSheet(); },
                             child: CircleAvatar(
                               radius: 55,
                               backgroundColor: isDark 
@@ -417,7 +564,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             bottom: 0,
                             right: 4,
                             child: GestureDetector(
-                              onTap: () { KnockHaptics.tap(); pickImage(); },
+                              onTap: () { KnockHaptics.tap(); _showImageSourceBottomSheet(); },
                               child: Container(
                                 height: 32,
                                 width: 32,
@@ -575,6 +722,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
           ],
         ),
+      ),
       ),
     );
   }

@@ -20,7 +20,7 @@ class LowerCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-class InstagramUsernameField extends StatefulWidget {
+class KnockpostUsernameField extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<bool>? onValidityChanged;
   final String? initialUsername;
@@ -29,7 +29,7 @@ class InstagramUsernameField extends StatefulWidget {
   final Color? textColor;
   final Color? borderColor;
 
-  const InstagramUsernameField({
+  const KnockpostUsernameField({
     super.key,
     required this.controller,
     this.onValidityChanged,
@@ -41,10 +41,10 @@ class InstagramUsernameField extends StatefulWidget {
   });
 
   @override
-  State<InstagramUsernameField> createState() => _InstagramUsernameFieldState();
+  State<KnockpostUsernameField> createState() => _KnockpostUsernameFieldState();
 }
 
-class _InstagramUsernameFieldState extends State<InstagramUsernameField> with SingleTickerProviderStateMixin {
+class _KnockpostUsernameFieldState extends State<KnockpostUsernameField> with SingleTickerProviderStateMixin {
   Timer? _debounce;
   UsernameStatus _status = UsernameStatus.idle;
   String _errorMessage = '';
