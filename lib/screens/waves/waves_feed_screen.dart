@@ -196,6 +196,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                       
                       if (currentUser != null && post.authorId == currentUser.id) {
                         return WaveItem(
+                          key: ValueKey(post.id),
                           videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
                           username: currentUser.username,
                           caption: post.text,
@@ -210,6 +211,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                       
                       if (author != null) {
                         return WaveItem(
+                          key: ValueKey(post.id),
                           videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
                           username: author.username,
                           caption: post.text,
@@ -221,6 +223,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                       }
 
                       return FutureBuilder<Map<String, dynamic>?>(
+                        key: ValueKey('future_${post.id}'),
                         future: DatabaseService.instance.getUserProfile(post.authorId, useCache: true),
                         builder: (context, snapshot) {
                           final data = snapshot.data;
@@ -234,6 +237,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                               : UserModel(id: post.authorId, displayName: 'Loading...', username: '...');
 
                           return WaveItem(
+                            key: ValueKey(post.id),
                             videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
                             username: fetchedAuthor.username,
                             caption: post.text,

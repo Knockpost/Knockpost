@@ -140,7 +140,7 @@ class GlimpsCard extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                          imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.clamp),
                           child: buildImage(BoxFit.cover),
                         ),
                         Container(color: Colors.black.withValues(alpha: 0.35)),

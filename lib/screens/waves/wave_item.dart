@@ -16,8 +16,11 @@ import '../../services/post_service.dart';
 import '../../services/waves_controller_manager.dart';
 import '../../utils/global_knock_state.dart';
 import '../../widgets/knockpost_avatar.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:extended_image/extended_image.dart';
 import 'dart:async';
+import '../shared/music_editor_screen.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 
 class WaveItem extends StatefulWidget {
   final String videoUrl;
@@ -48,6 +51,9 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   static final Set<String> _viewedWaves = {};
   VideoPlayerController? _controller;
   bool _isControllerInitialized = false;
+  AudioPlayer? _audioPlayer;
+
+  bool get _hasMusic => widget.post?.musicUrl != null && widget.post!.musicUrl!.isNotEmpty;
 
   bool isPlaying = true;
   bool showHeart = false;
@@ -118,6 +124,34 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
     /// Video
     _initVideoController();
+    if (_hasMusic) {
+      _initAudio();
+    }
+  }
+
+  Future<void> _initAudio() async {
+    _audioPlayer = AudioPlayer();
+    AudioLifecycleManager.instance.register(_audioPlayer!);
+
+    try {
+      final start = widget.post!.musicTrimStart ?? 0;
+      final uri = Uri.parse(widget.post!.musicUrl!);
+      final source = ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(seconds: start),
+        end: Duration(seconds: start + 60),
+      );
+
+      await _audioPlayer!.setAudioSource(source);
+      _audioPlayer!.setLoopMode(LoopMode.one);
+      _audioPlayer!.setVolume(widget.post!.musicVolume ?? 1.0);
+      
+      if (widget.isActive) {
+        _audioPlayer!.play();
+      }
+    } catch (e) {
+      debugPrint('Waves audio init error: $e');
+    }
   }
 
   void _onGlobalStatusChanged() {
@@ -127,6 +161,8 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   }
 
   Future<void> _initVideoController() async {
+    if (widget.post?.isVideoPost == false) return; // Skip video initialization for photos
+
     try {
       final controller = await WavesControllerManager.instance.getController(widget.videoUrl);
       if (!mounted) return;
@@ -192,17 +228,19 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       }
     }
 
-    if (_controller == null || !_isControllerInitialized) return;
+    if (_controller == null && _audioPlayer == null) return;
 
     if (widget.isActive) {
-      _controller!.play();
+      if (_controller != null && _isControllerInitialized) _controller!.play();
+      if (_audioPlayer != null) _audioPlayer!.play();
       isPlaying = true;
       _playPauseAnimController.reverse();
       _trackView();
     } else {
       _viewTimer?.cancel();
       _viewTimer = null;
-      _controller!.pause();
+      if (_controller != null) _controller!.pause();
+      if (_audioPlayer != null) _audioPlayer!.pause();
       isPlaying = false;
     }
   }
@@ -244,19 +282,27 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     // DO NOT dispose _controller here because WavesControllerManager owns it.
     _heartAnimController.dispose();
     _playPauseAnimController.dispose();
+    if (_audioPlayer != null) {
+      AudioLifecycleManager.instance.unregister(_audioPlayer!);
+      _audioPlayer!.dispose();
+    }
     super.dispose();
   }
 
   void togglePlay() {
-    if (_controller == null || !_isControllerInitialized) return;
+    bool videoPlaying = _controller?.value.isPlaying ?? false;
+    bool audioPlaying = _audioPlayer?.playing ?? false;
+    bool currentlyPlaying = videoPlaying || audioPlaying;
 
     setState(() {
-      if (_controller!.value.isPlaying) {
-        _controller!.pause();
+      if (currentlyPlaying) {
+        if (_controller != null) _controller!.pause();
+        if (_audioPlayer != null) _audioPlayer!.pause();
         isPlaying = false;
         _playPauseAnimController.forward();
       } else {
-        _controller!.play();
+        if (_controller != null && _isControllerInitialized) _controller!.play();
+        if (_audioPlayer != null) _audioPlayer!.play();
         isPlaying = true;
         _playPauseAnimController.reverse();
       }
@@ -337,6 +383,96 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     setState(() => _doubleTapped = false);
   }
 
+  Widget _buildMediaLayer() {
+    Widget finalLayer;
+
+    if (widget.post?.isVideoPost != false && _isControllerInitialized && _controller != null) {
+      finalLayer = SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _controller!.value.size.width,
+            height: _controller!.value.size.height,
+            child: VideoPlayer(_controller!),
+          ),
+        ),
+      );
+    } else {
+      finalLayer = SizedBox.expand(
+        child: Container(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (widget.post?.isVideoPost != false && widget.post?.coverImagePath != null && widget.post!.coverImagePath!.isNotEmpty)
+              ExtendedImage.network(
+                widget.post!.coverImagePath!,
+                fit: BoxFit.cover,
+                cache: true,
+                clearMemoryCacheIfFailed: true,
+                loadStateChanged: (state) {
+                  if (state.extendedImageLoadState == LoadState.failed) {
+                    return const SizedBox.shrink();
+                  }
+                  return null;
+                },
+              )
+            else if (widget.post?.isVideoPost == false && widget.post?.imagePaths.isNotEmpty == true)
+              ExtendedImage.network(
+                widget.post!.imagePaths.first,
+                fit: BoxFit.cover,
+                cache: true,
+                clearMemoryCacheIfFailed: true,
+                loadStateChanged: (state) {
+                  if (state.extendedImageLoadState == LoadState.failed) {
+                    return const SizedBox.shrink();
+                  }
+                  return null;
+                },
+              ),
+            if (widget.post?.isVideoPost != false && (!_isControllerInitialized || _controller == null))
+              Container(
+                color: Colors.black.withValues(alpha: 0.3),
+                child: const Center(
+                  child: KnockpostLoadingIndicator(),
+                ),
+              ),
+          ],
+        ),
+      ));
+    }
+
+    if (widget.post?.mediaTransform != null) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final t = widget.post!.mediaTransform!;
+          final cw = (t['containerWidth'] as num?)?.toDouble() ?? constraints.maxWidth;
+          final ch = (t['containerHeight'] as num?)?.toDouble() ?? constraints.maxHeight;
+          final scaleRatioX = cw > 0 ? constraints.maxWidth / cw : 1.0;
+          final scaleRatioY = ch > 0 ? constraints.maxHeight / ch : 1.0;
+          
+          final scale = (t['scale'] as num?)?.toDouble() ?? 1.0;
+          final rot = (t['rotation'] as num?)?.toDouble() ?? 0.0;
+          final dx = (t['translateX'] as num?)?.toDouble() ?? 0.0;
+          final dy = (t['translateY'] as num?)?.toDouble() ?? 0.0;
+
+          return ClipRect(
+            child: Transform(
+              transform: Matrix4.identity()
+                ..translateByDouble(dx * scaleRatioX, dy * scaleRatioY, 0.0, 1.0)
+                ..scaleByDouble(scale, scale, 1.0, 1.0)
+                ..rotateZ(rot),
+              alignment: Alignment.center,
+              child: finalLayer,
+            ),
+          );
+        },
+      );
+    }
+
+    return finalLayer;
+  }
+
   @override
   Widget build(BuildContext context) {
     Color knockBgColor;
@@ -363,41 +499,20 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          /// 🎥 VIDEO
-          _isControllerInitialized && _controller != null
-              ? FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: _controller!.value.size.width,
-                    height: _controller!.value.size.height,
-                    child: VideoPlayer(_controller!),
-                  ),
-                )
-              : Container(
-                  color: Colors.black,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (widget.post?.coverImagePath != null)
-                        ExtendedImage.network(
-                          widget.post!.coverImagePath!,
-                          fit: BoxFit.cover,
-                          loadStateChanged: (state) {
-                            if (state.extendedImageLoadState == LoadState.failed) {
-                              return const SizedBox.shrink();
-                            }
-                            return null;
-                          },
-                        ),
-                      Container(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        child: const Center(
-                          child: KnockpostLoadingIndicator(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          /// 🎥 VIDEO / PHOTO MEDIA LAYER
+          _buildMediaLayer(),
+
+          /// 🎵 MUSIC STICKER (if available)
+          if (widget.post?.musicStickerConfig != null)
+            RepaintBoundary(
+              child: MusicStickerWidget(
+                title: widget.post!.musicTitle ?? '',
+                artist: widget.post!.musicArtist ?? '',
+                coverUrl: widget.post!.musicCoverUrl ?? '',
+                configData: widget.post!.musicStickerConfig,
+                isPlaying: isPlaying,
+              ),
+            ),
 
           /// 🌑 GRADIENT OVERLAY (multi-stop for premium feel)
           Container(
