@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Production-grade avatar widget for the entire Knockpost app.
 ///
@@ -139,50 +140,24 @@ class _NetworkAvatar extends StatelessWidget {
       child: ClipOval(
         child: ColoredBox(
           color: bgColor,
-          child: Image.network(
-            url,
+          child: CachedNetworkImage(
+            imageUrl: url,
             fit: BoxFit.cover,
             width: diameter,
             height: diameter,
-            gaplessPlayback: true,
-            frameBuilder: _frameBuilder,
-            errorBuilder: _errorBuilder,
+            fadeInDuration: const Duration(milliseconds: 280),
+            fadeInCurve: Curves.easeOut,
+            placeholder: (context, url) => _ShimmerCircle(isDark: isDark),
+            errorWidget: (context, url, error) {
+              debugPrint('[KnockpostAvatar] ✗ Load failed: $url');
+              return Center(child: _fallbackContent());
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _frameBuilder(
-    BuildContext context,
-    Widget child,
-    int? frame,
-    bool wasSynchronouslyLoaded,
-  ) {
-    if (wasSynchronouslyLoaded) return child;
-
-    // frame == null → still decoding
-    // frame != null → first frame ready, fade in
-    return AnimatedOpacity(
-      opacity: frame != null ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOut,
-      child: frame != null
-          ? child
-          : _ShimmerCircle(isDark: isDark),
-    );
-  }
-
-  Widget _errorBuilder(
-    BuildContext context,
-    Object error,
-    StackTrace? stackTrace,
-  ) {
-    debugPrint('[KnockpostAvatar] ✗ Load failed: $url');
-    return Center(
-      child: _fallbackContent(),
-    );
-  }
 
   Widget _fallbackContent() {
     if (name != null && name!.isNotEmpty) {

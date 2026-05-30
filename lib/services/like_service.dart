@@ -135,4 +135,62 @@ class LikeService {
       return reactions;
     });
   }
+
+  /// Fetches the user's specific reaction emoji as a Future.
+  Future<String?> getUserReactionFuture(String postId, String userId) async {
+    if (userId.isEmpty || postId.isEmpty) return null;
+    try {
+      final doc = await _firestore
+          .collection('posts')
+          .doc(postId)
+          .collection('likes')
+          .doc(userId)
+          .get();
+      if (!doc.exists) return null;
+      return doc.data()?['reaction'] as String? ?? '❤';
+    } catch (e) {
+      debugPrint('Error fetching user reaction: $e');
+      return null;
+    }
+  }
+
+  /// Fetches the list of all reactions for a post as a one-time Future.
+  Future<List<Map<String, dynamic>>> getPostReactionsFuture(String postId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('posts')
+          .doc(postId)
+          .collection('likes')
+          .get();
+
+      final seen = <String>{};
+      final reactions = <Map<String, dynamic>>[];
+      
+      final sortedDocs = snapshot.docs.toList()
+        ..sort((a, b) {
+          final aTs = a.data()['timestamp'] as Timestamp?;
+          final bTs = b.data()['timestamp'] as Timestamp?;
+          if (aTs == null && bTs == null) return 0;
+          if (aTs == null) return 1;
+          if (bTs == null) return -1;
+          return bTs.compareTo(aTs);
+        });
+      
+      for (final doc in sortedDocs) {
+        final data = doc.data();
+        final userId = data['userId'] as String? ?? doc.id;
+        data['userId'] = userId;
+        if (seen.add(userId)) {
+          final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
+          if (userMap != null) {
+            reactions.add(data);
+          }
+        }
+      }
+      return reactions;
+    } catch (e) {
+      debugPrint('Error fetching post reactions future: $e');
+      return [];
+    }
+  }
 }

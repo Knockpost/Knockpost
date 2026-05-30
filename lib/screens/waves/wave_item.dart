@@ -17,6 +17,7 @@ import '../../services/waves_controller_manager.dart';
 import '../../services/connection_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../../widgets/knockpost_avatar.dart';
+import '../../services/feed_state_service.dart';
 import 'package:extended_image/extended_image.dart';
 import 'dart:async';
 
@@ -128,29 +129,37 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _initVideoController() async {
-    try {
-      final controller = await WavesControllerManager.instance.getController(widget.videoUrl);
-      if (!mounted) return;
+  void _initVideoController() {
+    _syncController();
+  }
+
+  void _syncController() {
+    final controller = WavesControllerManager.instance.getControllerIfExists(widget.videoUrl);
+    if (!mounted) return;
+
+    if (controller != _controller) {
+      if (_controller != null) {
+        _controller!.removeListener(_controllerListener);
+      }
       
-      setState(() {
-        _controller = controller;
-        _isControllerInitialized = controller.value.isInitialized;
-      });
-
-      // Listen for initialization changes (in case it wasn't ready)
-      if (!_isControllerInitialized) {
-        controller.addListener(_controllerListener);
-      }
-
-      if (widget.isActive) {
-        controller.play();
-        _trackView();
+      _controller = controller;
+      if (_controller != null) {
+        _isControllerInitialized = _controller!.value.isInitialized;
+        if (!_isControllerInitialized) {
+          _controller!.addListener(_controllerListener);
+        }
       } else {
-        controller.pause();
+        _isControllerInitialized = false;
       }
-    } catch (e) {
-      debugPrint("Video initialization error: $e");
+    }
+
+    if (_controller != null && _isControllerInitialized) {
+      if (widget.isActive && isPlaying) {
+        _controller!.play();
+        _trackView();
+      } else if (!widget.isActive) {
+        _controller!.pause();
+      }
     }
   }
 
@@ -160,6 +169,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
         _isControllerInitialized = true;
       });
       _controller?.removeListener(_controllerListener);
+      _syncController();
     }
   }
 
@@ -362,12 +372,20 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       knockLabel = 'Knock back';
     }
 
-    return GestureDetector(
-      onTap: togglePlay,
-      onDoubleTap: handleDoubleTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
+    return ListenableBuilder(
+      listenable: WavesControllerManager.instance,
+      builder: (context, _) {
+        // Sync on every manager update
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _syncController();
+        });
+
+        return GestureDetector(
+          onTap: togglePlay,
+          onDoubleTap: handleDoubleTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
           /// 🎥 VIDEO
           _isControllerInitialized && _controller != null
               ? FittedBox(
@@ -693,6 +711,8 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
         ],
       ),
     );
+    },
+  );
   }
 }
 
@@ -809,9 +829,6 @@ class WaveReactionButton extends StatefulWidget {
 
 class _WaveReactionButtonState extends State<WaveReactionButton>
     with TickerProviderStateMixin {
-  String? _selectedEmoji;
-  StreamSubscription<String?>? _likeSub;
-
   // ── Popup state ──
   bool _showPopup = false;
   int _hoveredIndex = -1;
@@ -852,22 +869,19 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
       curve: Curves.easeInOut,
     ));
 
-    // Sync existing reaction from Firestore
+    // Fetch initial user reaction
     final currentUser = CurrentUserService.instance.currentUser;
     if (currentUser != null && widget.postId != null) {
-      _likeSub = LikeService.instance
-          .userReaction(widget.postId!, currentUser.id)
-          .listen((reaction) {
-        if (mounted) setState(() => _selectedEmoji = reaction);
-      });
+      FeedStateService.instance.fetchUserReaction(widget.postId!, currentUser.id);
     }
   }
 
   @override
   void didUpdateWidget(covariant WaveReactionButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.doubleTapped && !oldWidget.doubleTapped) {
-      if (_selectedEmoji == null) {
+    if (widget.doubleTapped && !oldWidget.doubleTapped && widget.postId != null) {
+      final notifier = FeedStateService.instance.getNotifier(widget.postId!);
+      if (notifier.value.userReaction == null) {
         _selectWithAnimation('❤');
         _saveReaction(isLiking: true, emoji: '❤');
       }
@@ -879,38 +893,36 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
 
   @override
   void dispose() {
-    _likeSub?.cancel();
     _popupController.dispose();
     _heartController.dispose();
     super.dispose();
   }
 
-  void _onTapReaction() {
+  void _onTapReaction(String? currentReaction) {
     KnockHaptics.tap();
-    final isLiking = _selectedEmoji == null;
+    final isLiking = currentReaction == null;
     if (isLiking) {
       _selectWithAnimation('❤');
-    } else {
-      setState(() => _selectedEmoji = null);
     }
     _saveReaction(isLiking: isLiking, emoji: isLiking ? '❤' : null);
   }
 
   void _selectWithAnimation(String emoji) {
     KnockHaptics.impact();
-    setState(() => _selectedEmoji = emoji);
     _heartController.forward(from: 0);
   }
 
   void _saveReaction({required bool isLiking, String? emoji}) {
     final currentUser = CurrentUserService.instance.currentUser;
     if (currentUser == null || widget.postId == null) return;
-    LikeService.instance.toggleLike(
+    
+    FeedStateService.instance.toggleLike(
       postId: widget.postId!,
       userId: currentUser.id,
       postAuthorId: widget.postAuthorId ?? '',
       isLiking: isLiking,
       reactionType: emoji ?? '❤',
+      isWaves: true,
     );
   }
 
@@ -978,38 +990,45 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        GestureDetector(
-          onTap: _onTapReaction,
-          onDoubleTap: _onTapReaction, // Prevent 300ms delay & trigger reaction directly
-          onLongPressStart: _onLongPressStart,
-          onLongPressMoveUpdate: _onLongPressMoveUpdate,
-          onLongPressEnd: _onLongPressEnd,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 38,
-                child: Center(
-                  child: _selectedEmoji != null
-                      ? ScaleTransition(
-                          scale: _heartScale,
-                          child: _buildSelectedWidget(_selectedEmoji!, 30),
-                        )
-                      : const Icon(
-                          Icons.favorite_border,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                ),
+    if (widget.postId == null) return const SizedBox.shrink();
+    
+    return ValueListenableBuilder<PostState>(
+      valueListenable: FeedStateService.instance.getNotifier(widget.postId!),
+      builder: (context, state, child) {
+        final currentReaction = state.userReaction;
+        
+        return Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => _onTapReaction(currentReaction),
+              onDoubleTap: () => _onTapReaction(currentReaction), // Prevent 300ms delay & trigger reaction directly
+              onLongPressStart: _onLongPressStart,
+              onLongPressMoveUpdate: _onLongPressMoveUpdate,
+              onLongPressEnd: _onLongPressEnd,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 38,
+                    child: Center(
+                      child: currentReaction != null
+                          ? ScaleTransition(
+                              scale: _heartScale,
+                              child: _buildSelectedWidget(currentReaction, 30),
+                            )
+                          : const Icon(
+                              Icons.favorite_border,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
               ),
-              const SizedBox(height: 2),
-            ],
-          ),
-        ),
+            ),
 
         if (_showPopup)
           Positioned(
@@ -1091,6 +1110,8 @@ class _WaveReactionButtonState extends State<WaveReactionButton>
             ),
           ),
       ],
+    );
+      },
     );
   }
 }

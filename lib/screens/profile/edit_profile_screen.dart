@@ -8,9 +8,11 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/user_model.dart';
-import '../../services/storage_service.dart';
 import '../../services/database_service.dart';
+import '../../services/storage_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import '../../widgets/knockpost_username_field.dart';
@@ -591,7 +593,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   image: _coverImageAsset != null
                       ? DecorationImage(
                           image: _coverImageAsset!.startsWith('http')
-                              ? NetworkImage(_coverImageAsset!) as ImageProvider
+                              ? CachedNetworkImageProvider(
+                                  _coverImageAsset!,
+                                  cacheManager: KnockpostImageCacheManager.instance,
+                                ) as ImageProvider
                               : _coverImageAsset!.startsWith('assets/')
                                   ? AssetImage(_coverImageAsset!) as ImageProvider
                                   : FileImage(File(_coverImageAsset!)),
@@ -640,7 +645,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       backgroundColor: fieldBg,
                       backgroundImage: _avatarAsset != null
                           ? (_avatarAsset!.startsWith('http')
-                              ? NetworkImage(_avatarAsset!)
+                              ? CachedNetworkImageProvider(
+                                  _avatarAsset!,
+                                  cacheManager: KnockpostImageCacheManager.instance,
+                                )
                               : _avatarAsset!.startsWith('assets/')
                                   ? AssetImage(_avatarAsset!)
                                   : FileImage(File(_avatarAsset!)))

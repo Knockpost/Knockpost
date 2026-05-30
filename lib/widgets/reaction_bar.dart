@@ -9,6 +9,7 @@ import 'reactors_sheet.dart';
 import 'post_analytics_sheet.dart';
 import '../services/like_service.dart';
 import '../services/current_user_service.dart';
+import '../services/feed_state_service.dart';
 import 'dart:async';
 
 /// Emoji data for the reaction popup
@@ -74,13 +75,9 @@ class ReactionBar extends StatefulWidget {
 
 class _ReactionBarState extends State<ReactionBar>
     with TickerProviderStateMixin {
-  String? _selectedEmoji;
-  StreamSubscription<String?>? _likeSub;
-
   // ── Popup state ──
   bool _showPopup = false;
   int _hoveredIndex = -1;
-  late int _likesCount;
   final List<GlobalKey> _emojiKeys = List.generate(
     _reactions.length,
     (_) => GlobalKey(),
@@ -96,19 +93,19 @@ class _ReactionBarState extends State<ReactionBar>
   @override
   void initState() {
     super.initState();
-    _likesCount = widget.initialLikes;
-
     final currentUser = CurrentUserService.instance.currentUser;
+    FeedStateService.instance.getNotifier(
+      widget.postId,
+      initialLikes: widget.initialLikes,
+      initialViews: widget.initialViews,
+    );
+
     if (currentUser != null && widget.postId != 'demo_post') {
-      _likeSub = LikeService.instance
-          .userReaction(widget.postId, currentUser.id)
-          .listen((reaction) {
-            if (mounted) {
-              setState(() {
-                _selectedEmoji = reaction;
-              });
-            }
-          });
+      FeedStateService.instance.fetchUserReaction(widget.postId, currentUser.id);
+    }
+    
+    if (widget.isPostOwner && widget.postId != 'demo_post') {
+      FeedStateService.instance.fetchOwnerReactions(widget.postId);
     }
 
     // Popup open/close animation
@@ -145,13 +142,13 @@ class _ReactionBarState extends State<ReactionBar>
   void didUpdateWidget(covariant ReactionBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.doubleTapped && !oldWidget.doubleTapped) {
-      if (_selectedEmoji == null) {
+      final state = FeedStateService.instance.getNotifier(widget.postId).value;
+      if (state.userReaction == null) {
         _selectWithAnimation('❤');
-        setState(() => _likesCount++);
 
         final currentUser = CurrentUserService.instance.currentUser;
         if (currentUser != null && widget.postId != 'demo_post') {
-          LikeService.instance.toggleLike(
+          FeedStateService.instance.toggleLike(
             postId: widget.postId,
             userId: currentUser.id,
             postAuthorId: widget.postAuthor.id,
@@ -169,7 +166,6 @@ class _ReactionBarState extends State<ReactionBar>
 
   @override
   void dispose() {
-    _likeSub?.cancel();
     _popupController.dispose();
     _heartController.dispose();
     super.dispose();
@@ -178,27 +174,21 @@ class _ReactionBarState extends State<ReactionBar>
   /// Tap on reaction button → toggle ❤️
   void _onTapReaction() {
     KnockHaptics.tap();
-    final isLiking = _selectedEmoji == null;
+    final state = FeedStateService.instance.getNotifier(widget.postId).value;
+    final isLiking = state.userReaction == null;
 
     if (isLiking) {
       _selectWithAnimation('❤');
-      setState(() => _likesCount++);
-    } else {
-      // Already reacted → un-react
-      setState(() {
-        _selectedEmoji = null;
-        _likesCount--;
-      });
     }
 
     final currentUser = CurrentUserService.instance.currentUser;
     if (currentUser != null && widget.postId != 'demo_post') {
-      LikeService.instance.toggleLike(
+      FeedStateService.instance.toggleLike(
         postId: widget.postId,
         userId: currentUser.id,
         postAuthorId: widget.postAuthor.id,
         isLiking: isLiking,
-        reactionType: _selectedEmoji ?? '❤',
+        reactionType: state.userReaction ?? '❤',
       );
     }
   }
@@ -206,7 +196,6 @@ class _ReactionBarState extends State<ReactionBar>
   /// Select emoji with bounce animation
   void _selectWithAnimation(String emoji) {
     KnockHaptics.impact();
-    setState(() => _selectedEmoji = emoji);
     _heartController.forward(from: 0);
   }
 
@@ -276,15 +265,11 @@ class _ReactionBarState extends State<ReactionBar>
 
   void _onLongPressEnd(LongPressEndDetails details) {
     if (_hoveredIndex >= 0 && _hoveredIndex < _reactions.length) {
-      final hadReaction = _selectedEmoji != null;
       _selectWithAnimation(_reactions[_hoveredIndex].emoji);
-      if (!hadReaction) {
-        setState(() => _likesCount++);
-      }
 
       final currentUser = CurrentUserService.instance.currentUser;
       if (currentUser != null && widget.postId != 'demo_post') {
-        LikeService.instance.toggleLike(
+        FeedStateService.instance.toggleLike(
           postId: widget.postId,
           userId: currentUser.id,
           postAuthorId: widget.postAuthor.id,
@@ -317,7 +302,10 @@ class _ReactionBarState extends State<ReactionBar>
     const iconSize = 20.0;
     final buttonShadow = <BoxShadow>[];
 
-    return Stack(
+    return ValueListenableBuilder<PostState>(
+      valueListenable: FeedStateService.instance.getNotifier(widget.postId),
+      builder: (context, state, child) {
+        return Stack(
       clipBehavior: Clip.none,
       children: [
         // ── Main reaction bar row ──
@@ -354,11 +342,12 @@ class _ReactionBarState extends State<ReactionBar>
                     ),
                   if (widget.isPostOwner && !widget.alignSummaryRight)
                     _ReactionSummary(
-                      likes: _likesCount,
-                      views: widget.initialViews,
+                      likes: state.likes,
+                      views: state.views,
                       postId: widget.postId,
                       isDark: isDark,
-                      userReaction: _selectedEmoji,
+                      ownerReactions: state.ownerReactions,
+                      userReaction: state.userReaction,
                       isOverlay: isOverlay,
                     ),
                 ],
@@ -370,11 +359,12 @@ class _ReactionBarState extends State<ReactionBar>
                   // Views & reactions summary (owner only)
                   if (widget.isPostOwner && widget.alignSummaryRight) ...[
                     _ReactionSummary(
-                      likes: _likesCount,
-                      views: widget.initialViews,
+                      likes: state.likes,
+                      views: state.views,
                       postId: widget.postId,
                       isDark: isDark,
-                      userReaction: _selectedEmoji,
+                      ownerReactions: state.ownerReactions,
+                      userReaction: state.userReaction,
                       isOverlay: isOverlay,
                     ),
                     const SizedBox(width: 11),
@@ -414,11 +404,11 @@ class _ReactionBarState extends State<ReactionBar>
                         boxShadow: buttonShadow,
                       ),
                       child: Center(
-                        child: _selectedEmoji != null
+                        child: state.userReaction != null
                             ? ScaleTransition(
                                 scale: _heartScale,
                                 child: _buildSelectedWidget(
-                                  _selectedEmoji!,
+                                  state.userReaction!,
                                   28,
                                 ),
                               )
@@ -625,6 +615,8 @@ class _ReactionBarState extends State<ReactionBar>
             ),
           ),
       ],
+        );
+      },
     );
   }
 }
@@ -636,47 +628,37 @@ class _ReactionSummary extends StatelessWidget {
   final bool isDark;
   final String? userReaction;
   final bool isOverlay;
+  final List<String> ownerReactions;
 
   const _ReactionSummary({
     required this.likes,
     required this.views,
     required this.postId,
     required this.isDark,
+    required this.ownerReactions,
     this.userReaction,
     this.isOverlay = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: LikeService.instance.getPostReactions(postId),
-      builder: (context, snapshot) {
-        final emojisToShow = <String>[];
+    final emojisToShow = <String>[...ownerReactions];
 
-        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-          final Set<String> uniqueEmojis = {};
-          for (final reactor in snapshot.data!) {
-            final emoji = reactor['reaction'] as String? ?? '❤';
-            if (uniqueEmojis.add(emoji)) {
-              emojisToShow.add(emoji);
-              if (emojisToShow.length == 3) break;
-            }
-          }
-        } else if (likes > 0 || userReaction != null) {
-          // Fallback while loading ONLY if there are likes
-          if (userReaction != null) {
-            emojisToShow.add(userReaction!);
-          } else if (likes > 0) {
-            emojisToShow.add('👍');
-            if (likes >= 2) emojisToShow.add('❤');
-            if (likes >= 3) emojisToShow.add('🔥');
-          }
-        }
+    if (emojisToShow.isEmpty && (likes > 0 || userReaction != null)) {
+      // Fallback while loading ONLY if there are likes
+      if (userReaction != null) {
+        emojisToShow.add(userReaction!);
+      } else if (likes > 0) {
+        emojisToShow.add('👍');
+        if (likes >= 2) emojisToShow.add('❤');
+        if (likes >= 3) emojisToShow.add('🔥');
+      }
+    }
 
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
             // Views Button
             GestureDetector(
               onTap: () {
@@ -762,8 +744,6 @@ class _ReactionSummary extends StatelessWidget {
             ],
           ],
         );
-      },
-    );
   }
 }
 

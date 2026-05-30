@@ -1,9 +1,23 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 admin.initializeApp();
 
 const db = admin.firestore();
+
+// ── Phase 1 Security Utilities ──
+const { recalculateCreatorRank } = require("./utils/rankCalculator");
+const { sendNotification, deleteNotification } = require("./utils/notificationSender");
+const { cascadeDeleteUser } = require("./utils/cascadeDelete");
+
+/**
+ * Hash a string using SHA-256.
+ * Used for OTP storage — we never store plaintext OTPs.
+ */
+function hashOtp(otp) {
+  return crypto.createHash("sha256").update(otp).digest("hex");
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // KNOCKPOST PUSH NOTIFICATION ENGINE v2.0
@@ -520,34 +534,53 @@ exports.sendPushOnNotificationUpdate = functions.firestore
 // EMAIL OTP FUNCTIONS (Forgot Password)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// NOTE: You must set up Gmail App Password or use SendGrid in production.
-// For now, we will use a dummy account or rely on environment variables if set, 
-// and ALWAYS print the OTP to the console so it can be tested during development.
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.SMTP_USER || "knockpostofficial@gmail.com",
-    pass: process.env.SMTP_PASS || "znjm kiqn nrdo khvy",
-  },
-});
+// Email transporter for forgot-password OTP flow.
+// Credentials loaded from functions/.env (GMAIL_EMAIL and GMAIL_PASSWORD).
+// Uses the same transporter as the 2FA OTP flow above.
+const transporter = gmailTransporter;
 
 exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
   const email = data.email;
-  if (!email) {
+  if (!email || typeof email !== "string") {
     throw new functions.https.HttpsError("invalid-argument", "Email is required");
   }
 
-  // Generate 6 digit OTP
+  const otpDocRef = admin.firestore().collection("emailOtps").doc(email);
+
+  // ── Rate Limiting: Max 3 OTP sends per email per hour ──
+  const existingDoc = await otpDocRef.get();
+  if (existingDoc.exists) {
+    const existingData = existingDoc.data();
+    const sendCount = existingData.sendCount || 0;
+    const firstSendAt = existingData.firstSendAt ? existingData.firstSendAt.toMillis() : 0;
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+
+    if (firstSendAt > oneHourAgo && sendCount >= 3) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "Too many OTP requests. Please try again later."
+      );
+    }
+  }
+
+  // Generate 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  // Save OTP in Firestore
-  await admin.firestore().collection("emailOtps").doc(email).set({
-    otp: otp,
-    expiresAt: expiresAt,
-  });
+  // Save hashed OTP in Firestore with rate-limiting metadata
+  const isNewWindow = !existingDoc.exists ||
+    !existingDoc.data().firstSendAt ||
+    existingDoc.data().firstSendAt.toMillis() < (Date.now() - 60 * 60 * 1000);
 
-  console.log(`[DEV ONLY] OTP for ${email} is ${otp}`);
+  await otpDocRef.set({
+    otpHash: hashOtp(otp),
+    expiresAt: expiresAt,
+    attempts: 0,
+    sendCount: isNewWindow ? 1 : admin.firestore.FieldValue.increment(1),
+    firstSendAt: isNewWindow
+      ? admin.firestore.FieldValue.serverTimestamp()
+      : (existingDoc.exists ? existingDoc.data().firstSendAt : admin.firestore.FieldValue.serverTimestamp()),
+  });
 
   // Send Email
   const mailOptions = {
@@ -559,9 +592,8 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${email}`);
   } catch (error) {
-    console.warn("Failed to send email. Ensure SMTP_USER and SMTP_PASS are set.", error);
+    console.error("Failed to send OTP email:", error.message);
   }
 
   return { success: true };
@@ -570,7 +602,7 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
 exports.verifyEmailOtp = functions.https.onCall(async (data, context) => {
   const email = data.email;
   const otp = data.otp;
-  if (!email || !otp) {
+  if (!email || !otp || typeof otp !== "string") {
     throw new functions.https.HttpsError("invalid-argument", "Email and OTP are required");
   }
 
@@ -582,15 +614,37 @@ exports.verifyEmailOtp = functions.https.onCall(async (data, context) => {
   }
 
   const otpData = otpDoc.data();
-  if (otpData.otp !== otp) {
-    throw new functions.https.HttpsError("invalid-argument", "Incorrect OTP");
+
+  // ── Attempt Counting: Max 5 attempts, then invalidate ──
+  const attempts = (otpData.attempts || 0) + 1;
+  if (attempts > 5) {
+    await otpDocRef.delete();
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      "Too many incorrect attempts. Please request a new OTP."
+    );
   }
 
+  // Check expiry
   if (otpData.expiresAt.toMillis() < Date.now()) {
+    await otpDocRef.delete();
     throw new functions.https.HttpsError("failed-precondition", "OTP has expired");
   }
 
-  // OTP is valid. We don't delete it yet, we let them proceed.
+  // Compare hashed OTP (supports both legacy plaintext and new hashed format)
+  const submittedHash = hashOtp(otp);
+  const isValid = otpData.otpHash
+    ? otpData.otpHash === submittedHash
+    : otpData.otp === otp; // Legacy plaintext fallback for unexpired pre-migration OTPs
+
+  if (!isValid) {
+    // Increment attempt counter
+    await otpDocRef.update({ attempts: attempts });
+    throw new functions.https.HttpsError("invalid-argument", "Incorrect OTP");
+  }
+
+  // OTP is valid — mark as verified, keep for resetPasswordWithOtp
+  await otpDocRef.update({ verified: true, attempts: attempts });
   return { success: true };
 });
 
@@ -598,6 +652,10 @@ exports.resetPasswordWithOtp = functions.https.onCall(async (data, context) => {
   const { email, otp, newPassword } = data;
   if (!email || !otp || !newPassword) {
     throw new functions.https.HttpsError("invalid-argument", "Missing fields");
+  }
+
+  if (typeof newPassword !== "string" || newPassword.length < 6) {
+    throw new functions.https.HttpsError("invalid-argument", "Password must be at least 6 characters");
   }
 
   const otpDocRef = admin.firestore().collection("emailOtps").doc(email);
@@ -608,22 +666,36 @@ exports.resetPasswordWithOtp = functions.https.onCall(async (data, context) => {
   }
 
   const otpData = otpDoc.data();
-  if (otpData.otp !== otp) {
-    throw new functions.https.HttpsError("invalid-argument", "Incorrect OTP");
-  }
 
+  // Re-verify expiry at reset time
   if (otpData.expiresAt.toMillis() < Date.now()) {
+    await otpDocRef.delete();
     throw new functions.https.HttpsError("failed-precondition", "OTP has expired");
   }
 
-  // OTP is valid, delete it so it can't be reused
+  // Verify OTP (supports both hashed and legacy plaintext)
+  const submittedHash = hashOtp(otp);
+  const isValid = otpData.otpHash
+    ? otpData.otpHash === submittedHash
+    : otpData.otp === otp;
+
+  if (!isValid) {
+    throw new functions.https.HttpsError("invalid-argument", "Incorrect OTP");
+  }
+
+  // Verify that OTP was previously verified via verifyEmailOtp
+  if (otpData.verified !== true) {
+    throw new functions.https.HttpsError("failed-precondition", "OTP has not been verified yet");
+  }
+
+  // OTP is valid — delete it so it can't be reused
   await otpDocRef.delete();
 
   // Get user by email and update password
   try {
     const userRecord = await admin.auth().getUserByEmail(email);
     await admin.auth().updateUser(userRecord.uid, {
-      password: newPassword
+      password: newPassword,
     });
   } catch (error) {
     throw new functions.https.HttpsError("internal", "Failed to update user password: " + error.message);
@@ -699,4 +771,291 @@ exports.cleanupExpiredGlimpses = functions.pubsub
     }
     
     return null;
+  });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 1 — SECURITY HARDENING: FIRESTORE TRIGGERS
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// These triggers run alongside existing client-side writes during the
+// dual-write transition period. They use the Admin SDK to perform
+// cross-user stat updates that will be blocked by security rules in Phase 3.
+//
+// During dual-write: stats may be ~2x actual (both client + trigger increment).
+// After Phase 2 (client writes removed): stats will be exactly correct.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Like Triggers ────────────────────────────────────────────────────────────
+
+exports.onLikeCreated = functions.firestore
+  .document("posts/{postId}/likes/{userId}")
+  .onCreate(async (snapshot, context) => {
+    const { postId } = context.params;
+
+    try {
+      // Get the post to find the author
+      const postDoc = await db.collection("posts").doc(postId).get();
+      if (!postDoc.exists) return null;
+
+      const authorId = postDoc.data().authorId;
+      if (!authorId) return null;
+
+      // Increment author's totalLikes
+      await db.collection("users").doc(authorId).update({
+        totalLikes: admin.firestore.FieldValue.increment(1),
+      });
+
+      // Recalculate creator rank
+      await recalculateCreatorRank(authorId);
+
+      console.log(`✓ onLikeCreated: post=${postId}, author=${authorId}`);
+    } catch (error) {
+      console.error("onLikeCreated error:", error);
+    }
+
+    return null;
+  });
+
+exports.onLikeDeleted = functions.firestore
+  .document("posts/{postId}/likes/{userId}")
+  .onDelete(async (snapshot, context) => {
+    const { postId } = context.params;
+
+    try {
+      const postDoc = await db.collection("posts").doc(postId).get();
+      if (!postDoc.exists) return null;
+
+      const authorId = postDoc.data().authorId;
+      if (!authorId) return null;
+
+      // Decrement author's totalLikes (floor at 0)
+      const userDoc = await db.collection("users").doc(authorId).get();
+      if (userDoc.exists) {
+        const currentLikes = userDoc.data().totalLikes || 0;
+        if (currentLikes > 0) {
+          await db.collection("users").doc(authorId).update({
+            totalLikes: admin.firestore.FieldValue.increment(-1),
+          });
+        }
+      }
+
+      await recalculateCreatorRank(authorId);
+
+      console.log(`✓ onLikeDeleted: post=${postId}, author=${authorId}`);
+    } catch (error) {
+      console.error("onLikeDeleted error:", error);
+    }
+
+    return null;
+  });
+
+// ── View Trigger ─────────────────────────────────────────────────────────────
+
+exports.onViewerCreated = functions.firestore
+  .document("posts/{postId}/viewers/{userId}")
+  .onCreate(async (snapshot, context) => {
+    const { postId } = context.params;
+
+    try {
+      const postDoc = await db.collection("posts").doc(postId).get();
+      if (!postDoc.exists) return null;
+
+      const authorId = postDoc.data().authorId;
+      if (!authorId) return null;
+
+      // Increment author's totalViews
+      await db.collection("users").doc(authorId).update({
+        totalViews: admin.firestore.FieldValue.increment(1),
+      });
+
+      await recalculateCreatorRank(authorId);
+
+      console.log(`✓ onViewerCreated: post=${postId}, author=${authorId}`);
+    } catch (error) {
+      console.error("onViewerCreated error:", error);
+    }
+
+    return null;
+  });
+
+// ── Knock / Connection Triggers ──────────────────────────────────────────────
+
+exports.onKnockCreated = functions.firestore
+  .document("connections/{docId}")
+  .onCreate(async (snapshot, context) => {
+    const data = snapshot.data();
+    const fromUid = data.fromUid;
+    const toUid = data.toUid;
+
+    if (!toUid || !fromUid) return null;
+
+    try {
+      // Guard: Skip stat increment for reciprocal acceptance documents.
+      // When acceptKnock creates connections/{B}_{A}, a reciprocal doc
+      // connections/{A}_{B} already exists. This means User B is accepting
+      // User A's knock, NOT sending a new knock. Only genuine new knocks
+      // (from sendKnock) should increment totalKnocksReceived.
+      const reciprocalDocId = `${toUid}_${fromUid}`;
+      const reciprocalDoc = await db.collection("connections").doc(reciprocalDocId).get();
+
+      if (reciprocalDoc.exists) {
+        console.log(`⊘ onKnockCreated: reciprocal ${reciprocalDocId} exists — acceptance, not new knock. Skipping.`);
+        return null;
+      }
+
+      // Genuine new knock — increment receiver's totalKnocksReceived
+      await db.collection("users").doc(toUid).update({
+        totalKnocksReceived: admin.firestore.FieldValue.increment(1),
+      });
+
+      await recalculateCreatorRank(toUid);
+
+      console.log(`✓ onKnockCreated: to=${toUid}`);
+    } catch (error) {
+      console.error("onKnockCreated error:", error);
+    }
+
+    return null;
+  });
+
+exports.onKnockDeleted = functions.firestore
+  .document("connections/{docId}")
+  .onDelete(async (snapshot, context) => {
+    const data = snapshot.data();
+    const toUid = data.toUid;
+
+    if (!toUid) return null;
+
+    try {
+      // Decrement receiver's totalKnocksReceived (floor at 0)
+      const userDoc = await db.collection("users").doc(toUid).get();
+      if (userDoc.exists) {
+        const currentKnocks = userDoc.data().totalKnocksReceived || 0;
+        if (currentKnocks > 0) {
+          await db.collection("users").doc(toUid).update({
+            totalKnocksReceived: admin.firestore.FieldValue.increment(-1),
+          });
+        }
+      }
+
+      await recalculateCreatorRank(toUid);
+
+      console.log(`✓ onKnockDeleted: to=${toUid}`);
+    } catch (error) {
+      console.error("onKnockDeleted error:", error);
+    }
+
+    return null;
+  });
+
+exports.onKnockUpdated = functions.firestore
+  .document("connections/{docId}")
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    // Only act on status changes
+    if (beforeData.status === afterData.status) return null;
+
+    try {
+      // If status changed to 'accepted', the knock was approved
+      if (afterData.status === "accepted" && beforeData.status === "pending") {
+        console.log(`✓ onKnockUpdated: ${afterData.fromUid} → ${afterData.toUid} accepted`);
+      }
+    } catch (error) {
+      console.error("onKnockUpdated error:", error);
+    }
+
+    return null;
+  });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 1 — CALLABLE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * sendNotificationToUser — Callable function for secure notification sending.
+ * Replaces client-side direct writes to users/{uid}/notifications/ in Phase 2.
+ * In Phase 1 this is deployed but not yet called by the client.
+ */
+exports.sendNotificationToUser = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const { receiverUid, type, postId, commentSnippet } = data;
+
+  if (!receiverUid || !type) {
+    throw new functions.https.HttpsError("invalid-argument", "receiverUid and type are required.");
+  }
+
+  // Validate receiver exists
+  const receiverDoc = await db.collection("users").doc(receiverUid).get();
+  if (!receiverDoc.exists) {
+    throw new functions.https.HttpsError("not-found", "Receiver not found.");
+  }
+
+  await sendNotification({
+    receiverUid,
+    triggerUserId: context.auth.uid,
+    type,
+    postId: postId || null,
+    commentSnippet: commentSnippet || null,
+  });
+
+  return { success: true };
+});
+
+/**
+ * deleteNotificationForUser — Callable function to retract a sent notification.
+ * Used when a user un-knocks or un-likes (removes the notification they triggered).
+ */
+exports.deleteNotificationForUser = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const { receiverUid, docId } = data;
+
+  if (!receiverUid || !docId) {
+    throw new functions.https.HttpsError("invalid-argument", "receiverUid and docId are required.");
+  }
+
+  await deleteNotification(receiverUid, docId);
+
+  return { success: true };
+});
+
+/**
+ * deleteUserAccount — Callable function for GDPR-compliant account deletion.
+ * Cascade-deletes all user data: posts, connections, chats, notifications, storage.
+ * Must be called by the authenticated user who owns the account.
+ */
+exports.deleteUserAccount = functions
+  .runWith({ timeoutSeconds: 540 }) // 9 minutes — cascade deletion can be slow
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+    }
+
+    const uid = context.auth.uid;
+
+    try {
+      // Cascade delete all user data
+      const summary = await cascadeDeleteUser(uid);
+
+      // Delete Firebase Auth account
+      try {
+        await admin.auth().deleteUser(uid);
+      } catch (authError) {
+        // Auth account may already be deleted by client — not a fatal error
+        console.warn(`Auth account deletion for ${uid}:`, authError.message);
+      }
+
+      console.log(`✓ Account deleted for ${uid}:`, summary);
+      return { success: true, summary };
+    } catch (error) {
+      console.error(`deleteUserAccount error for ${uid}:`, error);
+      throw new functions.https.HttpsError("internal", "Account deletion failed. Please try again.");
+    }
   });
