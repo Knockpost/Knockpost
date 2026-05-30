@@ -160,31 +160,37 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _initVideoController() async {
-    if (widget.post?.isVideoPost == false) return; // Skip video initialization for photos
+  void _initVideoController() {
+    _syncController();
+  }
 
-    try {
-      final controller = await WavesControllerManager.instance.getController(widget.videoUrl);
-      if (!mounted) return;
+  void _syncController() {
+    final controller = WavesControllerManager.instance.getControllerIfExists(widget.videoUrl);
+    if (!mounted) return;
+
+    if (controller != _controller) {
+      if (_controller != null) {
+        _controller!.removeListener(_controllerListener);
+      }
       
-      setState(() {
-        _controller = controller;
-        _isControllerInitialized = controller.value.isInitialized;
-      });
-
-      // Listen for initialization changes (in case it wasn't ready)
-      if (!_isControllerInitialized) {
-        controller.addListener(_controllerListener);
-      }
-
-      if (widget.isActive) {
-        controller.play();
-        _trackView();
+      _controller = controller;
+      if (_controller != null) {
+        _isControllerInitialized = _controller!.value.isInitialized;
+        if (!_isControllerInitialized) {
+          _controller!.addListener(_controllerListener);
+        }
       } else {
-        controller.pause();
+        _isControllerInitialized = false;
       }
-    } catch (e) {
-      debugPrint("Video initialization error: $e");
+    }
+
+    if (_controller != null && _isControllerInitialized) {
+      if (widget.isActive && isPlaying) {
+        _controller!.play();
+        _trackView();
+      } else if (!widget.isActive) {
+        _controller!.pause();
+      }
     }
   }
 
@@ -194,6 +200,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
         _isControllerInitialized = true;
       });
       _controller?.removeListener(_controllerListener);
+      _syncController();
     }
   }
 
@@ -493,12 +500,20 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       knockLabel = 'Knock back';
     }
 
-    return GestureDetector(
-      onTap: togglePlay,
-      onDoubleTap: handleDoubleTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
+    return ListenableBuilder(
+      listenable: WavesControllerManager.instance,
+      builder: (context, _) {
+        // Sync on every manager update
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _syncController();
+        });
+
+        return GestureDetector(
+          onTap: togglePlay,
+          onDoubleTap: handleDoubleTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
           /// 🎥 VIDEO / PHOTO MEDIA LAYER
           _buildMediaLayer(),
 
@@ -802,6 +817,8 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
             ),
         ],
       ),
+        );
+      },
     );
   }
 }
