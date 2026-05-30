@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../widgets/post_scroll_lock_scope.dart';
 import '../../widgets/zoomable_post_image.dart';
+import '../../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
@@ -207,7 +209,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   letterSpacing: 0.8,
                                 ),
                               ),
@@ -283,11 +285,12 @@ class _MediaCarouselState extends State<MediaCarousel> {
         errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
       );
     } else if (path.startsWith('http')) {
-      return Image.network(
-        path,
+      return CachedNetworkImage(
+        imageUrl: path,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
-        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
+        cacheManager: KnockpostImageCacheManager.instance,
+        errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
       );
     }
 

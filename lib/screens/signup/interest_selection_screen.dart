@@ -209,7 +209,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                             style: TextStyle(
                               color: isDark ? Colors.black : Colors.white,
                               fontSize: 17,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                   ),

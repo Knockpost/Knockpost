@@ -487,7 +487,7 @@ class ProfileSettingsRow extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: titleColor ?? textColor,
                     ),
                   ),

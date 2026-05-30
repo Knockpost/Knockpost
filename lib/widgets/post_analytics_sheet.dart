@@ -3,6 +3,7 @@ import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../models/user_model.dart';
 import '../screens/profile/other_profile_screen.dart';
 import '../utils/haptic_helper.dart';
+import '../theme/app_typography.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -113,8 +114,8 @@ class _PostAnalyticsSheetState extends State<PostAnalyticsSheet> with SingleTick
               unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
               indicatorColor: textColor,
               indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              unselectedLabelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              labelStyle: AppTypography.sectionHeader,
+              unselectedLabelStyle: AppTypography.sectionHeader,
               dividerColor: isDark ? Colors.white10 : Colors.black12,
               tabs: [
                 Tab(
@@ -134,7 +135,7 @@ class _PostAnalyticsSheetState extends State<PostAnalyticsSheet> with SingleTick
                               text: "($count)",
                               style: const TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
@@ -156,7 +157,7 @@ class _PostAnalyticsSheetState extends State<PostAnalyticsSheet> with SingleTick
                               text: "($count)",
                               style: const TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
@@ -242,7 +243,7 @@ class _ViewsList extends StatelessWidget {
                   "No views yet",
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: isDark ? Colors.white54 : Colors.black54,
                   ),
                 ),
@@ -341,7 +342,7 @@ class _ReactionsList extends StatelessWidget {
                   "No reactions yet",
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: isDark ? Colors.white54 : Colors.black54,
                   ),
                 ),
@@ -536,7 +537,7 @@ class _UserTile extends StatelessWidget {
                 'Profile',
                 style: TextStyle(
                   color: textColor,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: 12.5,
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/user_cache_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../login_screen.dart';
 
@@ -50,6 +51,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
       
       // Delete Firebase Auth
       await user.delete();
+
+      // Clear memory cache
+      UserCacheService.instance.clear();
 
       // Clear preferences
       final prefs = await SharedPreferences.getInstance();
@@ -110,7 +114,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             
             Text(
               'PASSWORD',
-              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+              style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             TextField(

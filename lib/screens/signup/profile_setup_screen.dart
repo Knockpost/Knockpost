@@ -209,7 +209,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       "Select date",
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
 
@@ -224,7 +224,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         "Done",
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),

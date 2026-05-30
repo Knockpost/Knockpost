@@ -16,6 +16,7 @@ import 'blocked_accounts_screen.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/user_cache_service.dart';
 import 'change_password_screen.dart';
 import 'delete_account_screen.dart';
 import 'two_factor_setup_screen.dart';
@@ -98,7 +99,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(
                     'Cancel',
-                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15),
+                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ),
                 TextButton(
@@ -886,7 +887,7 @@ class _AccountSettingsScreen extends StatelessWidget {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600, fontSize: 15)),
+                              child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w700, fontSize: 15)),
                             ),
                             TextButton(
                               onPressed: () async {
@@ -1008,6 +1009,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
       await FirebaseFirestore.instance.collection('users').doc(user.id).update({
         'interests': selectedList,
       });
+      UserCacheService.instance.invalidateUser(user.id);
       await CurrentUserService.instance.loadCurrentUser();
     } catch (e) {
       debugPrint('Error updating interests: $e');
@@ -1205,7 +1207,7 @@ class _TimeManagementScreenState extends State<_TimeManagementScreen> {
                     'This week total: $_totalUsageMinutes min',
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: textColor,
                     ),
                   ),
@@ -1453,7 +1455,7 @@ class _UsageBarChart extends StatelessWidget {
                     style: TextStyle(
                       color: labelColor,
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1486,7 +1488,7 @@ class _UsageBarChart extends StatelessWidget {
                     style: TextStyle(
                       color: labelColor,
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

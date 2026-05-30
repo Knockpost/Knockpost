@@ -378,7 +378,7 @@ class _WavesGallerySheetState extends State<WavesGallerySheet> {
                                   ? Colors.black
                                   : Colors.white,
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],

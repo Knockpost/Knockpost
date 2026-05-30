@@ -235,7 +235,7 @@ class _ReplyChatScreenState extends State<ReplyChatScreen> {
                               style: TextStyle(
                                 color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.8),
                                 fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 letterSpacing: -0.3,
                               ),
                             ),
@@ -614,7 +614,7 @@ class _DayDivider extends StatelessWidget {
             style: TextStyle(
               color: textColor,
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.1,
             ),
           ),

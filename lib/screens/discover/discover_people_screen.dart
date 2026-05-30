@@ -169,7 +169,7 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
             'No more suggestions',
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: isDark ? Colors.white54 : Colors.black45,
             ),
           ),

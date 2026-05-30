@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import 'post_service.dart';
-import 'database_service.dart';
+import 'user_cache_service.dart';
+import 'performance_service.dart';
 
 /// Manages the state, pagination, and deduplication of the Waves feed.
 class WavesFeedManager extends ChangeNotifier {
@@ -28,27 +29,34 @@ class WavesFeedManager extends ChangeNotifier {
   bool get hasMore => _hasMore;
 
 
-  final List<PostModel> _allFetchedWaves = [];
-  int _currentIndex = 0;
+  DocumentSnapshot? _lastDoc;
   static const int _pageSize = 10;
 
   Future<void> loadInitial() async {
+    if (_isLoading) return; // Refresh protection
+
     _waves.clear();
     _authors.clear();
     _seenWaveIds.clear();
-    _allFetchedWaves.clear();
-    _currentIndex = 0;
+    _lastDoc = null;
     _hasMore = true;
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Fetch a large batch to bypass Firebase's missing composite index limitation.
-      // This ensures we get all recent waves and can sort them locally perfectly.
-      final fetched = await PostService.instance.getAllWaves(limit: 500);
-      _allFetchedWaves.addAll(fetched);
+      final stopWatch = Stopwatch()..start();
+      final result = await PostService.instance.getWavesPaginated(limit: _pageSize);
       
-      await _loadNextPage();
+      await _processFetchedWaves(result.posts);
+      
+      _lastDoc = result.lastDoc;
+      _hasMore = result.posts.length == _pageSize;
+      
+      stopWatch.stop();
+      PerformanceService.instance.logWavesPageLoad(
+        size: result.posts.length, 
+        durationMs: stopWatch.elapsedMilliseconds,
+      );
     } catch (e) {
       debugPrint("WavesFeedManager initial load error: $e");
     } finally {
@@ -58,33 +66,42 @@ class WavesFeedManager extends ChangeNotifier {
   }
 
   Future<void> loadMore() async {
-    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    if (_isLoading || _isLoadingMore || !_hasMore) return; // Duplicate request protection
     
     _isLoadingMore = true;
     notifyListeners();
     
-    await _loadNextPage();
-    
-    _isLoadingMore = false;
-    notifyListeners();
+    try {
+      final stopWatch = Stopwatch()..start();
+      final result = await PostService.instance.getWavesPaginated(
+        startAfter: _lastDoc,
+        limit: _pageSize,
+      );
+      
+      await _processFetchedWaves(result.posts);
+      
+      _lastDoc = result.lastDoc;
+      if (result.posts.isEmpty || result.posts.length < _pageSize) {
+        _hasMore = false;
+      }
+      
+      stopWatch.stop();
+      PerformanceService.instance.logWavesPageLoad(
+        size: result.posts.length, 
+        durationMs: stopWatch.elapsedMilliseconds,
+      );
+    } catch (e) {
+      debugPrint("WavesFeedManager loadMore error: $e");
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> _loadNextPage() async {
-    if (_currentIndex >= _allFetchedWaves.length) {
-      _hasMore = false;
-      return;
-    }
-
-    final end = (_currentIndex + _pageSize < _allFetchedWaves.length) 
-        ? _currentIndex + _pageSize 
-        : _allFetchedWaves.length;
-        
-    final pageWaves = _allFetchedWaves.sublist(_currentIndex, end);
-    _currentIndex = end;
-
+  Future<void> _processFetchedWaves(List<PostModel> fetchedPosts) async {
     final Set<String> authorIdsToFetch = {};
 
-    for (var post in pageWaves) {
+    for (var post in fetchedPosts) {
       if (!_seenWaveIds.contains(post.id)) {
         _waves.add(post);
         _seenWaveIds.add(post.id);
@@ -96,7 +113,7 @@ class WavesFeedManager extends ChangeNotifier {
 
     if (authorIdsToFetch.isNotEmpty) {
       await Future.wait(authorIdsToFetch.map((uid) async {
-        final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
+        final data = await UserCacheService.instance.getUserProfile(uid, isWavesAuthor: true);
         if (data != null) {
           _authors[uid] = UserModel(
             id: uid,
@@ -107,14 +124,11 @@ class WavesFeedManager extends ChangeNotifier {
         }
       }));
     }
-    
-    if (_currentIndex >= _allFetchedWaves.length) {
-      _hasMore = false;
-    }
   }
 
   /// Refreshes the feed completely
   Future<void> refresh() async {
+    PerformanceService.instance.incrementWavesRefreshCount();
     await loadInitial();
   }
 }

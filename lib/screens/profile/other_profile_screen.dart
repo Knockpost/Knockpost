@@ -177,7 +177,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                 style: TextStyle(
                   color: effectiveColor,
                   fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],

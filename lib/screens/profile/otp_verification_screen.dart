@@ -311,7 +311,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               color: _resendCooldown > 0
                                   ? (isDark ? Colors.white38 : Colors.black38)
                                   : const Color(0xFF2D88FF),
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
@@ -351,7 +351,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
               ),

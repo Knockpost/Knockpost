@@ -160,14 +160,14 @@ class _ShareSheetState extends State<ShareSheet>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF111118) : const Color(0xFFFAFAFA);
+    final bg = isDark ? const Color(0xFF111118) : Colors.white;
     final surface =
         isDark ? const Color(0xFF1E1E2C) : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF111118);
     final subColor =
         isDark ? Colors.white38 : const Color(0xFF111118).withValues(alpha: 0.38);
     final inputBg =
-        isDark ? const Color(0xFF252535) : const Color(0xFFEEEEF5);
+        isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2);
 
     final canSend = _selected.isNotEmpty;
 
@@ -310,7 +310,7 @@ class _ShareSheetState extends State<ShareSheet>
             Padding(
               padding: EdgeInsets.fromLTRB(
                 16, 14, 16,
-                14 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom,
+                24 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -372,11 +372,7 @@ class _ShareSheetState extends State<ShareSheet>
                                   end: Alignment.centerRight,
                                 )
                               : null,
-                          color: canSend
-                              ? null
-                              : (isDark
-                                  ? const Color(0xFF252535)
-                                  : const Color(0xFFE8E8F0)),
+                          color: canSend ? null : inputBg,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Material(
@@ -404,9 +400,7 @@ class _ShareSheetState extends State<ShareSheet>
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          _selected.isEmpty
-                                              ? 'Send'
-                                              : 'Send to ${_selected.length}',
+                                          'Send',
                                           style: TextStyle(
                                             color: canSend
                                                 ? Colors.white
@@ -425,7 +419,7 @@ class _ShareSheetState extends State<ShareSheet>
                     ),
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 24),
 
                   // Copy + Share via row
                   Row(
@@ -453,22 +447,22 @@ class _ShareSheetState extends State<ShareSheet>
                             child: FadeTransition(opacity: anim, child: child),
                           ),
                           child: _linkCopied
-                              ? const Row(
-                                  key: ValueKey('copied'),
+                              ? Row(
+                                  key: const ValueKey('copied'),
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.check_circle_rounded,
                                       size: 15,
-                                      color: Color(0xFF43C6AC),
+                                      color: textColor,
                                     ),
-                                    SizedBox(width: 5),
+                                    const SizedBox(width: 5),
                                     Text(
                                       'Copied!',
                                       style: TextStyle(
-                                        color: Color(0xFF43C6AC),
+                                        color: textColor,
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ],
@@ -478,14 +472,14 @@ class _ShareSheetState extends State<ShareSheet>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.link_rounded,
-                                        size: 15, color: subColor),
+                                        size: 15, color: textColor),
                                     const SizedBox(width: 5),
                                     Text(
                                       'Copy Link',
                                       style: TextStyle(
-                                        color: subColor,
+                                        color: textColor,
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ],
@@ -501,7 +495,7 @@ class _ShareSheetState extends State<ShareSheet>
                       _QuickAction(
                         icon: Icons.share_rounded,
                         label: 'More options',
-                        color: subColor,
+                        color: textColor,
                         onTap: () {
                           KnockHaptics.selection();
                           Navigator.pop(context);
@@ -665,13 +659,7 @@ class _UserCellState extends State<_UserCell>
                   height: s,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: widget.isSelected
-                        ? const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
+                    color: widget.isSelected ? widget.textColor : null,
                     border: widget.isSelected
                         ? null
                         : Border.all(
@@ -683,8 +671,7 @@ class _UserCellState extends State<_UserCell>
                     boxShadow: widget.isSelected
                         ? [
                             BoxShadow(
-                              color: const Color(0xFF6C63FF)
-                                  .withValues(alpha: 0.4),
+                              color: widget.textColor.withValues(alpha: 0.15),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             )
@@ -727,9 +714,7 @@ class _UserCellState extends State<_UserCell>
                       width: 20,
                       height: 20,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
-                        ),
+                        color: widget.textColor,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: widget.isDark
@@ -738,9 +723,9 @@ class _UserCellState extends State<_UserCell>
                           width: 1.5,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.check_rounded,
-                        color: Colors.white,
+                        color: widget.isDark ? Colors.black : Colors.white,
                         size: 12,
                       ),
                     ),
@@ -758,7 +743,7 @@ class _UserCellState extends State<_UserCell>
               style: TextStyle(
                 color: widget.textColor,
                 fontSize: 11.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.1,
               ),
             ),

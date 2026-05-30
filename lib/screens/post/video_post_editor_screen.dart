@@ -1246,7 +1246,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
     return Row(
       children: [
         Icon(icon, size: 18, color: enabled ? Colors.white.withValues(alpha: 0.72) : Colors.white.withValues(alpha: 0.28)), const SizedBox(width: 10),
-        SizedBox(width: 88, child: Text(label, style: TextStyle(color: enabled ? Colors.white.withValues(alpha: 0.72) : Colors.white.withValues(alpha: 0.28), fontSize: 12, fontWeight: FontWeight.w600))),
+        SizedBox(width: 88, child: Text(label, style: TextStyle(color: enabled ? Colors.white.withValues(alpha: 0.72) : Colors.white.withValues(alpha: 0.28), fontSize: 12, fontWeight: FontWeight.w700))),
         Expanded(child: SliderTheme(data: _sliderTheme(), child: Slider(value: value.clamp(0.0, 1.0), onChanged: enabled && onChanged != null ? (next) => onChanged(next) : null))),
       ],
     );
@@ -1270,7 +1270,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
 
   Widget _secondaryAction({required IconData icon, required String label, required VoidCallback? onTap}) {
     final enabled = onTap != null;
-    return GestureDetector(onTap: onTap, child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), decoration: BoxDecoration(color: Colors.white.withValues(alpha: enabled ? 0.08 : 0.04), borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white.withValues(alpha: 0.12))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [ Icon(icon, color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.35), size: 18), const SizedBox(width: 8), Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.35), fontSize: 12, fontWeight: FontWeight.w600))) ])));
+    return GestureDetector(onTap: onTap, child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), decoration: BoxDecoration(color: Colors.white.withValues(alpha: enabled ? 0.08 : 0.04), borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white.withValues(alpha: 0.12))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [ Icon(icon, color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.35), size: 18), const SizedBox(width: 8), Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.35), fontSize: 12, fontWeight: FontWeight.w700))) ])));
   }
 
   Widget _sheetHeader({required String title, required String subtitle}) {

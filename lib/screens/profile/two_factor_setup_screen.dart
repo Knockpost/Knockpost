@@ -189,7 +189,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen> {
                         style: TextStyle(
                           color: _is2FAEnabled ? const Color(0xFF2D88FF) : Colors.red,
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -280,7 +280,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen> {
                               style: TextStyle(
                                 color: _is2FAEnabled ? Colors.red : Colors.white,
                                 fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                     ),

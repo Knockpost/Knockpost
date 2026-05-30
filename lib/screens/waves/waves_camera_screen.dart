@@ -856,7 +856,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                 ),
               ),
@@ -1482,7 +1482,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     letterSpacing: 2.5,
                                   ),
                                 ),
@@ -1950,7 +1950,7 @@ class _WavesCameraScreenState extends State<WavesCameraScreen>
             style: TextStyle(
               color: isActive ? Colors.white : Colors.white54,
               fontSize: 12,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w700,
               letterSpacing: 1.2,
             ),
           ),

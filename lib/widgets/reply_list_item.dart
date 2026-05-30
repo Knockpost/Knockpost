@@ -89,7 +89,7 @@ class ReplyListItem extends StatelessWidget {
                               color: thread.unreadCount > 0 ? textColor : subtleColor,
                               fontSize: 13,
                               fontWeight: thread.unreadCount > 0
-                                  ? FontWeight.w600
+                                  ? FontWeight.w700
                                   : FontWeight.w500,
                               height: 1.25,
                             ),

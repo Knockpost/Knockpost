@@ -9,6 +9,7 @@ import '../shared/music_editor_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../services/post_service.dart';
+import '../../services/feed_state_service.dart';
 import 'dart:async';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ class _PostCardState extends State<PostCard> {
             _viewTimer ??= Timer(const Duration(seconds: 2), () {
               if (mounted && _isVisible) {
                 _viewedPosts.add(widget.postId!);
-                PostService.instance.incrementViewCount(widget.postId!, widget.user.id);
+                FeedStateService.instance.incrementView(widget.postId!, widget.user.id);
               }
               _viewTimer = null;
             });
@@ -205,6 +206,8 @@ class _PostCardState extends State<PostCard> {
             postId: widget.postId,
             disableProfileNavigation: widget.disableProfileNavigation,
             timestamp: widget.timestamp,
+            musicTitle: widget.musicTitle,
+            musicArtist: widget.musicArtist,
           ),
         ),
 

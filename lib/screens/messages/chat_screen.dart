@@ -13,7 +13,10 @@ import '../../models/chat_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
+import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/storage_service.dart';
 import '../../services/connectivity_service.dart';
 import '../../utils/haptic_helper.dart';
@@ -478,7 +481,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(children: [
             Icon(Icons.block_rounded, size: 20, color: Colors.red),
             SizedBox(width: 12),
-            Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            Text('Block', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
           ]),
         ),
         const PopupMenuItem(
@@ -486,7 +489,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(children: [
             Icon(Icons.flag_outlined, size: 20, color: Colors.red),
             SizedBox(width: 12),
-            Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            Text('Report', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
           ]),
         ),
       ],
@@ -579,7 +582,7 @@ class _ChatScreenState extends State<ChatScreen> {
         const PopupMenuItem(value: 'delete', child: Row(children: [
           Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
           SizedBox(width: 12),
-          Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+          Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
         ])),
       ],
     );
@@ -869,7 +872,7 @@ class _ChatScreenState extends State<ChatScreen> {
           style: TextStyle(
             color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -916,7 +919,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // Name & Time
     final nameWidget = Text(
       avatarUsername,
-      style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 12.5),
+      style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 12.5),
     );
 
     // Header Row (Avatar, Name)
@@ -1181,7 +1184,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => FullScreenImageViewer(
-                      imageProvider: NetworkImage(msg.imageUrl!),
+                      imageProvider: CachedNetworkImageProvider(
+                        msg.imageUrl!,
+                        cacheManager: KnockpostImageCacheManager.instance,
+                      ),
                       heroTag: 'chat_img_${msg.id}',
                     ),
                   ));
@@ -1190,8 +1196,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   tag: 'chat_img_${msg.id}',
                   child: ClipRRect(
                     borderRadius: borderRadius,
-                    child: Image.network(msg.imageUrl!,
-                        width: MediaQuery.of(context).size.width * 0.62, fit: BoxFit.cover),
+                    child: CachedNetworkImage(
+                        imageUrl: msg.imageUrl!,
+                        cacheManager: KnockpostImageCacheManager.instance,
+                        width: MediaQuery.of(context).size.width * 0.62, 
+                        fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),

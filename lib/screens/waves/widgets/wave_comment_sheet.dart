@@ -110,7 +110,7 @@ class _WaveCommentSheetState extends State<WaveCommentSheet> {
                   style: TextStyle(
                     color: Colors.grey.shade100,
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
                   ),
                 ),
@@ -329,7 +329,7 @@ class _PrivateCommentTile extends StatelessWidget {
                 color: comment.isOwn
                     ? Colors.blue.shade300
                     : Colors.grey.shade500,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
             ),

@@ -486,7 +486,7 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
             children: [
               const Text(
                 'Recents',
-                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 4),
               Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.5), size: 18),

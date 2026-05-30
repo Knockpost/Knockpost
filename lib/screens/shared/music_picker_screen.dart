@@ -408,7 +408,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 15,
-                                          fontWeight: FontWeight.w600,
+                                          fontWeight: FontWeight.w700,
                                           color: isPlaying
                                               ? catAccent
                                               : Colors.white,

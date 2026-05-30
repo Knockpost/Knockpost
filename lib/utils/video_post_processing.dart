@@ -390,7 +390,7 @@ class VideoPostProcessing {
       color: overlay.color,
       fontSize: fontSize,
       fontWeight: overlay.font == VideoPostTextFont.mono
-          ? FontWeight.w600
+          ? FontWeight.w700
           : FontWeight.w700,
       fontFamily: overlay.font.fontFamily,
       height: 1.1,

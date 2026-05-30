@@ -196,7 +196,7 @@ class _UserTile extends StatelessWidget {
                     user.displayName,
                     style: TextStyle(
                       color: textColor,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
                   ),

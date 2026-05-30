@@ -222,7 +222,7 @@ class _SocialLinksScreenState extends State<SocialLinksScreen>
                         child: Text(
                           'Save',
                           style: TextStyle(
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             fontSize: 15.5,
                             color: bg,
                           ),
@@ -311,7 +311,7 @@ class _SocialLinksScreenState extends State<SocialLinksScreen>
                         'SOCIAL LINKS',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: subColor,
                         ),
                       ),
@@ -391,7 +391,7 @@ class _SocialLinksScreenState extends State<SocialLinksScreen>
                                             platform.name,
                                             style: TextStyle(
                                               fontSize: 16,
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight: FontWeight.w700,
                                               color: textColor,
                                             ),
                                           ),

@@ -235,7 +235,7 @@ class GlimpsCard extends StatelessWidget {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
                 ),
                 maxLines: 1,

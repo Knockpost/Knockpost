@@ -141,7 +141,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
                               : Text("Save & Login", style: TextStyle(
                                   color: isDark ? Colors.black : Colors.white, 
                                   fontSize: 17, 
-                                  fontWeight: FontWeight.w600
+                                  fontWeight: FontWeight.w700
                                 )),
                         ),
                       ),

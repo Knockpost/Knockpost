@@ -132,7 +132,7 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
                           Text("Edit",
                             style: TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               fontSize: 15,
                             )),
                         ],

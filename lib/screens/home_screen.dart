@@ -11,8 +11,10 @@ import '../utils/global_post_state.dart';
 import '../utils/image_helper.dart';
 import '../widgets/knockpost_avatar.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
+import '../theme/app_typography.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/people_suggestion_strip.dart';
 import '../widgets/knockpost_refresh.dart';
@@ -39,6 +41,7 @@ import '../utils/waves_feed_state.dart';
 import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
+import '../services/performance_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -58,16 +61,78 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
   int _feedSeed = 0;
 
+  List<({PostModel post, UserModel author})> _feedItems = [];
+  bool _isLoadingFeed = true;
+  bool _isLoadingMore = false;
+  DocumentSnapshot? _lastFeedDoc;
+  bool _hasMoreFeed = true;
+
   @override
   void initState() {
     super.initState();
     NotificationService.instance.initFCM();
+    _scrollController.addListener(_onScroll);
     _postScrollLockController = PostScrollLockController()
       ..register(_scrollController);
     _pageController = PageController(initialPage: _currentNavIndex);
     _postPageSwipeLockController = PostPageSwipeLockController()
       ..register(_pageController);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
+    _loadFeed(refresh: true);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _loadFeed(refresh: false);
+    }
+  }
+
+  Future<void> _loadFeed({bool refresh = false}) async {
+    if (refresh) {
+      if (_isLoadingFeed && _feedItems.isNotEmpty) return;
+      setState(() {
+        _hasMoreFeed = true;
+        _lastFeedDoc = null;
+        _isLoadingFeed = true;
+      });
+    } else {
+      if (!_hasMoreFeed || _isLoadingMore || _isLoadingFeed) return;
+      setState(() => _isLoadingMore = true);
+    }
+
+    final stopWatch = Stopwatch()..start();
+    final currentUser = CurrentUserService.instance.currentUser;
+    
+    final result = await PostService.instance.getFeedPostsPaginated(
+      currentUserId: currentUser?.id ?? '',
+      currentUserModel: currentUser,
+      startAfter: _lastFeedDoc,
+      limit: 15,
+    );
+
+    stopWatch.stop();
+    PerformanceService.instance.recordFeedPageLoad(
+      result.posts.length,
+      stopWatch.elapsedMilliseconds,
+      isRefresh: refresh,
+    );
+
+    if (mounted) {
+      setState(() {
+        if (refresh) {
+          _feedItems = result.posts;
+        } else {
+          _feedItems.addAll(result.posts);
+        }
+        _lastFeedDoc = result.lastDoc;
+        _hasMoreFeed = result.posts.length == 15;
+        _isLoadingFeed = false;
+        _isLoadingMore = false;
+        if (refresh) {
+          _feedSeed = DateTime.now().millisecondsSinceEpoch;
+        }
+      });
+    }
   }
 
   Future<void> logout(BuildContext context) async {
@@ -235,38 +300,43 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: SizedBox(
                           width: 60,
                           height: 35,
-                          child: Material(
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF111111),
-                            shape: RoundedRectangleBorder(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
                               borderRadius: BorderRadius.circular(50),
                             ),
-                            child: InkWell(
-                              customBorder: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(50),
-                              ),
-                              onTap: () async {
-                                final text = captionController.text.trim();
-                                if (text.isEmpty) return;
-                                KnockHaptics.tap();
-                                Navigator.pop(ctx);
-                                if (!context.mounted) return;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => FinalPostScreen(
-                                      files: const [],
-                                      initialCaption: text,
-                                      isGlimpse: false,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                customBorder: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                onTap: () async {
+                                  final text = captionController.text.trim();
+                                  if (text.isEmpty) return;
+                                  KnockHaptics.tap();
+                                  Navigator.pop(ctx);
+                                  if (!context.mounted) return;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FinalPostScreen(
+                                        files: const [],
+                                        initialCaption: text,
+                                        isGlimpse: false,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                              child: Icon(
-                                Icons.send_rounded,
-                                size: 18,
-                                color: isDark ? Colors.black : Colors.white,
+                                  );
+                                },
+                                child: const Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
                               ),
                             ),
                           ),
@@ -526,21 +596,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       label,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor,
-                        letterSpacing: -0.3,
-                      ),
+                      style: AppTypography.buttonLabel.copyWith(color: titleColor),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w400,
-                        color: subtitleColor,
-                      ),
+                      style: AppTypography.metadata.copyWith(color: subtitleColor),
                     ),
                   ],
                 ),
@@ -651,14 +712,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               builder: (context, isScrollLocked, _) {
                                 return KnockpostRefreshIndicator(
                                   onRefresh: () async {
-                                    setState(() {
-                                      _feedSeed =
-                                          DateTime.now().millisecondsSinceEpoch;
-                                    });
-                                    // Cosmetic delay
-                                    await Future.delayed(
-                                      const Duration(milliseconds: 400),
-                                    );
+                                    KnockHaptics.tap();
+                                    await _loadFeed(refresh: true);
                                   },
                                   child: NestedScrollView(
                                     physics: isScrollLocked
@@ -680,12 +735,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           centerTitle: false,
                                           title: Text(
                                             "KnockPost",
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 21,
-                                              letterSpacing: -0.5,
-                                            ),
+                                            style: AppTypography.appTitle.copyWith(color: textColor),
                                           ),
                                           actions: [
                                             StreamBuilder<int>(
@@ -745,37 +795,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ];
                                     },
-                                    body: ValueListenableBuilder<UserModel?>(
-                                      valueListenable: CurrentUserService
-                                          .instance
-                                          .userNotifier,
-                                      builder: (context, currentUser, _) {
-                                        return StreamBuilder<
-                                          List<
-                                            ({PostModel post, UserModel author})
-                                          >
-                                        >(
-                                          stream: PostService.instance
-                                              .getFeedPostsWithAuthors(
-                                                currentUserId:
-                                                    currentUser?.id ?? '',
-                                                currentUserModel: currentUser,
-                                              ),
-                                          builder: (context, snapshot) {
-                                            if (!snapshot.hasData) {
-                                              return const KnockpostLoadingIndicator();
-                                            }
-                                            final feedItems = snapshot.data!;
-
-                                            return ValueListenableBuilder<
-                                              Set<String>
-                                            >(
-                                              valueListenable: GlobalPostState
-                                                  .deletedPostIds,
-                                              builder: (context, deletedIds, _) {
-                                                // Filter and sort
-                                                final sorted =
-                                                    feedItems
+                                    body: _isLoadingFeed
+                                        ? const KnockpostLoadingIndicator()
+                                        : ValueListenableBuilder<Set<String>>(
+                                            valueListenable: GlobalPostState.deletedPostIds,
+                                            builder: (context, deletedIds, _) {
+                                              final feedItems = _feedItems;
+                                              
+                                              // Filter and sort
+                                              final sorted = feedItems
                                                         .where(
                                                           (item) =>
                                                               !deletedIds
@@ -856,7 +884,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           bottom: 90,
                                                         ),
                                                     itemCount:
-                                                        activeItems.length + 2,
+                                                        activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
                                                     itemBuilder: (context, index) {
                                                       const glimpseStripIndex =
                                                           1;
@@ -864,10 +892,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           3;
                                                       final totalItems =
                                                           activeItems.length +
-                                                          2;
+                                                          2 + (_isLoadingMore ? 1 : 0);
                                                       final isLast =
                                                           index ==
                                                           totalItems - 1;
+
+                                                      if (_isLoadingMore && isLast) {
+                                                        return const Padding(
+                                                          padding: EdgeInsets.symmetric(vertical: 20),
+                                                          child: Center(
+                                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                                          ),
+                                                        );
+                                                      }
 
                                                       if (index ==
                                                           glimpseStripIndex) {
@@ -1086,13 +1123,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   ),
                                                 );
                                               },
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ), // NestedScrollView
-                                ); // KnockpostRefreshIndicator
+                                            ),
+                                          ), // NestedScrollView
+                                        ); // KnockpostRefreshIndicator
                               },
                             ),
                           ),

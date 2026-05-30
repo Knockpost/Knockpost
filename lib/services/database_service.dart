@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'user_cache_service.dart';
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._internal();
 
@@ -146,31 +147,20 @@ class DatabaseService {
       }
 
       await usersCollection.doc(uid).update(data);
+      
+      // Invalidate memory cache on profile update
+      UserCacheService.instance.invalidateUser(uid);
     } catch (e) {
       debugPrint("Error updating user profile: $e");
       rethrow;
     }
   }
 
-  /// Fetch a user profile by UID
+  /// Fetch a user profile by UID, routed through the central memory cache
   Future<Map<String, dynamic>?> getUserProfile(String uid, {bool useCache = false}) async {
-    try {
-      final options = useCache ? const GetOptions(source: Source.cache) : const GetOptions();
-      DocumentSnapshot doc = await usersCollection.doc(uid).get(options);
-      
-      if (!doc.exists && useCache) {
-        // Fallback to server if cache doesn't have it
-        doc = await usersCollection.doc(uid).get();
-      }
-
-      if (doc.exists && doc.data() != null) {
-        return doc.data() as Map<String, dynamic>;
-      }
-      return null;
-    } catch (e) {
-      debugPrint("Error fetching user profile: $e");
-      return null;
-    }
+    // We pass !useCache as forceRefresh so callers requesting explicit fresh 
+    // data can bypass the memory cache if needed, while still utilizing the layer.
+    return UserCacheService.instance.getUserProfile(uid, forceRefresh: !useCache);
   }
 
   /// Fetch a UserModel by UID. Returns null if not found.
@@ -246,8 +236,22 @@ class DatabaseService {
     }
   }
 
-  /// Get a list of suggested users
-  Future<List<UserModel>> getSuggestedUsers({String? excludeUid, int limitCount = 10}) async {
+  // ── Suggested users in-memory cache ──
+  List<UserModel>? _suggestedUsersCache;
+  DateTime? _suggestedUsersFetchedAt;
+  static const _suggestedUsersTtl = Duration(minutes: 5);
+
+  /// Get a list of suggested users.
+  /// Results are cached in memory for 5 minutes to avoid redundant Firestore reads.
+  Future<List<UserModel>> getSuggestedUsers({String? excludeUid, int limitCount = 10, bool forceRefresh = false}) async {
+    // Return cached result if still fresh
+    if (!forceRefresh &&
+        _suggestedUsersCache != null &&
+        _suggestedUsersFetchedAt != null &&
+        DateTime.now().difference(_suggestedUsersFetchedAt!) < _suggestedUsersTtl) {
+      return _suggestedUsersCache!;
+    }
+
     try {
       final snap = await usersCollection.limit(limitCount * 2).get(); // fetch more to account for filtered out users
       final List<UserModel> users = [];
@@ -275,10 +279,15 @@ class DatabaseService {
 
         users.add(UserModel.fromMap(docData, doc.id));
       }
+
+      // Cache the result
+      _suggestedUsersCache = users;
+      _suggestedUsersFetchedAt = DateTime.now();
+
       return users;
     } catch (e) {
       debugPrint("Error fetching suggested users: $e");
-      return [];
+      return _suggestedUsersCache ?? [];
     }
   }
 

@@ -580,7 +580,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -605,7 +605,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -862,7 +862,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.2,
                       ),
                     ),
@@ -989,7 +989,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.55),
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

@@ -222,7 +222,7 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
               widget.subtitle.toUpperCase(),
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: widget.accentColor,
                 letterSpacing: 1,
               ),
@@ -298,7 +298,7 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
                                       user.displayName,
                                       style: TextStyle(
                                         fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                         color: isDark ? Colors.white : Colors.black,
                                       ),
                                     ),

@@ -6,6 +6,8 @@ import '../../../models/user_model.dart';
 import '../../../services/database_service.dart';
 import '../../../widgets/knockpost_avatar.dart';
 import '../../single_post_screen.dart';
+import '../../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PostMessagePreview extends StatefulWidget {
   final String postId;
@@ -144,7 +146,7 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
                       _author!.displayName,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: widget.isMe ? Colors.white : (isDark ? Colors.white : Colors.black87),
                       ),
                       maxLines: 1,
@@ -162,7 +164,11 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
                 width: double.infinity,
                 color: isDark ? Colors.black26 : Colors.black12,
                 child: imageUrl.startsWith('http') 
-                  ? Image.network(imageUrl, fit: BoxFit.cover)
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl, 
+                      fit: BoxFit.cover,
+                      cacheManager: KnockpostImageCacheManager.instance,
+                    )
                   : Image.asset(imageUrl, fit: BoxFit.cover),
               ),
               

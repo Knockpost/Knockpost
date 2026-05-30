@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // ─── Smooth page transition (Instagram-like fade + slide) ────────────────────
 
@@ -77,6 +78,7 @@ class AppTheme {
       surfaceTintColor: Colors.transparent,
     ),
     iconTheme: const IconThemeData(color: Colors.black),
+    fontFamily: GoogleFonts.roboto().fontFamily,
     textTheme: const TextTheme(
       bodyLarge:  TextStyle(color: Colors.black),
       bodyMedium: TextStyle(color: Colors.black),
@@ -106,6 +108,7 @@ class AppTheme {
       surfaceTintColor: Colors.transparent,
     ),
     iconTheme: const IconThemeData(color: Colors.white),
+    fontFamily: GoogleFonts.roboto().fontFamily,
     textTheme: const TextTheme(
       bodyLarge:  TextStyle(color: Colors.white),
       bodyMedium: TextStyle(color: Colors.white),

@@ -39,7 +39,7 @@ class LegalAgreementText extends StatelessWidget {
             TextSpan(
               text: 'Terms & Conditions',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: linkColor,
               ),
               recognizer: TapGestureRecognizer()
@@ -51,7 +51,7 @@ class LegalAgreementText extends StatelessWidget {
             TextSpan(
               text: 'Privacy Policy',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: linkColor,
               ),
               recognizer: TapGestureRecognizer()

@@ -383,7 +383,7 @@ class _SuggestionCard extends StatelessWidget {
                                       color: isDark
                                           ? Colors.white38
                                           : Colors.black45,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),

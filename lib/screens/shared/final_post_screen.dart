@@ -441,7 +441,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                     aud.label,
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
@@ -498,7 +498,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       title,
       style: TextStyle(
         fontSize: 12,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
         color: isDark
             ? Colors.white.withValues(alpha: 0.35)
@@ -699,51 +699,56 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                 height: 50,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  child: ElevatedButton(
-                    onPressed: _isPosting ? null : _postContent,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? Colors.white
-                          : Colors.black,
-                      foregroundColor: isDark
-                          ? Colors.black
-                          : Colors.white,
-                      disabledBackgroundColor: isDark
-                          ? Colors.white.withValues(alpha: 0.15)
-                          : Colors.black.withValues(alpha: 0.1),
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                  decoration: BoxDecoration(
+                    gradient: _isPosting
+                        ? null
+                        : const LinearGradient(
+                            colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                    color: _isPosting
+                        ? (isDark
+                            ? Colors.white.withValues(alpha: 0.15)
+                            : Colors.black.withValues(alpha: 0.1))
+                        : null,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _isPosting ? null : _postContent,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Center(
+                        child: _isPosting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: KnockpostLoadingIndicator(),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.send_rounded,
+                                    size: 17,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Send',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                    child: _isPosting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: KnockpostLoadingIndicator(),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.send_rounded,
-                                size: 17,
-                                color: isDark ? Colors.black : Colors.white,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Send',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
-                                  color: isDark ? Colors.black : Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
                   ),
                 ),
               ),

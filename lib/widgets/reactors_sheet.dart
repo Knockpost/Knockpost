@@ -248,7 +248,7 @@ class _ReactorTile extends StatelessWidget {
                 'Profile',
                 style: TextStyle(
                   color: textColor,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: 12.5,
                 ),
               ),
