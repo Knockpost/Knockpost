@@ -493,6 +493,9 @@ class _SingleCardGlimpseViewerState extends State<_SingleCardGlimpseViewer>
                      initialLikes: glimpse.likes,
                      initialViews: glimpse.views,
                      timestamp: glimpse.relativeTime,
+                     postThumbnailUrl: glimpse.imagePaths.isNotEmpty
+                         ? glimpse.imagePaths.first
+                         : glimpse.coverImagePath,
                      showShare: false,
                      transparentButtons: true,
                      alignSummaryRight: true,

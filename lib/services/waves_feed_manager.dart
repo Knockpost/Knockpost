@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 import 'post_service.dart';
 import 'user_cache_service.dart';
 import 'performance_service.dart';
+import 'waves_controller_manager.dart';
 
 /// Manages the state, pagination, and deduplication of the Waves feed.
 class WavesFeedManager extends ChangeNotifier {
@@ -47,10 +48,15 @@ class WavesFeedManager extends ChangeNotifier {
       final stopWatch = Stopwatch()..start();
       final result = await PostService.instance.getWavesPaginated(limit: _pageSize);
       
-      await _processFetchedWaves(result.posts);
+      _processFetchedWaves(result.posts);
       
       _lastDoc = result.lastDoc;
       _hasMore = result.posts.length == _pageSize;
+      
+      // 🔥 PRE-INITIALIZE THE FIRST BATCH OF CONTROLLERS IMMEDIATELY 🔥
+      // Even if the UI hasn't mounted yet, start loading the first videos into hardware decoders!
+      final feedUrls = _waves.map((w) => w.imagePaths.isNotEmpty ? w.imagePaths.first : '').toList();
+      WavesControllerManager.instance.updateWindow(0, feedUrls);
       
       stopWatch.stop();
       PerformanceService.instance.logWavesPageLoad(
@@ -78,7 +84,7 @@ class WavesFeedManager extends ChangeNotifier {
         limit: _pageSize,
       );
       
-      await _processFetchedWaves(result.posts);
+      _processFetchedWaves(result.posts);
       
       _lastDoc = result.lastDoc;
       if (result.posts.isEmpty || result.posts.length < _pageSize) {
@@ -98,7 +104,7 @@ class WavesFeedManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _processFetchedWaves(List<PostModel> fetchedPosts) async {
+  void _processFetchedWaves(List<PostModel> fetchedPosts) {
     final Set<String> authorIdsToFetch = {};
 
     for (var post in fetchedPosts) {
@@ -112,7 +118,8 @@ class WavesFeedManager extends ChangeNotifier {
     }
 
     if (authorIdsToFetch.isNotEmpty) {
-      await Future.wait(authorIdsToFetch.map((uid) async {
+      // Non-blocking: Fire and forget to prevent UI lockup
+      Future.wait(authorIdsToFetch.map((uid) async {
         final data = await UserCacheService.instance.getUserProfile(uid, isWavesAuthor: true);
         if (data != null) {
           _authors[uid] = UserModel(
@@ -121,6 +128,8 @@ class WavesFeedManager extends ChangeNotifier {
             username: data['username'] ?? uid,
             avatarAsset: data['profileImageUrl'],
           );
+          // Notify the UI that this specific author has silently popped in
+          notifyListeners();
         }
       }));
     }

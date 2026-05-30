@@ -53,6 +53,7 @@ class UserModel {
   final List<String> interests;
   final String? acceptedPolicyVersion;
   final DateTime? acceptedAt;
+  final int unreadNotificationCount;
 
   const UserModel({
     required this.id,
@@ -80,6 +81,7 @@ class UserModel {
     this.interests = const [],
     this.acceptedPolicyVersion,
     this.acceptedAt,
+    this.unreadNotificationCount = 0,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -113,6 +115,7 @@ class UserModel {
       acceptedAt: map['acceptedAt'] != null 
           ? (map['acceptedAt'] as dynamic).toDate()
           : null,
+      unreadNotificationCount: map['unreadNotificationCount'] ?? 0,
     );
   }
 
@@ -140,6 +143,7 @@ class UserModel {
       'interests': interests,
       'acceptedPolicyVersion': acceptedPolicyVersion,
       'acceptedAt': acceptedAt,
+      'unreadNotificationCount': unreadNotificationCount,
     };
   }
 
@@ -227,6 +231,7 @@ class UserModel {
     List<String>? interests,
     String? acceptedPolicyVersion,
     DateTime? acceptedAt,
+    int? unreadNotificationCount,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -257,6 +262,7 @@ class UserModel {
       interests: interests ?? this.interests,
       acceptedPolicyVersion: acceptedPolicyVersion ?? this.acceptedPolicyVersion,
       acceptedAt: acceptedAt ?? this.acceptedAt,
+      unreadNotificationCount: unreadNotificationCount ?? this.unreadNotificationCount,
     );
   }
 }

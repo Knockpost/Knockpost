@@ -39,6 +39,9 @@ class FeedStateService {
   static final FeedStateService instance = FeedStateService._privateConstructor();
 
   final Map<String, ValueNotifier<PostState>> _stateMap = {};
+  
+  // ── Glimps View Deduplication ──
+  final Set<String> _viewedGlimpses = {};
 
   /// Retrieves or initializes a ValueNotifier for a post.
   ValueNotifier<PostState> getNotifier(String postId, {int initialLikes = 0, int initialViews = 0}) {
@@ -149,5 +152,18 @@ class FeedStateService {
         PerformanceService.instance.incrementOptimisticUpdateFailure();
       }
     });
+  }
+
+  /// Marks a Glimpse as viewed locally to prevent duplicate view increments.
+  /// Returns true if this is the first time it was viewed in this session.
+  bool markGlimpseViewed(String glimpseId) {
+    if (_viewedGlimpses.contains(glimpseId)) {
+      PerformanceService.instance.incrementGlimpsViewDedupHit();
+      return false; // Already viewed
+    }
+    
+    _viewedGlimpses.add(glimpseId);
+    PerformanceService.instance.incrementGlimpsViewDedupMiss();
+    return true; // Newly viewed
   }
 }

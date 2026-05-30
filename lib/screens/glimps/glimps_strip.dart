@@ -4,21 +4,58 @@ import '../../../models/user_model.dart';
 import '../../../services/post_service.dart';
 import '../../../services/current_user_service.dart';
 import '../../../services/database_service.dart';
+import '../../../services/glimps_feed_manager.dart';
 import 'glimps_card.dart';
 
-class GlimpsStrip extends StatelessWidget {
+class GlimpsStrip extends StatefulWidget {
   const GlimpsStrip({super.key});
+
+  @override
+  State<GlimpsStrip> createState() => _GlimpsStripState();
+}
+
+class _GlimpsStripState extends State<GlimpsStrip> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (GlimpsFeedManager.instance.glimpses.isEmpty) {
+      GlimpsFeedManager.instance.loadInitial();
+    }
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (GlimpsFeedManager.instance.hasMore && !GlimpsFeedManager.instance.isLoadingMore) {
+        GlimpsFeedManager.instance.loadMore();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return StreamBuilder<List<PostModel>>(
-      stream: PostService.instance.getGlimpsesStream(),
-      builder: (context, snapshot) {
-        final allGlimpses = snapshot.data ?? [];
+    return ListenableBuilder(
+      listenable: GlimpsFeedManager.instance,
+      builder: (context, _) {
+        final allGlimpses = GlimpsFeedManager.instance.glimpses;
+        final authorsCache = GlimpsFeedManager.instance.authors;
 
-        if (allGlimpses.isEmpty) return const SizedBox.shrink();
+        if (allGlimpses.isEmpty && !GlimpsFeedManager.instance.isLoading) return const SizedBox.shrink();
+        
+        if (allGlimpses.isEmpty && GlimpsFeedManager.instance.isLoading) {
+           return const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()));
+        }
 
         // Group by authorId
         final Map<String, List<PostModel>> groupedGlimpses = {};
@@ -71,11 +108,19 @@ class GlimpsStrip extends StatelessWidget {
             SizedBox(
               height: MediaQuery.sizeOf(context).width * 0.53 * (16 / 9),
               child: ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                itemCount: authorIds.length,
+                itemCount: authorIds.length + (GlimpsFeedManager.instance.isLoadingMore ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (index == authorIds.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
                   final authorId = authorIds[index];
                   final userGlimpses = groupedGlimpses[authorId]!;
                   final firstGlimpse = userGlimpses.first;
@@ -92,24 +137,18 @@ class GlimpsStrip extends StatelessWidget {
                     );
                   }
 
-                  return FutureBuilder<Map<String, dynamic>?>(
-                    future: DatabaseService.instance.getUserProfile(authorId, useCache: true),
-                    builder: (context, snapshot) {
-                      final data = snapshot.data;
-                      final author = data != null
-                          ? UserModel.fromMap(data, authorId)
-                          : UserModel(id: authorId, displayName: 'Loading...', username: '...');
+                  // Non-blocking UI cache lookup
+                  final author = authorsCache[authorId] ?? 
+                      UserModel(id: authorId, displayName: 'User', username: '...');
 
-                      return GlimpsCard(
-                        glimpse: firstGlimpse,
-                        user: author,
-                        allGlimpses: userGlimpses,
-                        glimpseIndex: 0,
-                        groupedGlimpses: groupedGlimpses,
-                        authorIds: authorIds,
-                        initialAuthorIndex: index,
-                      );
-                    },
+                  return GlimpsCard(
+                    glimpse: firstGlimpse,
+                    user: author,
+                    allGlimpses: userGlimpses,
+                    glimpseIndex: 0,
+                    groupedGlimpses: groupedGlimpses,
+                    authorIds: authorIds,
+                    initialAuthorIndex: index,
                   );
                 },
               ),
@@ -118,7 +157,7 @@ class GlimpsStrip extends StatelessWidget {
             const SizedBox(height: 20),
           ],
         );
-      }
+      },
     );
   }
 }

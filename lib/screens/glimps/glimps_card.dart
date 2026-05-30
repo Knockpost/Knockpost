@@ -1,9 +1,12 @@
-import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
 import '../../../utils/haptic_helper.dart';
-import '../../../services/database_service.dart';
+import '../../../services/performance_service.dart';
+import '../../../services/image_cache_manager.dart';
+import '../../../services/user_cache_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'glimpse_viewer_screen.dart';
 
 class GlimpsCard extends StatelessWidget {
@@ -92,18 +95,30 @@ class GlimpsCard extends StatelessWidget {
                 Widget buildImage(BoxFit fit) {
                   if (thumbnailPath.startsWith('assets/')) {
                     return Image.asset(thumbnailPath, fit: fit);
-                  } else {
-                    return Image.network(
-                      thumbnailPath,
+                  } else if (thumbnailPath.startsWith('http')) {
+                    return CachedNetworkImage(
+                      imageUrl: thumbnailPath,
                       fit: fit,
-                      errorBuilder: (_, __, ___) => Container(
+                      cacheManager: KnockpostImageCacheManager.instance,
+                      imageBuilder: (context, imageProvider) {
+                        PerformanceService.instance.incrementGlimpsImageCacheHit();
+                        return Image(image: imageProvider, fit: fit);
+                      },
+                      placeholder: (context, url) {
+                        PerformanceService.instance.incrementGlimpsImageCacheMiss();
+                        return Container(color: Colors.grey.shade900);
+                      },
+                      errorWidget: (_, __, ___) => Container(
                         color: Colors.grey.shade900,
                         child: const Center(
                           child: Icon(Icons.error, color: Colors.white54),
                         ),
                       ),
                     );
+                  } else if (thumbnailPath.isNotEmpty) {
+                    return Image.file(File(thumbnailPath), fit: fit);
                   }
+                  return Container(color: Colors.grey.shade900);
                 }
 
                 return LayoutBuilder(
@@ -139,10 +154,7 @@ class GlimpsCard extends StatelessWidget {
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
-                          child: buildImage(BoxFit.cover),
-                        ),
+                        buildImage(BoxFit.cover),
                         Container(color: Colors.black.withValues(alpha: 0.35)),
                         buildForeground(buildImage(BoxFit.cover)),
                       ],
@@ -175,15 +187,16 @@ class GlimpsCard extends StatelessWidget {
                 child: user != null
                     ? _buildUserInfo(user!)
                     : FutureBuilder<Map<String, dynamic>?>(
-                        future: DatabaseService.instance.getUserProfile(
+                        future: UserCacheService.instance.getUserProfile(
                           glimpse.authorId,
-                          useCache: true,
                         ),
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return const SizedBox.shrink();
-                          final realUser = UserModel.fromMap(
-                            snapshot.data!,
-                            glimpse.authorId,
+                          final realUser = UserModel(
+                            id: glimpse.authorId,
+                            displayName: snapshot.data!['displayName'] ?? snapshot.data!['username'] ?? 'User',
+                            username: snapshot.data!['username'] ?? glimpse.authorId,
+                            avatarAsset: snapshot.data!['profileImageUrl'],
                           );
                           return _buildUserInfo(realUser);
                         },

@@ -399,33 +399,43 @@ class PostService {
   }
 
 
-  /// Streams active glimpses (stories) for the GlimpsStrip.
-  /// Filters out expired glimpses locally to avoid needing a complex composite index.
-  Stream<List<PostModel>> getGlimpsesStream({int limit = 30}) {
-    return postsCollection
-        .where('type', isEqualTo: PostType.glimps.name)
-        .limit(50)
-        .snapshots()
-        .map((snapshot) {
-          final posts = snapshot.docs
-              .map((doc) {
-                try {
-                  return PostModel.fromMap(
-                    doc.data() as Map<String, dynamic>,
-                    doc.id,
-                  );
-                } catch (e) {
-                  debugPrint('Error parsing glimpse ${doc.id}: $e');
-                  return null;
-                }
-              })
-              .where((post) => post != null && post.isInRecentsWindow)
-              .cast<PostModel>()
-              .toList();
-          posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return posts.take(limit).toList();
-        })
-        .asyncMap(filterBlockedAndPrivatePosts);
+  /// Fetches glimpses paginated, indexed by time to prevent the 50-limit trap.
+  Future<({List<PostModel> posts, DocumentSnapshot? lastDoc})> getGlimpsesPaginated({
+    DocumentSnapshot? startAfter,
+    int limit = 50,
+  }) async {
+    try {
+      // 24h expiration timestamp
+      final cutoff = DateTime.now().subtract(const Duration(hours: 24));
+      
+      Query query = postsCollection
+          .where('type', isEqualTo: PostType.glimps.name)
+          .where('createdAt', isGreaterThanOrEqualTo: cutoff)
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+
+      final snapshot = await query.get();
+      PerformanceService.instance.incrementReadCount(snapshot.docs.length);
+
+      if (snapshot.docs.isEmpty) {
+        return (posts: <PostModel>[], lastDoc: null);
+      }
+
+      final fetchedPosts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      final validPosts = await filterBlockedAndPrivatePosts(fetchedPosts);
+      
+      return (posts: validPosts, lastDoc: snapshot.docs.last);
+    } catch (e) {
+      debugPrint("Error fetching glimpses paginated: $e");
+      return (posts: <PostModel>[], lastDoc: null);
+    }
   }
 
   /// Streams a specific user's posts.

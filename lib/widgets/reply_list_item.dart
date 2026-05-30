@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/reply_thread.dart';
 import '../models/user_model.dart';
+import '../services/current_user_service.dart';
 import 'knockpost_avatar.dart';
 
 class ReplyListItem extends StatelessWidget {
@@ -23,6 +24,9 @@ class ReplyListItem extends StatelessWidget {
     final textColor = isDark ? Colors.white : const Color(0xFF171717);
     final subtleColor = isDark ? const Color(0xFF9A9A9A) : const Color(0xFF757575);
     final accent = isDark ? const Color(0xFFB9C1C9) : const Color(0xFF6E7C89);
+    
+    final currentUserId = CurrentUserService.instance.currentUser?.id ?? '';
+    final unreadCount = thread.getUnreadCountFor(currentUserId);
 
     return Material(
       color: Colors.transparent,
@@ -86,16 +90,16 @@ class ReplyListItem extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: thread.unreadCount > 0 ? textColor : subtleColor,
+                              color: unreadCount > 0 ? textColor : subtleColor,
                               fontSize: 13,
-                              fontWeight: thread.unreadCount > 0
+                              fontWeight: unreadCount > 0
                                   ? FontWeight.w700
                                   : FontWeight.w500,
                               height: 1.25,
                             ),
                           ),
                         ),
-                        if (thread.unreadCount > 0) ...[
+                        if (unreadCount > 0) ...[
                           const SizedBox(width: 10),
                           Container(
                             width: 8,
