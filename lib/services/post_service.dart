@@ -10,6 +10,7 @@ import 'connection_service.dart';
 import 'database_service.dart';
 import 'current_user_service.dart';
 import 'performance_service.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class PostService {
   PostService._internal();
@@ -98,6 +99,12 @@ class PostService {
           );
           if (url != null) {
             imageUrls.add(url);
+            try {
+              final bytes = await file.readAsBytes();
+              await DefaultCacheManager().putFile(url, bytes);
+            } catch (e) {
+              debugPrint('Failed to locally cache uploaded media: $e');
+            }
           }
         }
 
@@ -418,8 +425,17 @@ class PostService {
         query = query.startAfterDocument(startAfter);
       }
 
-      final snapshot = await query.get();
-      PerformanceService.instance.incrementReadCount(snapshot.docs.length);
+      QuerySnapshot snapshot;
+      try {
+        snapshot = await query.get(const GetOptions(source: Source.cache));
+        if (snapshot.docs.isEmpty) {
+          snapshot = await query.get();
+          PerformanceService.instance.incrementReadCount(snapshot.docs.length);
+        }
+      } catch (_) {
+        snapshot = await query.get();
+        PerformanceService.instance.incrementReadCount(snapshot.docs.length);
+      }
 
       if (snapshot.docs.isEmpty) {
         return (posts: <PostModel>[], lastDoc: null);

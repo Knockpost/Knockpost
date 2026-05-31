@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'performance_service.dart';
+import 'dart:async';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 /// Centralized manager for Glimpse video controllers implementing a strict Sliding Window Architecture
 /// to prevent memory leaks, initialize stampedes, and ensure smooth horizontal scrolling.
@@ -55,20 +57,43 @@ class GlimpsControllerManager extends ChangeNotifier {
 
     PerformanceService.instance.incrementGlimpsControllerInitializations();
 
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-    _controllers[url] = controller;
-    PerformanceService.instance.setActiveGlimpsControllers(_controllers.length);
+    final completer = Completer<void>();
+    _initLocks[url] = completer.future;
 
-    final initFuture = controller.initialize().then((_) {
+    _initializeVideoAsync(url, completer);
+  }
+
+  Future<void> _initializeVideoAsync(String url, Completer<void> lockCompleter) async {
+    try {
+      VideoPlayerController controller;
+      
+      final fileInfo = await DefaultCacheManager().getFileFromCache(url);
+      if (fileInfo != null && await fileInfo.file.exists()) {
+        controller = VideoPlayerController.file(fileInfo.file);
+      } else {
+        controller = VideoPlayerController.networkUrl(Uri.parse(url));
+        DefaultCacheManager().downloadFile(url).then((_) {}).catchError((_) {});
+      }
+
+      if (!_initLocks.containsKey(url)) {
+        controller.dispose();
+        return;
+      }
+
+      _controllers[url] = controller;
+      PerformanceService.instance.setActiveGlimpsControllers(_controllers.length);
+
+      await controller.initialize();
       controller.setLooping(true);
+      
+      lockCompleter.complete();
       _initLocks.remove(url);
       notifyListeners();
-    }).catchError((e) {
+    } catch (e) {
       debugPrint("Glimpse Video init error: $e");
+      if (!lockCompleter.isCompleted) lockCompleter.completeError(e);
       _initLocks.remove(url);
-    });
-
-    _initLocks[url] = initFuture;
+    }
   }
 
   Future<void> _disposeControllerSafely(String url) async {
