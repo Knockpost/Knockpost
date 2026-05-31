@@ -8,7 +8,10 @@ import '../../../widgets/staggered_entry_animation.dart';
 import '../../../utils/image_helper.dart';
 import '../../glimps/glimpse_viewer_screen.dart';
 
-class ProfileGlimpsStrip extends StatelessWidget {
+import '../../../services/image_cache_manager.dart';
+import '../../../services/video_cache_manager.dart';
+
+class ProfileGlimpsStrip extends StatefulWidget {
   final List<PostModel> glimpses;
   final UserModel user;
 
@@ -19,8 +22,37 @@ class ProfileGlimpsStrip extends StatelessWidget {
   });
 
   @override
+  State<ProfileGlimpsStrip> createState() => _ProfileGlimpsStripState();
+}
+
+class _ProfileGlimpsStripState extends State<ProfileGlimpsStrip> {
+  @override
+  void initState() {
+    super.initState();
+    _preloadGlimpses();
+  }
+
+  void _preloadGlimpses() {
+    // Preload first 3 glimpses to ensure instant playback when tapped
+    final limit = widget.glimpses.length > 3 ? 3 : widget.glimpses.length;
+    for (int i = 0; i < limit; i++) {
+      final g = widget.glimpses[i];
+      if (g.imagePaths.isNotEmpty) {
+        final path = g.imagePaths.first;
+        final pathLower = path.toLowerCase();
+        final isVideo = pathLower.contains('.mp4') || pathLower.contains('.mov') || pathLower.contains('.mkv') || pathLower.contains('.webm');
+        if (isVideo) {
+          KnockpostVideoCacheManager.instance.downloadFile(path);
+        } else {
+          KnockpostImageCacheManager.instance.downloadFile(path);
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (glimpses.isEmpty) return const SizedBox.shrink();
+    if (widget.glimpses.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 20),
@@ -30,17 +62,17 @@ class ProfileGlimpsStrip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           scrollDirection: Axis.horizontal,
           physics: const ClampingScrollPhysics(), // Allows overscroll to pass to TabBarView!
-          itemCount: glimpses.length,
+          itemCount: widget.glimpses.length,
           itemBuilder: (context, index) {
-            final glimpse = glimpses[index];
+            final glimpse = widget.glimpses[index];
             return StaggeredEntryAnimation(
               index: index,
               delay: const Duration(milliseconds: 40),
               // Default vertical offset matches the rest of the app cascade
               child: ProfileGlimpsCard(
                 glimpse: glimpse,
-                user: user,
-                allGlimpses: glimpses,
+                user: widget.user,
+                allGlimpses: widget.glimpses,
                 glimpseIndex: index,
               ),
             );
@@ -91,6 +123,7 @@ class ProfileGlimpsCard extends StatelessWidget {
           authorIds: [user.id],
           initialAuthorIndex: 0,
           initialGlimpseIndex: glimpseIndex,
+          preloadedUsers: {user.id: user},
           heroTag: 'profile_glimpse_${glimpse.id}',
         );
       },

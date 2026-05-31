@@ -24,7 +24,9 @@ class UserModel {
   final String username;
   final String? bio;
   final String? avatarAsset; // null = show default avatar
+  final String? optimizedAvatarUrl; // from C1 Phase
   final String? coverImageAsset; // background cover image
+  final String? optimizedCoverUrl; // from C1 Phase
   final int friendsCount;
   // Avatar assets of viewer's friends who knocked this profile.
   final List<String> mutualFriendsWhoKnocked;
@@ -61,7 +63,9 @@ class UserModel {
     required this.username,
     this.bio,
     this.avatarAsset,
+    this.optimizedAvatarUrl,
     this.coverImageAsset,
+    this.optimizedCoverUrl,
     this.friendsCount = 0,
     this.mutualFriendsWhoKnocked = const [],
     this.accountType = AccountType.normal,
@@ -93,7 +97,9 @@ class UserModel {
       avatarAsset: map['profileImageUrl'] != null && map['profileImageUrl'].toString().isNotEmpty
           ? map['profileImageUrl']
           : null,
+      optimizedAvatarUrl: map['optimizedAvatarUrl'],
       coverImageAsset: map['coverImageUrl'],
+      optimizedCoverUrl: map['optimizedCoverUrl'],
       friendsCount: map['friendsCount'] ?? 0,
       mutualFriendsWhoKnocked: List<String>.from(map['mutualFriendsWhoKnocked'] ?? []),
       accountType: map['accountType'] == 'creator' ? AccountType.creator : AccountType.normal,
@@ -127,7 +133,9 @@ class UserModel {
       'username': username,
       'bio': bio,
       'profileImageUrl': avatarAsset,
+      'optimizedAvatarUrl': optimizedAvatarUrl,
       'coverImageUrl': coverImageAsset,
+      'optimizedCoverUrl': optimizedCoverUrl,
       'friendsCount': friendsCount,
       'accountType': accountType.name,
       'privacyType': privacyType.name,
@@ -209,8 +217,10 @@ class UserModel {
     String? username,
     String? bio,
     String? avatarAsset,
+    String? optimizedAvatarUrl,
     bool clearAvatar = false,
     String? coverImageAsset,
+    String? optimizedCoverUrl,
     bool clearCover = false,
     int? friendsCount,
     List<String>? mutualFriendsWhoKnocked,
@@ -239,9 +249,13 @@ class UserModel {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       avatarAsset: clearAvatar ? null : (avatarAsset ?? this.avatarAsset),
+      optimizedAvatarUrl: clearAvatar ? null : (optimizedAvatarUrl ?? this.optimizedAvatarUrl),
       coverImageAsset: clearCover
           ? null
           : (coverImageAsset ?? this.coverImageAsset),
+      optimizedCoverUrl: clearCover
+          ? null
+          : (optimizedCoverUrl ?? this.optimizedCoverUrl),
       friendsCount: friendsCount ?? this.friendsCount,
       mutualFriendsWhoKnocked:
           mutualFriendsWhoKnocked ?? this.mutualFriendsWhoKnocked,

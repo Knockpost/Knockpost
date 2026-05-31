@@ -126,7 +126,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
       if (_dragOffset >= _triggerDistance && !_isRefreshing) {
         KnockHaptics.impact();
         _startRefresh();
-      } else if (!_isRefreshing) {
+      } else if (!_isRefreshing && mounted) {
         setState(() => _dragOffset = 0);
       }
     });
@@ -137,10 +137,12 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
     if (notification is OverscrollNotification &&
         notification.overscroll < 0 &&
         !_isRefreshing) {
-      setState(() {
-        _isDragging = true;
-        _dragOffset += -notification.overscroll * 0.6;
-      });
+      if (mounted) {
+        setState(() {
+          _isDragging = true;
+          _dragOffset += -notification.overscroll * 0.6;
+        });
+      }
       _checkHapticThreshold();
       return true;
     }
@@ -153,19 +155,23 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
 
       // User is at the very top and pulling further down
       if (pos.pixels <= pos.minScrollExtent && delta < 0) {
-        setState(() {
-          _isDragging = true;
-          _dragOffset += -delta * 0.6; // damping
-        });
+        if (mounted) {
+          setState(() {
+            _isDragging = true;
+            _dragOffset += -delta * 0.6; // damping
+          });
+        }
         _checkHapticThreshold();
         return true;
       }
 
       // User is scrolling back up while in pull state
       if (_isDragging && delta > 0) {
-        setState(() {
-          _dragOffset = (_dragOffset - delta).clamp(0.0, double.infinity);
-        });
+        if (mounted) {
+          setState(() {
+            _dragOffset = (_dragOffset - delta).clamp(0.0, double.infinity);
+          });
+        }
         if (_dragOffset <= 0) {
           _resetDragState();
         }
@@ -180,7 +186,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
       if (_dragOffset >= _triggerDistance && !_isRefreshing) {
         KnockHaptics.impact();
         _startRefresh();
-      } else if (!_isRefreshing) {
+      } else if (!_isRefreshing && mounted) {
         setState(() => _dragOffset = 0);
       }
     }

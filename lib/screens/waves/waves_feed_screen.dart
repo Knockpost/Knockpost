@@ -10,6 +10,7 @@ import '../../services/current_user_service.dart';
 import '../../services/database_service.dart';
 import '../../services/waves_feed_manager.dart';
 import '../../services/waves_controller_manager.dart';
+import '../../utils/global_post_state.dart';
 
 class WavesFeedScreen extends StatefulWidget {
   final bool isVisible;
@@ -110,24 +111,27 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
         body: Stack(
           children: [
             /// 🎬 REEL PAGES (vertical scroll)
-            KnockPostRefreshIndicator(
+            KnockpostRefreshIndicator(
               onRefresh: () async {
                 await WavesFeedManager.instance.refresh();
               },
               child: AnimatedBuilder(
                 animation: WavesFeedManager.instance,
                 builder: (context, _) {
-                  final feedManager = WavesFeedManager.instance;
-                  
-                  if (feedManager.isLoading && feedManager.waves.isEmpty) {
-                    return const Center(
-                      child: KnockPostLoadingIndicator(),
-                    );
-                  }
+                  return ValueListenableBuilder<Set<String>>(
+                    valueListenable: GlobalPostState.deletedPostIds,
+                    builder: (context, deletedIds, _) {
+                      final feedManager = WavesFeedManager.instance;
+                      
+                      if (feedManager.isLoading && feedManager.waves.isEmpty) {
+                        return const Center(
+                          child: KnockpostLoadingIndicator(),
+                        );
+                      }
 
-                  final waves = feedManager.waves;
-                  
-                  if (waves.isEmpty) {
+                      final waves = feedManager.waves.where((w) => !deletedIds.contains(w.id)).toList();
+                      
+                      if (waves.isEmpty) {
                     return const Center(
                       child: Text(
                         'No waves yet.\nBe the first to post!',
@@ -138,6 +142,11 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                   }
 
                   WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final feedUrls = waves.map((w) => w.imagePaths.isNotEmpty ? w.imagePaths.first : '').toList();
+                    if (_pageController.hasClients && _pageController.page == 0) {
+                      WavesControllerManager.instance.updateWindow(0, feedUrls);
+                    }
+
                     final url = WavesFeedState.requestedVideoUrl.value;
                     if (url != null) {
                       final idx = waves.indexWhere((p) => p.imagePaths.isNotEmpty && p.imagePaths.first == url);
@@ -148,33 +157,50 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                     }
                   });
 
-                  return PageView.builder(
-                    controller: _pageController,
-                    scrollDirection: Axis.vertical,
-                    itemCount: waves.length + (feedManager.hasMore ? 1 : 0),
-                    pageSnapping: true,
-                    physics: const _FastReelsPagePhysics(
-                      parent: BouncingScrollPhysics(
-                        decelerationRate: ScrollDecelerationRate.fast,
-                      ),
-                    ),
-                    onPageChanged: (index) {
-                      setState(() {
-                        currentIndex = index;
-                      });
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: (ScrollNotification notification) {
+                      if (notification is ScrollUpdateNotification) {
+                        final metrics = notification.metrics;
+                        if (metrics.axisDirection == AxisDirection.down || metrics.axisDirection == AxisDirection.up) {
+                          // PageController dimensions
+                          if (metrics.viewportDimension > 0) {
+                            final double page = metrics.pixels / metrics.viewportDimension;
+                            final int newIndex = page.round();
+                            
+                            if (newIndex != currentIndex) {
+                              setState(() {
+                                currentIndex = newIndex;
+                              });
 
-                      // Preload logic using sliding window
-                      final feedUrls = waves.map((w) => w.imagePaths.isNotEmpty ? w.imagePaths.first : '').toList();
-                      WavesControllerManager.instance.updateWindow(index, feedUrls);
+                              final feedUrls = waves.map((w) => w.imagePaths.isNotEmpty ? w.imagePaths.first : '').toList();
+                              WavesControllerManager.instance.updateWindow(currentIndex, feedUrls);
 
-                      // Fetch next batch early
-                      if (index >= waves.length - 3) {
-                        feedManager.loadMore();
+                              if (currentIndex >= waves.length - 3) {
+                                feedManager.loadMore();
+                              }
+                            }
+                          }
+                        }
                       }
+                      return false;
                     },
+                    child: PageView.builder(
+                      controller: _pageController,
+                      scrollDirection: Axis.vertical,
+                      itemCount: waves.length + (feedManager.hasMore ? 1 : 0),
+                      pageSnapping: true,
+                      physics: const _FastReelsPagePhysics(
+                        parent: BouncingScrollPhysics(
+                          decelerationRate: ScrollDecelerationRate.fast,
+                        ),
+                      ),
+                      onPageChanged: (index) {
+                        // We handle preloading and state primarily in ScrollNotification for precision,
+                        // but keep this for absolute snap boundaries if needed.
+                      },
                     itemBuilder: (context, index) {
                       if (index == waves.length) {
-                        return const Center(child: KnockPostLoadingIndicator());
+                        return const Center(child: KnockpostLoadingIndicator());
                       }
 
                       final post = waves[index];
@@ -182,7 +208,6 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                       
                       if (currentUser != null && post.authorId == currentUser.id) {
                         return WaveItem(
-                          key: ValueKey(post.id),
                           videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
                           username: currentUser.username,
                           caption: post.text,
@@ -195,52 +220,32 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
 
                       UserModel? author = feedManager.authors[post.authorId];
                       
-                      if (author != null) {
-                        return WaveItem(
-                          key: ValueKey(post.id),
-                          videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
-                          username: author.username,
-                          caption: post.text,
-                          isActive: index == currentIndex && widget.isVisible,
-                          bottomPadding: bottomNavHeight,
-                          post: post,
-                          author: author,
-                        );
-                      }
-
-                      return FutureBuilder<Map<String, dynamic>?>(
-                        key: ValueKey('future_${post.id}'),
-                        future: DatabaseService.instance.getUserProfile(post.authorId, useCache: true),
-                        builder: (context, snapshot) {
-                          final data = snapshot.data;
-                          final fetchedAuthor = data != null
-                              ? UserModel(
-                                  id: post.authorId,
-                                  displayName: data['displayName'] ?? data['username'] ?? 'User',
-                                  username: data['username'] ?? post.authorId,
-                                  avatarAsset: data['profileImageUrl'],
-                                )
-                              : UserModel(id: post.authorId, displayName: 'Loading...', username: '...');
-
-                          return WaveItem(
-                            key: ValueKey(post.id),
-                            videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
-                            username: fetchedAuthor.username,
-                            caption: post.text,
-                            isActive: index == currentIndex && widget.isVisible,
-                            bottomPadding: bottomNavHeight,
-                            post: post,
-                            author: fetchedAuthor,
-                          );
-                        },
+                      // Fallback if author failed to load for some reason (e.g., deleted account)
+                      author ??= UserModel(
+                        id: post.authorId,
+                        displayName: 'User',
+                        username: '...',
                       );
+
+                      return WaveItem(
+                        videoUrl: post.imagePaths.isNotEmpty ? post.imagePaths.first : '',
+                        username: author.username,
+                        caption: post.text,
+                        isActive: index == currentIndex && widget.isVisible,
+                        bottomPadding: bottomNavHeight,
+                        post: post,
+                        author: author,
+                      );
+                    },
+                  ),
+                );
                     },
                   );
                 },
               ),
-            ),
+          ),
 
-            /// 🔝 TOP HEADER
+          /// 🔝 TOP HEADER
             Positioned(
               top: 0,
               left: 0,

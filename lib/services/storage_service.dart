@@ -101,8 +101,15 @@ class StorageService {
       final fileName = p.basename(toUpload.path);
       final ref = _storage.ref().child('posts/$userId/$postId/$fileName');
       
+      final metadata = SettableMetadata(
+        cacheControl: 'public, max-age=31536000, immutable',
+        customMetadata: {
+          'targetDoc': 'posts/$postId',
+          'targetField': 'optimizedImagePaths',
+        },
+      );
       // Add timeout to prevent infinite hang in release mode if network drops
-      final uploadTask = await ref.putFile(toUpload).timeout(
+      final uploadTask = await ref.putFile(toUpload, metadata).timeout(
         const Duration(minutes: 5),
         onTimeout: () => throw Exception('Upload timed out'),
       );
@@ -129,7 +136,14 @@ class StorageService {
       final compressed = await _compressImage(file, quality: 70, maxSize: 720);
       final fileName = 'cover_${p.basename(file.path)}';
       final ref = _storage.ref().child('posts/$userId/$postId/$fileName');
-      final uploadTask = await ref.putFile(compressed);
+      final metadata = SettableMetadata(
+        cacheControl: 'public, max-age=31536000, immutable',
+        customMetadata: {
+          'targetDoc': 'posts/$postId',
+          'targetField': 'optimizedCoverImagePath',
+        },
+      );
+      final uploadTask = await ref.putFile(compressed, metadata);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
       debugPrint("Error uploading cover image: $e");
@@ -154,7 +168,10 @@ class StorageService {
       );
 
       final ref = _storage.ref().child('chats/$chatId/$messageId.jpg');
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000, immutable',
+      );
       final uploadTask = await ref.putData(compressed, metadata);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
@@ -172,7 +189,10 @@ class StorageService {
   }) async {
     try {
       final ref = _storage.ref().child('chats/$chatId/$messageId.m4a');
-      final metadata = SettableMetadata(contentType: 'audio/mp4');
+      final metadata = SettableMetadata(
+        contentType: 'audio/mp4',
+        cacheControl: 'public, max-age=31536000, immutable',
+      );
       final uploadTask = await ref.putFile(file, metadata);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
@@ -192,7 +212,14 @@ class StorageService {
       final compressed = await _compressImage(file, quality: 80, maxSize: 512);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final ref = _storage.ref().child('users/$userId/avatar_$timestamp.jpg');
-      final uploadTask = await ref.putFile(compressed);
+      final metadata = SettableMetadata(
+        cacheControl: 'public, max-age=31536000, immutable',
+        customMetadata: {
+          'targetDoc': 'users/$userId',
+          'targetField': 'optimizedAvatarUrl',
+        },
+      );
+      final uploadTask = await ref.putFile(compressed, metadata);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
       debugPrint("Error uploading profile picture: $e");
@@ -211,7 +238,14 @@ class StorageService {
       final compressed = await _compressImage(file, quality: 75, maxSize: 1080);
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final ref = _storage.ref().child('users/$userId/cover_$timestamp.jpg');
-      final uploadTask = await ref.putFile(compressed);
+      final metadata = SettableMetadata(
+        cacheControl: 'public, max-age=31536000, immutable',
+        customMetadata: {
+          'targetDoc': 'users/$userId',
+          'targetField': 'optimizedCoverUrl',
+        },
+      );
+      final uploadTask = await ref.putFile(compressed, metadata);
       return await uploadTask.ref.getDownloadURL();
     } catch (e) {
       debugPrint("Error uploading cover picture: $e");

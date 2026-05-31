@@ -11,6 +11,7 @@ import 'profile_settings_screen.dart';
 import 'widgets/profile_ui_helpers.dart';
 import '../../widgets/post_scroll_lock_scope.dart';
 import '../../widgets/knockpost_refresh.dart';
+import '../../services/post_service.dart';
 
 /// Own profile screen — shown when tapping the Profile tab in bottom nav.
 class ProfileScreen extends StatefulWidget {
@@ -39,6 +40,16 @@ class _ProfileScreenState extends State<ProfileScreen>
     _user = widget.user;
     _posts = widget.posts;
     _tabController = TabController(length: 3, vsync: this);
+
+    // Phase C3 Optimization: Load if empty
+    if (_posts.isEmpty) {
+      _loadPosts();
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    final res = await PostService.instance.getUserPostsPaginated(_user.id, limit: 100);
+    if (mounted) setState(() => _posts = res.posts);
   }
 
   @override

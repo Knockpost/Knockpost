@@ -410,6 +410,7 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               )
             : PostCard(
                 imagePaths: post.imagePaths,
+                optimizedImagePaths: post.optimizedImagePaths,
                 user: widget.user,
                 caption: post.text,
                 postId: post.id,

@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ── Global Helpers ──
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(uidField) {
+      return isSignedIn() && request.auth.uid == resource.data[uidField];
+    }
+    
+    function isCreatingAsSelf(uidField) {
+      return isSignedIn() && request.auth.uid == request.resource.data[uidField];
+    }
+
+    // ── Users ──
+    match /users/{userId} {
+      allow read: if isSignedIn(); 
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Allow self-updates with protected field check.
+      // Also allow ANY signed-in user to update ONLY counter fields
+      // via FieldValue.increment from likes, views, notifications, knocks.
+      allow update: if isSignedIn() && (
+        // Case 1: User updating their own profile (with protected fields check)
+        (request.auth.uid == userId 
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'rank', 'verified', 'isAdmin'
+          ]))
+        ||
+        // Case 2: Another user incrementing counters only
+        // (from likes, views, notifications, knocks)
+        (request.auth.uid != userId 
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'totalLikes', 'totalViews', 'unreadNotificationCount', 'totalKnocksReceived'
+          ]))
+      );
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+      
+      // Subcollections
+      match /notifications/{notifId} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        // Anyone can create a notification for you, but they can't spoof their identity
+        allow create: if isSignedIn() && isCreatingAsSelf('triggerUserId');
+        // Receiver can update (mark as read) or delete their notifications.
+        // The TRIGGER USER can also update (re-trigger) notifications they created,
+        // because set-with-merge on an existing deterministic doc ID = UPDATE.
+        allow update: if isSignedIn() && (
+          request.auth.uid == userId
+          || resource.data.triggerUserId == request.auth.uid
+        );
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // ── Posts, Waves, Glimps ──
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isCreatingAsSelf('authorId');
+      // Allow author full control, AND allow any signed-in user to
+      // update ONLY the 'likes' or 'views' counter fields (from
+      // like transactions and view batching).
+      allow update: if isSignedIn() && (
+        isOwner('authorId')
+        ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'views'])
+      );
+      allow delete: if isOwner('authorId');
+      
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isCreatingAsSelf('senderId');
+        allow update, delete: if isOwner('senderId');
+      }
+
+      match /likes/{likeId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && request.auth.uid == likeId;
+      }
+      
+      match /viewers/{viewerId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && request.auth.uid == viewerId;
+      }
+
+      // ── Private Reply Threads ──
+      // CommentService writes to posts/{postId}/threads/{threadUserId}/messages/{messageId}
+      match /threads/{threadUserId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn();
+        allow delete: if false; // Only backend
+        
+        match /messages/{messageId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn() && isCreatingAsSelf('senderId');
+          allow update, delete: if isOwner('senderId');
+        }
+      }
+    }
+    
+    match /waves/{waveId} {
+      allow read: if isSignedIn();
+      allow create: if isCreatingAsSelf('authorId');
+      allow update, delete: if isOwner('authorId');
+    }
+    
+    match /glimps/{glimpId} {
+      allow read: if isSignedIn();
+      allow create: if isCreatingAsSelf('authorId');
+      allow update, delete: if isOwner('authorId');
+    }
+
+    // ── Chats & Messages ──
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && (
+        !exists(/databases/$(database)/documents/chats/$(chatId)) ||
+        request.auth.uid in resource.data.participants
+      );
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.participants
+      );
+      
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          !exists(/databases/$(database)/documents/chats/$(chatId)) ||
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+        );
+        allow create: if isSignedIn() 
+                      && isCreatingAsSelf('senderId')
+                      && (
+                        // Chat doc already exists — check participant
+                        (exists(/databases/$(database)/documents/chats/$(chatId))
+                          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants)
+                        ||
+                        // Chat doc being created in same batch — check after-state
+                        (!exists(/databases/$(database)/documents/chats/$(chatId))
+                          && request.auth.uid in getAfter(/databases/$(database)/documents/chats/$(chatId)).data.participants)
+                      );
+        allow update, delete: if isOwner('senderId');
+      }
+    }
+
+    // ── Private Replies ──
+    match /private_replies/{chatId} {
+      allow read: if isSignedIn() && (
+        !exists(/databases/$(database)/documents/private_replies/$(chatId)) ||
+        request.auth.uid in resource.data.participants
+      );
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.participants
+      );
+      
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          !exists(/databases/$(database)/documents/private_replies/$(chatId)) ||
+          request.auth.uid in get(/databases/$(database)/documents/private_replies/$(chatId)).data.participants
+        );
+        allow create: if isSignedIn() 
+                      && isCreatingAsSelf('senderId')
+                      && (
+                        (exists(/databases/$(database)/documents/private_replies/$(chatId))
+                          && request.auth.uid in get(/databases/$(database)/documents/private_replies/$(chatId)).data.participants)
+                        ||
+                        (!exists(/databases/$(database)/documents/private_replies/$(chatId))
+                          && request.auth.uid in getAfter(/databases/$(database)/documents/private_replies/$(chatId)).data.participants)
+                      );
+        allow update, delete: if isOwner('senderId');
+      }
+    }
+
+    // ── Connections ──
+    match /connections/{connectionId} {
+      allow read: if isSignedIn();
+      allow create: if isCreatingAsSelf('fromUid');
+      allow update, delete: if isOwner('fromUid') || isOwner('toUid'); 
+    }
+    
+    // ── Mutual Connections ──
+    match /mutual_connections/{mutualId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.participants;
+    }
+
+    // ── OTPs ──
+    match /users/{userId}/otp/current {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if false; 
+    }
+    match /emailOtps/{email} {
+      allow read, write: if false;
+    }
+
+    // ── Default Deny ──
+    match /{document=**} {
+      allow read, write: if false; 
+    }
+  }
+}

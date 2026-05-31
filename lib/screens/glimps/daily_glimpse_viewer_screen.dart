@@ -5,11 +5,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/reaction_bar.dart';
 import '../../services/current_user_service.dart';
+import '../../services/image_cache_manager.dart';
 import '../../utils/image_helper.dart';
 import '../waves/widgets/more_options_sheet.dart';
 import 'package:just_audio/just_audio.dart';
@@ -202,6 +204,7 @@ class _SingleCardGlimpseViewerState extends State<_SingleCardGlimpseViewer>
   void initState() {
     super.initState();
     _currentIndex = 0;
+    _user = widget.user;
 
     _progressController = AnimationController(
       vsync: this,
@@ -949,7 +952,14 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
     if (path.startsWith('assets/')) {
       return Image.asset(path, fit: fit);
     } else if (path.startsWith('http')) {
-      return Image.network(path, fit: fit);
+      return CachedNetworkImage(
+        imageUrl: path,
+        fit: fit,
+        cacheManager: KnockpostImageCacheManager.instance,
+        fadeInDuration: const Duration(milliseconds: 150),
+        placeholder: (context, url) => Container(color: Colors.black),
+        errorWidget: (context, url, error) => Container(color: Colors.black),
+      );
     } else if (path.isNotEmpty) {
       return Image.file(File(path), fit: fit);
     }

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
+import 'video_cache_manager.dart';
 import 'performance_service.dart';
 
 /// Centralized manager for Glimpse video controllers implementing a strict Sliding Window Architecture
@@ -46,45 +48,73 @@ class GlimpsControllerManager extends ChangeNotifier {
     // 3. Pause non-current videos
     final activeUrl = glimpseUrls[currentIndex];
     pauseAllExcept(activeUrl);
+
+    // 4. Aggressive background sliding window preloading [i+2, i+3, i+4]
+    for (int i = currentIndex + 2; i <= currentIndex + 4; i++) {
+      if (i >= 0 && i < glimpseUrls.length) {
+        final preloadUrl = glimpseUrls[i];
+        if (preloadUrl.isNotEmpty) {
+          KnockpostVideoCacheManager.instance.downloadFile(preloadUrl);
+        }
+      }
+    }
     
     notifyListeners();
   }
 
-  void _initControllerIfNeeded(String url) {
+  void _initControllerIfNeeded(String url) async {
     if (_controllers.containsKey(url) || _initLocks.containsKey(url)) return;
 
     PerformanceService.instance.incrementGlimpsControllerInitializations();
 
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-    _controllers[url] = controller;
-    PerformanceService.instance.setActiveGlimpsControllers(_controllers.length);
+    final completer = Completer<void>();
+    _initLocks[url] = completer.future;
 
-    final initFuture = controller.initialize().then((_) {
+    try {
+      final fileInfo = await KnockpostVideoCacheManager.instance.getFileFromCache(url);
+      
+      // If evicted while checking cache, abort instantly
+      if (!_initLocks.containsKey(url)) return;
+
+      VideoPlayerController controller;
+      if (fileInfo != null) {
+        controller = VideoPlayerController.file(fileInfo.file);
+      } else {
+        KnockpostVideoCacheManager.instance.downloadFile(url);
+        controller = VideoPlayerController.networkUrl(Uri.parse(url));
+      }
+
+      _controllers[url] = controller;
+      PerformanceService.instance.setActiveGlimpsControllers(_controllers.length);
+
+      await controller.initialize();
       controller.setLooping(true);
-      _initLocks.remove(url);
-      notifyListeners();
-    }).catchError((e) {
+      
+      if (!_initLocks.containsKey(url)) {
+        controller.dispose();
+        _controllers.remove(url);
+      } else {
+        notifyListeners();
+      }
+    } catch (e) {
       debugPrint("Glimpse Video init error: $e");
-      _initLocks.remove(url);
-    });
-
-    _initLocks[url] = initFuture;
+    } finally {
+      if (_initLocks[url] == completer.future) {
+        _initLocks.remove(url);
+      }
+      if (!completer.isCompleted) completer.complete();
+    }
   }
 
-  Future<void> _disposeControllerSafely(String url) async {
+  void _disposeControllerSafely(String url) {
     final controller = _controllers.remove(url);
     if (controller == null) return;
 
     PerformanceService.instance.setActiveGlimpsControllers(_controllers.length);
 
-    // If still initializing, await the lock to prevent PlatformException crash
-    if (_initLocks.containsKey(url)) {
-      try {
-        await _initLocks[url];
-      } catch (_) {}
-    }
-
+    _initLocks.remove(url);
     controller.dispose();
+    
     PerformanceService.instance.incrementGlimpsControllerDisposals();
   }
 
