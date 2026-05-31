@@ -74,9 +74,10 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
     } on FirebaseAuthException catch (e) {
       debugPrint("Auth ERROR (Firebase): [${e.code}] ${e.message}");
       if (mounted) {
+        String errorText = e.message ?? "Authentication failed.";
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error: [${e.code}] ${e.message}"),
+            content: Text(errorText),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -84,8 +85,12 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
     } catch (e) {
       debugPrint("Auth ERROR (Generic): $e");
       if (mounted) {
+        String errorText = "Something went wrong. Please try again.";
+        if (e.toString().contains("exhausted")) {
+          errorText = "Too many attempts. Please try again later.";
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          SnackBar(content: Text(errorText)),
         );
       }
     } finally {
@@ -212,10 +217,12 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: KnockPostLoadingIndicator(),
+                                  child: KnockPostLoadingIndicator(
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
                                 )
                               : Text(
                                   "Next",

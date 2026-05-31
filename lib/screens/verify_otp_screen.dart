@@ -50,8 +50,16 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     } catch (e) {
       debugPrint("Verify OTP ERROR: $e");
       if (mounted) {
+        String errorText = "Invalid or expired code.";
+        if (e.toString().contains("Incorrect OTP")) {
+          errorText = "Incorrect code. Please check and try again.";
+        } else if (e.toString().contains("expired")) {
+          errorText = "Code has expired. Please request a new one.";
+        } else if (e.toString().contains("exhausted")) {
+          errorText = "Too many attempts. Please try again later.";
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          SnackBar(content: Text(errorText)),
         );
       }
     } finally {
@@ -139,7 +147,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(height: 20, width: 20, child: KnockPostLoadingIndicator())
+                              ? SizedBox(height: 20, width: 20, child: KnockPostLoadingIndicator(color: isDark ? Colors.black : Colors.white))
                               : Text("Verify", style: TextStyle(color: isDark ? Colors.black : Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
                         ),
                       ),

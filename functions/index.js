@@ -568,7 +568,7 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
     const firstSendAt = existingData.firstSendAt ? existingData.firstSendAt.toMillis() : 0;
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
 
-    if (firstSendAt > oneHourAgo && sendCount >= 3) {
+    if (firstSendAt > oneHourAgo && sendCount >= 30) {
       throw new functions.https.HttpsError(
         "resource-exhausted",
         "Too many OTP requests. Please try again later."
@@ -597,7 +597,7 @@ exports.sendEmailOtp = functions.https.onCall(async (data, context) => {
 
   // Send Email
   const mailOptions = {
-    from: `"KnockPost" <${process.env.SMTP_USER || "no-reply@knockpost.app"}>`,
+    from: `"KnockPost" <${process.env.GMAIL_EMAIL || "knockpostofficial@gmail.com"}>`,
     to: email,
     subject: `Your KnockPost code is ${otp}`,
     html: `

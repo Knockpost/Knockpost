@@ -282,8 +282,9 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
 
 class KnockPostLoadingIndicator extends StatefulWidget {
   final double size;
+  final Color? color;
 
-  const KnockPostLoadingIndicator({super.key, this.size = 44});
+  const KnockPostLoadingIndicator({super.key, this.size = 44, this.color});
 
   @override
   State<KnockPostLoadingIndicator> createState() =>
@@ -324,6 +325,7 @@ class _KnockPostLoadingIndicatorState extends State<KnockPostLoadingIndicator>
               pullProgress: 1.0,
               isRefreshing: true,
               isDark: isDark,
+              customColor: widget.color,
             ),
           );
         },
@@ -342,18 +344,20 @@ class _ThreeDotPainter extends CustomPainter {
   final double pullProgress; // For pulling down (0 to 1)
   final bool isRefreshing;
   final bool isDark;
+  final Color? customColor;
 
   const _ThreeDotPainter({
     required this.progress,
     required this.pullProgress,
     required this.isRefreshing,
     required this.isDark,
+    this.customColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final color = isDark ? Colors.white : Colors.black;
+    final color = customColor ?? (isDark ? Colors.white : Colors.black);
 
     // Scale dynamically based on canvas size
     final baseScale = size.width / 48.0;

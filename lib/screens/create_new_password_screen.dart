@@ -137,7 +137,10 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(height: 20, width: 20, child: KnockPostLoadingIndicator())
+                              ? SizedBox(
+                                  height: 20, width: 20, 
+                                  child: KnockPostLoadingIndicator(color: isDark ? Colors.black : Colors.white)
+                                )
                               : Text("Save & Login", style: TextStyle(
                                   color: isDark ? Colors.black : Colors.white, 
                                   fontSize: 17, 

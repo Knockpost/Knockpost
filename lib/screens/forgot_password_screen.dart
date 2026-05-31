@@ -58,8 +58,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       debugPrint("Reset Password ERROR: $e");
       if (mounted) {
+        String errorText = "Something went wrong. Please try again.";
+        if (e.toString().contains("exhausted")) {
+          errorText = "Too many attempts. Please try again later.";
+        } else if (e.toString().contains("not-found")) {
+          errorText = "User not found. Please check your email.";
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
+          SnackBar(content: Text(errorText)),
         );
       }
     } finally {
@@ -180,10 +186,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: KnockPostLoadingIndicator(),
+                                  child: KnockPostLoadingIndicator(
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
                                 )
                               : Text(
                                   "Send Code",

@@ -176,10 +176,12 @@ class _SignupUsernameScreenState
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: KnockPostLoadingIndicator(),
+                                  child: KnockPostLoadingIndicator(
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
                                 )
                               : Text(
                                   "Next",
