@@ -163,23 +163,9 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                         currentIndex = index;
                       });
 
-                      // Preload logic
-                      if (index < waves.length) {
-                        final currentUrl = waves[index].imagePaths.isNotEmpty ? waves[index].imagePaths.first : null;
-                        if (currentUrl != null) {
-                          WavesControllerManager.instance.pauseAllExcept(currentUrl);
-                        }
-                      }
-                      
-                      // Preload next 2 videos
-                      for (int i = 1; i <= 2; i++) {
-                        if (index + i < waves.length) {
-                          final nextUrl = waves[index + i].imagePaths.isNotEmpty ? waves[index + i].imagePaths.first : null;
-                          if (nextUrl != null) {
-                            WavesControllerManager.instance.preload(nextUrl);
-                          }
-                        }
-                      }
+                      // Synchronize sliding window of video controllers
+                      final feedUrls = waves.map((w) => w.imagePaths.isNotEmpty ? w.imagePaths.first : '').toList();
+                      WavesControllerManager.instance.updateWindow(index, feedUrls);
 
                       // Fetch next batch early
                       if (index >= waves.length - 3) {

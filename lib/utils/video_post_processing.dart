@@ -10,6 +10,9 @@ import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../models/media_transform.dart';
+import 'media_transform_utils.dart';
+
 enum VideoPostAspect { square, portrait, landscape }
 
 extension VideoPostAspectX on VideoPostAspect {
@@ -73,15 +76,7 @@ extension VideoPostTextFontX on VideoPostTextFont {
   }
 }
 
-class VideoPostTransform {
-  double scale;
-  Offset offset;
-  double rotation;
-
-  VideoPostTransform({this.scale = 1.0, this.offset = Offset.zero, this.rotation = 0.0});
-
-  VideoPostTransform copy() => VideoPostTransform(scale: scale, offset: offset, rotation: rotation);
-}
+// VideoPostTransform removed — using shared MediaTransform instead.
 
 enum CinematicEffect { none, warm, cool, vintage, blur, glow, grain }
 
@@ -219,7 +214,7 @@ class VideoPostExportRequest {
   final Size sourceSize;
   final Size previewFrameSize;
   final Size outputSize;
-  final VideoPostTransform transform;
+  final MediaTransform transform;
   final Duration trimStart;
   final Duration trimEnd;
   final Duration coverTime;
@@ -317,67 +312,7 @@ class VideoPostProcessing {
     );
   }
 
-  static Rect buildPreviewDrawRect({
-    required Size frameSize,
-    required Size sourceSize,
-    required VideoPostTransform transform,
-  }) {
-    final baseScale = max(
-      frameSize.width / sourceSize.width,
-      frameSize.height / sourceSize.height,
-    );
-    final drawScale = baseScale * transform.scale;
-    final drawWidth = sourceSize.width * drawScale;
-    final drawHeight = sourceSize.height * drawScale;
-
-    return Rect.fromLTWH(
-      frameSize.width / 2 + transform.offset.dx - drawWidth / 2,
-      frameSize.height / 2 + transform.offset.dy - drawHeight / 2,
-      drawWidth,
-      drawHeight,
-    );
-  }
-
-  static Offset clampOffset({
-    required Offset proposedOffset,
-    required double scale,
-    required Size sourceSize,
-    required Size frameSize,
-  }) {
-    final baseScale = max(
-      frameSize.width / sourceSize.width,
-      frameSize.height / sourceSize.height,
-    );
-    final drawWidth = sourceSize.width * baseScale * scale;
-    final drawHeight = sourceSize.height * baseScale * scale;
-    final maxDx = max(0.0, (drawWidth - frameSize.width) / 2);
-    final maxDy = max(0.0, (drawHeight - frameSize.height) / 2);
-
-    return Offset(
-      proposedOffset.dx.clamp(-maxDx, maxDx).toDouble(),
-      proposedOffset.dy.clamp(-maxDy, maxDy).toDouble(),
-    );
-  }
-
-  static Rect buildSourceCropRect({
-    required Size frameSize,
-    required Size sourceSize,
-    required VideoPostTransform transform,
-  }) {
-    final drawRect = buildPreviewDrawRect(
-      frameSize: frameSize,
-      sourceSize: sourceSize,
-      transform: transform,
-    );
-    final scale = drawRect.width / sourceSize.width;
-
-    return Rect.fromLTWH(
-      ((0 - drawRect.left) / scale).clamp(0.0, sourceSize.width),
-      ((0 - drawRect.top) / scale).clamp(0.0, sourceSize.height),
-      (frameSize.width / scale).clamp(1.0, sourceSize.width),
-      (frameSize.height / scale).clamp(1.0, sourceSize.height),
-    );
-  }
+  // buildPreviewDrawRect, clampOffset, and buildSourceCropRect removed — delegated to MediaTransformUtils
 
   static TextStyle buildTextStyle({
     required VideoPostTextOverlay overlay,
@@ -448,9 +383,9 @@ class VideoPostProcessing {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final videoOutput = File('${tempDir.path}\\knockpost_video_$timestamp.mp4');
     final cropRect = _normalizedCropRect(
-      raw: buildSourceCropRect(
-        frameSize: request.previewFrameSize,
-        sourceSize: request.sourceSize,
+      raw: MediaTransformUtils.buildSourceCropRect(
+        canvasSize: request.previewFrameSize,
+        mediaSize: request.sourceSize,
         transform: request.transform,
       ),
       sourceSize: request.sourceSize,

@@ -8,6 +8,8 @@ import 'package:just_audio/just_audio.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../../models/post_model.dart';
+import '../../models/media_transform.dart';
+import '../../widgets/media_transform_viewer.dart';
 import '../shared/music_picker_screen.dart';
 import '../shared/music_editor_screen.dart';
 import '../shared/final_post_screen.dart';
@@ -107,6 +109,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
   // -- Video State --
   late List<VideoPlayerController?> _videoControllers;
+  List<Size?> _imageSizes = [];
 
   // -- Tools State --
   bool _isDrawingMode = false;
@@ -216,7 +219,9 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     }
   }
 
-  final GlobalKey<_FloatingMediaViewerState> _mediaViewerKey = GlobalKey<_FloatingMediaViewerState>();
+  // Per-file media transforms tracked via the new unified engine
+  late List<MediaTransform> _mediaTransforms;
+  final GlobalKey<MediaTransformViewerState> _mediaViewerKey = GlobalKey<MediaTransformViewerState>();
 
   @override
   void initState() {
@@ -226,6 +231,8 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     _captionController = TextEditingController(
       text: widget.initialCaption ?? "",
     );
+    // Initialize per-file transforms
+    _mediaTransforms = List.generate(widget.files.length, (_) => const MediaTransform.identity());
     _selectedMusic = widget.initialMusic;
     _trimStartSeconds = widget.trimStartSeconds ?? 0;
     if (_selectedMusic != null) {
@@ -233,7 +240,8 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     }
 
 
-    // Initialize Video Controllers
+    // Initialize Video Controllers and Images
+    _imageSizes = List.filled(widget.files.length, null);
     _videoControllers = List.generate(widget.files.length, (i) {
       final file = widget.files[i];
       final pathLower = file.path.toLowerCase();
@@ -262,9 +270,25 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           if (i == 0) await ctrl.play();
         });
         return ctrl;
+      } else {
+        _decodeImageSize(i, file);
       }
       return null;
     });
+  }
+
+  Future<void> _decodeImageSize(int index, File file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final image = await decodeImageFromList(bytes);
+      if (mounted) {
+        setState(() {
+          _imageSizes[index] = Size(image.width.toDouble(), image.height.toDouble());
+        });
+      }
+    } catch (e) {
+      debugPrint('[WavesEditor] Error decoding image size: $e');
+    }
   }
 
   Future<void> _playSelectedMusic() async {
@@ -358,17 +382,13 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
       }
     }
 
+    // Read transform directly from per-file state (no GlobalKey hack)
     Map<String, dynamic>? mediaTransform;
-    if (_mediaViewerKey.currentState != null) {
-      final state = _mediaViewerKey.currentState!;
-      mediaTransform = {
-        'scale': state.scale,
-        'translateX': state.offset.dx,
-        'translateY': state.offset.dy,
-        'rotation': state.rotation,
-        'containerWidth': _editorBoxWidth,
-        'containerHeight': _editorBoxHeight,
-      };
+    if (_currentMediaIndex < _mediaTransforms.length) {
+      final transform = _mediaTransforms[_currentMediaIndex];
+      if (!transform.isIdentity) {
+        mediaTransform = transform.toMap();
+      }
     }
 
     if (!mounted) return;
@@ -1261,6 +1281,22 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     return overlays;
   }
 
+  Size _getMediaSize(int index) {
+    if (index < 0 || index >= widget.files.length) return const Size(1080, 1920);
+    final isVideo = _videoControllers.length > index && _videoControllers[index] != null;
+    if (isVideo) {
+      final ctrl = _videoControllers[index]!;
+      if (ctrl.value.isInitialized && ctrl.value.size.width > 0 && ctrl.value.size.height > 0) {
+        return ctrl.value.size;
+      }
+    }
+    if (_imageSizes.length > index && _imageSizes[index] != null) {
+      return _imageSizes[index]!;
+    }
+    // For images, we fall back to a portrait aspect since we don't have synchronous size decoding.
+    return const Size(1080, 1920);
+  }
+
   Widget _buildMedia(Size size) {
     if (widget.files.isEmpty) return const SizedBox.shrink();
     return PageView.builder(
@@ -1351,31 +1387,45 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
 
         return SizedBox.expand(
           child: LayoutBuilder(
-            builder: (context, constraints) {
-            if (_editorBoxWidth != constraints.maxWidth || _editorBoxHeight != constraints.maxHeight) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && (_editorBoxWidth != constraints.maxWidth || _editorBoxHeight != constraints.maxHeight)) {
-                  setState(() {
-                    _editorBoxWidth = constraints.maxWidth;
-                    _editorBoxHeight = constraints.maxHeight;
-                  });
-                }
-              });
-            }
+              builder: (context, constraints) {
+              final mediaSize = _getMediaSize(i);
+              return Center(
+                child: AspectRatio(
+                  aspectRatio: mediaSize.width / mediaSize.height,
+                  child: LayoutBuilder(
+                  builder: (context, innerConstraints) {
+                    if (_editorBoxWidth != innerConstraints.maxWidth || _editorBoxHeight != innerConstraints.maxHeight) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && (_editorBoxWidth != innerConstraints.maxWidth || _editorBoxHeight != innerConstraints.maxHeight)) {
+                          setState(() {
+                            _editorBoxWidth = innerConstraints.maxWidth;
+                            _editorBoxHeight = innerConstraints.maxHeight;
+                          });
+                        }
+                      });
+                    }
 
-            // Scale constants removed since sticker is not draggable
-
-            return Stack(
-              fit: StackFit.expand,
+                    return Stack(
+                      fit: StackFit.expand,
               children: [
                 Stack(
                   fit: StackFit.expand,
                   children: [
-                    _FloatingMediaViewer(
-                      key: _mediaViewerKey,
-                      background: bg,
-                      foreground: fg,
+                    MediaTransformViewer(
+                      key: i == _currentMediaIndex ? _mediaViewerKey : null,
+                      mediaSize: _getMediaSize(i),
+                      initialTransform: i < _mediaTransforms.length
+                          ? _mediaTransforms[i]
+                          : const MediaTransform.identity(),
+                      interactive: true,
                       isGlimpse: widget.isGlimpse,
+                      background: widget.isGlimpse ? bg : null,
+                      onTransformChanged: (newTransform) {
+                        if (i < _mediaTransforms.length) {
+                          _mediaTransforms[i] = newTransform;
+                        }
+                      },
+                      child: fg,
                     ),
                     ..._buildEffectOverlayLayers(_selectedFilterIndex),
                   ],
@@ -1428,7 +1478,11 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                 }),
               ],
             );
-          }
+                  },
+                ),
+              ),
+            );
+            },
           ),
         );
       },
@@ -1614,66 +1668,4 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
   }
 }
 
-class _FloatingMediaViewer extends StatefulWidget {
-  final Widget background;
-  final Widget foreground;
-  final bool isGlimpse;
-
-  const _FloatingMediaViewer({
-    super.key,
-    required this.background,
-    required this.foreground,
-    required this.isGlimpse,
-  });
-
-  @override
-  State<_FloatingMediaViewer> createState() => _FloatingMediaViewerState();
-}
-
-class _FloatingMediaViewerState extends State<_FloatingMediaViewer> {
-  double scale = 1.0;
-  double rotation = 0.0;
-  Offset offset = Offset.zero;
-
-  double _baseScale = 1.0;
-  double _baseRotation = 0.0;
-  Offset _baseOffset = Offset.zero;
-  Offset _focalPoint = Offset.zero;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (widget.isGlimpse) widget.background,
-        if (!widget.isGlimpse) Container(color: Colors.black),
-        GestureDetector(
-          onScaleStart: (details) {
-            _baseScale = scale;
-            _baseRotation = rotation;
-            _baseOffset = offset;
-            _focalPoint = details.focalPoint;
-          },
-          onScaleUpdate: (details) {
-            setState(() {
-              scale = (_baseScale * details.scale).clamp(0.1, 10.0);
-              rotation = _baseRotation + details.rotation;
-              offset = _baseOffset + (details.focalPoint - _focalPoint);
-            });
-          },
-          child: Container(
-            color: Colors.transparent,
-            child: Transform(
-              transform: Matrix4.identity()
-                ..translateByDouble(offset.dx, offset.dy, 0.0, 1.0)
-                ..scaleByDouble(scale, scale, scale, 1.0)
-                ..rotateZ(rotation),
-              alignment: Alignment.center,
-              child: widget.isGlimpse ? widget.foreground : widget.background,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
+// _FloatingMediaViewer removed — replaced by the shared MediaTransformViewer widget.
