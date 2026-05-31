@@ -10,6 +10,7 @@ import 'connection_service.dart';
 import 'database_service.dart';
 import 'current_user_service.dart';
 import 'performance_service.dart';
+import 'view_batch_service.dart';
 
 class PostService {
   PostService._internal();
@@ -451,6 +452,41 @@ class PostService {
     );
   }
 
+  /// Paginated fetch for a specific user's posts (Phase C3 Optimization).
+  Future<({List<PostModel> posts, DocumentSnapshot? lastDoc})> getUserPostsPaginated(
+    String userId, {
+    DocumentSnapshot? startAfter,
+    int limit = 15,
+  }) async {
+    try {
+      Query query = postsCollection
+          .where('authorId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+
+      final snapshot = await query.get();
+      PerformanceService.instance.incrementReadCount(snapshot.docs.length);
+
+      if (snapshot.docs.isEmpty) {
+        return (posts: <PostModel>[], lastDoc: null);
+      }
+
+      final fetchedPosts = snapshot.docs.map((doc) {
+        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      final validPosts = await filterBlockedAndPrivatePosts(fetchedPosts);
+      return (posts: validPosts, lastDoc: snapshot.docs.last);
+    } catch (e) {
+      debugPrint("Error fetching user posts paginated: $e");
+      return (posts: <PostModel>[], lastDoc: null);
+    }
+  }
+
   /// Deletes a post from Firestore.
   Future<void> deletePost(String postId) async {
     try {
@@ -461,48 +497,9 @@ class PostService {
   }
 
   /// Increments the view count for a post and the total views for its author.
-  /// Strictly allows only 1 view per account (no duplicates).
-  /// Does NOT update viewedAt on repeat views to avoid unnecessary stream churn.
+  /// (Phase S1: Now routed through ViewBatchService for extreme scalability)
   Future<void> incrementViewCount(String postId, String authorId) async {
-    try {
-      final currentUser = CurrentUserService.instance.currentUser;
-      final currentUserId = currentUser?.id;
-
-      // Skip tracking if anonymous or if it's the author's own post
-      if (currentUserId != null && currentUserId != authorId) {
-        final viewerRef = postsCollection
-            .doc(postId)
-            .collection('viewers')
-            .doc(currentUserId);
-        final docSnap = await viewerRef.get();
-
-        // Only count if this user has NEVER viewed this post before
-        if (!docSnap.exists) {
-          await viewerRef.set({
-            'userId': currentUserId,
-            'username': currentUser!.username,
-            'profileImageUrl': currentUser.avatarAsset,
-            'viewedAt': FieldValue.serverTimestamp(),
-          });
-
-          await postsCollection.doc(postId).update({
-            'views': FieldValue.increment(1),
-          });
-
-          await _firestore.collection('users').doc(authorId).update({
-            'totalViews': FieldValue.increment(1),
-          });
-
-          DatabaseService.instance.recalculateCreatorRank(authorId);
-        }
-        // No else — do NOT update viewedAt on repeat views.
-        // Updating viewedAt causes the orderBy('viewedAt') stream to
-        // re-emit the document at a new position, leading to visual
-        // duplicates in the viewers list.
-      }
-    } catch (e) {
-      debugPrint("Error incrementing view count: $e");
-    }
+    ViewBatchService.instance.recordView(postId, authorId);
   }
 
   /// Streams the list of viewers for a specific post.

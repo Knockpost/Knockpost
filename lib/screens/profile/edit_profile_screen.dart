@@ -594,7 +594,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ? DecorationImage(
                           image: _coverImageAsset!.startsWith('http')
                               ? CachedNetworkImageProvider(
-                                  _coverImageAsset!,
+                                  (_coverImageAsset == widget.user.coverImageAsset && widget.user.optimizedCoverUrl?.isNotEmpty == true) 
+                                      ? widget.user.optimizedCoverUrl! 
+                                      : _coverImageAsset!,
                                   cacheManager: KnockpostImageCacheManager.instance,
                                 ) as ImageProvider
                               : _coverImageAsset!.startsWith('assets/')
@@ -646,7 +648,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       backgroundImage: _avatarAsset != null
                           ? (_avatarAsset!.startsWith('http')
                               ? CachedNetworkImageProvider(
-                                  _avatarAsset!,
+                                  (_avatarAsset == widget.user.avatarAsset && widget.user.optimizedAvatarUrl?.isNotEmpty == true) 
+                                      ? widget.user.optimizedAvatarUrl! 
+                                      : _avatarAsset!,
                                   cacheManager: KnockpostImageCacheManager.instance,
                                 )
                               : _avatarAsset!.startsWith('assets/')

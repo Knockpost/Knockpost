@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'optimized_image.dart';
 
 /// Production-grade avatar widget for the entire Knockpost app.
 ///
@@ -24,6 +25,9 @@ class KnockpostAvatar extends StatelessWidget {
   /// - `assets/` → asset image (instant)
   /// - anything else → local file image
   final String? url;
+  
+  /// The optimized image URL (optional).
+  final String? optimizedUrl;
 
   /// CircleAvatar radius (half the diameter).
   final double radius;
@@ -35,6 +39,7 @@ class KnockpostAvatar extends StatelessWidget {
   const KnockpostAvatar({
     super.key,
     this.url,
+    this.optimizedUrl,
     required this.radius,
     this.name,
   });
@@ -74,9 +79,10 @@ class KnockpostAvatar extends StatelessWidget {
       );
     }
 
-    // ── Network image: shimmer → fade-in → error fallback ──
+    // ── Network image ──
     return _NetworkAvatar(
       url: url!,
+      optimizedUrl: optimizedUrl,
       radius: radius,
       name: name,
       isDark: isDark,
@@ -117,6 +123,7 @@ class KnockpostAvatar extends StatelessWidget {
 
 class _NetworkAvatar extends StatelessWidget {
   final String url;
+  final String? optimizedUrl;
   final double radius;
   final String? name;
   final bool isDark;
@@ -124,6 +131,7 @@ class _NetworkAvatar extends StatelessWidget {
 
   const _NetworkAvatar({
     required this.url,
+    this.optimizedUrl,
     required this.radius,
     this.name,
     required this.isDark,
@@ -134,20 +142,21 @@ class _NetworkAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final diameter = radius * 2;
 
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+
     return SizedBox(
       width: diameter,
       height: diameter,
       child: ClipOval(
         child: ColoredBox(
           color: bgColor,
-          child: CachedNetworkImage(
-            imageUrl: url,
+          child: OptimizedImage(
+            rawUrl: url,
+            optimizedUrl: optimizedUrl,
             fit: BoxFit.cover,
             width: diameter,
             height: diameter,
-            memCacheWidth: (radius * 3).toInt(),
-            fadeInDuration: const Duration(milliseconds: 280),
-            fadeInCurve: Curves.easeOut,
+            memCacheWidth: radius <= 30 ? (diameter * dpr).toInt() : null,
             placeholder: (context, url) => _ShimmerCircle(isDark: isDark),
             errorWidget: (context, url, error) {
               debugPrint('[KnockpostAvatar] ✗ Load failed: $url');

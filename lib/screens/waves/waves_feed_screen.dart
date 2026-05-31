@@ -10,6 +10,7 @@ import '../../services/current_user_service.dart';
 import '../../services/database_service.dart';
 import '../../services/waves_feed_manager.dart';
 import '../../services/waves_controller_manager.dart';
+import '../../utils/global_post_state.dart';
 
 class WavesFeedScreen extends StatefulWidget {
   final bool isVisible;
@@ -117,17 +118,20 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
               child: AnimatedBuilder(
                 animation: WavesFeedManager.instance,
                 builder: (context, _) {
-                  final feedManager = WavesFeedManager.instance;
-                  
-                  if (feedManager.isLoading && feedManager.waves.isEmpty) {
-                    return const Center(
-                      child: KnockpostLoadingIndicator(),
-                    );
-                  }
+                  return ValueListenableBuilder<Set<String>>(
+                    valueListenable: GlobalPostState.deletedPostIds,
+                    builder: (context, deletedIds, _) {
+                      final feedManager = WavesFeedManager.instance;
+                      
+                      if (feedManager.isLoading && feedManager.waves.isEmpty) {
+                        return const Center(
+                          child: KnockpostLoadingIndicator(),
+                        );
+                      }
 
-                  final waves = feedManager.waves;
-                  
-                  if (waves.isEmpty) {
+                      final waves = feedManager.waves.where((w) => !deletedIds.contains(w.id)).toList();
+                      
+                      if (waves.isEmpty) {
                     return const Center(
                       child: Text(
                         'No waves yet.\nBe the first to post!',
@@ -235,8 +239,10 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                     },
                   ),
                 );
-              },
-            ),
+                    },
+                  );
+                },
+              ),
           ),
 
           /// 🔝 TOP HEADER

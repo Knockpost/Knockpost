@@ -190,6 +190,17 @@ class PerformanceService {
   // ── Connection Graph Telemetry ──
   int _connectionGraphReadsPrevented = 0;
 
+  // ── Image Optimization Phase C1 Telemetry ──
+  int _imageBandwidthSaved = 0;
+  int _optimizedImageHits = 0;
+  int _optimizedImageMisses = 0;
+  int _imageVariantUsage = 0;
+
+  // ── View Batching Phase S1 Telemetry ──
+  int _batchedViewsFlushed = 0;
+  int _writeOperationsPrevented = 0;
+  int _viewFlushFailures = 0;
+
   /// Increments the Firestore read counter.
   void incrementReadCount([int count = 1]) {
     _firestoreReads += count;
@@ -228,6 +239,17 @@ class PerformanceService {
 
   // ── Connection Graph Tracking ──
   void addConnectionGraphReadsPrevented(int count) => _connectionGraphReadsPrevented += count;
+
+  // ── Image Optimization Phase C1 Tracking ──
+  void addImageBandwidthSaved(int bytes) => _imageBandwidthSaved += bytes;
+  void incrementOptimizedImageHit() => _optimizedImageHits++;
+  void incrementOptimizedImageMiss() => _optimizedImageMisses++;
+  void incrementImageVariantUsage() => _imageVariantUsage++;
+
+  // ── View Batching Phase S1 Tracking ──
+  void addBatchedViewsFlushed(int count) => _batchedViewsFlushed += count;
+  void addWriteOperationsPrevented(int count) => _writeOperationsPrevented += count;
+  void incrementViewFlushFailures() => _viewFlushFailures++;
 
   /// Increments optimistic update success
   void incrementOptimisticUpdateSuccess() => _optimisticUpdateSuccess++;
@@ -487,6 +509,13 @@ class PerformanceService {
         'peakListeners': _peakListenerCount,
         'activeTraces': _activeTraces.keys.toList(),
         'listenerNames': _activeListeners.keys.toList(),
+        'imageBandwidthSaved': _imageBandwidthSaved,
+        'optimizedImageHits': _optimizedImageHits,
+        'optimizedImageMisses': _optimizedImageMisses,
+        'imageVariantUsage': _imageVariantUsage,
+        'batchedViewsFlushed': _batchedViewsFlushed,
+        'writeOperationsPrevented': _writeOperationsPrevented,
+        'viewFlushFailures': _viewFlushFailures,
       };
 
   /// Logs the current debug snapshot to the console.
@@ -518,6 +547,8 @@ class PerformanceService {
     if (stalled.isNotEmpty) {
       debugPrint('│ ⚠ Stalled (>10m):  ${stalled.join(', ')}');
     }
+    debugPrint('│ Image Opt (C1):     Bandwidth Saved: $_imageBandwidthSaved bytes | Hits: $_optimizedImageHits | Misses: $_optimizedImageMisses | Variant Usage: $_imageVariantUsage');
+    debugPrint('│ View Batch (S1):    Batched Flushed: $_batchedViewsFlushed | DB Writes Prevented: $_writeOperationsPrevented | Flush Failures: $_viewFlushFailures');
     debugPrint('└───────────────────────────────────');
   }
 }

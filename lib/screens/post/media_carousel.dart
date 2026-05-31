@@ -9,9 +9,11 @@ import '../../widgets/post_scroll_lock_scope.dart';
 import '../../widgets/zoomable_post_image.dart';
 import '../../../services/image_cache_manager.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/optimized_image.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
+  final List<String>? optimizedImagePaths; // from C1 Phase
   final bool isVideoPost;
   final VoidCallback? onDoubleTap;
   final double? mediaAspectRatio;
@@ -19,6 +21,7 @@ class MediaCarousel extends StatefulWidget {
   const MediaCarousel({
     super.key,
     required this.imagePaths,
+    this.optimizedImagePaths,
     this.isVideoPost = false,
     this.onDoubleTap,
     this.mediaAspectRatio,
@@ -130,9 +133,15 @@ class _MediaCarouselState extends State<MediaCarousel> {
           child: widget.mediaAspectRatio != null
               ? AspectRatio(
                   aspectRatio: widget.mediaAspectRatio!,
-                  child: _buildZoomableImage(widget.imagePaths.first),
+                  child: _buildZoomableImage(
+                    widget.imagePaths.first,
+                    widget.optimizedImagePaths?.isNotEmpty == true ? widget.optimizedImagePaths!.first : null,
+                  ),
                 )
-              : _buildZoomableImage(widget.imagePaths.first),
+              : _buildZoomableImage(
+                  widget.imagePaths.first,
+                  widget.optimizedImagePaths?.isNotEmpty == true ? widget.optimizedImagePaths!.first : null,
+                ),
         ),
       );
     }
@@ -175,7 +184,10 @@ class _MediaCarouselState extends State<MediaCarousel> {
                           _onScroll(); // ensure timer resets on page snap
                         },
                         itemBuilder: (context, index) {
-                          return _buildZoomableImage(widget.imagePaths[index]);
+                          final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > index)
+                              ? widget.optimizedImagePaths![index]
+                              : null;
+                          return _buildZoomableImage(widget.imagePaths[index], optimizedUrl);
                         },
                       ),
                     ),
@@ -251,17 +263,17 @@ class _MediaCarouselState extends State<MediaCarousel> {
     );
   }
 
-  Widget _buildZoomableImage(String path) {
+  Widget _buildZoomableImage(String path, [String? optimizedUrl]) {
     return ZoomablePostImage(
       onDoubleTap: widget.onDoubleTap,
       onInteractionChanged: _hasMultipleImages
           ? _handleZoomInteractionChanged
           : null,
-      child: _buildImage(path),
+      child: _buildImage(path, optimizedUrl),
     );
   }
 
-  Widget _buildImage(String path) {
+  Widget _buildImage(String path, [String? optimizedUrl]) {
     final pathLower = path.toLowerCase();
     final isVideo = widget.isVideoPost ||
         pathLower.contains('.mp4') ||
@@ -274,32 +286,30 @@ class _MediaCarouselState extends State<MediaCarousel> {
       return _VideoItem(path: path, isAsset: path.startsWith('assets/'));
     }
 
-    if (path.startsWith('/') ||
-        path.startsWith('file://') ||
-        path.startsWith('C:') ||
-        path.contains('/data/user/')) {
+    if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
+      );
+    } else if (path.startsWith('http')) {
+      return OptimizedImage(
+        rawUrl: path,
+        optimizedUrl: optimizedUrl,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        cacheManager: KnockpostImageCacheManager.instance,
+        errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
+      );
+    } else {
       return Image.file(
         File(path),
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
         errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
       );
-    } else if (path.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: path,
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-        cacheManager: KnockpostImageCacheManager.instance,
-        errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
-      );
     }
-
-    return Image.asset(
-      path,
-      fit: BoxFit.cover,
-      filterQuality: FilterQuality.high,
-      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
-    );
   }
 }
 

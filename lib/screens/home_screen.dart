@@ -1040,6 +1040,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         card = PostCard(
                                                           imagePaths:
                                                               post.imagePaths,
+                                                          optimizedImagePaths: post.optimizedImagePaths,
                                                           user: author,
                                                           caption: post.text,
                                                           likes: post.likes,

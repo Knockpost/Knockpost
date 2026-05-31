@@ -18,6 +18,7 @@ class GlimpsCard extends StatelessWidget {
   final Map<String, List<PostModel>> groupedGlimpses;
   final List<String> authorIds;
   final int initialAuthorIndex;
+  final Map<String, UserModel> preloadedUsers;
 
   const GlimpsCard({
     super.key,
@@ -28,6 +29,7 @@ class GlimpsCard extends StatelessWidget {
     this.groupedGlimpses = const {},
     this.authorIds = const [],
     this.initialAuthorIndex = 0,
+    this.preloadedUsers = const {},
   });
 
   @override
@@ -42,6 +44,10 @@ class GlimpsCard extends StatelessWidget {
     final thumbnailPath =
         glimpse.coverImagePath ??
         (glimpse.imagePaths.isNotEmpty ? glimpse.imagePaths.first : '');
+        
+    final optimizedThumbnailPath = 
+        glimpse.optimizedCoverImagePath ?? 
+        (glimpse.optimizedImagePaths?.isNotEmpty == true ? glimpse.optimizedImagePaths!.first : null);
 
     return GestureDetector(
       onTap: () {
@@ -52,6 +58,7 @@ class GlimpsCard extends StatelessWidget {
             groupedGlimpses: groupedGlimpses.isNotEmpty ? groupedGlimpses : {user!.id: [glimpse]},
             authorIds: authorIds.isNotEmpty ? authorIds : [user!.id],
             initialAuthorIndex: initialAuthorIndex,
+            preloadedUsers: preloadedUsers.isNotEmpty ? preloadedUsers : {user!.id: user!},
             heroTag: 'glimpse_${glimpse.id}',
           );
         }
@@ -97,7 +104,7 @@ class GlimpsCard extends StatelessWidget {
                     return Image.asset(thumbnailPath, fit: fit);
                   } else if (thumbnailPath.startsWith('http')) {
                     return CachedNetworkImage(
-                      imageUrl: thumbnailPath,
+                      imageUrl: (optimizedThumbnailPath != null && optimizedThumbnailPath.isNotEmpty) ? optimizedThumbnailPath : thumbnailPath,
                       fit: fit,
                       cacheManager: KnockpostImageCacheManager.instance,
                       imageBuilder: (context, imageProvider) {

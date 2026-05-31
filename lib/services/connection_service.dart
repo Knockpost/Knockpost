@@ -362,6 +362,71 @@ class ConnectionService {
         });
   }
 
+  // ── One-time Fetches (Phase C3 Optimization) ──────────────────────────────────
+
+  Future<List<String>> getSentKnockUids() async {
+    final me = _myUid;
+    if (me == null) return [];
+    try {
+      final snap = await _col.where('fromUid', isEqualTo: me).get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
+      return snap.docs.map((d) => (d.data() as Map)['toUid'] as String).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<List<String>> getSentPendingKnockUids() async {
+    final me = _myUid;
+    if (me == null) return [];
+    try {
+      final snap = await _col.where('fromUid', isEqualTo: me).where('status', isEqualTo: 'pending').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
+      return snap.docs.map((d) => (d.data() as Map)['toUid'] as String).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<List<String>> getSentAcceptedKnockUids() async {
+    final me = _myUid;
+    if (me == null) return [];
+    try {
+      final snap = await _col.where('fromUid', isEqualTo: me).where('status', isEqualTo: 'accepted').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
+      return snap.docs.map((d) => (d.data() as Map)['toUid'] as String).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<List<String>> getIncomingPendingKnockUids() async {
+    final me = _myUid;
+    if (me == null) return [];
+    try {
+      final snap = await _col.where('toUid', isEqualTo: me).where('status', isEqualTo: 'pending').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
+      return snap.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<List<String>> getIncomingAcceptedKnockUids() async {
+    final me = _myUid;
+    if (me == null) return [];
+    try {
+      final snap = await _col.where('toUid', isEqualTo: me).where('status', isEqualTo: 'accepted').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
+      return snap.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList();
+    } catch (_) { return []; }
+  }
+
+  Future<List<String>> getMutualConnectionUids() async {
+    final me = _myUid;
+    if (me == null) return [];
+    try {
+      final snap = await _db.collection('mutual_connections').where('participants', arrayContains: me).get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
+      return snap.docs.map((d) {
+        final parts = List<String>.from((d.data() as Map)['participants'] ?? []);
+        return parts.firstWhere((id) => id != me, orElse: () => '');
+      }).where((uid) => uid.isNotEmpty).toList();
+    } catch (_) { return []; }
+  }
+
   /// Fetch UIDs of all people who knocked a specific user (accepted knocks only).
   /// Returns user IDs whose knock to [targetUid] has status 'accepted'.
   Future<List<String>> getKnockerUids(String targetUid) async {

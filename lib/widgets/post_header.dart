@@ -197,32 +197,22 @@ class _PostHeaderState extends State<PostHeader> {
       context,
       MaterialPageRoute(
         builder: (context) {
-          Widget buildScreen(List<PostModel> currentPosts) {
-            if (widget.user.isOwnProfile) {
-              return ProfileScreen(
-                user: widget.user,
-                posts: currentPosts,
-              );
-            } else {
-              return OtherProfileScreen(
-                user: widget.user.copyWith(knockStatus: _status),
-                posts: currentPosts,
-                onKnockStatusChanged: (newStatus) {
-                  if (mounted) {
-                    setState(() => _status = newStatus);
-                  }
-                },
-              );
-            }
+          if (widget.user.isOwnProfile) {
+            return ProfileScreen(
+              user: widget.user,
+              posts: const [],
+            );
+          } else {
+            return OtherProfileScreen(
+              user: widget.user.copyWith(knockStatus: _status),
+              posts: const [],
+              onKnockStatusChanged: (newStatus) {
+                if (mounted) {
+                  setState(() => _status = newStatus);
+                }
+              },
+            );
           }
-
-          return StreamBuilder<List<PostModel>>(
-            stream: PostService.instance.getUserPosts(widget.user.id),
-            builder: (context, snapshot) {
-              // Show whatever we have so far (or empty list if loading)
-              return buildScreen(snapshot.data ?? []);
-            },
-          );
         },
       ),
     );

@@ -28,8 +28,8 @@ class KnockpostImageCacheManager extends CacheManager {
       : super(
           Config(
             key,
-            stalePeriod: const Duration(days: 7),
-            maxNrOfCacheObjects: 1000,
+            stalePeriod: const Duration(days: 14),
+            maxNrOfCacheObjects: 5000,
             repo: JsonCacheInfoRepository(databaseName: key),
             fileService: InstrumentedHttpFileService(),
           ),

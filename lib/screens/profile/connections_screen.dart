@@ -59,32 +59,34 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     );
     Future.microtask(() => _listAnimController.forward());
 
-    // Subscribe to real knock streams
-    ConnectionService.instance.streamSentPendingKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _sentPendingReal = users);
+    // Perform one-time fetch (Phase C3 Optimization)
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final futures = await Future.wait([
+      ConnectionService.instance.getSentPendingKnockUids(),
+      ConnectionService.instance.getSentAcceptedKnockUids(),
+      ConnectionService.instance.getIncomingPendingKnockUids(),
+      ConnectionService.instance.getIncomingAcceptedKnockUids(),
+      ConnectionService.instance.getMutualConnectionUids(),
+    ]);
+
+    final sentPending = await _loadUsersFromUids(futures[0]);
+    final sentAccepted = await _loadUsersFromUids(futures[1]);
+    final incomingPending = await _loadUsersFromUids(futures[2]);
+    final incomingAccepted = await _loadUsersFromUids(futures[3]);
+    final mutual = await _loadUsersFromUids(futures[4]);
+
+    if (mounted) {
+      setState(() {
+        _sentPendingReal = sentPending;
+        _sentAcceptedReal = sentAccepted;
+        _incomingPendingReal = incomingPending;
+        _incomingAcceptedReal = incomingAccepted;
+        _mutualReal = mutual;
       });
-    });
-    ConnectionService.instance.streamSentAcceptedKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _sentAcceptedReal = users);
-      });
-    });
-    ConnectionService.instance.streamIncomingPendingKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _incomingPendingReal = users);
-      });
-    });
-    ConnectionService.instance.streamIncomingAcceptedKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _incomingAcceptedReal = users);
-      });
-    });
-    ConnectionService.instance.streamMutualConnectionUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _mutualReal = users);
-      });
-    });
+    }
   }
 
   Future<List<UserModel>> _loadUsersFromUids(List<String> uids) async {
@@ -351,8 +353,18 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
                       controller: _pageController,
                       onPageChanged: _onPageChanged,
                       children: [
-                        _buildYouKnockedList(isDark, textColor),
-                        _buildKnockedYouList(isDark, textColor),
+                        RefreshIndicator(
+                          onRefresh: _loadData,
+                          color: isDark ? Colors.white : Colors.black,
+                          backgroundColor: bg,
+                          child: _buildYouKnockedList(isDark, textColor),
+                        ),
+                        RefreshIndicator(
+                          onRefresh: _loadData,
+                          color: isDark ? Colors.white : Colors.black,
+                          backgroundColor: bg,
+                          child: _buildKnockedYouList(isDark, textColor),
+                        ),
                       ],
                     ),
                   ),
@@ -679,6 +691,7 @@ class _StaggeredCardList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(0, 6, 0, 24),
       itemCount: itemCount,
       itemBuilder: (context, index) {

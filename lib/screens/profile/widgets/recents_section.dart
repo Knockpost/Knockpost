@@ -148,6 +148,7 @@ class RecentsSection extends StatelessWidget {
                   if (post.type == PostType.media && post.imagePaths.isNotEmpty) {
                     content = PostCard(
                       imagePaths: post.imagePaths,
+                      optimizedImagePaths: post.optimizedImagePaths,
                       user: user,
                       caption: post.text,
                       likes: post.likes,

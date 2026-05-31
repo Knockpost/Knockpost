@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
@@ -13,6 +14,7 @@ import '../../../services/current_user_service.dart';
 import '../../../services/database_service.dart';
 import '../../../services/feed_state_service.dart';
 import '../../../services/glimps_controller_manager.dart';
+import '../../../services/image_cache_manager.dart';
 import '../../utils/image_helper.dart';
 import '../waves/widgets/more_options_sheet.dart';
 import 'package:just_audio/just_audio.dart';
@@ -39,6 +41,7 @@ void openGlimpseViewer(
   required List<String> authorIds,
   required int initialAuthorIndex,
   int initialGlimpseIndex = 0,
+  Map<String, UserModel> preloadedUsers = const {},
   String? heroTag,
 }) {
   Navigator.of(context).push(
@@ -48,6 +51,7 @@ void openGlimpseViewer(
         authorIds: authorIds,
         initialAuthorIndex: initialAuthorIndex,
         initialGlimpseIndex: initialGlimpseIndex,
+        preloadedUsers: preloadedUsers,
         heroTag: heroTag,
       ),
     ),
@@ -87,6 +91,7 @@ class GlimpseViewerScreen extends StatefulWidget {
   final List<String> authorIds;
   final int initialAuthorIndex;
   final int initialGlimpseIndex;
+  final Map<String, UserModel> preloadedUsers;
   final String? heroTag;
 
   const GlimpseViewerScreen({
@@ -95,6 +100,7 @@ class GlimpseViewerScreen extends StatefulWidget {
     required this.authorIds,
     required this.initialAuthorIndex,
     this.initialGlimpseIndex = 0,
+    this.preloadedUsers = const {},
     this.heroTag,
   });
 
@@ -154,6 +160,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen> {
             glimpses: glimpses,
             authorId: authorId,
             initialIndex: isInitialAuthor ? widget.initialGlimpseIndex : 0,
+            preloadedUsers: widget.preloadedUsers,
             onFinished: _goToNextUser,
             onGoToPreviousUser: _goToPrevUser,
           );
@@ -168,6 +175,7 @@ class _SingleUserGlimpseViewer extends StatefulWidget {
   final List<PostModel> glimpses;
   final String authorId;
   final int initialIndex;
+  final Map<String, UserModel> preloadedUsers;
   final VoidCallback onFinished;
   final VoidCallback onGoToPreviousUser;
 
@@ -176,6 +184,7 @@ class _SingleUserGlimpseViewer extends StatefulWidget {
     required this.glimpses,
     required this.authorId,
     this.initialIndex = 0,
+    this.preloadedUsers = const {},
     required this.onFinished,
     required this.onGoToPreviousUser,
   });
@@ -234,6 +243,10 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     final cu = CurrentUserService.instance.currentUser;
     if (cu != null && cu.id == widget.authorId) {
       if (mounted) setState(() => _user = cu);
+      return;
+    }
+    if (widget.preloadedUsers.containsKey(widget.authorId)) {
+      if (mounted) setState(() => _user = widget.preloadedUsers[widget.authorId]);
       return;
     }
     final data = await DatabaseService.instance.getUserProfile(widget.authorId, useCache: true);
@@ -980,7 +993,14 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
     if (path.startsWith('assets/')) {
       return Image.asset(path, fit: fit);
     } else if (path.startsWith('http')) {
-      return Image.network(path, fit: fit);
+      return CachedNetworkImage(
+        imageUrl: path,
+        fit: fit,
+        cacheManager: KnockpostImageCacheManager.instance,
+        fadeInDuration: const Duration(milliseconds: 150),
+        placeholder: (context, url) => Container(color: Colors.black),
+        errorWidget: (context, url, error) => Container(color: Colors.black),
+      );
     } else if (path.isNotEmpty) {
       return Image.file(File(path), fit: fit);
     }

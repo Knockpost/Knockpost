@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
+import 'video_cache_manager.dart';
 import 'performance_service.dart';
 
 /// Centralized manager for Waves video controllers implementing a strict Sliding Window Architecture
@@ -43,44 +45,74 @@ class WavesControllerManager extends ChangeNotifier {
     // 3. Pause non-current videos
     final activeUrl = feedUrls[currentIndex];
     pauseAllExcept(activeUrl);
+
+    // 4. Aggressive background sliding window preloading [i+2, i+3, i+4]
+    for (int i = currentIndex + 2; i <= currentIndex + 4; i++) {
+      if (i >= 0 && i < feedUrls.length) {
+        final preloadUrl = feedUrls[i];
+        KnockpostVideoCacheManager.instance.downloadFile(preloadUrl);
+      }
+    }
     
     notifyListeners();
   }
 
-  void _initControllerIfNeeded(String url) {
+  void _initControllerIfNeeded(String url) async {
     if (_controllers.containsKey(url) || _initLocks.containsKey(url)) return;
 
     PerformanceService.instance.incrementControllerInitializations();
 
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-    _controllers[url] = controller;
-    PerformanceService.instance.setActiveVideoControllers(_controllers.length);
+    final completer = Completer<void>();
+    _initLocks[url] = completer.future;
 
-    final initFuture = controller.initialize().then((_) {
+    try {
+      final fileInfo = await KnockpostVideoCacheManager.instance.getFileFromCache(url);
+      
+      // If the controller was evicted while checking cache, abort instantly
+      if (!_initLocks.containsKey(url)) return;
+
+      VideoPlayerController controller;
+      if (fileInfo != null) {
+        // INSTANT PLAYBACK FROM DISK!
+        controller = VideoPlayerController.file(fileInfo.file);
+      } else {
+        // Fallback to network stream, but start background caching simultaneously
+        KnockpostVideoCacheManager.instance.downloadFile(url);
+        controller = VideoPlayerController.networkUrl(Uri.parse(url));
+      }
+
+      _controllers[url] = controller;
+      PerformanceService.instance.setActiveVideoControllers(_controllers.length);
+
+      await controller.initialize();
       controller.setLooping(true);
-      _initLocks.remove(url);
-    }).catchError((e) {
-      debugPrint("Video init error: $e");
-      _initLocks.remove(url);
-    });
 
-    _initLocks[url] = initFuture;
+      // Final check: if evicted during the async initialization, dispose it immediately
+      if (!_initLocks.containsKey(url)) {
+        controller.dispose();
+        _controllers.remove(url);
+      }
+    } catch (e) {
+      debugPrint("Video init error: $e");
+    } finally {
+      if (_initLocks[url] == completer.future) {
+        _initLocks.remove(url);
+      }
+      if (!completer.isCompleted) completer.complete();
+    }
   }
 
-  Future<void> _disposeControllerSafely(String url) async {
+  void _disposeControllerSafely(String url) {
     final controller = _controllers.remove(url);
     if (controller == null) return;
 
     PerformanceService.instance.setActiveVideoControllers(_controllers.length);
 
-    // If still initializing, await the lock to prevent PlatformException crash
-    if (_initLocks.containsKey(url)) {
-      try {
-        await _initLocks[url];
-      } catch (_) {}
-    }
-
+    // Immediately dispose to free hardware decoders!
+    // The .catchError in _initControllerIfNeeded will handle the initialization abort safely.
+    _initLocks.remove(url);
     controller.dispose();
+    
     PerformanceService.instance.incrementControllerDisposals();
   }
 

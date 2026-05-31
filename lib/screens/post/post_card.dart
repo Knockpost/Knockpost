@@ -22,6 +22,7 @@ import 'dart:async';
 
 class PostCard extends StatefulWidget {
   final List<String> imagePaths;
+  final List<String>? optimizedImagePaths; // from C1 Phase
   final UserModel user;
   final String caption;
   final int likes;
@@ -49,6 +50,7 @@ class PostCard extends StatefulWidget {
   const PostCard({
     super.key,
     required this.imagePaths,
+    this.optimizedImagePaths,
     required this.user,
     this.caption = '',
     this.likes = 0,
@@ -229,6 +231,7 @@ class _PostCardState extends State<PostCard> {
           children: [
             MediaCarousel(
               imagePaths: widget.imagePaths,
+              optimizedImagePaths: widget.optimizedImagePaths,
               isVideoPost: widget.isVideoPost,
               onDoubleTap: _onDoubleTap,
               mediaAspectRatio: widget.mediaAspectRatio,
