@@ -43,6 +43,8 @@ class PrivateReplyDemoStore {
       lastMessage: '',
       lastTimestamp: now,
       unreadCount: 0,
+      ownerUnreadCount: 0,
+      userUnreadCount: 0,
     );
     threads.add(thread);
     _messagesByThread[_threadKey(postId, userId)] = <ReplyMessage>[];
@@ -84,18 +86,26 @@ class PrivateReplyDemoStore {
     final updatedThread = thread.copyWith(
       lastMessage: text,
       lastTimestamp: timestamp,
-      unreadCount: senderId == thread.authorId ? 0 : thread.unreadCount + 1,
+      ownerUnreadCount: senderId == thread.authorId ? 0 : thread.ownerUnreadCount + 1,
+      userUnreadCount: senderId == thread.authorId ? thread.userUnreadCount + 1 : 0,
+      unreadCount: 0,
     );
     _upsertThread(updatedThread);
     return updatedThread;
   }
 
   ReplyThread markThreadRead(ReplyThread thread) {
-    if (thread.unreadCount == 0) {
+    const currentUserId = 'me'; // Hack for mock store
+    if (thread.getUnreadCountFor(currentUserId) == 0) {
       return thread;
     }
 
-    final updatedThread = thread.copyWith(unreadCount: 0);
+    final isPostOwner = thread.authorId == currentUserId;
+    final updatedThread = thread.copyWith(
+      ownerUnreadCount: isPostOwner ? 0 : thread.ownerUnreadCount,
+      userUnreadCount: isPostOwner ? thread.userUnreadCount : 0,
+      unreadCount: 0,
+    );
     _upsertThread(updatedThread);
     return updatedThread;
   }
@@ -129,6 +139,8 @@ class PrivateReplyDemoStore {
         postId: postId,
         authorId: authorId,
         userId: 'arya01',
+        ownerUnreadCount: 0,
+        userUnreadCount: 0,
         unreadCount: 0,
         messages: <ReplyMessage>[
           ReplyMessage(
@@ -170,7 +182,9 @@ class PrivateReplyDemoStore {
         postId: postId,
         authorId: authorId,
         userId: 'suman01',
-        unreadCount: 1,
+        ownerUnreadCount: 0,
+        userUnreadCount: 1,
+        unreadCount: 0,
         messages: <ReplyMessage>[
           ReplyMessage(
             id: '${postId}_suman_1',
@@ -219,7 +233,9 @@ class PrivateReplyDemoStore {
         postId: postId,
         authorId: authorId,
         userId: 'saptarshi01',
-        unreadCount: 1,
+        ownerUnreadCount: 0,
+        userUnreadCount: 1,
+        unreadCount: 0,
         messages: <ReplyMessage>[
           ReplyMessage(
             id: '${postId}_sap_1',
@@ -254,6 +270,8 @@ class PrivateReplyDemoStore {
       postId: postId,
       authorId: authorId,
       userId: 'me',
+      ownerUnreadCount: 0,
+      userUnreadCount: 0,
       unreadCount: 0,
       messages: <ReplyMessage>[
         ReplyMessage(
@@ -298,6 +316,8 @@ class PrivateReplyDemoStore {
     required String userId,
     required List<ReplyMessage> messages,
     required int unreadCount,
+    required int ownerUnreadCount,
+    required int userUnreadCount,
   }) {
     final key = _threadKey(postId, userId);
     final lastMessage = messages.last;
@@ -310,6 +330,8 @@ class PrivateReplyDemoStore {
         lastMessage: lastMessage.text,
         lastTimestamp: lastMessage.timestamp,
         unreadCount: unreadCount,
+        ownerUnreadCount: ownerUnreadCount,
+        userUnreadCount: userUnreadCount,
       ),
     );
     _messagesByThread[key] = List<ReplyMessage>.from(messages);

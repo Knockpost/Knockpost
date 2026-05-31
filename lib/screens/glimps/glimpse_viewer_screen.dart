@@ -9,7 +9,10 @@ import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/reaction_bar.dart';
-import '../../services/current_user_service.dart';
+import '../../../services/current_user_service.dart';
+import '../../../services/database_service.dart';
+import '../../../services/feed_state_service.dart';
+import '../../../services/glimps_controller_manager.dart';
 import '../../utils/image_helper.dart';
 import '../waves/widgets/more_options_sheet.dart';
 import 'package:just_audio/just_audio.dart';
@@ -28,7 +31,6 @@ import '../../services/post_service.dart';
 // • Unique KnockPost accent styling
 // ─────────────────────────────────────────────────────────────────────────────
 
-import '../../../services/database_service.dart';
 
 /// Opens the Glimpse viewer with a custom scale/fade page route.
 void openGlimpseViewer(
@@ -112,6 +114,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    GlimpsControllerManager.instance.disposeAll();
     super.dispose();
   }
 
@@ -216,11 +219,15 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
 
     _loadUser();
     _recordCurrentGlimpseView();
+    _updateControllerWindow();
   }
 
   void _recordCurrentGlimpseView() {
     final glimpse = widget.glimpses[_currentIndex];
-    PostService.instance.incrementViewCount(glimpse.id, glimpse.authorId);
+    final isNewView = FeedStateService.instance.markGlimpseViewed(glimpse.id);
+    if (isNewView) {
+      PostService.instance.incrementViewCount(glimpse.id, glimpse.authorId);
+    }
   }
 
   Future<void> _loadUser() async {
@@ -258,6 +265,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     if (_currentIndex < widget.glimpses.length - 1) {
       setState(() => _currentIndex++);
       _recordCurrentGlimpseView();
+      _updateControllerWindow();
       _progressController.reset();
       _progressController.forward();
     } else {
@@ -266,10 +274,24 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     }
   }
 
+  void _updateControllerWindow() {
+    final urls = widget.glimpses.map((g) {
+      if (g.imagePaths.isNotEmpty) {
+        final path = g.imagePaths.first.toLowerCase();
+        final isVideo = path.contains('.mp4') || path.contains('.mov') || path.contains('.mkv') || path.contains('.webm') || path.contains('.avi');
+        return isVideo ? g.imagePaths.first : '';
+      }
+      return '';
+    }).toList();
+
+    GlimpsControllerManager.instance.updateWindow(_currentIndex, urls);
+  }
+
   void _goToPrevious() {
     if (_currentIndex > 0) {
       setState(() => _currentIndex--);
       _recordCurrentGlimpseView();
+      _updateControllerWindow();
       _progressController.reset();
       _progressController.forward();
     } else {
@@ -472,6 +494,9 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
                      initialLikes: glimpse.likes,
                      initialViews: glimpse.views,
                      timestamp: glimpse.relativeTime,
+                     postThumbnailUrl: glimpse.imagePaths.isNotEmpty
+                         ? glimpse.imagePaths.first
+                         : glimpse.coverImagePath,
                      showShare: false,
                      transparentButtons: true,
                      alignSummaryRight: true,
@@ -793,6 +818,7 @@ class _GlimpseMediaItem extends StatefulWidget {
 
 class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
   VideoPlayerController? _videoController;
+  bool _isManagedController = false;
   AudioPlayer? _audioPlayer;
 
   final List<Map<String, dynamic>> _carouselEffects = [
@@ -867,26 +893,53 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
 
     if (isVideo) {
       if (path.startsWith('http')) {
-        _videoController = VideoPlayerController.networkUrl(Uri.parse(path));
+        _videoController = GlimpsControllerManager.instance.getControllerIfExists(path);
+        if (_videoController != null) {
+          _isManagedController = true;
+        } else {
+          _videoController = VideoPlayerController.networkUrl(Uri.parse(path));
+          _isManagedController = false;
+        }
       } else if (path.startsWith('assets/')) {
         _videoController = VideoPlayerController.asset(path);
+        _isManagedController = false;
       } else {
         _videoController = VideoPlayerController.file(File(path));
+        _isManagedController = false;
       }
 
       widget.progressController.stop();
 
-      _videoController!.initialize().then((_) {
-        if (mounted) {
-          setState(() {});
-          _videoController!.setLooping(false);
-          _videoController!.setVolume(widget.glimpse.originalAudioVolume ?? 1.0);
-          _videoController!.play();
+      bool hasSetup = false;
+      void setupVideo() {
+        if (!mounted || hasSetup) return;
+        hasSetup = true;
+        setState(() {});
+        _videoController!.setLooping(false);
+        _videoController!.setVolume(widget.glimpse.originalAudioVolume ?? 1.0);
+        _videoController!.play();
 
-          widget.progressController.duration = _videoController!.value.duration;
-          widget.progressController.forward(from: 0);
+        widget.progressController.duration = _videoController!.value.duration;
+        widget.progressController.forward(from: 0);
+      }
+
+      if (_videoController!.value.isInitialized) {
+        setupVideo();
+      } else {
+        if (_isManagedController) {
+          void listener() {
+            if (_videoController!.value.isInitialized) {
+              setupVideo();
+              _videoController!.removeListener(listener);
+            }
+          }
+          _videoController!.addListener(listener);
+        } else {
+          _videoController!.initialize().then((_) {
+            setupVideo();
+          });
         }
-      });
+      }
     } else {
       widget.progressController.duration = const Duration(seconds: 6);
       widget.progressController.forward(from: 0);
@@ -913,7 +966,9 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
 
   @override
   void dispose() {
-    _videoController?.dispose();
+    if (!_isManagedController) {
+      _videoController?.dispose();
+    }
     if (_audioPlayer != null) {
       AudioLifecycleManager.instance.unregister(_audioPlayer!);
       _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
@@ -968,7 +1023,24 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
         if (_videoController != null) {
           final isInitialized = _videoController!.value.isInitialized;
           
-          if (!isInitialized) return Container(color: Colors.black);
+          if (!isInitialized) {
+            if (widget.glimpse.coverImagePath != null) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (widget.glimpse.type == PostType.glimps) ...[
+                     ImageFiltered(
+                       imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                       child: _buildImageWidget(widget.glimpse.coverImagePath!, BoxFit.cover),
+                     ),
+                     Container(color: Colors.black.withValues(alpha: 0.35)),
+                  ],
+                  buildForeground(_buildImageWidget(widget.glimpse.coverImagePath!, BoxFit.cover)),
+                ],
+              );
+            }
+            return Container(color: Colors.black);
+          }
 
           final videoWidget = SizedBox.expand(
             child: FittedBox(

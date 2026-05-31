@@ -19,6 +19,7 @@ class CommentSheet extends StatefulWidget {
   final UserModel postAuthor;
   final bool isPostOwner;
   final String? initialThreadUserId;
+  final String? postThumbnailUrl;
 
   const CommentSheet({
     super.key,
@@ -26,6 +27,7 @@ class CommentSheet extends StatefulWidget {
     required this.postAuthor,
     this.isPostOwner = false,
     this.initialThreadUserId,
+    this.postThumbnailUrl,
   });
 
   static void show(
@@ -34,6 +36,7 @@ class CommentSheet extends StatefulWidget {
     required UserModel postAuthor,
     bool isPostOwner = false,
     String? initialThreadUserId,
+    String? postThumbnailUrl,
   }) {
     KnockHaptics.tap();
     showModalBottomSheet<void>(
@@ -46,6 +49,7 @@ class CommentSheet extends StatefulWidget {
         postAuthor: postAuthor,
         isPostOwner: isPostOwner,
         initialThreadUserId: initialThreadUserId,
+        postThumbnailUrl: postThumbnailUrl,
       ),
     );
   }
@@ -101,8 +105,8 @@ class _CommentSheetState extends State<CommentSheet> {
   @override
   void dispose() {
     _pageController.dispose();
-    // Release cached Firestore listeners so they don't leak
-    CommentService.instance.clearStreamCache();
+    // Release cached Firestore listeners so they don't leak, targeted by post
+    CommentService.instance.disposePostStreams(widget.postId);
     super.dispose();
   }
 
@@ -138,6 +142,7 @@ class _CommentSheetState extends State<CommentSheet> {
     CommentService.instance.markThreadRead(
       postId: widget.postId,
       threadUserId: thread.userId,
+      isPostOwner: widget.isPostOwner,
     );
 
     await _pageController.animateToPage(
@@ -169,6 +174,7 @@ class _CommentSheetState extends State<CommentSheet> {
       senderId: _viewer.id,
       threadUserId: threadUserId,
       text: text,
+      postThumbnailUrl: widget.postThumbnailUrl,
     ).catchError((e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -593,6 +593,9 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                       postId: widget.post!.id,
                       postAuthor: widget.author!,
                       isPostOwner: widget.author!.isOwnProfile,
+                      postThumbnailUrl: widget.post!.imagePaths.isNotEmpty 
+                          ? widget.post!.imagePaths.first 
+                          : widget.post!.coverImagePath,
                     );
                   },
                   customIconWidget: const CustomPaint(

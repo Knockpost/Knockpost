@@ -6,6 +6,7 @@ import '../models/reply_thread.dart';
 import 'notification_service.dart';
 import '../models/notification_model.dart';
 import 'chat_logger.dart';
+import 'performance_service.dart';
 
 class CommentService {
   CommentService._internal();
@@ -44,6 +45,13 @@ class CommentService {
   }) {
     final cacheKey = '$postId::$currentUserId::$isPostOwner';
 
+    if (_threadStreamCache.containsKey(cacheKey)) {
+      PerformanceService.instance.incrementPrivateReplyStreamCacheHit();
+      PerformanceService.instance.incrementPrivateReplyStreamReuse();
+    } else {
+      PerformanceService.instance.incrementPrivateReplyStreamCacheMiss();
+    }
+
     return _threadStreamCache.putIfAbsent(cacheKey, () {
       Query query = _threadsRef(postId);
 
@@ -74,6 +82,13 @@ class CommentService {
   }) {
     final cacheKey = '$postId::$threadUserId';
 
+    if (_messageStreamCache.containsKey(cacheKey)) {
+      PerformanceService.instance.incrementPrivateReplyStreamCacheHit();
+      PerformanceService.instance.incrementPrivateReplyStreamReuse();
+    } else {
+      PerformanceService.instance.incrementPrivateReplyStreamCacheMiss();
+    }
+
     return _messageStreamCache.putIfAbsent(cacheKey, () {
       return _messagesRef(postId, threadUserId)
           .orderBy('timestamp', descending: false)
@@ -87,11 +102,31 @@ class CommentService {
     });
   }
 
-  /// Clears cached streams. Call when the CommentSheet is disposed
-  /// so stale listeners don't accumulate across sessions.
-  void clearStreamCache() {
-    _threadStreamCache.clear();
-    _messageStreamCache.clear();
+  /// Disposes streams only for the given [postId] to preserve active
+  /// caches on global / persistent feeds while freeing up memory
+  /// for the dismissed sheet.
+  void disposePostStreams(String postId) {
+    int disposedCount = 0;
+    
+    _threadStreamCache.removeWhere((key, _) {
+      if (key.startsWith('$postId::')) {
+        disposedCount++;
+        return true;
+      }
+      return false;
+    });
+
+    _messageStreamCache.removeWhere((key, _) {
+      if (key.startsWith('$postId::')) {
+        disposedCount++;
+        return true;
+      }
+      return false;
+    });
+
+    for (var i = 0; i < disposedCount; i++) {
+      PerformanceService.instance.incrementPrivateReplyStreamDisposal();
+    }
   }
 
   // ── Send message (batch write — works offline) ────────────────────────
@@ -117,6 +152,7 @@ class CommentService {
     required String threadUserId,
     required String text,
     String? clientId,
+    String? postThumbnailUrl,
   }) async {
     try {
       final now = FieldValue.serverTimestamp();
@@ -153,31 +189,25 @@ class CommentService {
       };
 
       if (senderId == postAuthorId) {
-        threadData['unreadCount'] = 0;
+        // When post owner replies, reset owner unread, increment user unread
+        threadData['ownerUnreadCount'] = 0;
+        threadData['userUnreadCount'] = FieldValue.increment(1);
+        
+        PerformanceService.instance.incrementPrivateReplyUserUnreadUpdates();
       } else {
-        threadData['unreadCount'] = FieldValue.increment(1);
+        // When thread user replies, reset user unread, increment owner unread
+        threadData['userUnreadCount'] = 0;
+        threadData['ownerUnreadCount'] = FieldValue.increment(1);
+        
+        PerformanceService.instance.incrementPrivateReplyOwnerUnreadUpdates();
       }
 
       batch.set(threadRef, threadData, SetOptions(merge: true));
 
       // ── Notification: single write, no duplicates ──
-      // Fetch post thumbnail BEFORE the batch commit so we can include it
-      // in the single notification write. This eliminates the old dual-path
-      // (Fast Path + Slow Path) that caused duplicate push notifications.
+      // postThumbnailUrl is now passed directly from the UI to preserve offline batch queuing
+      // and eliminate 1:1 post document duplicate reads.
       if (senderId != receiverId) {
-        String? postThumbnailUrl;
-        try {
-          final postDoc = await _firestore.collection('posts').doc(postId).get();
-          if (postDoc.exists) {
-            final data = postDoc.data()!;
-            final paths = data['imagePaths'] as List<dynamic>?;
-            if (paths != null && paths.isNotEmpty) {
-              postThumbnailUrl = paths.first as String;
-            }
-          }
-        } catch (_) {
-          // Thumbnail fetch failure should never block the message
-        }
 
         NotificationService.instance.sendNotificationInBatch(
           batch,
@@ -205,6 +235,7 @@ class CommentService {
     required String senderId,
     required String threadUserId,
     required String text,
+    String? postThumbnailUrl,
     int maxRetries = 2,
   }) async {
     final clientId =
@@ -219,6 +250,7 @@ class CommentService {
           threadUserId: threadUserId,
           text: text,
           clientId: clientId,
+          postThumbnailUrl: postThumbnailUrl,
         );
         return; // Success
       } catch (e) {
@@ -239,10 +271,12 @@ class CommentService {
   Future<void> markThreadRead({
     required String postId,
     required String threadUserId,
+    required bool isPostOwner,
   }) async {
     try {
+      final fieldToReset = isPostOwner ? 'ownerUnreadCount' : 'userUnreadCount';
       await _threadsRef(postId).doc(threadUserId).set(
-        {'unreadCount': 0},
+        {fieldToReset: 0},
         SetOptions(merge: true),
       );
     } catch (e) {

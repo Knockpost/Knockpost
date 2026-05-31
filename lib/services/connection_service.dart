@@ -6,6 +6,7 @@ import 'notification_service.dart';
 import '../models/notification_model.dart';
 import 'database_service.dart';
 import '../utils/knock_state_manager.dart';
+import 'performance_service.dart';
 
 /// Handles all Knock / Connection logic.
 ///
@@ -108,6 +109,14 @@ class ConnectionService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
+      // CREATE MUTUAL CONNECTION
+      final sortedUids = [me, fromUid]..sort();
+      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+      batch.set(_db.collection('mutual_connections').doc(mutualId), {
+        'participants': [sortedUids[0], sortedUids[1]],
+        'establishedAt': FieldValue.serverTimestamp(),
+      });
+      
       await batch.commit();
 
       // Send a notification that we knocked back
@@ -138,7 +147,15 @@ class ConnectionService {
     KnockStateManager.instance.setOptimisticStatus(otherUid, nextStatus);
 
     try {
-      await _col.doc(_docId(me, otherUid)).delete();
+      final batch = _db.batch();
+      batch.delete(_col.doc(_docId(me, otherUid)));
+
+      // DELETE MUTUAL CONNECTION
+      final sortedUids = [me, otherUid]..sort();
+      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+      batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      
+      await batch.commit();
 
       // Clean up the notification we sent them
       NotificationService.instance.deleteSentNotification(otherUid, 'knock_$me');
@@ -194,7 +211,15 @@ class ConnectionService {
     KnockStateManager.instance.setOptimisticStatus(fromUid, KnockStatus.none);
 
     try {
-      await _col.doc(_docId(fromUid, me)).delete();
+      final batch = _db.batch();
+      batch.delete(_col.doc(_docId(fromUid, me)));
+
+      // DELETE MUTUAL CONNECTION (Just in case it was mutual)
+      final sortedUids = [me, fromUid]..sort();
+      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+      batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      
+      await batch.commit();
 
       // Clean up their pending notification to us
       NotificationService.instance.deleteNotification('knock_$fromUid');
@@ -321,26 +346,19 @@ class ConnectionService {
   Stream<List<String>> streamMutualConnectionUids() {
     final me = _myUid;
     if (me == null) return const Stream.empty();
-    // Query both directions and intersect in the map
-    return _col
-        .where('fromUid', isEqualTo: me)
-        .where('status', isEqualTo: 'accepted')
+    
+    // Phase Connection Graph: O(1) query instead of O(N) read storm
+    return _db.collection('mutual_connections')
+        .where('participants', arrayContains: me)
         .snapshots()
-        .asyncMap((sentSnap) async {
-          final sentToUids = sentSnap.docs
-              .map((d) => (d.data() as Map)['toUid'] as String)
-              .toSet();
-
-          // For each sent-accepted connection, check if they also accepted back
-          final mutuals = <String>[];
-          for (final uid in sentToUids) {
-            final reverseDoc = await _col.doc(_docId(uid, me)).get();
-            if (reverseDoc.exists) {
-              final reverseStatus = (reverseDoc.data() as Map)['status'];
-              if (reverseStatus == 'accepted') mutuals.add(uid);
-            }
-          }
-          return mutuals;
+        .map((snap) {
+          // Record telemetry: we prevented N reads per emission where N = snap.docs.length
+          PerformanceService.instance.addConnectionGraphReadsPrevented(snap.docs.length);
+          
+          return snap.docs.map((d) {
+            final parts = List<String>.from((d.data() as Map)['participants'] ?? []);
+            return parts.firstWhere((id) => id != me, orElse: () => '');
+          }).where((uid) => uid.isNotEmpty).toList();
         });
   }
 

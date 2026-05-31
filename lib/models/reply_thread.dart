@@ -6,7 +6,9 @@ class ReplyThread {
   final String userId;
   final String lastMessage;
   final DateTime lastTimestamp;
-  final int unreadCount;
+  final int unreadCount; // Legacy
+  final int ownerUnreadCount;
+  final int userUnreadCount;
 
   const ReplyThread({
     required this.postId,
@@ -15,9 +17,19 @@ class ReplyThread {
     required this.lastMessage,
     required this.lastTimestamp,
     this.unreadCount = 0,
+    this.ownerUnreadCount = 0,
+    this.userUnreadCount = 0,
   });
 
   String get id => '$postId::$userId';
+
+  int getUnreadCountFor(String currentUserId) {
+    if (currentUserId == authorId) {
+      return ownerUnreadCount > 0 ? ownerUnreadCount : unreadCount;
+    } else {
+      return userUnreadCount > 0 ? userUnreadCount : unreadCount;
+    }
+  }
 
   ReplyThread copyWith({
     String? postId,
@@ -26,6 +38,8 @@ class ReplyThread {
     String? lastMessage,
     DateTime? lastTimestamp,
     int? unreadCount,
+    int? ownerUnreadCount,
+    int? userUnreadCount,
   }) {
     return ReplyThread(
       postId: postId ?? this.postId,
@@ -34,6 +48,8 @@ class ReplyThread {
       lastMessage: lastMessage ?? this.lastMessage,
       lastTimestamp: lastTimestamp ?? this.lastTimestamp,
       unreadCount: unreadCount ?? this.unreadCount,
+      ownerUnreadCount: ownerUnreadCount ?? this.ownerUnreadCount,
+      userUnreadCount: userUnreadCount ?? this.userUnreadCount,
     );
   }
 
@@ -45,6 +61,8 @@ class ReplyThread {
       'lastMessage': lastMessage,
       'lastTimestamp': FieldValue.serverTimestamp(),
       'unreadCount': unreadCount,
+      'ownerUnreadCount': ownerUnreadCount,
+      'userUnreadCount': userUnreadCount,
     };
   }
 
@@ -53,7 +71,6 @@ class ReplyThread {
       if (ts is Timestamp) return ts.toDate();
       if (ts is int) return DateTime.fromMillisecondsSinceEpoch(ts);
       if (ts is String) return DateTime.tryParse(ts) ?? DateTime.now();
-      // null or unknown → use current time (close to server time, avoids "Jan 1" flash)
       return DateTime.now();
     }
 
@@ -64,6 +81,8 @@ class ReplyThread {
       lastMessage: map['lastMessage'] ?? '',
       lastTimestamp: parseTimestamp(map['lastTimestamp']),
       unreadCount: map['unreadCount'] ?? 0,
+      ownerUnreadCount: map['ownerUnreadCount'] ?? 0,
+      userUnreadCount: map['userUnreadCount'] ?? 0,
     );
   }
 }

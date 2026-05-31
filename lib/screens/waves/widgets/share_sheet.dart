@@ -8,6 +8,8 @@ import '../../../utils/image_helper.dart';
 import '../../../services/connection_service.dart';
 import '../../../services/chat_service.dart';
 import '../../../services/database_service.dart';
+import '../../../services/performance_service.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class ShareSheet extends StatefulWidget {
   final String url;
@@ -29,9 +31,11 @@ class ShareSheet extends StatefulWidget {
 
 class _ShareSheetState extends State<ShareSheet>
     with SingleTickerProviderStateMixin {
-  List<UserModel> _allUsers = [];
+  List<String> _allUids = [];
+  final List<UserModel> _allUsers = [];
   List<UserModel> _filtered = [];
   bool _isLoading = true;
+  bool _isFetchingMore = false;
   bool _isSending = false;
   bool _linkCopied = false;
 
@@ -39,6 +43,7 @@ class _ShareSheetState extends State<ShareSheet>
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _msgCtrl = TextEditingController();
   final FocusNode _msgFocus = FocusNode();
+  final ScrollController _scrollCtrl = ScrollController();
 
   late AnimationController _sendBtnCtrl;
   late Animation<double> _sendBtnScale;
@@ -56,6 +61,7 @@ class _ShareSheetState extends State<ShareSheet>
     );
 
     _searchCtrl.addListener(_onSearch);
+    _scrollCtrl.addListener(_onScroll);
     _loadConnections();
   }
 
@@ -64,32 +70,64 @@ class _ShareSheetState extends State<ShareSheet>
     _searchCtrl.dispose();
     _msgCtrl.dispose();
     _msgFocus.dispose();
+    _scrollCtrl.dispose();
     _sendBtnCtrl.dispose();
     super.dispose();
   }
 
-  /// Parallel fetch — all users at once instead of one-by-one
+  void _onScroll() {
+    if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+      _loadMoreConnections();
+    }
+  }
+
+  /// Phase S3: Virtualized Pagination
   Future<void> _loadConnections() async {
     try {
-      final uids =
-          await ConnectionService.instance.streamMutualConnectionUids().first;
+      _allUids = await ConnectionService.instance.streamMutualConnectionUids().first;
+      await _loadMoreConnections();
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
-      // ✅ Parallel: all getUserById calls at the same time
+  Future<void> _loadMoreConnections() async {
+    if (_isFetchingMore || _allUsers.length >= _allUids.length) return;
+    
+    setState(() => _isFetchingMore = true);
+    const int nextBatchCount = 20;
+    final startIndex = _allUsers.length;
+    final endIndex = (startIndex + nextBatchCount).clamp(0, _allUids.length);
+    final batchUids = _allUids.sublist(startIndex, endIndex);
+
+    try {
+      // Lazy load via cache layer
       final results = await Future.wait(
-        uids.map((uid) => DatabaseService.instance.getUserById(uid)),
+        batchUids.map((uid) => DatabaseService.instance.getUserById(uid)),
       );
 
       final users = results.whereType<UserModel>().toList();
+      
+      // S3 Telemetry
+      PerformanceService.instance.incrementShareSheetPagesLoaded();
+      for (int i=0; i<users.length; i++) {
+        PerformanceService.instance.incrementShareSheetVirtualizedRows();
+      }
+      // Estimate memory savings: 1 UserModel = ~1024 bytes in memory. 
+      // Savings = (Total UIDs - Loaded Users) * 1024 bytes
+      final unloadedCount = _allUids.length - (_allUsers.length + users.length);
+      PerformanceService.instance.addShareSheetMemorySavingsEstimate(unloadedCount * 1024);
 
       if (mounted) {
         setState(() {
-          _allUsers = users;
-          _filtered = users;
+          _allUsers.addAll(users);
           _isLoading = false;
+          _isFetchingMore = false;
+          _onSearch(); // Reapply search filter to new items
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isFetchingMore = false);
     }
   }
 
@@ -132,12 +170,21 @@ class _ShareSheetState extends State<ShareSheet>
       widget.url,
     ].join('\n\n');
 
-    // ✅ Parallel sends
-    await Future.wait(
-      _selected.map((uid) => ChatService.instance
-          .sendMessage(otherUid: uid, text: text)
-          .catchError((_) {})),
-    );
+    try {
+      // Phase S2: Hyper-Scale Fan-Out Architecture
+      await FirebaseFunctions.instance.httpsCallable('sharePostToConnections').call({
+        'text': text,
+        'recipientUids': _selected.toList(),
+      });
+    } catch (e) {
+      debugPrint('Cloud Function sharePostToConnections failed: $e. Falling back to local dispatch.');
+      // Fallback: Legacy local parallel dispatch
+      await Future.wait(
+        _selected.map((uid) => ChatService.instance
+            .sendMessage(otherUid: uid, text: text)
+            .catchError((_) {})),
+      );
+    }
 
     if (mounted) {
       Navigator.pop(context);
@@ -272,6 +319,7 @@ class _ShareSheetState extends State<ShareSheet>
                   : _filtered.isEmpty
                       ? _buildEmpty(subColor)
                       : GridView.builder(
+                          controller: _scrollCtrl,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           physics: const BouncingScrollPhysics(),
                           shrinkWrap: true,

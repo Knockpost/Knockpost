@@ -10,6 +10,9 @@ class InstrumentedHttpFileService extends HttpFileService {
   Future<FileServiceResponse> get(String url, {Map<String, String>? headers}) {
     // If CacheManager delegates to the FileService, it means it was a cache miss.
     PerformanceService.instance.incrementCacheMiss();
+    if (url.contains('chats%2F')) {
+      PerformanceService.instance.incrementMessagingMediaCacheMiss();
+    }
     return super.get(url, headers: headers);
   }
 }
@@ -50,6 +53,9 @@ class KnockpostImageCacheManager extends CacheManager {
         // Wait, FileInfo has `FileSource source`.
         if (response.source == FileSource.Cache) {
           PerformanceService.instance.incrementCacheHit();
+          if (url.contains('chats%2F')) {
+            PerformanceService.instance.incrementMessagingMediaCacheHit();
+          }
         }
       }
       return response;

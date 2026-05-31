@@ -150,7 +150,11 @@ class _ChatScreenState extends State<ChatScreen> {
         _applySearch();
         _isLoadingMessages = false;
       });
-      ChatService.instance.markChatAsRead(_chatId);
+      final unseenIds = messages
+          .where((m) => m.senderId != _myUid && !m.seen)
+          .map((m) => m.id)
+          .toList();
+      ChatService.instance.markChatAsRead(_chatId, unseenMessageIds: unseenIds);
     }, onError: (e) {
       if (!mounted) return;
       _loadingTimeout?.cancel();
@@ -205,6 +209,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _loadingTimeout?.cancel();
     _messageSub?.cancel();
+    ChatService.instance.disposeChatStreams(_chatId);
     _connectivitySub?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
@@ -599,7 +604,12 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'delete':
         KnockHaptics.heavy();
         // Delete from Firestore
-        ChatService.instance.deleteMessage(_chatId, message.id);
+        ChatMessage? nextLatest;
+        final filtered = _firestoreMessages.where((m) => m.id != message.id).toList();
+        if (filtered.isNotEmpty) {
+          nextLatest = filtered.first;
+        }
+        ChatService.instance.deleteMessage(_chatId, message.id, fallbackLastMessage: nextLatest, useFallback: true);
         setState(() {
           if (_replyingToId == message.id) _cancelReply();
           if (_editingMessageId == message.id) _cancelEdit();
@@ -1201,6 +1211,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         cacheManager: KnockpostImageCacheManager.instance,
                         width: MediaQuery.of(context).size.width * 0.62, 
                         fit: BoxFit.cover,
+                        memCacheWidth: 250,
                     ),
                   ),
                 ),

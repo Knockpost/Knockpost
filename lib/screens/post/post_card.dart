@@ -270,6 +270,9 @@ class _PostCardState extends State<PostCard> {
             shareUsername: widget.user.username,
             shareCaption: widget.caption,
             timestamp: widget.timestamp,
+            postThumbnailUrl: widget.imagePaths.isNotEmpty
+                ? widget.imagePaths.first
+                : widget.coverImagePath,
           ),
         ),
 

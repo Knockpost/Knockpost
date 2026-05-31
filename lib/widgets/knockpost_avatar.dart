@@ -145,6 +145,7 @@ class _NetworkAvatar extends StatelessWidget {
             fit: BoxFit.cover,
             width: diameter,
             height: diameter,
+            memCacheWidth: (radius * 3).toInt(),
             fadeInDuration: const Duration(milliseconds: 280),
             fadeInCurve: Curves.easeOut,
             placeholder: (context, url) => _ShimmerCircle(isDark: isDark),

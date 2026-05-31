@@ -11,6 +11,7 @@ import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
 import '../../widgets/knockpost_avatar.dart';
 import '../../services/connection_service.dart';
+import '../../services/performance_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/post_model.dart';
 import '../single_post_screen.dart';
@@ -40,12 +41,40 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final Set<String> _newlyReadIds = {};
   bool _hasMarkedAsRead = false;
+  
+  int _limit = 50;
+  bool _isLoadingMore = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     // Clean up old notifications once per session (efficient server query)
     NotificationService.instance.cleanupOldNotifications();
+    
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore) {
+        _isLoadingMore = true;
+        setState(() {
+          _limit += 50;
+        });
+        PerformanceService.instance.incrementNotificationStreamPagesLoaded();
+        
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) _isLoadingMore = false;
+        });
+      }
+    }
   }
 
   void _markAllRead(List<NotificationModel> notifications) {
@@ -94,7 +123,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       ),
       body: StreamBuilder<List<NotificationModel>>(
-        stream: NotificationService.instance.streamNotifications(),
+        stream: NotificationService.instance.streamNotifications(limit: _limit),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -151,6 +180,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               await Future.delayed(const Duration(milliseconds: 1200));
             },
             child: ListView(
+              controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
               children: [
                 if (todayNotifs.isNotEmpty) ...[

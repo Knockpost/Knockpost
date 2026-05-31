@@ -12,6 +12,7 @@ import 'home_screen.dart';
 import 'signup/signup_verification_screen.dart';
 import 'signup/signup_username_screen.dart';
 import '../../services/current_user_service.dart';
+import '../../services/waves_feed_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -58,6 +59,10 @@ class _SplashScreenState extends State<SplashScreen> {
             const Duration(seconds: 3), // Reduced timeout
             onTimeout: () {},
           );
+          
+          // 🔥 Pre-warm the Waves feed in the background so it's instantly ready
+          WavesFeedManager.instance.loadInitial();
+          
           _navigate(const HomeScreen());
           return;
         }
@@ -79,6 +84,10 @@ class _SplashScreenState extends State<SplashScreen> {
               const Duration(seconds: 3),
               onTimeout: () {},
             );
+            
+            // 🔥 Pre-warm the Waves feed in the background so it's instantly ready
+            WavesFeedManager.instance.loadInitial();
+            
             _navigate(const HomeScreen());
           } else {
             _navigate(
@@ -96,6 +105,7 @@ class _SplashScreenState extends State<SplashScreen> {
         // Fallback navigation if anything throws/times out
         try {
           if (AuthService.instance.currentUser != null) {
+            WavesFeedManager.instance.loadInitial();
             _navigate(const HomeScreen());
           } else {
             _navigate(const LoginScreen());

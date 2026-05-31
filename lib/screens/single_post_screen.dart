@@ -47,6 +47,9 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
           postAuthor: widget.author,
           isPostOwner: widget.isPostOwner,
           initialThreadUserId: widget.initialThreadUserId,
+          postThumbnailUrl: widget.post.imagePaths.isNotEmpty
+              ? widget.post.imagePaths.first
+              : widget.post.coverImagePath,
         );
       });
     } else if (widget.autoOpenReactions) {
