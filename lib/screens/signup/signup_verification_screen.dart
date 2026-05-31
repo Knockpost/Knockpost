@@ -178,7 +178,7 @@ class _SignupVerificationScreenState extends State<SignupVerificationScreen> {
                     const SizedBox(height: 40),
                     
                     if (isChecking)
-                      const Center(child: KnockpostLoadingIndicator()),
+                      const Center(child: KnockPostLoadingIndicator()),
                       
                     const SizedBox(height: 20),
                     

@@ -233,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildAvatar(String? url, {required double radius, String? name}) {
-    return KnockpostAvatar(
+    return KnockPostAvatar(
       url: url,
       radius: radius,
       name: name,
@@ -543,7 +543,7 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(context: context, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text('Report ${widget.otherUser.displayName}?'),
-      content: const Text('Your report will be reviewed. Thank you for keeping Knockpost safe.'),
+      content: const Text('Your report will be reviewed. Thank you for keeping KnockPost safe.'),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         TextButton(
@@ -670,7 +670,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 // ── Message List ──
                 Expanded(
                     child: _isLoadingMessages
-                        ? const Center(child: KnockpostLoadingIndicator())
+                        ? const Center(child: KnockPostLoadingIndicator())
                         : ListView.builder(
                               controller: _scrollController,
                               reverse: true,
@@ -1060,7 +1060,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                           ),
                         ),
-                        const KnockpostLoadingIndicator(), // Uploading indicator
+                        const KnockPostLoadingIndicator(), // Uploading indicator
                       ],
                     ),
                     if (msg.caption.isNotEmpty)

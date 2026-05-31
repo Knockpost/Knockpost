@@ -151,7 +151,7 @@ class _SignupUsernameScreenState
 
                     const SizedBox(height: 36),
 
-                    KnockpostUsernameField(
+                    KnockPostUsernameField(
                       controller: usernameController,
                       autofocus: true,
                       onValidityChanged: (isValid) {
@@ -176,10 +176,12 @@ class _SignupUsernameScreenState
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: KnockpostLoadingIndicator(),
+                                  child: KnockPostLoadingIndicator(
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
                                 )
                               : Text(
                                   "Next",

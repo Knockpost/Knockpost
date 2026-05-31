@@ -202,7 +202,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: KnockpostLoadingIndicator(),
+                            child: KnockPostLoadingIndicator(),
                           )
                         : Text(
                             "Continue",

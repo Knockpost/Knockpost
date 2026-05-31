@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/haptic_helper.dart';
+import '../../widgets/knockpost_refresh.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_verification_screen.dart';
 import 'profile_setup_screen.dart';
@@ -31,7 +32,7 @@ class _SignupPasswordScreenState
 
   bool isLoading = false;
   bool _isPasswordValid = false;
-  final GlobalKey<State<KnockpostPasswordField>> _passwordFieldKey = GlobalKey();
+  final GlobalKey<State<KnockPostPasswordField>> _passwordFieldKey = GlobalKey();
 
   void goNext() async {
     final password = passwordController.text.trim();
@@ -188,7 +189,7 @@ class _SignupPasswordScreenState
 
                     const SizedBox(height: 36),
 
-                    KnockpostPasswordField(
+                    KnockPostPasswordField(
                       key: _passwordFieldKey,
                       controller: passwordController,
                       autofocus: true,
@@ -213,14 +214,22 @@ class _SignupPasswordScreenState
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(
-                          child: Text(
-                            "Next",
-                            style: TextStyle(
-                              color: isDark ? Colors.black : Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          child: isLoading
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: KnockPostLoadingIndicator(
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  "Next",
+                                  style: TextStyle(
+                                    color: isDark ? Colors.black : Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                         ),
                       ),
                     ),

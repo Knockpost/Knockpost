@@ -32,7 +32,7 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 // • Tap-left / tap-right navigation
 // • Vertical swipe-down to dismiss with parallax
 // • Fluid scale+fade route transition from card
-// • Unique Knockpost accent styling
+// • Unique KnockPost accent styling
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -202,7 +202,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   // Per-glimpse duration (seconds)
   static const double _glimpseDuration = 6.0;
 
-  // Knockpost accent
+  // KnockPost accent
   static const Color _accentColor = Colors.white;
   static const Color _accentGlow = Colors.white70;
 
@@ -367,7 +367,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
     if (_user == null) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: KnockpostLoadingIndicator()),
+        body: Center(child: KnockPostLoadingIndicator()),
       );
     }
     final glimpse = widget.glimpses[_currentIndex];

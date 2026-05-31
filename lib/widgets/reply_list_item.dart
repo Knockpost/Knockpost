@@ -42,7 +42,7 @@ class ReplyListItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              KnockpostAvatar(
+              KnockPostAvatar(
                 url: user.avatarAsset,
                 radius: 22,
                 name: user.displayName,

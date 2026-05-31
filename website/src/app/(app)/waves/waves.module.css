@@ -1,0 +1,117 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 60px); /* minus bottom nav */
+  width: 100%;
+  background-color: #000;
+}
+
+@media (min-width: 768px) {
+  .container {
+    height: 100vh;
+  }
+}
+
+.waveContainer {
+  height: 100%;
+  width: 100%;
+  max-width: 450px;
+  position: relative;
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.waveContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.videoPlaceholder {
+  height: 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  background: linear-gradient(180deg, #1a1a1a 0%, #3a3a3a 100%);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.videoOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
+}
+
+.waveInfo {
+  flex: 1;
+  padding-right: 20px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #fff;
+}
+
+.username {
+  font-weight: 600;
+  color: #fff;
+}
+
+.followBtn {
+  border: 1px solid #fff;
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  background: transparent;
+}
+
+.caption {
+  color: #fff;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.actionSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.actionItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.actionItem span {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.liked {
+  color: #ff3040;
+}

@@ -1,0 +1,79 @@
+.container {
+  min-height: 80vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.postCard {
+  width: 100%;
+  max-width: 500px;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.postHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2a2a2a, #4a4a4a);
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.username {
+  font-size: 0.9rem;
+  color: var(--secondary-foreground);
+}
+
+.postMedia {
+  width: 100%;
+  aspect-ratio: 4/5;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%);
+  margin: 0.5rem 0;
+}
+
+.postContent {
+  padding: 0.5rem 0;
+}
+
+.caption {
+  color: var(--secondary-foreground);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.downloadBtn {
+  margin-top: 1rem;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  padding: 1rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 1rem;
+  width: 100%;
+  transition: opacity var(--transition-fast);
+}
+
+.downloadBtn:hover {
+  opacity: 0.9;
+}

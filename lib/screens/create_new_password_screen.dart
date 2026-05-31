@@ -19,7 +19,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   bool _isPasswordValid = false;
-  final GlobalKey<State<KnockpostPasswordField>> _passwordFieldKey = GlobalKey();
+  final GlobalKey<State<KnockPostPasswordField>> _passwordFieldKey = GlobalKey();
 
   void updatePassword() async {
     final pass = passwordController.text.trim();
@@ -112,7 +112,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
                     ),
                     const SizedBox(height: 36),
                     
-                    KnockpostPasswordField(
+                    KnockPostPasswordField(
                       key: _passwordFieldKey,
                       controller: passwordController,
                       autofocus: true,
@@ -137,7 +137,10 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
                         ),
                         child: Center(
                           child: isLoading
-                              ? const SizedBox(height: 20, width: 20, child: KnockpostLoadingIndicator())
+                              ? SizedBox(
+                                  height: 20, width: 20, 
+                                  child: KnockPostLoadingIndicator(color: isDark ? Colors.black : Colors.white)
+                                )
                               : Text("Save & Login", style: TextStyle(
                                   color: isDark ? Colors.black : Colors.white, 
                                   fontSize: 17, 

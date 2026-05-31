@@ -1,7 +1,7 @@
 import os
 import re
 
-lib_dir = 'd:\\project\\Knockpost\\lib'
+lib_dir = 'd:\\project\\KnockPost\\lib'
 
 pattern = re.compile(r'CircularProgressIndicator\s*\([^)]*\)')
 
@@ -19,14 +19,14 @@ def process_file(filepath):
         inner_args = match.group(0)
         if 'value:' in inner_args:
             return inner_args
-        return 'const KnockpostLoadingIndicator()'
+        return 'const KnockPostLoadingIndicator()'
 
     new_content = pattern.sub(replacer, content)
 
     # Clean up double consts
-    new_content = new_content.replace('const const KnockpostLoadingIndicator', 'const KnockpostLoadingIndicator')
+    new_content = new_content.replace('const const KnockPostLoadingIndicator', 'const KnockPostLoadingIndicator')
 
-    if 'KnockpostLoadingIndicator' in new_content and 'KnockpostLoadingIndicator' not in content:
+    if 'KnockPostLoadingIndicator' in new_content and 'KnockPostLoadingIndicator' not in content:
         import_stmt = "import 'package:knockpost/widgets/knockpost_refresh.dart';"
         if import_stmt not in new_content:
             # Add the import right after the first line that looks like an import

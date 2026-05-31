@@ -302,7 +302,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                 if (_isLoading)
                   const Expanded(
                     child: Center(
-                      child: KnockpostLoadingIndicator(),
+                      child: KnockPostLoadingIndicator(),
                     ),
                   )
                 else

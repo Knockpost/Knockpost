@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
-/// Centralized Relationship Engine for Knockpost.
+/// Centralized Relationship Engine for KnockPost.
 /// Maintains a single source of truth for all knock states and ensures
 /// 100% real-time synchronization with Firestore using targeted document listeners.
 class KnockStateManager {

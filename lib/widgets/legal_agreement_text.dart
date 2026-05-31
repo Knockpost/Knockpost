@@ -35,7 +35,7 @@ class LegalAgreementText extends StatelessWidget {
             fontFamily: 'Inter', // Assuming Inter based on styling
           ),
           children: [
-            const TextSpan(text: 'By continuing, you agree to Knockpost’s '),
+            const TextSpan(text: 'By continuing, you agree to KnockPost’s '),
             TextSpan(
               text: 'Terms & Conditions',
               style: TextStyle(

@@ -109,6 +109,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     setState(() => _isPosting = true);
     KnockHaptics.tap();
 
+
     final type = widget.isWaves
         ? PostType.waves
         : (widget.isGlimpse
@@ -609,7 +610,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                                 );
                               }
                             },
-                            child: KnockpostAvatar(
+                            child: KnockPostAvatar(
                               url: CurrentUserService.instance.currentUser?.avatarAsset,
                               radius: 18,
                               name: CurrentUserService.instance.currentUser?.displayName,
@@ -750,7 +751,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: KnockpostLoadingIndicator(),
+                                child: KnockPostLoadingIndicator(),
                               )
                             : const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

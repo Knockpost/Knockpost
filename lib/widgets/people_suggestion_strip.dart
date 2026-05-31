@@ -124,7 +124,7 @@ class _PeopleSuggestionStripState extends State<PeopleSuggestionStrip> {
     if (_isLoading) {
       return const SizedBox(
         height: 220,
-        child: Center(child: KnockpostLoadingIndicator()),
+        child: Center(child: KnockPostLoadingIndicator()),
       );
     }
     if (_users.isEmpty) return const SizedBox.shrink();
@@ -321,7 +321,7 @@ class _SuggestionCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Avatar
-                    KnockpostAvatar(
+                    KnockPostAvatar(
                       url: user.avatarAsset,
                       radius: 30,
                       name: user.displayName,
@@ -630,7 +630,7 @@ class _MutualFriendsOverlap extends StatelessWidget {
                 color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: KnockpostAvatar(
+              child: KnockPostAvatar(
                 url: displayAvatars[index],
                 radius: 8,
               ),

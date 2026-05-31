@@ -499,7 +499,7 @@ class _HeaderAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return KnockpostAvatar(
+    return KnockPostAvatar(
       url: user?.avatarAsset,
       radius: 15,
       name: user?.displayName,

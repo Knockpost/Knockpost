@@ -357,7 +357,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                                 Container(color: Colors.black),
                                 if (_isLoading)
                                   const Center(
-                                    child: KnockpostLoadingIndicator(),
+                                    child: KnockPostLoadingIndicator(),
                                   )
                                 else
                                   _buildCroppableImage(frameSize),
@@ -421,7 +421,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: KnockpostLoadingIndicator(),
+                    child: KnockPostLoadingIndicator(),
                   )
                 : const Text(
                     'Next',

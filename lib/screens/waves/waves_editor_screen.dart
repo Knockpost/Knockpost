@@ -1340,7 +1340,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
                         ),
                       )
                     : const Center(
-                        child: KnockpostLoadingIndicator(),
+                        child: KnockPostLoadingIndicator(),
                       ))
               : Image.file(widget.files[i], fit: fit);
 

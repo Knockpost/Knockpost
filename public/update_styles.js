@@ -146,12 +146,12 @@ files.forEach(file => {
 
     // Add header if not present
     if (!content.includes('<header class="header">')) {
-        content = content.replace('<body>', '<body>\n    <header class="header">\n        <a href="#" class="header-logo">Knockpost</a>\n    </header>');
+        content = content.replace('<body>', '<body>\n    <header class="header">\n        <a href="#" class="header-logo">KnockPost</a>\n    </header>');
     }
 
     // Add footer if not present
     if (!content.includes('<footer>')) {
-        content = content.replace('</body>', '    <footer>\n        &copy; 2026 Knockpost. All rights reserved.<br><br>\n        <a href="privacy">Privacy</a>\n        <a href="terms">Terms</a>\n        <a href="community-guidelines">Guidelines</a>\n        <a href="support">Support</a>\n    </footer>\n</body>');
+        content = content.replace('</body>', '    <footer>\n        &copy; 2026 KnockPost. All rights reserved.<br><br>\n        <a href="privacy">Privacy</a>\n        <a href="terms">Terms</a>\n        <a href="community-guidelines">Guidelines</a>\n        <a href="support">Support</a>\n    </footer>\n</body>');
     }
 
     fs.writeFileSync(filePath, content);

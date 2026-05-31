@@ -129,7 +129,7 @@ class _DiscoverPeopleScreenState extends State<DiscoverPeopleScreen> {
               ),
             ),
             body: _isLoading 
-                ? const Center(child: KnockpostLoadingIndicator())
+                ? const Center(child: KnockPostLoadingIndicator())
                 : filteredUsers.isEmpty
                     ? _buildEmptyState(isDark)
                     : ListView.separated(
@@ -204,7 +204,7 @@ class _DiscoverUserTile extends StatelessWidget {
         child: Row(
           children: [
             // Avatar
-            KnockpostAvatar(
+            KnockPostAvatar(
               url: user.avatarAsset,
               radius: 28,
               name: user.displayName,

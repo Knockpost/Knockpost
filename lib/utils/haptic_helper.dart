@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// Centralized haptic feedback helper for Knockpost.
+/// Centralized haptic feedback helper for KnockPost.
 /// Mirrors the haptic patterns used by Instagram, Facebook, X, and Substack.
 class KnockHaptics {
   KnockHaptics._();

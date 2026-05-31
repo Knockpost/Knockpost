@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/haptic_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KnockpostRefreshIndicator
+// KnockPostRefreshIndicator
 //
 // Fully custom Instagram-style pull-to-refresh.
 // NO Material RefreshIndicator used — 100% custom visuals.
@@ -14,25 +14,25 @@ import '../utils/haptic_helper.dart';
 //   3. Release → arc spins smoothly during refresh
 //   4. Refresh done → arc fades out + slides up elegantly
 //
-// The indicator is a thin open-arc ring (Knockpost-branded spinner).
+// The indicator is a thin open-arc ring (KnockPost-branded spinner).
 // ─────────────────────────────────────────────────────────────────────────────
 
-class KnockpostRefreshIndicator extends StatefulWidget {
+class KnockPostRefreshIndicator extends StatefulWidget {
   final Widget child;
   final Future<void> Function() onRefresh;
 
-  const KnockpostRefreshIndicator({
+  const KnockPostRefreshIndicator({
     super.key,
     required this.child,
     required this.onRefresh,
   });
 
   @override
-  State<KnockpostRefreshIndicator> createState() =>
-      _KnockpostRefreshIndicatorState();
+  State<KnockPostRefreshIndicator> createState() =>
+      _KnockPostRefreshIndicatorState();
 }
 
-class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
+class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
     with SingleTickerProviderStateMixin {
   static const double _triggerDistance = 100.0; // px to trigger refresh
   static const double _maxDisplacement = 70.0; // max visible drop distance
@@ -94,11 +94,11 @@ class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
       await widget.onRefresh().timeout(
         _safetyTimeout,
         onTimeout: () {
-          debugPrint('[KnockpostRefresh] onRefresh timed out after $_safetyTimeout');
+          debugPrint('[KnockPostRefresh] onRefresh timed out after $_safetyTimeout');
         },
       );
     } catch (e) {
-      debugPrint('[KnockpostRefresh] onRefresh error: $e');
+      debugPrint('[KnockPostRefresh] onRefresh error: $e');
     } finally {
       if (mounted) {
         _spinController.stop();
@@ -273,24 +273,25 @@ class _KnockpostRefreshIndicatorState extends State<KnockpostRefreshIndicator>
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KnockpostLoadingIndicator
+// KnockPostLoadingIndicator
 //
 // Standalone branded loading spinner for initial-load / waiting states.
 // Replaces all default CircularProgressIndicator instances.
 // Thin open-arc ring with smooth continuous rotation.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class KnockpostLoadingIndicator extends StatefulWidget {
+class KnockPostLoadingIndicator extends StatefulWidget {
   final double size;
+  final Color? color;
 
-  const KnockpostLoadingIndicator({super.key, this.size = 44});
+  const KnockPostLoadingIndicator({super.key, this.size = 44, this.color});
 
   @override
-  State<KnockpostLoadingIndicator> createState() =>
-      _KnockpostLoadingIndicatorState();
+  State<KnockPostLoadingIndicator> createState() =>
+      _KnockPostLoadingIndicatorState();
 }
 
-class _KnockpostLoadingIndicatorState extends State<KnockpostLoadingIndicator>
+class _KnockPostLoadingIndicatorState extends State<KnockPostLoadingIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -324,6 +325,7 @@ class _KnockpostLoadingIndicatorState extends State<KnockpostLoadingIndicator>
               pullProgress: 1.0,
               isRefreshing: true,
               isDark: isDark,
+              customColor: widget.color,
             ),
           );
         },
@@ -342,18 +344,20 @@ class _ThreeDotPainter extends CustomPainter {
   final double pullProgress; // For pulling down (0 to 1)
   final bool isRefreshing;
   final bool isDark;
+  final Color? customColor;
 
   const _ThreeDotPainter({
     required this.progress,
     required this.pullProgress,
     required this.isRefreshing,
     required this.isDark,
+    this.customColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final color = isDark ? Colors.white : Colors.black;
+    final color = customColor ?? (isDark ? Colors.white : Colors.black);
 
     // Scale dynamically based on canvas size
     final baseScale = size.width / 48.0;

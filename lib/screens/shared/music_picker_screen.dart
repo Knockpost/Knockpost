@@ -327,7 +327,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                     return const Center(
                       child: SizedBox(
                         width: 24, height: 24, 
-                        child: KnockpostLoadingIndicator(),
+                        child: KnockPostLoadingIndicator(),
                       )
                     );
                   }
@@ -461,7 +461,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                                   child: _isLoadingAudio && isPlaying
                                       ? const Padding(
                                           padding: EdgeInsets.all(10),
-                                          child: KnockpostLoadingIndicator(),
+                                          child: KnockPostLoadingIndicator(),
                                         )
                                       : Icon(
                                           isPlaying

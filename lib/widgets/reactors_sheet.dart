@@ -64,7 +64,7 @@ class ReactorsSheet extends StatelessWidget {
               stream: LikeService.instance.getPostReactions(postId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: KnockpostLoadingIndicator());
+                  return const Center(child: KnockPostLoadingIndicator());
                 }
                 
                 final reactors = snapshot.data ?? [];
@@ -178,7 +178,7 @@ class _ReactorTile extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                KnockpostAvatar(
+                KnockPostAvatar(
                   url: user.avatarAsset,
                   radius: 24,
                   name: user.displayName,

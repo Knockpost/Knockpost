@@ -283,7 +283,7 @@ class _PostHeaderState extends State<PostHeader> {
             behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
-                KnockpostAvatar(
+                KnockPostAvatar(
                   url: user.avatarAsset,
                   radius: 18,
                   name: user.displayName,

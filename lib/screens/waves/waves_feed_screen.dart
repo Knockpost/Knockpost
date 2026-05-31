@@ -110,7 +110,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
         body: Stack(
           children: [
             /// 🎬 REEL PAGES (vertical scroll)
-            KnockpostRefreshIndicator(
+            KnockPostRefreshIndicator(
               onRefresh: () async {
                 await WavesFeedManager.instance.refresh();
               },
@@ -121,7 +121,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                   
                   if (feedManager.isLoading && feedManager.waves.isEmpty) {
                     return const Center(
-                      child: KnockpostLoadingIndicator(),
+                      child: KnockPostLoadingIndicator(),
                     );
                   }
 
@@ -174,7 +174,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                     },
                     itemBuilder: (context, index) {
                       if (index == waves.length) {
-                        return const Center(child: KnockpostLoadingIndicator());
+                        return const Center(child: KnockPostLoadingIndicator());
                       }
 
                       final post = waves[index];

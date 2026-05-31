@@ -232,7 +232,7 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
           // ── Friends List ────────────────────────────────────────────────
           Expanded(
             child: _isLoading 
-              ? const Center(child: KnockpostLoadingIndicator())
+              ? const Center(child: KnockPostLoadingIndicator())
               : _filteredFriends.isEmpty
                 ? Center(
                     child: Text(
@@ -283,7 +283,7 @@ class _FriendPickerScreenState extends State<FriendPickerScreen> {
                               ),
                               const SizedBox(width: 16),
                               // Avatar
-                              KnockpostAvatar(
+                              KnockPostAvatar(
                                 url: user.avatarAsset,
                                 radius: 22,
                                 name: user.displayName,

@@ -195,7 +195,7 @@ class _CustomInAppNotificationState extends State<CustomInAppNotification>
               children: [
                 // App icon or profile image
                 if (widget.profileImageUrl != null && widget.profileImageUrl!.isNotEmpty)
-                  KnockpostAvatar(
+                  KnockPostAvatar(
                     url: widget.profileImageUrl!,
                     radius: 19,
                   )
