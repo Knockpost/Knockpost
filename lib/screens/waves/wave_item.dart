@@ -441,7 +441,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
               Container(
                 color: Colors.black.withValues(alpha: 0.3),
                 child: const Center(
-                  child: KnockpostLoadingIndicator(),
+                  child: KnockPostLoadingIndicator(),
                 ),
               ),
           ],
