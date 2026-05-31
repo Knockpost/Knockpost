@@ -176,7 +176,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: KnockpostLoadingIndicator()),
+      builder: (_) => const Center(child: KnockPostLoadingIndicator()),
     );
 
     try {
@@ -609,7 +609,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                                 );
                               }
                             },
-                            child: KnockpostAvatar(
+                            child: KnockPostAvatar(
                               url: CurrentUserService.instance.currentUser?.avatarAsset,
                               radius: 18,
                               name: CurrentUserService.instance.currentUser?.displayName,
@@ -750,7 +750,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: KnockpostLoadingIndicator(),
+                                child: KnockPostLoadingIndicator(),
                               )
                             : const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
