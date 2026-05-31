@@ -2,8 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'user_cache_service.dart';
 
 class AuthService {
   static final AuthService instance = AuthService._internal();
@@ -26,13 +24,10 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final credential = await _auth.signInWithEmailAndPassword(
+    return await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
-    // Set Crashlytics user identifier for crash correlation
-    FirebaseCrashlytics.instance.setUserIdentifier(credential.user?.uid ?? '');
-    return credential;
   }
 
   /// Creates a new user with Email and Password
@@ -80,15 +75,11 @@ class AuthService {
       idToken: googleAuth.idToken,
     );
 
-    final userCredential = await _auth.signInWithCredential(credential);
-    // Set Crashlytics user identifier for crash correlation
-    FirebaseCrashlytics.instance.setUserIdentifier(userCredential.user?.uid ?? '');
-    return userCredential;
+    return await _auth.signInWithCredential(credential);
   }
 
   /// Logs out the user
   Future<void> signOut() async {
-    UserCacheService.instance.clear();
     await _auth.signOut();
     await _googleSignIn.signOut().catchError((_) => null);
   }
