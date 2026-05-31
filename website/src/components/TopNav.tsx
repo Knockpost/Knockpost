@@ -11,9 +11,9 @@ export default function TopNav() {
         KnockPost
       </Link>
       <div className={styles.actions}>
-        <button className={styles.actionBtn}>
+        <Link href="/notifications" className={styles.actionBtn}>
           <Bell size={24} color="#fff" />
-        </button>
+        </Link>
       </div>
     </header>
   );

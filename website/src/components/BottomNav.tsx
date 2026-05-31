@@ -36,7 +36,6 @@ export default function BottomNav() {
   const navItems = [
     { name: "Home", href: "/feed", icon: Home },
     { name: "Search", href: "/search", icon: Search },
-    { name: "Waves", href: "/waves", icon: WavesIcon },
     { name: "Messages", href: "/messages", icon: MessageSquare },
     { name: "Profile", href: "/profile", icon: User },
   ];
@@ -54,9 +53,9 @@ export default function BottomNav() {
             className={`${styles.navItem} ${isActive ? styles.active : ""}`}
           >
             <Icon 
-              className={styles.icon} 
-              strokeWidth={isActive ? 2.5 : 2} 
-              size={24}
+              size={24} 
+              color={isActive ? "#fff" : "#8e8e8e"} 
+              strokeWidth={isActive ? 2.5 : 2}
             />
           </Link>
         );
