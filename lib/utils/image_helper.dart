@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ImageHelper {
   static final ImagePicker _picker = ImagePicker();
@@ -68,7 +70,7 @@ class ImageHelper {
   static ImageProvider? resolveImage(String? path) {
     if (path == null || path.isEmpty) return null;
     if (path.startsWith('assets/')) return AssetImage(path);
-    if (path.startsWith('http')) return NetworkImage(path);
+    if (path.startsWith('http')) return CachedNetworkImageProvider(path, cacheManager: KnockpostImageCacheManager.instance);
     return FileImage(File(path));
   }
 

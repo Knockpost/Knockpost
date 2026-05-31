@@ -13,7 +13,10 @@ import '../../models/chat_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
+import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/storage_service.dart';
 import '../../services/connectivity_service.dart';
 import '../../utils/haptic_helper.dart';
@@ -1181,7 +1184,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => FullScreenImageViewer(
-                      imageProvider: NetworkImage(msg.imageUrl!),
+                      imageProvider: CachedNetworkImageProvider(
+                        msg.imageUrl!,
+                        cacheManager: KnockpostImageCacheManager.instance,
+                      ),
                       heroTag: 'chat_img_${msg.id}',
                     ),
                   ));
@@ -1190,8 +1196,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   tag: 'chat_img_${msg.id}',
                   child: ClipRRect(
                     borderRadius: borderRadius,
-                    child: Image.network(msg.imageUrl!,
-                        width: MediaQuery.of(context).size.width * 0.62, fit: BoxFit.cover),
+                    child: CachedNetworkImage(
+                        imageUrl: msg.imageUrl!,
+                        cacheManager: KnockpostImageCacheManager.instance,
+                        width: MediaQuery.of(context).size.width * 0.62, 
+                        fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),

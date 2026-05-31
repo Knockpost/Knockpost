@@ -12,6 +12,8 @@ import '../../../widgets/knockpost_avatar.dart';
 import '../../../utils/image_helper.dart';
 import '../../../services/connection_service.dart';
 import '../../../services/database_service.dart';
+import '../../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../services/current_user_service.dart';
 import '../../discover/discover_people_screen.dart';
 import '../connections_screen.dart';
@@ -172,7 +174,10 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                               image: user.coverImageAsset!.startsWith('assets/')
                                   ? AssetImage(user.coverImageAsset!) as ImageProvider
                                   : user.coverImageAsset!.startsWith('http')
-                                      ? NetworkImage(user.coverImageAsset!) as ImageProvider
+                                      ? CachedNetworkImageProvider(
+                                          user.coverImageAsset!,
+                                          cacheManager: KnockpostImageCacheManager.instance,
+                                        ) as ImageProvider
                                       : FileImage(File(user.coverImageAsset!)),
                               fit: BoxFit.cover,
                             )

@@ -16,6 +16,7 @@ import 'blocked_accounts_screen.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/user_cache_service.dart';
 import 'change_password_screen.dart';
 import 'delete_account_screen.dart';
 import 'two_factor_setup_screen.dart';
@@ -1008,6 +1009,7 @@ class _ManageInterestsScreenState extends State<_ManageInterestsScreen> {
       await FirebaseFirestore.instance.collection('users').doc(user.id).update({
         'interests': selectedList,
       });
+      UserCacheService.instance.invalidateUser(user.id);
       await CurrentUserService.instance.loadCurrentUser();
     } catch (e) {
       debugPrint('Error updating interests: $e');

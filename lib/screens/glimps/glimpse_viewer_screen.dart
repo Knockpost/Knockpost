@@ -988,7 +988,7 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
               children: [
                 if (widget.glimpse.type == PostType.glimps) ...[
                    ImageFiltered(
-                     imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                     imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.clamp),
                      child: videoWidget,
                    ),
                    Container(color: Colors.black.withValues(alpha: 0.35)),
@@ -1020,7 +1020,7 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
             children: [
               // Blurred background (cover)
               ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.clamp),
                 child: SizedBox.expand(child: _buildImageWidget(path, BoxFit.cover)),
               ),
               Container(color: Colors.black.withValues(alpha: 0.35)),

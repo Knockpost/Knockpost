@@ -19,12 +19,16 @@ class MusicStickerConfig {
   final double dx;
   final double dy;
   final double scale;
+  final double? containerWidth;
+  final double? containerHeight;
 
   const MusicStickerConfig({
     this.showSticker = true,
     this.dx = 0.0,
     this.dy = 0.0,
     this.scale = 1.0,
+    this.containerWidth,
+    this.containerHeight,
   });
 
   factory MusicStickerConfig.fromMap(Map<String, dynamic>? map) {
@@ -34,6 +38,8 @@ class MusicStickerConfig {
       dx: (map['dx'] as num?)?.toDouble() ?? 0.0,
       dy: (map['dy'] as num?)?.toDouble() ?? 0.0,
       scale: (map['scale'] as num?)?.toDouble() ?? 1.0,
+      containerWidth: (map['containerWidth'] as num?)?.toDouble(),
+      containerHeight: (map['containerHeight'] as num?)?.toDouble(),
     );
   }
 
@@ -42,14 +48,18 @@ class MusicStickerConfig {
         'dx': dx,
         'dy': dy,
         'scale': scale,
+        'containerWidth': containerWidth,
+        'containerHeight': containerHeight,
       };
 
-  MusicStickerConfig copyWith({bool? showSticker, double? dx, double? dy, double? scale}) {
+  MusicStickerConfig copyWith({bool? showSticker, double? dx, double? dy, double? scale, double? containerWidth, double? containerHeight}) {
     return MusicStickerConfig(
       showSticker: showSticker ?? this.showSticker,
       dx: dx ?? this.dx,
       dy: dy ?? this.dy,
       scale: scale ?? this.scale,
+      containerWidth: containerWidth ?? this.containerWidth,
+      containerHeight: containerHeight ?? this.containerHeight,
     );
   }
 }
@@ -1207,7 +1217,9 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
     const hPad = 14.0;
     const vPad = 10.0;
 
-    Widget content = Padding(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        Widget content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
@@ -1316,23 +1328,36 @@ class _MusicStickerWidgetState extends State<MusicStickerWidget>
               dx: config.dx + details.focalPointDelta.dx,
               dy: config.dy + details.focalPointDelta.dy,
               scale: (_baseScale * details.scale).clamp(0.4, 4.0),
+              containerWidth: constraints.maxWidth,
+              containerHeight: constraints.maxHeight,
             ));
           },
           child: content,
         );
       }
 
+      double renderDx = config.dx;
+      double renderDy = config.dy;
+      if (config.containerWidth != null && config.containerWidth! > 0) {
+        renderDx = config.dx * (constraints.maxWidth / config.containerWidth!);
+      }
+      if (config.containerHeight != null && config.containerHeight! > 0) {
+        renderDy = config.dy * (constraints.maxHeight / config.containerHeight!);
+      }
+
       return Align(
         alignment: Alignment.center,
         child: Transform.translate(
-          offset: Offset(config.dx, config.dy),
+          offset: Offset(renderDx, renderDy),
           child: Transform.scale(
             scale: config.scale,
             child: content,
           ),
         ),
       );
-  }
+    },
+  );
+}
 
   Widget _buildMiniWaveform(bool isSmall) {
     final barH = isSmall ? 5.0 : 7.0;

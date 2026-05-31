@@ -2,12 +2,14 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'user_cache_service.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 import 'storage_service.dart';
 import 'connection_service.dart';
 import 'database_service.dart';
 import 'current_user_service.dart';
+import 'performance_service.dart';
 
 class PostService {
   PostService._internal();
@@ -24,7 +26,7 @@ class PostService {
     if (myUid == null) return posts;
 
     // Fetch my profile for my blocked users
-    final myDoc = await _firestore.collection('users').doc(myUid).get();
+    final myDoc = await _firestore.collection('users').doc(myUid).get(const GetOptions(source: Source.cache)).catchError((_) => _firestore.collection('users').doc(myUid).get());
     final myBlockedUsers = myDoc.exists
         ? List<String>.from(myDoc.data()?['blockedUsers'] ?? [])
         : <String>[];
@@ -38,9 +40,9 @@ class PostService {
     await Future.wait(
       uniqueAuthorIds.map((uid) async {
         try {
-          final data = await _firestore.collection('users').doc(uid).get();
-          if (data.exists && data.data() != null) {
-            final user = UserModel.fromMap(data.data()!, uid);
+          final data = await UserCacheService.instance.getUserProfile(uid, isFeedAuthor: true);
+          if (data != null) {
+            final user = UserModel.fromMap(data, uid);
             authorMap[uid] = user;
 
             if (user.accountType == AccountType.normal &&
@@ -177,9 +179,9 @@ class PostService {
       await Future.wait(
         uniqueAuthorIds.map((uid) async {
           try {
-            final data = await _firestore.collection('users').doc(uid).get();
-            if (data.exists && data.data() != null) {
-              authorMap[uid] = UserModel.fromMap(data.data()!, uid);
+            final data = await UserCacheService.instance.getUserProfile(uid, isFeedAuthor: true);
+            if (data != null) {
+              authorMap[uid] = UserModel.fromMap(data, uid);
             }
           } catch (e) {
             debugPrint('PostService: failed to fetch author $uid: $e');
@@ -236,10 +238,112 @@ class PostService {
     });
   }
 
+  /// Paginated fetch for the home feed.
+  /// Replaces getFeedPostsWithAuthors snapshot stream.
+  Future<({List<({PostModel post, UserModel author})> posts, DocumentSnapshot? lastDoc})> getFeedPostsPaginated({
+    required String currentUserId,
+    required UserModel? currentUserModel,
+    DocumentSnapshot? startAfter,
+    int limit = 15,
+  }) async {
+    try {
+      Query query = postsCollection.orderBy('createdAt', descending: true).limit(limit);
+
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.isEmpty) {
+        return (posts: <({PostModel post, UserModel author})>[], lastDoc: null);
+      }
+
+      final fetchedPosts = snapshot.docs
+          .map((doc) {
+            try {
+              return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+            } catch (e) {
+              debugPrint('Error parsing paginated feed post ${doc.id}: $e');
+              return null;
+            }
+          })
+          .where((post) => post != null && (post.duration == PostDuration.lifetime || post.isInRecentsWindow))
+          .cast<PostModel>()
+          .toList();
+
+      final Set<String> uniqueAuthorIds = {};
+      for (final p in fetchedPosts) {
+        if (p.authorId != currentUserId) {
+          uniqueAuthorIds.add(p.authorId);
+        }
+      }
+
+      final Map<String, UserModel> authorMap = {};
+      await Future.wait(
+        uniqueAuthorIds.map((uid) async {
+          try {
+            final data = await UserCacheService.instance.getUserProfile(uid, isFeedAuthor: true);
+            if (data != null) {
+              authorMap[uid] = UserModel.fromMap(data, uid);
+            }
+          } catch (e) {
+            debugPrint('PostService: failed to fetch author $uid: $e');
+          }
+        }),
+      );
+
+      final Map<String, KnockStatus> knockStatusMap = {};
+      await Future.wait(
+        uniqueAuthorIds.map((uid) async {
+          final author = authorMap[uid];
+          if (author != null && author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+            knockStatusMap[uid] = await ConnectionService.instance.getKnockStatus(uid);
+          }
+        }),
+      );
+
+      final List<({PostModel post, UserModel author})> validPosts = [];
+      for (final post in fetchedPosts) {
+        if (post.authorId == currentUserId) {
+          if (currentUserModel != null) {
+            validPosts.add((post: post, author: currentUserModel));
+          }
+          continue;
+        }
+
+        final author = authorMap[post.authorId];
+        if (author == null) continue;
+
+        if (currentUserModel?.blockedUsers.contains(author.id) ?? false) {
+          continue;
+        }
+        if (author.blockedUsers.contains(currentUserId)) {
+          continue;
+        }
+
+        if (author.accountType == AccountType.normal && author.privacyType == PrivacyType.private) {
+          final status = knockStatusMap[author.id];
+          if (status != KnockStatus.knocked && status != KnockStatus.mutualKnocked) {
+            continue;
+          }
+        }
+
+        validPosts.add((post: post, author: author));
+      }
+
+      return (posts: validPosts, lastDoc: snapshot.docs.last);
+    } catch (e) {
+      debugPrint("Error in getFeedPostsPaginated: $e");
+      return (posts: <({PostModel post, UserModel author})>[], lastDoc: null);
+    }
+  }
+
   /// Streams waves (video posts marked as waves) for the Waves Feed.
   Stream<List<PostModel>> getWavesStream({int limit = 30}) {
     return postsCollection
         .where('type', isEqualTo: PostType.waves.name)
+        .limit(50)
         .snapshots()
         .map((snapshot) {
           final posts = snapshot.docs.map((doc) {
@@ -275,6 +379,7 @@ class PostService {
       }
 
       final snapshot = await query.get();
+      PerformanceService.instance.incrementReadCount(snapshot.docs.length);
 
       if (snapshot.docs.isEmpty) {
         return (posts: <PostModel>[], lastDoc: null);
@@ -293,39 +398,13 @@ class PostService {
     }
   }
 
-  /// Fetches all waves up to a limit and sorts them client-side.
-  /// This is used to bypass the need for a Firebase Composite Index while still
-  /// maintaining perfect chronological order for the feed.
-  Future<List<PostModel>> getAllWaves({int limit = 500}) async {
-    try {
-      final snapshot = await postsCollection
-          .where('type', isEqualTo: PostType.waves.name)
-          .limit(limit)
-          .get();
-
-      if (snapshot.docs.isEmpty) return [];
-
-      final fetchedPosts = snapshot.docs.map((doc) {
-        return PostModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
-
-      final validPosts = await filterBlockedAndPrivatePosts(fetchedPosts);
-      
-      // Sort client-side to ensure newest waves are first
-      validPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
-      return validPosts;
-    } catch (e) {
-      debugPrint("Error in getAllWaves: $e");
-      return [];
-    }
-  }
 
   /// Streams active glimpses (stories) for the GlimpsStrip.
   /// Filters out expired glimpses locally to avoid needing a complex composite index.
   Stream<List<PostModel>> getGlimpsesStream({int limit = 30}) {
     return postsCollection
         .where('type', isEqualTo: PostType.glimps.name)
+        .limit(50)
         .snapshots()
         .map((snapshot) {
           final posts = snapshot.docs

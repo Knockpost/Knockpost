@@ -14,11 +14,13 @@ import '../../services/current_user_service.dart';
 import '../../services/like_service.dart';
 import '../../services/post_service.dart';
 import '../../services/waves_controller_manager.dart';
-import '../../services/connection_service.dart';
 import '../../utils/global_knock_state.dart';
 import '../../widgets/knockpost_avatar.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:extended_image/extended_image.dart';
 import 'dart:async';
+import '../shared/music_editor_screen.dart';
+import '../../utils/audio_lifecycle_manager.dart';
 
 class WaveItem extends StatefulWidget {
   final String videoUrl;
@@ -49,6 +51,9 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   static final Set<String> _viewedWaves = {};
   VideoPlayerController? _controller;
   bool _isControllerInitialized = false;
+  AudioPlayer? _audioPlayer;
+
+  bool get _hasMusic => widget.post?.musicUrl != null && widget.post!.musicUrl!.isNotEmpty;
 
   bool isPlaying = true;
   bool showHeart = false;
@@ -57,7 +62,6 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   
   late ValueNotifier<KnockStatus>? _globalNotifier;
   KnockStatus _status = KnockStatus.none;
-  bool _isKnockLoading = false;
 
   /// Like animation
   late AnimationController _heartAnimController;
@@ -120,6 +124,34 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
     /// Video
     _initVideoController();
+    if (_hasMusic) {
+      _initAudio();
+    }
+  }
+
+  Future<void> _initAudio() async {
+    _audioPlayer = AudioPlayer();
+    AudioLifecycleManager.instance.register(_audioPlayer!);
+
+    try {
+      final start = widget.post!.musicTrimStart ?? 0;
+      final uri = Uri.parse(widget.post!.musicUrl!);
+      final source = ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(seconds: start),
+        end: Duration(seconds: start + 60),
+      );
+
+      await _audioPlayer!.setAudioSource(source);
+      _audioPlayer!.setLoopMode(LoopMode.one);
+      _audioPlayer!.setVolume(widget.post!.musicVolume ?? 1.0);
+      
+      if (widget.isActive) {
+        _audioPlayer!.play();
+      }
+    } catch (e) {
+      debugPrint('Waves audio init error: $e');
+    }
   }
 
   void _onGlobalStatusChanged() {
@@ -128,29 +160,37 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _initVideoController() async {
-    try {
-      final controller = await WavesControllerManager.instance.getController(widget.videoUrl);
-      if (!mounted) return;
+  void _initVideoController() {
+    _syncController();
+  }
+
+  void _syncController() {
+    final controller = WavesControllerManager.instance.getControllerIfExists(widget.videoUrl);
+    if (!mounted) return;
+
+    if (controller != _controller) {
+      if (_controller != null) {
+        _controller!.removeListener(_controllerListener);
+      }
       
-      setState(() {
-        _controller = controller;
-        _isControllerInitialized = controller.value.isInitialized;
-      });
-
-      // Listen for initialization changes (in case it wasn't ready)
-      if (!_isControllerInitialized) {
-        controller.addListener(_controllerListener);
-      }
-
-      if (widget.isActive) {
-        controller.play();
-        _trackView();
+      _controller = controller;
+      if (_controller != null) {
+        _isControllerInitialized = _controller!.value.isInitialized;
+        if (!_isControllerInitialized) {
+          _controller!.addListener(_controllerListener);
+        }
       } else {
-        controller.pause();
+        _isControllerInitialized = false;
       }
-    } catch (e) {
-      debugPrint("Video initialization error: $e");
+    }
+
+    if (_controller != null && _isControllerInitialized) {
+      if (widget.isActive && isPlaying) {
+        _controller!.play();
+        _trackView();
+      } else if (!widget.isActive) {
+        _controller!.pause();
+      }
     }
   }
 
@@ -160,6 +200,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
         _isControllerInitialized = true;
       });
       _controller?.removeListener(_controllerListener);
+      _syncController();
     }
   }
 
@@ -194,17 +235,19 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       }
     }
 
-    if (_controller == null || !_isControllerInitialized) return;
+    if (_controller == null && _audioPlayer == null) return;
 
     if (widget.isActive) {
-      _controller!.play();
+      if (_controller != null && _isControllerInitialized) _controller!.play();
+      if (_audioPlayer != null) _audioPlayer!.play();
       isPlaying = true;
       _playPauseAnimController.reverse();
       _trackView();
     } else {
       _viewTimer?.cancel();
       _viewTimer = null;
-      _controller!.pause();
+      if (_controller != null) _controller!.pause();
+      if (_audioPlayer != null) _audioPlayer!.pause();
       isPlaying = false;
     }
   }
@@ -246,60 +289,65 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     // DO NOT dispose _controller here because WavesControllerManager owns it.
     _heartAnimController.dispose();
     _playPauseAnimController.dispose();
+    if (_audioPlayer != null) {
+      AudioLifecycleManager.instance.unregister(_audioPlayer!);
+      _audioPlayer!.dispose();
+    }
     super.dispose();
   }
 
   void togglePlay() {
-    if (_controller == null || !_isControllerInitialized) return;
+    bool videoPlaying = _controller?.value.isPlaying ?? false;
+    bool audioPlaying = _audioPlayer?.playing ?? false;
+    bool currentlyPlaying = videoPlaying || audioPlaying;
 
     setState(() {
-      if (_controller!.value.isPlaying) {
-        _controller!.pause();
+      if (currentlyPlaying) {
+        if (_controller != null) _controller!.pause();
+        if (_audioPlayer != null) _audioPlayer!.pause();
         isPlaying = false;
         _playPauseAnimController.forward();
       } else {
-        _controller!.play();
+        if (_controller != null && _isControllerInitialized) _controller!.play();
+        if (_audioPlayer != null) _audioPlayer!.play();
         isPlaying = true;
         _playPauseAnimController.reverse();
       }
     });
   }
 
-  void _toggleKnock() async {
-    if (widget.author == null || _isKnockLoading) return;
+  void _toggleKnock() {
+    if (widget.author == null) return;
     KnockHaptics.tap();
 
     final isEffectivelyOpen = widget.author!.accountType == AccountType.creator || 
                               widget.author!.privacyType == PrivacyType.open;
 
-    setState(() => _isKnockLoading = true);
+    KnockStatus nextStatus = _status;
+    
+    switch (_status) {
+      case KnockStatus.none:
+      case KnockStatus.theyKnockedYouPending:
+        nextStatus = isEffectivelyOpen ? KnockStatus.knocked : KnockStatus.pending;
+        _showBlackFlash = true;
+        break;
+      case KnockStatus.theyKnockedYou:
+        nextStatus = KnockStatus.mutualKnocked;
+        _showBlackFlash = true;
+        break;
+      case KnockStatus.pending:
+      case KnockStatus.knocked:
+      case KnockStatus.mutualKnocked:
+        nextStatus = KnockStatus.none;
+        break;
+    }
 
-    try {
-      switch (_status) {
-        case KnockStatus.none:
-        case KnockStatus.theyKnockedYouPending:
-          _showBlackFlash = true;
-          setState(() {});
-          await ConnectionService.instance.sendKnock(
-            toUid: widget.author!.id,
-            isOpenProfile: isEffectivelyOpen,
-          );
-          break;
-        case KnockStatus.theyKnockedYou:
-          _showBlackFlash = true;
-          setState(() {});
-          await ConnectionService.instance.acceptKnock(widget.author!.id);
-          break;
-        case KnockStatus.pending:
-        case KnockStatus.knocked:
-        case KnockStatus.mutualKnocked:
-          await ConnectionService.instance.removeKnock(widget.author!.id);
-          break;
-      }
-    } catch (e) {
-      debugPrint('WaveItem._toggleKnock error: $e');
-    } finally {
-      if (mounted) setState(() => _isKnockLoading = false);
+    setState(() {
+      _status = nextStatus;
+    });
+    
+    if (_globalNotifier != null) {
+      _globalNotifier!.value = nextStatus;
     }
 
     if (_showBlackFlash) {
@@ -342,6 +390,96 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     setState(() => _doubleTapped = false);
   }
 
+  Widget _buildMediaLayer() {
+    Widget finalLayer;
+
+    if (widget.post?.isVideoPost != false && _isControllerInitialized && _controller != null) {
+      finalLayer = SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _controller!.value.size.width,
+            height: _controller!.value.size.height,
+            child: VideoPlayer(_controller!),
+          ),
+        ),
+      );
+    } else {
+      finalLayer = SizedBox.expand(
+        child: Container(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (widget.post?.isVideoPost != false && widget.post?.coverImagePath != null && widget.post!.coverImagePath!.isNotEmpty)
+              ExtendedImage.network(
+                widget.post!.coverImagePath!,
+                fit: BoxFit.cover,
+                cache: true,
+                clearMemoryCacheIfFailed: true,
+                loadStateChanged: (state) {
+                  if (state.extendedImageLoadState == LoadState.failed) {
+                    return const SizedBox.shrink();
+                  }
+                  return null;
+                },
+              )
+            else if (widget.post?.isVideoPost == false && widget.post?.imagePaths.isNotEmpty == true)
+              ExtendedImage.network(
+                widget.post!.imagePaths.first,
+                fit: BoxFit.cover,
+                cache: true,
+                clearMemoryCacheIfFailed: true,
+                loadStateChanged: (state) {
+                  if (state.extendedImageLoadState == LoadState.failed) {
+                    return const SizedBox.shrink();
+                  }
+                  return null;
+                },
+              ),
+            if (widget.post?.isVideoPost != false && (!_isControllerInitialized || _controller == null))
+              Container(
+                color: Colors.black.withValues(alpha: 0.3),
+                child: const Center(
+                  child: KnockpostLoadingIndicator(),
+                ),
+              ),
+          ],
+        ),
+      ));
+    }
+
+    if (widget.post?.mediaTransform != null) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final t = widget.post!.mediaTransform!;
+          final cw = (t['containerWidth'] as num?)?.toDouble() ?? constraints.maxWidth;
+          final ch = (t['containerHeight'] as num?)?.toDouble() ?? constraints.maxHeight;
+          final scaleRatioX = cw > 0 ? constraints.maxWidth / cw : 1.0;
+          final scaleRatioY = ch > 0 ? constraints.maxHeight / ch : 1.0;
+          
+          final scale = (t['scale'] as num?)?.toDouble() ?? 1.0;
+          final rot = (t['rotation'] as num?)?.toDouble() ?? 0.0;
+          final dx = (t['translateX'] as num?)?.toDouble() ?? 0.0;
+          final dy = (t['translateY'] as num?)?.toDouble() ?? 0.0;
+
+          return ClipRect(
+            child: Transform(
+              transform: Matrix4.identity()
+                ..translateByDouble(dx * scaleRatioX, dy * scaleRatioY, 0.0, 1.0)
+                ..scaleByDouble(scale, scale, 1.0, 1.0)
+                ..rotateZ(rot),
+              alignment: Alignment.center,
+              child: finalLayer,
+            ),
+          );
+        },
+      );
+    }
+
+    return finalLayer;
+  }
+
   @override
   Widget build(BuildContext context) {
     Color knockBgColor;
@@ -362,47 +500,34 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       knockLabel = 'Knock back';
     }
 
-    return GestureDetector(
-      onTap: togglePlay,
-      onDoubleTap: handleDoubleTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          /// 🎥 VIDEO
-          _isControllerInitialized && _controller != null
-              ? FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: _controller!.value.size.width,
-                    height: _controller!.value.size.height,
-                    child: VideoPlayer(_controller!),
-                  ),
-                )
-              : Container(
-                  color: Colors.black,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (widget.post?.coverImagePath != null)
-                        ExtendedImage.network(
-                          widget.post!.coverImagePath!,
-                          fit: BoxFit.cover,
-                          loadStateChanged: (state) {
-                            if (state.extendedImageLoadState == LoadState.failed) {
-                              return const SizedBox.shrink();
-                            }
-                            return null;
-                          },
-                        ),
-                      Container(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        child: const Center(
-                          child: KnockPostLoadingIndicator(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    return ListenableBuilder(
+      listenable: WavesControllerManager.instance,
+      builder: (context, _) {
+        // Sync on every manager update
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _syncController();
+        });
+
+        return GestureDetector(
+          onTap: togglePlay,
+          onDoubleTap: handleDoubleTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+          /// 🎥 VIDEO / PHOTO MEDIA LAYER
+          _buildMediaLayer(),
+
+          /// 🎵 MUSIC STICKER (if available)
+          if (widget.post?.musicStickerConfig != null)
+            RepaintBoundary(
+              child: MusicStickerWidget(
+                title: widget.post!.musicTitle ?? '',
+                artist: widget.post!.musicArtist ?? '',
+                coverUrl: widget.post!.musicCoverUrl ?? '',
+                configData: widget.post!.musicStickerConfig,
+                isPlaying: isPlaying,
+              ),
+            ),
 
           /// 🌑 GRADIENT OVERLAY (multi-stop for premium feel)
           Container(
@@ -595,7 +720,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
                             duration: const Duration(milliseconds: 300),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: knockTextColor,
                             ),
                             child: Text(knockLabel),
@@ -692,6 +817,8 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
             ),
         ],
       ),
+        );
+      },
     );
   }
 }

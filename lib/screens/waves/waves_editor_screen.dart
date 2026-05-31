@@ -119,8 +119,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
   final FocusNode _textFocusNode = FocusNode();
   final TextEditingController _textOverlayController = TextEditingController();
 
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnim;
 
   final List<String> _emojiStickers = [
     "😍",
@@ -233,13 +231,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     if (_selectedMusic != null) {
       _playSelectedMusic();
     }
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+
 
     // Initialize Video Controllers
     _videoControllers = List.generate(widget.files.length, (i) {
@@ -311,7 +303,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
     _captionController.dispose();
     _textOverlayController.dispose();
     _textFocusNode.dispose();
-    _pulseController.dispose();
+
     super.dispose();
   }
 
@@ -687,55 +679,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _pulseAnim,
-                      builder: (_, __) => Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(
-                            alpha: _pulseAnim.value,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.isGlimpse ? "GLIMPSE" : "WAVES",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+
           const Spacer(),
           if (widget.files.length > 1)
             ClipRRect(
@@ -1397,7 +1341,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
             fit: StackFit.expand,
             children: [
               ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+                imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.clamp),
                 child: bg,
               ),
               Container(color: Colors.black.withValues(alpha: 0.35)),
@@ -1405,11 +1349,9 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           );
         }
 
-        return Center(
-          child: AspectRatio(
-            aspectRatio: 9 / 16,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
+        return SizedBox.expand(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
             if (_editorBoxWidth != constraints.maxWidth || _editorBoxHeight != constraints.maxHeight) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && (_editorBoxWidth != constraints.maxWidth || _editorBoxHeight != constraints.maxHeight)) {
@@ -1487,7 +1429,6 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
               ],
             );
           }
-        ),
           ),
         );
       },
@@ -1701,20 +1642,11 @@ class _FloatingMediaViewerState extends State<_FloatingMediaViewer> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isGlimpse) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(color: Colors.black),
-          widget.background,
-        ],
-      );
-    }
-
     return Stack(
       fit: StackFit.expand,
       children: [
-        widget.background,
+        if (widget.isGlimpse) widget.background,
+        if (!widget.isGlimpse) Container(color: Colors.black),
         GestureDetector(
           onScaleStart: (details) {
             _baseScale = scale;
@@ -1737,7 +1669,7 @@ class _FloatingMediaViewerState extends State<_FloatingMediaViewer> {
                 ..scaleByDouble(scale, scale, scale, 1.0)
                 ..rotateZ(rotation),
               alignment: Alignment.center,
-              child: widget.foreground,
+              child: widget.isGlimpse ? widget.foreground : widget.background,
             ),
           ),
         ),

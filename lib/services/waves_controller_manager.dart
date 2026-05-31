@@ -1,53 +1,87 @@
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
+import 'performance_service.dart';
 
-/// Centralized manager for Waves video controllers to prevent memory leaks,
-/// optimize preloading, and ensure smooth infinite scrolling.
-class WavesControllerManager {
+/// Centralized manager for Waves video controllers implementing a strict Sliding Window Architecture
+/// to prevent memory leaks, initialize stampedes, and ensure smooth infinite scrolling.
+class WavesControllerManager extends ChangeNotifier {
   static final WavesControllerManager instance = WavesControllerManager._internal();
   WavesControllerManager._internal();
 
   final Map<String, VideoPlayerController> _controllers = {};
-  
-  // Maximum active controllers to keep in memory to prevent crashes
-  final int _maxCacheSize = 5;
-  final List<String> _recentlyUsedUrls = [];
+  final Map<String, Future<void>> _initLocks = {};
 
-  /// Gets an existing controller or initializes a new one.
-  Future<VideoPlayerController> getController(String url) async {
-    if (_controllers.containsKey(url)) {
-      _makeRecent(url);
-      return _controllers[url]!;
-    }
-
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-    
-    // We don't await initialization to avoid blocking the UI thread
-    // The VideoPlayer widget will handle the uninitialized state gracefully.
-    controller.initialize().then((_) {
-      controller.setLooping(true);
-    }).catchError((e) {
-      debugPrint("Video init error: $e");
-    });
-    
-    _controllers[url] = controller;
-    _makeRecent(url);
-    _cleanupOldControllers();
-    
-    return controller;
+  /// Retrieves a controller synchronously if it exists in the active window.
+  VideoPlayerController? getControllerIfExists(String url) {
+    return _controllers[url];
   }
 
-  /// Preloads a video without playing it (used for next videos in feed)
-  void preload(String url) {
-    if (!_controllers.containsKey(url)) {
-      final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-      controller.initialize().then((_) {
-        controller.setLooping(true);
-      }).catchError((_) {});
-      _controllers[url] = controller;
-      _makeRecent(url);
-      _cleanupOldControllers();
+  /// Updates the sliding window to maintain exactly [currentIndex - 1, currentIndex, currentIndex + 1].
+  void updateWindow(int currentIndex, List<String> feedUrls) {
+    if (feedUrls.isEmpty) return;
+
+    PerformanceService.instance.incrementControllerWindowUpdates();
+
+    final Set<String> requiredUrls = {};
+    for (int i = currentIndex - 1; i <= currentIndex + 1; i++) {
+      if (i >= 0 && i < feedUrls.length) {
+        requiredUrls.add(feedUrls[i]);
+      }
     }
+
+    // 1. Evict controllers outside the window
+    final urlsToEvict = _controllers.keys.where((url) => !requiredUrls.contains(url)).toList();
+    for (final url in urlsToEvict) {
+      _disposeControllerSafely(url);
+    }
+
+    // 2. Initialize missing controllers in the window
+    for (final url in requiredUrls) {
+      _initControllerIfNeeded(url);
+    }
+
+    // 3. Pause non-current videos
+    final activeUrl = feedUrls[currentIndex];
+    pauseAllExcept(activeUrl);
+    
+    notifyListeners();
+  }
+
+  void _initControllerIfNeeded(String url) {
+    if (_controllers.containsKey(url) || _initLocks.containsKey(url)) return;
+
+    PerformanceService.instance.incrementControllerInitializations();
+
+    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    _controllers[url] = controller;
+    PerformanceService.instance.setActiveVideoControllers(_controllers.length);
+
+    final initFuture = controller.initialize().then((_) {
+      controller.setLooping(true);
+      _initLocks.remove(url);
+    }).catchError((e) {
+      debugPrint("Video init error: $e");
+      _initLocks.remove(url);
+    });
+
+    _initLocks[url] = initFuture;
+  }
+
+  Future<void> _disposeControllerSafely(String url) async {
+    final controller = _controllers.remove(url);
+    if (controller == null) return;
+
+    PerformanceService.instance.setActiveVideoControllers(_controllers.length);
+
+    // If still initializing, await the lock to prevent PlatformException crash
+    if (_initLocks.containsKey(url)) {
+      try {
+        await _initLocks[url];
+      } catch (_) {}
+    }
+
+    controller.dispose();
+    PerformanceService.instance.incrementControllerDisposals();
   }
 
   /// Pauses all controllers except the provided active one
@@ -59,24 +93,10 @@ class WavesControllerManager {
     }
   }
 
-  void _makeRecent(String url) {
-    _recentlyUsedUrls.remove(url);
-    _recentlyUsedUrls.add(url);
-  }
-
-  void _cleanupOldControllers() {
-    if (_recentlyUsedUrls.length > _maxCacheSize) {
-      final oldUrl = _recentlyUsedUrls.removeAt(0);
-      final controllerToDispose = _controllers.remove(oldUrl);
-      controllerToDispose?.dispose();
-    }
-  }
-
   void disposeAll() {
-    for (var controller in _controllers.values) {
-      controller.dispose();
+    final urls = _controllers.keys.toList();
+    for (var url in urls) {
+      _disposeControllerSafely(url);
     }
-    _controllers.clear();
-    _recentlyUsedUrls.clear();
   }
 }

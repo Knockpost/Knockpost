@@ -117,6 +117,8 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
   }
 
   void _initVideo() {
+    if (!widget.post.isVideoPost) return;
+    
     final path = widget.post.imagePaths.isNotEmpty
         ? widget.post.imagePaths.first
         : '';
@@ -323,43 +325,79 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
 
   // ── Video Layer ──────────────────────────────────────────────────────────
   Widget _buildVideoLayer() {
-    if (_initialized && _controller != null) {
-      return FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: _controller!.value.size.width,
-          height: _controller!.value.size.height,
-          child: VideoPlayer(_controller!),
+    Widget finalLayer;
+
+    if (widget.post.isVideoPost && _initialized && _controller != null) {
+      finalLayer = SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _controller!.value.size.width,
+            height: _controller!.value.size.height,
+            child: VideoPlayer(_controller!),
+          ),
         ),
       );
-    }
-
-    // Fallback: thumbnail (only use coverImagePath, since imagePaths.first is a video)
-    final path = widget.post.coverImagePath ?? '';
-    if (path.isEmpty) {
-      return Container(color: const Color(0xFF0A0A0A));
-    }
-
-    Widget image;
-    if (path.startsWith('assets/')) {
-      image = Image.asset(path, fit: BoxFit.cover);
-    } else if (path.startsWith('http')) {
-      image = Image.network(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            Container(color: const Color(0xFF0A0A0A)),
-      );
     } else {
-      image = Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            Container(color: const Color(0xFF0A0A0A)),
+      // Fallback or Photo Wave
+      final path = widget.post.isVideoPost 
+          ? (widget.post.coverImagePath ?? '') 
+          : (widget.post.imagePaths.isNotEmpty ? widget.post.imagePaths.first : '');
+
+      if (path.isEmpty) {
+        finalLayer = Container(color: const Color(0xFF0A0A0A));
+      } else {
+        Widget image;
+        if (path.startsWith('assets/')) {
+          image = Image.asset(path, fit: BoxFit.cover);
+        } else if (path.startsWith('http')) {
+          image = Image.network(
+            path,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                Container(color: const Color(0xFF0A0A0A)),
+          );
+        } else {
+          image = Image.file(
+            File(path),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                Container(color: const Color(0xFF0A0A0A)),
+          );
+        }
+        finalLayer = SizedBox.expand(child: image);
+      }
+    }
+
+    if (widget.post.mediaTransform != null) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final t = widget.post.mediaTransform!;
+          final cw = (t['containerWidth'] as num?)?.toDouble() ?? constraints.maxWidth;
+          final ch = (t['containerHeight'] as num?)?.toDouble() ?? constraints.maxHeight;
+          final scaleRatioX = cw > 0 ? constraints.maxWidth / cw : 1.0;
+          final scaleRatioY = ch > 0 ? constraints.maxHeight / ch : 1.0;
+          
+          final scale = (t['scale'] as num?)?.toDouble() ?? 1.0;
+          final rot = (t['rotation'] as num?)?.toDouble() ?? 0.0;
+          final dx = (t['translateX'] as num?)?.toDouble() ?? 0.0;
+          final dy = (t['translateY'] as num?)?.toDouble() ?? 0.0;
+
+          return ClipRect(
+            child: Transform(
+              transform: Matrix4.identity()
+                ..translateByDouble(dx * scaleRatioX, dy * scaleRatioY, 0.0, 1.0)
+                ..scaleByDouble(scale, scale, 1.0, 1.0)
+                ..rotateZ(rot),
+              alignment: Alignment.center,
+              child: finalLayer,
+            ),
+          );
+        },
       );
     }
 
-    return SizedBox.expand(child: image);
+    return finalLayer;
   }
 
   // ── Three-Layer Adaptive Gradient System ─────────────────────────────────

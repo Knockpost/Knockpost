@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MediaPreview extends StatelessWidget {
   final List<String> mediaFiles;
@@ -41,7 +43,10 @@ class MediaPreview extends StatelessWidget {
                   padding: const EdgeInsets.all(8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(mediaFiles[i]),
+                    child: CachedNetworkImage(
+                      imageUrl: mediaFiles[i],
+                      cacheManager: KnockpostImageCacheManager.instance,
+                    ),
                   ),
                 ),
               ),
