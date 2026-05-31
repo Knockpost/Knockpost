@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
 import '../../services/database_service.dart';
 import '../../services/connection_service.dart';
+import '../../services/user_cache_service.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/knockpost_refresh.dart';
 import 'chat_screen.dart';
@@ -202,14 +203,14 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
   @override
   void initState() {
     super.initState();
-    _profileFuture = DatabaseService.instance.getUserProfile(widget.otherUid, useCache: true);
+    _profileFuture = UserCacheService.instance.getUserProfile(widget.otherUid, isMessagingAuthor: true);
   }
 
   @override
   void didUpdateWidget(_ChatRoomTile oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.otherUid != widget.otherUid) {
-      _profileFuture = DatabaseService.instance.getUserProfile(widget.otherUid, useCache: true);
+      _profileFuture = UserCacheService.instance.getUserProfile(widget.otherUid, isMessagingAuthor: true);
     }
   }
 

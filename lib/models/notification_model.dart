@@ -59,6 +59,10 @@ class NotificationModel {
   // Deduplication / grouping
   final int interactionCount; // How many interactions this notification groups
 
+  // For Push Notification Backend Read Optimization (Phase N2)
+  final String? triggerUserName;
+  final String? triggerAvatarUrl;
+
   const NotificationModel({
     required this.id,
     required this.type,
@@ -69,6 +73,8 @@ class NotificationModel {
     this.commentSnippet,
     this.postId,
     this.interactionCount = 1,
+    this.triggerUserName,
+    this.triggerAvatarUrl,
   });
 
   Map<String, dynamic> toMap() {
@@ -81,6 +87,8 @@ class NotificationModel {
       if (commentSnippet != null) 'commentSnippet': commentSnippet,
       if (postId != null) 'postId': postId,
       'interactionCount': interactionCount,
+      if (triggerUserName != null) 'triggerUserName': triggerUserName,
+      if (triggerAvatarUrl != null) 'triggerAvatarUrl': triggerAvatarUrl,
     };
   }
 
@@ -100,6 +108,8 @@ class NotificationModel {
       commentSnippet: map['commentSnippet'] as String?,
       postId: map['postId'] as String?,
       interactionCount: map['interactionCount'] as int? ?? 1,
+      triggerUserName: map['triggerUserName'] as String?,
+      triggerAvatarUrl: map['triggerAvatarUrl'] as String?,
     );
   }
 

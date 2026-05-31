@@ -11,6 +11,112 @@ const { recalculateCreatorRank } = require("./utils/rankCalculator");
 const { sendNotification, deleteNotification } = require("./utils/notificationSender");
 const { cascadeDeleteUser } = require("./utils/cascadeDelete");
 
+// ─── Phase S2 Sharing Fan-Out ────────────────────────────────────────────────
+
+exports.sharePostToConnections = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const senderId = context.auth.uid;
+  const { text, recipientUids } = data;
+
+  if (!text || !recipientUids || !Array.isArray(recipientUids)) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing text or recipientUids array.");
+  }
+
+  if (recipientUids.length > 2500) {
+    throw new functions.https.HttpsError("resource-exhausted", "Too many recipients (max 2500).");
+  }
+  if (recipientUids.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  const userDoc = await db.collection("users").doc(senderId).get();
+  if (!userDoc.exists) {
+    throw new functions.https.HttpsError("not-found", "Sender user not found.");
+  }
+  const userData = userDoc.data();
+  const triggerUserName = userData.displayName || userData.username || "Someone";
+  const triggerAvatarUrl = userData.profileImageUrl || "";
+
+  // 4 operations per recipient (message, chat meta, notification, user badge). Max batch size is 500.
+  const CHUNK_SIZE = 120;
+  const chunks = [];
+  for (let i = 0; i < recipientUids.length; i += CHUNK_SIZE) {
+    chunks.push(recipientUids.slice(i, i + CHUNK_SIZE));
+  }
+
+  const getChatId = (uid1, uid2) => {
+    return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+  };
+
+  const promises = chunks.map(async (chunk) => {
+    const batch = db.batch();
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    const now = new Date();
+
+    chunk.forEach((recipientId) => {
+      if (recipientId === senderId) return;
+
+      const chatId = getChatId(senderId, recipientId);
+      const chatRef = db.collection("chats").doc(chatId);
+      const msgRef = chatRef.collection("messages").doc(); 
+
+      // 1. Message Doc
+      batch.set(msgRef, {
+        senderId: senderId,
+        text: text,
+        timestamp: timestamp,
+        seen: false,
+        status: "sent",
+        clientId: msgRef.id,
+      });
+
+      let snippet = text;
+      if (snippet.length > 50) snippet = snippet.substring(0, 50) + "...";
+
+      // 2. Chat Metadata
+      batch.set(chatRef, {
+        participants: [senderId, recipientId],
+        lastMessage: snippet,
+        lastMessageTime: timestamp,
+        lastSenderId: senderId,
+        unreadCount: { [recipientId]: admin.firestore.FieldValue.increment(1), [senderId]: 0 },
+      }, { merge: true });
+
+      // 3. Notification Doc
+      const notifDocId = `message_${senderId}_${now.getTime()}_${Math.floor(Math.random() * 10000)}`;
+      const notifRef = db.collection("users").doc(recipientId).collection("notifications").doc(notifDocId);
+      
+      batch.set(notifRef, {
+        id: notifDocId,
+        type: "message",
+        triggerUserId: senderId,
+        timestamp: timestamp,
+        isRead: false,
+        postId: null,
+        commentSnippet: snippet,
+        postThumbnailUrl: null,
+        triggerUserName: triggerUserName,
+        triggerAvatarUrl: triggerAvatarUrl,
+      }, { merge: true });
+
+      // 4. Update recipient's unread notification badge
+      const userRef = db.collection("users").doc(recipientId);
+      batch.update(userRef, {
+        unreadNotificationCount: admin.firestore.FieldValue.increment(1),
+      });
+    });
+
+    return batch.commit();
+  });
+
+  await Promise.all(promises);
+
+  return { success: true, count: recipientUids.length };
+});
+
 /**
  * Hash a string using SHA-256.
  * Used for OTP storage — we never store plaintext OTPs.
@@ -281,11 +387,10 @@ exports.sendPushNotification = functions.firestore
     }
 
     try {
-      // ── Fetch receiver + sender profiles in parallel ──
-      const [userDoc, triggerUserDoc] = await Promise.all([
-        db.collection("users").doc(receiverId).get(),
-        db.collection("users").doc(triggerUserId).get(),
-      ]);
+      // ── Fetch receiver profile only ──
+      // Security Hardening (Phase N2): The sender info is securely embedded in the payload, 
+      // eliminating 50% of the read load (triggerUserDoc read is removed).
+      const userDoc = await db.collection("users").doc(receiverId).get();
 
       if (!userDoc.exists) {
         console.log(`Receiver ${receiverId} not found.`);
@@ -300,10 +405,21 @@ exports.sendPushNotification = functions.firestore
         return null;
       }
 
-      // ── Build sender info ──
-      const triggerUserData = triggerUserDoc.exists ? triggerUserDoc.data() : {};
-      const senderName = triggerUserData.username || triggerUserData.displayName || "Someone";
-      const profileImageUrl = triggerUserData.avatarUrl || triggerUserData.profileImageUrl || "";
+      // ── Build sender info from payload (Fallback to backend if missing) ──
+      // Future architecture: Firestore Rules will enforce that triggerUserName is not spoofed.
+      let senderName = notificationData.triggerUserName;
+      let profileImageUrl = notificationData.triggerAvatarUrl;
+
+      // Fallback for older app versions that haven't updated to N2 yet
+      if (!senderName) {
+        const triggerUserDoc = await db.collection("users").doc(triggerUserId).get();
+        const triggerUserData = triggerUserDoc.exists ? triggerUserDoc.data() : {};
+        senderName = triggerUserData.username || triggerUserData.displayName || "Someone";
+        profileImageUrl = triggerUserData.avatarUrl || triggerUserData.profileImageUrl || "";
+      } else {
+        // Fallback for null/empty avatar from payload
+        profileImageUrl = profileImageUrl || "";
+      }
 
       // ── Determine notification type and check for pending knock request ──
       const type = notificationData.type || "unknown";

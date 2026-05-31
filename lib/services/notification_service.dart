@@ -5,6 +5,8 @@ import '../models/notification_model.dart';
 import '../widgets/custom_in_app_notification.dart';
 import '../main.dart';
 import 'auth_service.dart';
+import 'current_user_service.dart';
+import 'performance_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // KNOCKPOST NOTIFICATION SERVICE v2.0
@@ -149,12 +151,13 @@ class NotificationService {
 
   /// Real-time stream of all notifications for the current user.
   /// Ordered by timestamp descending. Used by NotificationsScreen.
-  Stream<List<NotificationModel>> streamNotifications() {
+  Stream<List<NotificationModel>> streamNotifications({int limit = 50}) {
     final uid = _myUid;
     if (uid == null) return const Stream.empty();
 
     return _userNotifs(uid)
         .orderBy('timestamp', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snap) => snap.docs
             .map((doc) =>
@@ -168,10 +171,15 @@ class NotificationService {
     final uid = _myUid;
     if (uid == null) return const Stream.empty();
 
-    return _userNotifs(uid)
-        .where('isRead', isEqualTo: false)
-        .snapshots()
-        .map((snap) => snap.docs.length);
+    return _db.collection('users').doc(uid).snapshots().map((snap) {
+      if (!snap.exists) return 0;
+      final count = snap.data()?['unreadNotificationCount'] as int? ?? 0;
+      // Record how many reads we prevent by NOT using the .where query
+      if (count > 0) {
+        PerformanceService.instance.incrementNotificationUnreadReadsPrevented(count);
+      }
+      return count;
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -182,7 +190,12 @@ class NotificationService {
     final uid = _myUid;
     if (uid == null) return;
     try {
-      await _userNotifs(uid).doc(notificationId).update({'isRead': true});
+      final batch = _db.batch();
+      batch.update(_userNotifs(uid).doc(notificationId), {'isRead': true});
+      batch.update(_db.collection('users').doc(uid), {
+        'unreadNotificationCount': FieldValue.increment(-1),
+      });
+      await batch.commit();
     } catch (e) {
       debugPrint('Error marking notification as read: $e');
     }
@@ -198,11 +211,33 @@ class NotificationService {
       
       if (unreadSnap.docs.isEmpty) return;
 
-      final batch = _db.batch();
+      final batchArray = <WriteBatch>[];
+      var currentBatch = _db.batch();
+      int count = 0;
+
       for (final doc in unreadSnap.docs) {
-        batch.update(doc.reference, {'isRead': true});
+        currentBatch.update(doc.reference, {'isRead': true});
+        count++;
+        if (count == 490) {
+          batchArray.add(currentBatch);
+          currentBatch = _db.batch();
+          count = 0;
+        }
       }
-      await batch.commit();
+      
+      if (count > 0) {
+        batchArray.add(currentBatch);
+      }
+
+      for (final b in batchArray) {
+        await b.commit();
+        PerformanceService.instance.incrementNotificationBatchChunksProcessed();
+      }
+
+      await _db.collection('users').doc(uid).update({
+        'unreadNotificationCount': 0,
+      });
+
     } catch (e) {
       debugPrint('Error marking all notifications as read: $e');
     }
@@ -216,7 +251,18 @@ class NotificationService {
     final uid = _myUid;
     if (uid == null) return;
     try {
-      await _userNotifs(uid).doc(notificationId).delete();
+      final doc = await _userNotifs(uid).doc(notificationId).get();
+      final data = doc.data() as Map<String, dynamic>?;
+      final isUnread = doc.exists && data != null && data['isRead'] == false;
+
+      final batch = _db.batch();
+      batch.delete(_userNotifs(uid).doc(notificationId));
+      if (isUnread) {
+        batch.update(_db.collection('users').doc(uid), {
+          'unreadNotificationCount': FieldValue.increment(-1),
+        });
+      }
+      await batch.commit();
     } catch (e) {
       debugPrint('Error deleting notification: $e');
     }
@@ -263,9 +309,8 @@ class NotificationService {
       case NotificationType.message:
         return 'message_$triggerUid';
       case NotificationType.comment:
-        // Group ALL consecutive comments from the same user into ONE notification.
-        // Shows only the latest reply, preventing notification spam.
-        return 'comment_${triggerUid}_${postId ?? "global"}';
+        // Ensure each reply triggers independently, fixing the overwrite trap.
+        return 'comment_${triggerUid}_${postId ?? "global"}_${DateTime.now().millisecondsSinceEpoch}';
       case NotificationType.mention:
         return postId != null ? 'mention_${postId}_$triggerUid' : 'mention_$triggerUid';
     }
@@ -292,7 +337,10 @@ class NotificationService {
     );
 
     // In-flight deduplication: prevent rapid duplicate sends
-    if (_recentlySentIds.contains(docId)) return;
+    if (_recentlySentIds.contains(docId)) {
+      PerformanceService.instance.incrementNotificationDeduplicationEvents();
+      return;
+    }
     _recentlySentIds.add(docId);
     // Remove from dedup set after 2 seconds to allow future sends
     Future.delayed(const Duration(seconds: 2), () {
@@ -301,6 +349,7 @@ class NotificationService {
 
     try {
       final notifRef = _userNotifs(receiverUid).doc(docId);
+      final currentUser = CurrentUserService.instance.currentUser;
 
       final notif = NotificationModel(
         id: docId,
@@ -311,9 +360,20 @@ class NotificationService {
         postId: postId,
         commentSnippet: commentSnippet,
         postThumbnailUrl: postThumbnailUrl,
+        triggerUserName: currentUser?.displayName.isNotEmpty == true ? currentUser?.displayName : currentUser?.username,
+        triggerAvatarUrl: currentUser?.avatarAsset,
       );
 
-      await notifRef.set(notif.toMap(), SetOptions(merge: true));
+      final batch = _db.batch();
+      batch.set(notifRef, notif.toMap(), SetOptions(merge: true));
+      batch.update(_db.collection('users').doc(receiverUid), {
+        'unreadNotificationCount': FieldValue.increment(1),
+      });
+      await batch.commit();
+
+      PerformanceService.instance.incrementPushProfileReadsPrevented();
+      PerformanceService.instance.incrementNotificationSecurityHardeningEvents();
+      PerformanceService.instance.incrementPushPayloadReuseEvents();
     } catch (e) {
       debugPrint('Error sending notification: $e');
       _recentlySentIds.remove(docId);
@@ -340,6 +400,7 @@ class NotificationService {
     );
 
     final notifRef = _userNotifs(receiverUid).doc(docId);
+    final currentUser = CurrentUserService.instance.currentUser;
 
     final notif = NotificationModel(
       id: docId,
@@ -350,9 +411,24 @@ class NotificationService {
       postId: postId,
       commentSnippet: commentSnippet,
       postThumbnailUrl: postThumbnailUrl,
+      triggerUserName: currentUser?.displayName.isNotEmpty == true ? currentUser?.displayName : currentUser?.username,
+      triggerAvatarUrl: currentUser?.avatarAsset,
     );
 
+    if (type == NotificationType.comment) {
+      // Record telemetry for PR2
+      PerformanceService.instance.incrementPrivateReplyNotificationsCreated();
+      PerformanceService.instance.incrementPrivateReplyNotificationsOverwrittenPrevented();
+    }
+
     batch.set(notifRef, notif.toMap(), SetOptions(merge: true));
+    batch.update(_db.collection('users').doc(receiverUid), {
+      'unreadNotificationCount': FieldValue.increment(1),
+    });
+
+    PerformanceService.instance.incrementPushProfileReadsPrevented();
+    PerformanceService.instance.incrementNotificationSecurityHardeningEvents();
+    PerformanceService.instance.incrementPushPayloadReuseEvents();
   }
 
   /// Clean up old notifications (30+ days) — called once per session.

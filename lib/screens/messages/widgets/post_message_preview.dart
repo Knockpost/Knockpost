@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
-import '../../../services/database_service.dart';
+import '../../../services/post_cache_service.dart';
+import '../../../services/user_cache_service.dart';
 import '../../../widgets/knockpost_avatar.dart';
 import '../../single_post_screen.dart';
 import '../../../services/image_cache_manager.dart';
@@ -37,16 +37,13 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
 
   Future<void> _fetchPost() async {
     try {
-      final postDoc = await FirebaseFirestore.instance.collection('posts').doc(widget.postId).get();
-      if (!postDoc.exists) {
+      final post = await PostCacheService.instance.getPost(widget.postId);
+      if (post == null) {
         if (mounted) setState(() { _isLoading = false; _hasError = true; });
         return;
       }
       
-      final postData = postDoc.data() as Map<String, dynamic>;
-      final post = PostModel.fromMap(postData, postDoc.id);
-      
-      final authorData = await DatabaseService.instance.getUserProfile(post.authorId);
+      final authorData = await UserCacheService.instance.getUserProfile(post.authorId, isSharedPostAuthor: true);
       if (authorData != null) {
         final author = UserModel.fromMap(authorData, post.authorId);
         if (mounted) {

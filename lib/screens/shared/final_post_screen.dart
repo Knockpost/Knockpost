@@ -7,6 +7,8 @@ import '../../models/post_model.dart';
 import '../../utils/haptic_helper.dart';
 import '../../services/post_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/glimps_feed_manager.dart';
+import '../../services/performance_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/image_helper.dart';
 import '../../widgets/knockpost_avatar.dart';
@@ -107,13 +109,6 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     setState(() => _isPosting = true);
     KnockHaptics.tap();
 
-    // Show a loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: KnockpostLoadingIndicator()),
-    );
-
     final type = widget.isWaves
         ? PostType.waves
         : (widget.isGlimpse
@@ -125,12 +120,12 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       authorId: currentUser.id,
       type: type,
       duration: _selectedDuration,
-      imagePaths: [], // Will be updated in PostService
+      imagePaths: widget.isGlimpse ? widget.files.map((e) => e.path).toList() : [],
       mediaAspectRatio: widget.mediaAspectRatio,
       mediaIsBaked: widget.mediaIsBaked,
       isVideoPost: widget.isVideoPost,
       videoHasSound: widget.videoHasSound,
-      coverImagePath: null, // Will be updated in PostService
+      coverImagePath: widget.isGlimpse ? widget.coverImageFile?.path : null,
       text: _captionController.text.trim(),
       musicUrl: widget.initialMusic?.previewUrl,
       musicTitle: widget.initialMusic?.title,
@@ -150,6 +145,40 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       isLikedByMe: false,
     );
 
+    if (widget.isGlimpse) {
+      GlimpsFeedManager.instance.addGlimpseOptimistically(newPost, currentUser);
+      PerformanceService.instance.incrementGlimpsUploadStarted();
+      final startTime = DateTime.now();
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+      PostService.instance.createPost(
+        post: newPost,
+        mediaFiles: widget.files,
+        coverFile: widget.coverImageFile,
+      ).then((_) {
+        final durationMs = DateTime.now().difference(startTime).inMilliseconds;
+        PerformanceService.instance.logGlimpsUploadCompleted(durationMs);
+      }).catchError((e) {
+        PerformanceService.instance.incrementGlimpsUploadFailed();
+        GlimpsFeedManager.instance.removeGlimpse(newPost.id);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Failed to upload Glimpse: $e')),
+        );
+      });
+
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+      return;
+    }
+
+    // Show a loading dialog for non-Glimpse posts
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: KnockpostLoadingIndicator()),
+    );
+
     try {
       await PostService.instance.createPost(
         post: newPost,
@@ -158,16 +187,13 @@ class _FinalPostScreenState extends State<FinalPostScreen>
       );
 
       if (mounted) {
-        // Pop loading dialog
-        Navigator.pop(context);
-        // Pop back to home screen
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.pop(context); // Pop loading dialog
+        Navigator.of(context).popUntil((route) => route.isFirst); // Pop back to home screen
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isPosting = false);
-        // Pop loading dialog
-        Navigator.pop(context);
+        Navigator.pop(context); // Pop loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to create post: $e')),
         );

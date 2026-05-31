@@ -7,6 +7,7 @@ import 'auth_service.dart';
 import 'notification_service.dart';
 import 'chat_logger.dart';
 import 'message_retry_queue.dart';
+import 'performance_service.dart';
 
 class SendResult {
   final String messageId;
@@ -24,8 +25,10 @@ class ChatService {
   String? get _myUid => AuthService.instance.currentUser?.uid;
   CollectionReference get _chats => _db.collection('chats');
 
-  // Stream caching — only for chat rooms (shared across screens)
+  // Stream caching
   Stream<List<ChatRoom>>? _chatRoomsStream;
+  final Map<String, Stream<List<ChatMessage>>> _messageStreamCache = {};
+  static final Map<String, DateTime> _lastNotificationSentTimes = {};
 
   // ── Chat ID ────────────────────────────────────────────────────────────────
 
@@ -61,29 +64,44 @@ class ChatService {
     return _chatRoomsStream!;
   }
 
-  /// Returns a **fresh** stream each time it is called.
-  /// Each ChatScreen creates its own Firestore snapshot listener via
-  /// `initState` and cancels it in `dispose`. Caching broadcast streams
-  /// caused stale-stream bugs: the cached broadcast would stop emitting
-  /// after the first subscriber cancelled, leaving subsequent screens
-  /// stuck on the loading spinner.
   Stream<List<ChatMessage>> streamMessages(String chatId, {int limit = 50}) {
-    return _chats
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snap) {
-          return snap.docs.map((d) {
-            return ChatMessage.fromMap(d.data(), d.id);
-          }).toList();
-        });
+    final cacheKey = '$chatId::$limit';
+
+    if (_messageStreamCache.containsKey(cacheKey)) {
+      PerformanceService.instance.incrementMessagingStreamCacheHit();
+      PerformanceService.instance.incrementMessagingStreamReuse();
+    } else {
+      PerformanceService.instance.incrementMessagingStreamCacheMiss();
+    }
+
+    return _messageStreamCache.putIfAbsent(cacheKey, () {
+      return _chats
+          .doc(chatId)
+          .collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(limit)
+          .snapshots()
+          .map((snap) {
+            return snap.docs.map((d) {
+              return ChatMessage.fromMap(d.data(), d.id);
+            }).toList();
+          }).asBroadcastStream();
+    });
   }
 
-  void clearStreamCache() {
-    _chatRoomsStream = null;
-    ChatLogger.instance.info('StreamCache', 'Cleared stream caches');
+  void disposeChatStreams(String chatId) {
+    int disposedCount = 0;
+    _messageStreamCache.removeWhere((key, _) {
+      if (key.startsWith('$chatId::')) {
+        disposedCount++;
+        return true;
+      }
+      return false;
+    });
+
+    for (var i = 0; i < disposedCount; i++) {
+      PerformanceService.instance.incrementMessagingStreamDisposal();
+    }
   }
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -114,19 +132,26 @@ class ChatService {
       );
       return SendResult(msgId, MessageStatus.sent);
     } catch (e) {
-      ChatLogger.instance.warning('sendMessageWithRetry', 'Send failed, queuing for retry: $e');
-      MessageRetryQueue.instance.enqueue(clientId, () async {
-        await _sendMessageInternal(
-          otherUid: otherUid,
-          text: text,
-          replyToId: replyToId,
-          imageUrl: imageUrl,
-          audioUrl: audioUrl,
-          audioDuration: audioDuration,
-          clientId: clientId,
-        );
-      });
-      return SendResult(clientId, MessageStatus.sending); // Return client ID as temp ID
+      if (imageUrl == null && audioUrl == null) {
+        // Text messages natively queue in Firestore. Duplicate retry logic causes double-writes.
+        PerformanceService.instance.incrementMessagingOfflineDuplicateWritesPrevented();
+        ChatLogger.instance.info('sendMessageWithRetry', 'Skipped MessageRetryQueue for text message to prevent offline corruption.');
+        return SendResult(clientId, MessageStatus.sending);
+      } else {
+        ChatLogger.instance.warning('sendMessageWithRetry', 'Send failed, queuing media for retry: $e');
+        MessageRetryQueue.instance.enqueue(clientId, () async {
+          await _sendMessageInternal(
+            otherUid: otherUid,
+            text: text,
+            replyToId: replyToId,
+            imageUrl: imageUrl,
+            audioUrl: audioUrl,
+            audioDuration: audioDuration,
+            clientId: clientId,
+          );
+        });
+        return SendResult(clientId, MessageStatus.sending); // Return client ID as temp ID
+      }
     }
   }
 
@@ -204,12 +229,20 @@ class ChatService {
     }, SetOptions(merge: true));
 
     // Add notification creation to the SAME batch so it triggers the Cloud Function instantly
-    NotificationService.instance.sendNotificationInBatch(
-      batch,
-      receiverUid: otherUid,
-      type: NotificationType.message,
-      commentSnippet: text,
-    );
+    // Throttle: Max 1 notification per 15 seconds per chat
+    final now = DateTime.now();
+    final lastSent = _lastNotificationSentTimes[chatId];
+    if (lastSent == null || now.difference(lastSent) > const Duration(seconds: 15)) {
+      _lastNotificationSentTimes[chatId] = now;
+      NotificationService.instance.sendNotificationInBatch(
+        batch,
+        receiverUid: otherUid,
+        type: NotificationType.message,
+        commentSnippet: text,
+      );
+    } else {
+      PerformanceService.instance.incrementMessagingNotificationsSuppressed();
+    }
 
     await batch.commit();
     
@@ -218,13 +251,24 @@ class ChatService {
 
   // ── Mark as Read ──────────────────────────────────────────────────────────
 
-  Future<void> markChatAsRead(String chatId) async {
+  Future<void> markChatAsRead(String chatId, {List<String>? unseenMessageIds}) async {
     final me = _myUid;
     if (me == null) return;
     try {
       await _chats.doc(chatId).update({'unreadCount.$me': 0});
 
-      // Batch mark as read, max 500 per batch
+      if (unseenMessageIds != null) {
+        if (unseenMessageIds.isEmpty) return;
+        final batch = _db.batch();
+        for (final id in unseenMessageIds) {
+          batch.update(_chats.doc(chatId).collection('messages').doc(id), {'seen': true});
+        }
+        await batch.commit();
+        ChatLogger.instance.info('markChatAsRead', 'Marked ${unseenMessageIds.length} messages as read using local IDs');
+        return;
+      }
+
+      // legacy fallback
       final unseenSnap = await _chats
           .doc(chatId)
           .collection('messages')
@@ -249,29 +293,51 @@ class ChatService {
 
   // ── Delete message ─────────────────────────────────────────────────────────
 
-  Future<void> deleteMessage(String chatId, String messageId) async {
+  Future<void> deleteMessage(String chatId, String messageId, {ChatMessage? fallbackLastMessage, bool useFallback = false}) async {
     try {
       await _chats.doc(chatId).collection('messages').doc(messageId).delete();
       
-      // Update last message if needed (simplified: just fetch the newest message)
-      final latest = await _chats.doc(chatId).collection('messages')
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-        
-      if (latest.docs.isNotEmpty) {
-        final data = latest.docs.first.data();
-        await _chats.doc(chatId).update({
-          'lastMessage': data['text'] ?? '',
-          'lastMessageTime': data['timestamp'],
-          'lastSenderId': data['senderId'],
-        });
+      if (useFallback) {
+        PerformanceService.instance.incrementMessagingDeleteReadsPrevented();
+        if (fallbackLastMessage != null) {
+          String snippet = fallbackLastMessage.text;
+          if (snippet.isEmpty) {
+            if (fallbackLastMessage.audioUrl != null) { snippet = '🎙 Audio message'; }
+            else if (fallbackLastMessage.imageUrl != null) { snippet = '📷 Image'; }
+          }
+          await _chats.doc(chatId).update({
+            'lastMessage': snippet,
+            'lastMessageTime': fallbackLastMessage.timestamp,
+            'lastSenderId': fallbackLastMessage.senderId,
+          });
+        } else {
+          await _chats.doc(chatId).update({
+            'lastMessage': '',
+            'lastMessageTime': FieldValue.serverTimestamp(),
+            'lastSenderId': '',
+          });
+        }
       } else {
-        await _chats.doc(chatId).update({
-          'lastMessage': '',
-          'lastMessageTime': FieldValue.serverTimestamp(),
-          'lastSenderId': '',
-        });
+        // Update last message if needed (simplified: just fetch the newest message)
+        final latest = await _chats.doc(chatId).collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+          
+        if (latest.docs.isNotEmpty) {
+          final data = latest.docs.first.data();
+          await _chats.doc(chatId).update({
+            'lastMessage': data['text'] ?? '',
+            'lastMessageTime': data['timestamp'],
+            'lastSenderId': data['senderId'],
+          });
+        } else {
+          await _chats.doc(chatId).update({
+            'lastMessage': '',
+            'lastMessageTime': FieldValue.serverTimestamp(),
+            'lastSenderId': '',
+          });
+        }
       }
       
       ChatLogger.instance.info('deleteMessage', 'Deleted message $messageId');

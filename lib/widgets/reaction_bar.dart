@@ -41,6 +41,7 @@ class ReactionBar extends StatefulWidget {
   final String? shareUsername;
   final String? shareCaption;
   final String? timestamp;
+  final String? postThumbnailUrl;
 
   /// false হলে Share button দেখায়েবে না (Glimpse-এ ব্যবহার হয়)
   final bool showShare;
@@ -64,6 +65,7 @@ class ReactionBar extends StatefulWidget {
     this.shareUsername,
     this.shareCaption,
     this.timestamp,
+    this.postThumbnailUrl,
     this.showShare = true,
     this.transparentButtons = false,
     this.alignSummaryRight = false,
@@ -433,6 +435,7 @@ class _ReactionBarState extends State<ReactionBar>
                         postId: widget.postId,
                         postAuthor: widget.postAuthor,
                         isPostOwner: widget.isPostOwner,
+                        postThumbnailUrl: widget.postThumbnailUrl,
                       );
                     },
                     child: Container(

@@ -31,7 +31,7 @@ class UserCacheService {
   final Map<String, Future<Map<String, dynamic>?>> _inFlightRequests = {};
 
   /// Fetch a user profile, utilizing the memory cache if fresh.
-  Future<Map<String, dynamic>?> getUserProfile(String uid, {bool forceRefresh = false, bool isFeedAuthor = false, bool isWavesAuthor = false}) async {
+  Future<Map<String, dynamic>?> getUserProfile(String uid, {bool forceRefresh = false, bool isFeedAuthor = false, bool isWavesAuthor = false, bool isMessagingAuthor = false, bool isSharedPostAuthor = false}) async {
     final now = DateTime.now();
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     final ttl = (uid == myUid) ? _currentUserTtl : _otherUserTtl;
@@ -42,6 +42,8 @@ class UserCacheService {
         PerformanceService.instance.incrementCacheHit();
         if (isFeedAuthor) PerformanceService.instance.incrementFeedAuthorCacheHit();
         if (isWavesAuthor) PerformanceService.instance.incrementWavesAuthorCacheHit();
+        if (isMessagingAuthor) PerformanceService.instance.incrementMessagingAvatarCacheHit();
+        if (isSharedPostAuthor) PerformanceService.instance.incrementSharedPostAuthorCacheHit();
         
         // Move to end (most recently used)
         _cache.remove(uid);
@@ -57,6 +59,8 @@ class UserCacheService {
     PerformanceService.instance.incrementCacheMiss();
     if (isFeedAuthor) PerformanceService.instance.incrementFeedAuthorCacheMiss();
     if (isWavesAuthor) PerformanceService.instance.incrementWavesAuthorCacheMiss();
+    if (isMessagingAuthor) PerformanceService.instance.incrementMessagingAvatarCacheMiss();
+    if (isSharedPostAuthor) PerformanceService.instance.incrementSharedPostAuthorCacheMiss();
 
     // Deduplicate concurrent requests for the same UID
     if (_inFlightRequests.containsKey(uid)) {
