@@ -391,8 +391,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         _buildOwnFriendsRow(context, textColor, isDark)
                       else if (validKnockers.isNotEmpty)
                         _buildFriendsKnockedRow(validKnockers, textColor, isDark),
-                      if (user.isOwnProfile ||
-                          validKnockers.isNotEmpty)
+                      if (user.isOwnProfile || validKnockers.isNotEmpty)
                         const SizedBox(height: 13),
                       if (user.isOwnProfile)
                         Row(
@@ -588,8 +587,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
           Expanded(
             child: Text(
               knockers.length == 1
-                  ? '${knockers.first.displayName} (Mutual) knocked'
-                  : '${knockers.first.displayName} and ${knockers.length - 1} mutual${knockers.length > 2 ? 's' : ''} knocked',
+                  ? '${knockers.first.displayName} knocked'
+                  : '${knockers.first.displayName} and ${knockers.length - 1} other${knockers.length > 2 ? 's' : ''} knocked',
               style: TextStyle(
                 fontSize: 13.5,
                 color: textColor.withValues(alpha: 0.7),
@@ -644,7 +643,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                   child: Row(
                     children: [
                       Text(
-                        'Mutuals who knocked',
+                        'People who knocked',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
