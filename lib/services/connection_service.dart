@@ -443,4 +443,65 @@ class ConnectionService {
       return [];
     }
   }
+
+  /// Fetch UIDs of connections: people who knocked [targetUid] AND who are MUTUAL connections of the logged-in user.
+  /// Optimized to avoid massive reads on popular target profiles.
+  Future<List<String>> getCommonMutualConnections(String targetUid) async {
+    final me = _myUid;
+    if (me == null || me == targetUid) return [];
+    
+    try {
+      // 1. Get all people I have knocked (accepted)
+      final mySentSnap = await _col
+          .where('fromUid', isEqualTo: me)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+          
+      if (mySentSnap.docs.isEmpty) return [];
+      
+      final mySent = mySentSnap.docs
+          .map((d) => (d.data() as Map)['toUid'] as String)
+          .toSet();
+
+      // 2. Get all people who knocked me (accepted)
+      final myReceivedSnap = await _col
+          .where('toUid', isEqualTo: me)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+          
+      final myReceived = myReceivedSnap.docs
+          .map((d) => (d.data() as Map)['fromUid'] as String)
+          .toSet();
+
+      // 3. Find true mutual connections (Intersection)
+      final myMutuals = mySent.intersection(myReceived).toList();
+
+      if (myMutuals.isEmpty) return [];
+
+      // 4. Instead of querying ALL knockers of the target (which could be 100k+ for famous users),
+      // we check if our mutual friends have knocked the target.
+      // Since the doc ID is predictably '${fromUid}_${toUid}', we can use direct document reads.
+      final List<Future<DocumentSnapshot>> futures = [];
+      for (final mutualUid in myMutuals) {
+        futures.add(_col.doc(_docId(mutualUid, targetUid)).get());
+      }
+      
+      final snaps = await Future.wait(futures);
+      final List<String> commonMutuals = [];
+      
+      for (final snap in snaps) {
+        if (snap.exists) {
+          final data = snap.data() as Map<String, dynamic>?;
+          if (data != null && data['status'] == 'accepted') {
+            commonMutuals.add(data['fromUid'] as String);
+          }
+        }
+      }
+
+      return commonMutuals;
+    } catch (e) {
+      debugPrint('ConnectionService.getCommonMutualConnections error: $e');
+      return [];
+    }
+  }
 }
