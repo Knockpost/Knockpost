@@ -87,7 +87,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
 
   Future<void> _loadKnockers() async {
     try {
-      final uids = await ConnectionService.instance.getKnockerUids(_user.id);
+      final uids = await ConnectionService.instance.getCommonMutualConnections(_user.id);
       if (uids.isEmpty || !mounted) return;
 
       final results = await Future.wait(

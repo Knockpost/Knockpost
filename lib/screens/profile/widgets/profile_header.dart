@@ -391,7 +391,8 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                         _buildOwnFriendsRow(context, textColor, isDark)
                       else if (validKnockers.isNotEmpty)
                         _buildFriendsKnockedRow(validKnockers, textColor, isDark),
-                      if (user.isOwnProfile || validKnockers.isNotEmpty)
+                      if (user.isOwnProfile ||
+                          validKnockers.isNotEmpty)
                         const SizedBox(height: 13),
                       if (user.isOwnProfile)
                         Row(

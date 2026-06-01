@@ -6,6 +6,7 @@ import 'notification_service.dart';
 import '../models/notification_model.dart';
 import 'database_service.dart';
 import '../utils/knock_state_manager.dart';
+import 'performance_service.dart';
 
 /// Handles all Knock / Connection logic.
 ///
@@ -22,16 +23,21 @@ class ConnectionService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   CollectionReference get _col => _db.collection('connections');
+  
+  // Cache for mutual connections
+  List<String>? _cachedMutuals;
+  DateTime? _lastMutualsFetch;
+  final Duration _mutualsCacheDuration = const Duration(minutes: 5);
 
   String? get _myUid => AuthService.instance.currentUser?.uid;
 
   String _docId(String a, String b) => '${a}_$b';
 
-  // ΓöÇΓöÇ Send / Accept knock ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Send / Accept knock ──────────────────────────────────────────────────────
 
   /// Knock on [toUid].
-  /// ΓÇó Open profile  ΓåÆ immediately creates 'accepted' document (mutual)
-  /// ΓÇó Private profile ΓåÆ creates 'pending' document
+  /// • Open profile  → immediately creates 'accepted' document (mutual)
+  /// • Private profile → creates 'pending' document
   Future<void> sendKnock({
     required String toUid,
     required bool isOpenProfile,
@@ -108,6 +114,14 @@ class ConnectionService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
+      // CREATE MUTUAL CONNECTION
+      final sortedUids = [me, fromUid]..sort();
+      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+      batch.set(_db.collection('mutual_connections').doc(mutualId), {
+        'participants': [sortedUids[0], sortedUids[1]],
+        'establishedAt': FieldValue.serverTimestamp(),
+      });
+      
       await batch.commit();
 
       // Send a notification that we knocked back
@@ -138,7 +152,15 @@ class ConnectionService {
     KnockStateManager.instance.setOptimisticStatus(otherUid, nextStatus);
 
     try {
-      await _col.doc(_docId(me, otherUid)).delete();
+      final batch = _db.batch();
+      batch.delete(_col.doc(_docId(me, otherUid)));
+
+      // DELETE MUTUAL CONNECTION
+      final sortedUids = [me, otherUid]..sort();
+      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+      batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      
+      await batch.commit();
 
       // Clean up the notification we sent them
       NotificationService.instance.deleteSentNotification(otherUid, 'knock_$me');
@@ -183,7 +205,7 @@ class ConnectionService {
     }
   }
 
-  /// Decline an incoming knock from [fromUid] ΓÇö just delete the document.
+  /// Decline an incoming knock from [fromUid] — just delete the document.
   Future<void> declineKnock(String fromUid) async {
     final me = _myUid;
     if (me == null) return;
@@ -194,7 +216,15 @@ class ConnectionService {
     KnockStateManager.instance.setOptimisticStatus(fromUid, KnockStatus.none);
 
     try {
-      await _col.doc(_docId(fromUid, me)).delete();
+      final batch = _db.batch();
+      batch.delete(_col.doc(_docId(fromUid, me)));
+
+      // DELETE MUTUAL CONNECTION (Just in case it was mutual)
+      final sortedUids = [me, fromUid]..sort();
+      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+      batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      
+      await batch.commit();
 
       // Clean up their pending notification to us
       NotificationService.instance.deleteNotification('knock_$fromUid');
@@ -211,7 +241,7 @@ class ConnectionService {
     }
   }
 
-  // ΓöÇΓöÇ Status query ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Status query ─────────────────────────────────────────────────────────────
 
   /// Returns the current [KnockStatus] between the logged-in user and [otherUid].
   Future<KnockStatus> getKnockStatus(String otherUid) async {
@@ -232,13 +262,13 @@ class ConnectionService {
       final iStatus = iKnocked ? (iKnockedSnap.data() as Map)['status'] : null;
       final theyStatus = theyKnocked ? (theyKnockedSnap.data() as Map)['status'] : null;
 
-      // Both accepted ΓåÆ mutual
+      // Both accepted → mutual
       if (iKnocked && theyKnocked &&
           iStatus == 'accepted' && theyStatus == 'accepted') {
         return KnockStatus.mutualKnocked;
       }
 
-      // I knocked and accepted (open profile case) ΓåÆ knocked
+      // I knocked and accepted (open profile case) → knocked
       if (iKnocked && iStatus == 'accepted' && !theyKnocked) {
         return KnockStatus.knocked;
       }
@@ -261,7 +291,7 @@ class ConnectionService {
     }
   }
 
-  // ΓöÇΓöÇ Real-time streams ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Real-time streams ─────────────────────────────────────────────────────────
 
   /// Stream of UIDs that the current user has knocked (sent).
   Stream<List<String>> streamSentKnockUids() {
@@ -321,26 +351,19 @@ class ConnectionService {
   Stream<List<String>> streamMutualConnectionUids() {
     final me = _myUid;
     if (me == null) return const Stream.empty();
-    // Query both directions and intersect in the map
-    return _col
-        .where('fromUid', isEqualTo: me)
-        .where('status', isEqualTo: 'accepted')
+    
+    // Phase Connection Graph: O(1) query instead of O(N) read storm
+    return _db.collection('mutual_connections')
+        .where('participants', arrayContains: me)
         .snapshots()
-        .asyncMap((sentSnap) async {
-          final sentToUids = sentSnap.docs
-              .map((d) => (d.data() as Map)['toUid'] as String)
-              .toSet();
-
-          // For each sent-accepted connection, check if they also accepted back
-          final mutuals = <String>[];
-          for (final uid in sentToUids) {
-            final reverseDoc = await _col.doc(_docId(uid, me)).get();
-            if (reverseDoc.exists) {
-              final reverseStatus = (reverseDoc.data() as Map)['status'];
-              if (reverseStatus == 'accepted') mutuals.add(uid);
-            }
-          }
-          return mutuals;
+        .map((snap) {
+          // Record telemetry: we prevented N reads per emission where N = snap.docs.length
+          PerformanceService.instance.addConnectionGraphReadsPrevented(snap.docs.length);
+          
+          return snap.docs.map((d) {
+            final parts = List<String>.from((d.data() as Map)['participants'] ?? []);
+            return parts.firstWhere((id) => id != me, orElse: () => '');
+          }).where((uid) => uid.isNotEmpty).toList();
         });
   }
 
@@ -351,6 +374,7 @@ class ConnectionService {
     if (me == null) return [];
     try {
       final snap = await _col.where('fromUid', isEqualTo: me).get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
       return snap.docs.map((d) => (d.data() as Map)['toUid'] as String).toList();
     } catch (_) { return []; }
   }
@@ -360,6 +384,7 @@ class ConnectionService {
     if (me == null) return [];
     try {
       final snap = await _col.where('fromUid', isEqualTo: me).where('status', isEqualTo: 'pending').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
       return snap.docs.map((d) => (d.data() as Map)['toUid'] as String).toList();
     } catch (_) { return []; }
   }
@@ -369,6 +394,7 @@ class ConnectionService {
     if (me == null) return [];
     try {
       final snap = await _col.where('fromUid', isEqualTo: me).where('status', isEqualTo: 'accepted').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
       return snap.docs.map((d) => (d.data() as Map)['toUid'] as String).toList();
     } catch (_) { return []; }
   }
@@ -378,6 +404,7 @@ class ConnectionService {
     if (me == null) return [];
     try {
       final snap = await _col.where('toUid', isEqualTo: me).where('status', isEqualTo: 'pending').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
       return snap.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList();
     } catch (_) { return []; }
   }
@@ -387,6 +414,7 @@ class ConnectionService {
     if (me == null) return [];
     try {
       final snap = await _col.where('toUid', isEqualTo: me).where('status', isEqualTo: 'accepted').get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
       return snap.docs.map((d) => (d.data() as Map)['fromUid'] as String).toList();
     } catch (_) { return []; }
   }
@@ -396,6 +424,7 @@ class ConnectionService {
     if (me == null) return [];
     try {
       final snap = await _db.collection('mutual_connections').where('participants', arrayContains: me).get();
+      PerformanceService.instance.incrementReadCount(snap.docs.length);
       return snap.docs.map((d) {
         final parts = List<String>.from((d.data() as Map)['participants'] ?? []);
         return parts.firstWhere((id) => id != me, orElse: () => '');
@@ -416,6 +445,78 @@ class ConnectionService {
           .toList();
     } catch (e) {
       debugPrint('ConnectionService.getKnockerUids error: $e');
+      return [];
+    }
+  }
+
+  /// Fetch UIDs of connections: people who knocked [targetUid] AND who are MUTUAL connections of the logged-in user.
+  /// Optimized to avoid massive reads on popular target profiles and uses local caching.
+  Future<List<String>> getCommonMutualConnections(String targetUid) async {
+    final me = _myUid;
+    if (me == null || me == targetUid) return [];
+    
+    try {
+      List<String> myMutuals;
+
+      // Check if we have valid cached mutuals
+      if (_cachedMutuals != null &&
+          _lastMutualsFetch != null &&
+          DateTime.now().difference(_lastMutualsFetch!) < _mutualsCacheDuration) {
+        myMutuals = _cachedMutuals!;
+      } else {
+        // 1. Get all people I have knocked (accepted)
+        final mySentSnap = await _col
+            .where('fromUid', isEqualTo: me)
+            .where('status', isEqualTo: 'accepted')
+            .get();
+            
+        final mySent = mySentSnap.docs
+            .map((d) => (d.data() as Map)['toUid'] as String)
+            .toSet();
+
+        // 2. Get all people who knocked me (accepted)
+        final myReceivedSnap = await _col
+            .where('toUid', isEqualTo: me)
+            .where('status', isEqualTo: 'accepted')
+            .get();
+            
+        final myReceived = myReceivedSnap.docs
+            .map((d) => (d.data() as Map)['fromUid'] as String)
+            .toSet();
+
+        // 3. Find true mutual connections (Intersection)
+        myMutuals = mySent.intersection(myReceived).toList();
+
+        // Update Cache
+        _cachedMutuals = myMutuals;
+        _lastMutualsFetch = DateTime.now();
+      }
+
+      if (myMutuals.isEmpty) return [];
+
+      // 4. Instead of querying ALL knockers of the target (which could be 100k+ for famous users),
+      // we check if our mutual friends have knocked the target.
+      // Since the doc ID is predictably '${fromUid}_${toUid}', we can use direct document reads.
+      final List<Future<DocumentSnapshot>> futures = [];
+      for (final mutualUid in myMutuals) {
+        futures.add(_col.doc(_docId(mutualUid, targetUid)).get());
+      }
+      
+      final snaps = await Future.wait(futures);
+      final List<String> commonMutuals = [];
+      
+      for (final snap in snaps) {
+        if (snap.exists) {
+          final data = snap.data() as Map<String, dynamic>?;
+          if (data != null && data['status'] == 'accepted') {
+            commonMutuals.add(data['fromUid'] as String);
+          }
+        }
+      }
+
+      return commonMutuals;
+    } catch (e) {
+      debugPrint('ConnectionService.getCommonMutualConnections error: $e');
       return [];
     }
   }
