@@ -524,17 +524,25 @@ class PostService {
               return bTs.compareTo(aTs);
             });
 
+          final uniqueDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
           for (final doc in sortedDocs) {
-            final data = doc.data();
-            final userId = data['userId'] as String? ?? doc.id;
+            final userId = doc.data()['userId'] as String? ?? doc.id;
             if (seen.add(userId)) {
-              // Verify user exists to exclude deleted accounts from counts
-              final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
-              if (userMap != null) {
-                viewers.add(data);
-              }
+              uniqueDocs.add(doc);
             }
           }
+
+          final results = await Future.wait(uniqueDocs.map((doc) async {
+            final data = doc.data();
+            final userId = data['userId'] as String? ?? doc.id;
+            final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
+            if (userMap != null) {
+              return data;
+            }
+            return null;
+          }));
+
+          viewers.addAll(results.whereType<Map<String, dynamic>>());
           return viewers;
         });
   }

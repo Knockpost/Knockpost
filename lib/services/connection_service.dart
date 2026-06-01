@@ -464,28 +464,8 @@ class ConnectionService {
           DateTime.now().difference(_lastMutualsFetch!) < _mutualsCacheDuration) {
         myMutuals = _cachedMutuals!;
       } else {
-        // 1. Get all people I have knocked (accepted)
-        final mySentSnap = await _col
-            .where('fromUid', isEqualTo: me)
-            .where('status', isEqualTo: 'accepted')
-            .get();
-            
-        final mySent = mySentSnap.docs
-            .map((d) => (d.data() as Map)['toUid'] as String)
-            .toSet();
-
-        // 2. Get all people who knocked me (accepted)
-        final myReceivedSnap = await _col
-            .where('toUid', isEqualTo: me)
-            .where('status', isEqualTo: 'accepted')
-            .get();
-            
-        final myReceived = myReceivedSnap.docs
-            .map((d) => (d.data() as Map)['fromUid'] as String)
-            .toSet();
-
-        // 3. Find true mutual connections (Intersection)
-        myMutuals = mySent.intersection(myReceived).toList();
+        // 1. Get true mutual connections directly from the optimized collection
+        myMutuals = await getMutualConnectionUids();
 
         // Update Cache
         _cachedMutuals = myMutuals;

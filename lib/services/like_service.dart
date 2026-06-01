@@ -120,18 +120,26 @@ class LikeService {
           return bTs.compareTo(aTs);  // descending
         });
       
+      final uniqueDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
       for (final doc in sortedDocs) {
-        final data = doc.data();
-        final userId = data['userId'] as String? ?? doc.id;
-        data['userId'] = userId; // ensure userId is always set
+        final userId = doc.data()['userId'] as String? ?? doc.id;
         if (seen.add(userId)) {
-          // Verify user exists to exclude deleted accounts from counts
-          final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
-          if (userMap != null) {
-            reactions.add(data);
-          }
+          uniqueDocs.add(doc);
         }
       }
+
+      final results = await Future.wait(uniqueDocs.map((doc) async {
+        final data = doc.data();
+        final userId = data['userId'] as String? ?? doc.id;
+        final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
+        if (userMap != null) {
+          data['userId'] = userId;
+          return data;
+        }
+        return null;
+      }));
+      
+      reactions.addAll(results.whereType<Map<String, dynamic>>());
       return reactions;
     });
   }
@@ -176,17 +184,26 @@ class LikeService {
           return bTs.compareTo(aTs);
         });
       
+      final uniqueDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
       for (final doc in sortedDocs) {
-        final data = doc.data();
-        final userId = data['userId'] as String? ?? doc.id;
-        data['userId'] = userId;
+        final userId = doc.data()['userId'] as String? ?? doc.id;
         if (seen.add(userId)) {
-          final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
-          if (userMap != null) {
-            reactions.add(data);
-          }
+          uniqueDocs.add(doc);
         }
       }
+
+      final results = await Future.wait(uniqueDocs.map((doc) async {
+        final data = doc.data();
+        final userId = data['userId'] as String? ?? doc.id;
+        final userMap = await DatabaseService.instance.getUserProfile(userId, useCache: true);
+        if (userMap != null) {
+          data['userId'] = userId;
+          return data;
+        }
+        return null;
+      }));
+      
+      reactions.addAll(results.whereType<Map<String, dynamic>>());
       return reactions;
     } catch (e) {
       debugPrint('Error fetching post reactions future: $e');

@@ -81,8 +81,22 @@ class DailyGlimpseCardWidget extends StatelessWidget {
                 return _GlimpseVideoThumbnail(path: thumbnailPath);
               }
               final provider = ImageHelper.resolveImage(thumbnailPath);
+              final targetCacheWidth =
+                  (145 * MediaQuery.of(context).devicePixelRatio)
+                      .round()
+                      .clamp(1, 1024)
+                      .toInt();
               return provider != null
-                  ? Image(image: provider, fit: BoxFit.cover)
+                  ? Image(
+                      image: provider,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.low,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                      ),
+                    )
                   : const Icon(Icons.error, size: 24);
             },
           ),
