@@ -46,7 +46,7 @@ class WavesFeedCard extends StatefulWidget {
   State<WavesFeedCard> createState() => _WavesFeedCardState();
 }
 
-class _WavesFeedCardState extends State<WavesFeedCard> {
+class _WavesFeedCardState extends State<WavesFeedCard> with AutomaticKeepAliveClientMixin {
   VideoPlayerController? _controller;
   AudioPlayer? _audioPlayer;
   bool _initialized = false;
@@ -59,6 +59,9 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
 
   // ── Interaction state ───────────────────────────────────────────────────
   bool _showSoundIndicator = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   // ── Spacing & sizing constants ──────────────────────────────────────────
   static const double _overlayPaddingH = 16.0;
@@ -239,6 +242,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final screenWidth = MediaQuery.of(context).size.width;
     // Tall portrait card — 16:9 ratio in feed
     final cardHeight = screenWidth * (16 / 9);

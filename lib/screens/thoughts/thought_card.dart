@@ -33,8 +33,11 @@ class ThoughtCard extends StatefulWidget {
   State<ThoughtCard> createState() => _ThoughtCardState();
 }
 
-class _ThoughtCardState extends State<ThoughtCard> {
+class _ThoughtCardState extends State<ThoughtCard> with AutomaticKeepAliveClientMixin {
   bool _doubleTapped = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   void _onDoubleTap() {
     KnockHaptics.impact();
@@ -49,6 +52,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

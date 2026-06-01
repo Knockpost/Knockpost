@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
       currentUserId: currentUser?.id ?? '',
       currentUserModel: currentUser,
       startAfter: _lastFeedDoc,
-      limit: 15,
+      limit: 50,
     );
 
     stopWatch.stop();
@@ -125,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _feedItems.addAll(result.posts);
         }
         _lastFeedDoc = result.lastDoc;
-        _hasMoreFeed = result.posts.length == 15;
+        _hasMoreFeed = result.posts.length == 50;
         _isLoadingFeed = false;
         _isLoadingMore = false;
         if (refresh) {
