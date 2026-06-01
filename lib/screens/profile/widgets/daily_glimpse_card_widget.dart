@@ -81,11 +81,6 @@ class DailyGlimpseCardWidget extends StatelessWidget {
                 return _GlimpseVideoThumbnail(path: thumbnailPath);
               }
               final provider = ImageHelper.resolveImage(thumbnailPath);
-              final targetCacheWidth =
-                  (145 * MediaQuery.of(context).devicePixelRatio)
-                      .round()
-                      .clamp(1, 1024)
-                      .toInt();
               return provider != null
                   ? Image(
                       image: provider,

@@ -208,12 +208,6 @@ class _GridTile extends StatelessWidget {
             ? optimizedPaths.first
             : rawImagePath;
         final provider = ImageHelper.resolveImage(imagePath);
-        final mediaQuery = MediaQuery.of(context);
-        final targetCacheSize = ((mediaQuery.size.width / 3) *
-                mediaQuery.devicePixelRatio)
-            .round()
-            .clamp(1, 2048)
-            .toInt();
         imageWidget = provider != null
             ? Image(
                 image: provider,

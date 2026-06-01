@@ -238,6 +238,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
     );
   }
 
+  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     // Tall portrait card — 16:9 ratio in feed
