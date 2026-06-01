@@ -299,6 +299,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
         optimizedUrl: optimizedUrl,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
+        memCacheWidth: 800,
         cacheManager: KnockpostImageCacheManager.instance,
         errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
       );

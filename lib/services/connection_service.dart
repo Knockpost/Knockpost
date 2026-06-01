@@ -23,6 +23,11 @@ class ConnectionService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   CollectionReference get _col => _db.collection('connections');
+  
+  // Cache for mutual connections
+  List<String>? _cachedMutuals;
+  DateTime? _lastMutualsFetch;
+  final Duration _mutualsCacheDuration = const Duration(minutes: 5);
 
   String? get _myUid => AuthService.instance.currentUser?.uid;
 
@@ -445,36 +450,47 @@ class ConnectionService {
   }
 
   /// Fetch UIDs of connections: people who knocked [targetUid] AND who are MUTUAL connections of the logged-in user.
-  /// Optimized to avoid massive reads on popular target profiles.
+  /// Optimized to avoid massive reads on popular target profiles and uses local caching.
   Future<List<String>> getCommonMutualConnections(String targetUid) async {
     final me = _myUid;
     if (me == null || me == targetUid) return [];
     
     try {
-      // 1. Get all people I have knocked (accepted)
-      final mySentSnap = await _col
-          .where('fromUid', isEqualTo: me)
-          .where('status', isEqualTo: 'accepted')
-          .get();
-          
-      if (mySentSnap.docs.isEmpty) return [];
-      
-      final mySent = mySentSnap.docs
-          .map((d) => (d.data() as Map)['toUid'] as String)
-          .toSet();
+      List<String> myMutuals;
 
-      // 2. Get all people who knocked me (accepted)
-      final myReceivedSnap = await _col
-          .where('toUid', isEqualTo: me)
-          .where('status', isEqualTo: 'accepted')
-          .get();
-          
-      final myReceived = myReceivedSnap.docs
-          .map((d) => (d.data() as Map)['fromUid'] as String)
-          .toSet();
+      // Check if we have valid cached mutuals
+      if (_cachedMutuals != null &&
+          _lastMutualsFetch != null &&
+          DateTime.now().difference(_lastMutualsFetch!) < _mutualsCacheDuration) {
+        myMutuals = _cachedMutuals!;
+      } else {
+        // 1. Get all people I have knocked (accepted)
+        final mySentSnap = await _col
+            .where('fromUid', isEqualTo: me)
+            .where('status', isEqualTo: 'accepted')
+            .get();
+            
+        final mySent = mySentSnap.docs
+            .map((d) => (d.data() as Map)['toUid'] as String)
+            .toSet();
 
-      // 3. Find true mutual connections (Intersection)
-      final myMutuals = mySent.intersection(myReceived).toList();
+        // 2. Get all people who knocked me (accepted)
+        final myReceivedSnap = await _col
+            .where('toUid', isEqualTo: me)
+            .where('status', isEqualTo: 'accepted')
+            .get();
+            
+        final myReceived = myReceivedSnap.docs
+            .map((d) => (d.data() as Map)['fromUid'] as String)
+            .toSet();
+
+        // 3. Find true mutual connections (Intersection)
+        myMutuals = mySent.intersection(myReceived).toList();
+
+        // Update Cache
+        _cachedMutuals = myMutuals;
+        _lastMutualsFetch = DateTime.now();
+      }
 
       if (myMutuals.isEmpty) return [];
 

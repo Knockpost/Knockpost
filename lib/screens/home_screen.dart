@@ -42,6 +42,7 @@ import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
 import '../services/performance_service.dart';
+import '../services/feed_cache_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingMore = false;
   DocumentSnapshot? _lastFeedDoc;
   bool _hasMoreFeed = true;
+  DateTime? _lastManualRefresh;
 
   @override
   void initState() {
@@ -78,7 +80,22 @@ class _HomeScreenState extends State<HomeScreen> {
     _postPageSwipeLockController = PostPageSwipeLockController()
       ..register(_pageController);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
-    _loadFeed(refresh: true);
+    
+    _initFeed();
+  }
+
+  Future<void> _initFeed() async {
+    // 1. Instantly load feed from local offline cache
+    final cachedFeed = await FeedCacheService.instance.loadFeed();
+    if (cachedFeed.isNotEmpty && mounted) {
+      setState(() {
+        _feedItems = cachedFeed;
+        _isLoadingFeed = false;
+      });
+    }
+
+    // 2. Fetch fresh posts in the background (silent refresh)
+    _loadFeed(refresh: true, isSilent: cachedFeed.isNotEmpty);
   }
 
   void _onScroll() {
@@ -87,13 +104,23 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFeed({bool refresh = false}) async {
+  Future<void> _loadFeed({bool refresh = false, bool isSilent = false}) async {
+    if (refresh && !isSilent) {
+      // Cooldown to prevent spamming manual pull-to-refresh
+      if (_lastManualRefresh != null && DateTime.now().difference(_lastManualRefresh!).inSeconds < 30) {
+        // Pretend to refresh for the UI
+        await Future.delayed(const Duration(milliseconds: 500));
+        return;
+      }
+      _lastManualRefresh = DateTime.now();
+    }
+
     if (refresh) {
-      if (_isLoadingFeed && _feedItems.isNotEmpty) return;
+      if (_isLoadingFeed && _feedItems.isNotEmpty && !isSilent) return;
       setState(() {
         _hasMoreFeed = true;
         _lastFeedDoc = null;
-        _isLoadingFeed = true;
+        if (!isSilent) _isLoadingFeed = true;
       });
     } else {
       if (!_hasMoreFeed || _isLoadingMore || _isLoadingFeed) return;
@@ -120,10 +147,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {
         if (refresh) {
-          _feedItems = result.posts;
+          // If silent (startup), merge new posts with cached posts
+          if (isSilent && _feedItems.isNotEmpty) {
+            final existingIds = result.posts.map((e) => e.post.id).toSet();
+            final remainingOld = _feedItems.where((e) => !existingIds.contains(e.post.id)).toList();
+            _feedItems = [...result.posts, ...remainingOld];
+          } else {
+            _feedItems = result.posts;
+          }
+          // Save merged/fresh top feed to local cache
+          FeedCacheService.instance.saveFeed(_feedItems, limit: 30);
         } else {
           _feedItems.addAll(result.posts);
         }
+        
         _lastFeedDoc = result.lastDoc;
         _hasMoreFeed = result.posts.length == 20;
         _isLoadingFeed = false;
