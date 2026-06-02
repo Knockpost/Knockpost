@@ -302,6 +302,11 @@ class _MediaCarouselState extends State<MediaCarousel> {
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
         cacheManager: KnockpostImageCacheManager.instance,
+        placeholder: (context, url) => Container(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade900
+              : Colors.grey.shade200,
+        ),
         errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
       );
     } else {

@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final PageController _pageController;
   late final ValueNotifier<int> _navIndexNotifier;
   double _scrollDelta = 0;
-  bool _showBars = true;
+  final ValueNotifier<bool> _showBarsNotifier = ValueNotifier<bool>(true);
   int _currentNavIndex = 0;
   int _feedSeed = 0;
 
@@ -183,6 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _postScrollLockController.dispose();
     _postPageSwipeLockController.dispose();
     _navIndexNotifier.dispose();
+    _showBarsNotifier.dispose();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -192,10 +193,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentNavIndex == index) return;
     setState(() {
       _currentNavIndex = index;
-      // Always show bars when switching tabs — only vertical scroll should hide them
-      _showBars = true;
       _scrollDelta = 0;
     });
+    // Always show bars when switching tabs — only vertical scroll should hide them
+    _showBarsNotifier.value = true;
     _navIndexNotifier.value = index;
   }
 
@@ -216,14 +217,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (dy > 0) {
         // Scrolling down — accumulate distance
         _scrollDelta += dy;
-        if (_scrollDelta > 50 && _showBars) {
-          setState(() => _showBars = false);
+        if (_scrollDelta > 50 && _showBarsNotifier.value) {
+          _showBarsNotifier.value = false;
         }
       } else if (dy < 0) {
         // Scrolling up — show immediately
         _scrollDelta = 0;
-        if (!_showBars) {
-          setState(() => _showBars = true);
+        if (!_showBarsNotifier.value) {
+          _showBarsNotifier.value = true;
         }
       }
     }
@@ -692,27 +693,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // ── FAB (X/Twitter-style fade + scale) ──────────────────
           floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
-              ? AnimatedOpacity(
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOut,
-                  opacity: _showBars ? 1.0 : 0.0,
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeOut,
-                    scale: _showBars ? 1.0 : 0.0,
-                    child: FloatingActionButton(
-                      backgroundColor: const Color(0xFF1B1D1F),
-                      onPressed: () {
-                        KnockHaptics.tap();
-                        _showCreateMenu(context, isDark, bgColor, textColor);
-                      },
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 26,
+              ? ValueListenableBuilder<bool>(
+                  valueListenable: _showBarsNotifier,
+                  builder: (context, showBars, _) {
+                    return AnimatedOpacity(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      opacity: showBars ? 1.0 : 0.0,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                        scale: showBars ? 1.0 : 0.0,
+                        child: FloatingActionButton(
+                          backgroundColor: const Color(0xFF1B1D1F),
+                          onPressed: () {
+                            KnockHaptics.tap();
+                            _showCreateMenu(context, isDark, bgColor, textColor);
+                          },
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 )
               : null,
 
@@ -907,6 +913,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                                 return PostInnerScrollLockRegistrar(
                                                   child: CustomScrollView(
+                                                    cacheExtent: 3000,
                                                     physics: isScrollLocked
                                                         ? const NeverScrollableScrollPhysics()
                                                         : null,
@@ -1068,6 +1075,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         );
                                                       } else {
                                                         card = PostCard(
+                                                          key: ValueKey(post.id),
                                                           imagePaths:
                                                               post.imagePaths,
                                                           optimizedImagePaths: post.optimizedImagePaths,
@@ -1216,22 +1224,27 @@ class _HomeScreenState extends State<HomeScreen> {
           // ── BOTTOM NAV BAR ──────────────────────────────────────────
           // ClipRect ensures the nav is clipped as it slides out of view
           bottomNavigationBar: ClipRect(
-            child: AnimatedSlide(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              offset: _showBars ? Offset.zero : const Offset(0, 1),
-              child: ValueListenableBuilder<int>(
-                valueListenable: _navIndexNotifier,
-                builder: (context, currentIndex, _) {
-                  return CustomBottomNav(
-                    currentIndex: currentIndex,
-                    onTap: (index) {
-                      if (currentIndex == index) return;
-                      _animateToTab(index);
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showBarsNotifier,
+              builder: (context, showBars, _) {
+                return AnimatedSlide(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  offset: showBars ? Offset.zero : const Offset(0, 1),
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _navIndexNotifier,
+                    builder: (context, currentIndex, _) {
+                      return CustomBottomNav(
+                        currentIndex: currentIndex,
+                        onTap: (index) {
+                          if (currentIndex == index) return;
+                          _animateToTab(index);
+                        },
+                      );
                     },
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),
