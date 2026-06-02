@@ -228,6 +228,7 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
     Navigator.pop(context, <String, dynamic>{
       'track': widget.track,
       'trimStartSeconds': (_startMs / 1000).floor(),
+      'trimDurationSeconds': ((_endMs - _startMs) / 1000).clamp(0.1, 15.0),
       'stickerConfig': _config.toMap(),
       'originalVolume': _originalVolume,
       'musicVolume': _musicVolume,

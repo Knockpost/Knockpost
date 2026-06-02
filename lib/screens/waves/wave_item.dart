@@ -56,7 +56,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   bool _isControllerInitialized = false;
   AudioPlayer? _audioPlayer;
 
-  bool get _hasMusic => widget.post?.musicUrl != null && widget.post!.musicUrl!.isNotEmpty;
+  bool get _hasMusic => 
+      widget.post?.musicUrl != null && 
+      widget.post!.musicUrl!.isNotEmpty && 
+      !(widget.post!.isVideoPost && widget.post!.mediaIsBaked);
 
   bool isPlaying = true;
   bool showHeart = false;
@@ -75,6 +78,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   late AnimationController _playPauseAnimController;
   late Animation<double> _playPauseOpacity;
   
+  bool _isSeekingLoop = false;
   Timer? _viewTimer;
 
   @override
@@ -142,7 +146,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       final source = ClippingAudioSource(
         child: AudioSource.uri(uri),
         start: Duration(seconds: start),
-        end: Duration(seconds: start + 60),
+        end: Duration(seconds: start + 15),
       );
 
       await _audioPlayer!.setAudioSource(source);
@@ -188,6 +192,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     }
 
     if (_controller != null && _isControllerInitialized) {
+      // Set video volume based on music presence
+      final videoVolume = _hasMusic ? (widget.post?.originalAudioVolume ?? 0.0) : 1.0;
+      _controller!.setVolume(videoVolume);
+
       if (widget.isActive && isPlaying) {
         _controller!.play();
         _trackView();
@@ -199,11 +207,26 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
   void _controllerListener() {
     if (_controller?.value.isInitialized == true && mounted && !_isControllerInitialized) {
+      // Set video volume immediately on initialization
+      final videoVolume = _hasMusic ? (widget.post?.originalAudioVolume ?? 0.0) : 1.0;
+      _controller?.setVolume(videoVolume);
+
       setState(() {
         _isControllerInitialized = true;
       });
-      _controller?.removeListener(_controllerListener);
       _syncController();
+    }
+    
+    // Loop video at 15 seconds if music is added to sync with music
+    if (_hasMusic && _controller?.value.isInitialized == true && mounted) {
+      if (_controller!.value.position >= const Duration(seconds: 15)) {
+        if (!_isSeekingLoop) {
+          _isSeekingLoop = true;
+          _controller!.seekTo(Duration.zero).then((_) {
+            if (mounted) _isSeekingLoop = false;
+          });
+        }
+      }
     }
   }
 
@@ -241,7 +264,12 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     if (_controller == null && _audioPlayer == null) return;
 
     if (widget.isActive) {
-      if (_controller != null && _isControllerInitialized) _controller!.play();
+      if (_controller != null && _isControllerInitialized) {
+        // Re-apply correct volume when resuming
+        final videoVolume = _hasMusic ? (widget.post?.originalAudioVolume ?? 0.0) : 1.0;
+        _controller!.setVolume(videoVolume);
+        _controller!.play();
+      }
       if (_audioPlayer != null) _audioPlayer!.play();
       isPlaying = true;
       _playPauseAnimController.reverse();

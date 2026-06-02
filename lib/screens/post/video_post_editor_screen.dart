@@ -424,6 +424,21 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
       _selectedMusic = overlayResult['track'] as MusicTrack;
       _selectedMusicFile = null;
       _musicTrimStart = Duration(seconds: overlayResult['trimStartSeconds'] as int);
+      
+      final double musicDurSec = overlayResult['trimDurationSeconds'] as double? ?? 15.0;
+      final desiredVideoDuration = Duration(milliseconds: (musicDurSec * 1000).round());
+      
+      if (_totalDuration > desiredVideoDuration) {
+        final newTrimEnd = _trimStart + desiredVideoDuration;
+        if (newTrimEnd <= _totalDuration) {
+          _trimEnd = newTrimEnd;
+        } else {
+          _trimEnd = _totalDuration;
+          _trimStart = _trimEnd - desiredVideoDuration;
+          if (_trimStart < Duration.zero) _trimStart = Duration.zero;
+        }
+      }
+
       _musicVolume = overlayResult['musicVolume'] as double? ?? 1.0;
       _originalAudioVolume = overlayResult['originalVolume'] as double? ?? _originalAudioVolume;
       _isLoadingMusic = true;

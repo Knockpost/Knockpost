@@ -177,7 +177,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: KnockpostLoadingIndicator()),
+      builder: (_) => const Center(child: KnockPostLoadingIndicator()),
     );
 
     try {

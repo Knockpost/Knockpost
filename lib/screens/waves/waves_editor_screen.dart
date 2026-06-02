@@ -410,7 +410,7 @@ class _WavesEditorScreenState extends State<WavesEditorScreen>
           initialTextOverlays: serializedTexts.isEmpty ? null : serializedTexts,
           initialDrawPaths: serializedPaths.isEmpty ? null : serializedPaths,
           isVideoPost: isVideo,
-          videoHasSound: _selectedMusic == null,
+          videoHasSound: isVideo,
           initialMediaTransform: mediaTransform,
           coverImageFile: coverFile, // Pass the generated thumbnail!
         ),

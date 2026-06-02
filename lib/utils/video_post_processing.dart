@@ -416,8 +416,7 @@ class VideoPostProcessing {
     int nextInputIndex = 1;
     int? musicInputIndex;
     if (hasMusic) {
-      musicInputIndex = nextInputIndex;
-      nextInputIndex += 1;
+      musicInputIndex = nextInputIndex++;
     }
 
     List<int> overlayInputIndices = [];
@@ -654,13 +653,13 @@ class VideoPostProcessing {
 
     if (includeMusic && musicInputIndex != null) {
       buffer.write(
-        ';[$musicInputIndex:a]atrim=start=${_secondsString(request.musicTrimStart)}:duration=${clipLengthSeconds.toStringAsFixed(3)},asetpts=PTS-STARTPTS,volume=${request.musicVolume.toStringAsFixed(3)},aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music]',
+        ';[$musicInputIndex:a]atrim=duration=${clipLengthSeconds.toStringAsFixed(3)},asetpts=PTS-STARTPTS,volume=${request.musicVolume.toStringAsFixed(3)},aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music]',
       );
     }
 
     if (includeOriginalAudio && includeMusic) {
       buffer.write(
-        ';[orig][music]amix=inputs=2:duration=first:dropout_transition=0,volume=2[aout]',
+        ';[orig][music]amix=inputs=2:duration=longest:dropout_transition=0,volume=2[aout]',
       );
     } else if (includeOriginalAudio) {
       buffer.write(';[orig]anull[aout]');

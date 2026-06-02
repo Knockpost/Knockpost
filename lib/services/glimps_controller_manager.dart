@@ -69,9 +69,15 @@ class GlimpsControllerManager extends ChangeNotifier {
       
       final fileInfo = await DefaultCacheManager().getFileFromCache(url);
       if (fileInfo != null && await fileInfo.file.exists()) {
-        controller = VideoPlayerController.file(fileInfo.file);
+        controller = VideoPlayerController.file(
+          fileInfo.file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
       } else {
-        controller = VideoPlayerController.networkUrl(Uri.parse(url));
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(url),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
         DefaultCacheManager().downloadFile(url).then((_) {}).catchError((_) {});
       }
 
