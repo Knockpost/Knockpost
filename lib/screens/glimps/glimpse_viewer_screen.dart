@@ -22,8 +22,7 @@ import 'package:colorfilter_generator/presets.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../shared/music_editor_screen.dart';
 import '../../services/post_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../../services/image_cache_manager.dart';
+
 import '../../../services/user_cache_service.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 

@@ -677,8 +677,27 @@ exports.sendPushOnNotificationUpdate = functions.firestore
   });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // EMAIL OTP FUNCTIONS (Forgot Password)
 // ═══════════════════════════════════════════════════════════════════════════════
+
+exports.checkEmailTaken = functions.https.onCall(async (data, context) => {
+  const email = data.email;
+  if (!email || typeof email !== "string") {
+    throw new functions.https.HttpsError("invalid-argument", "Email is required");
+  }
+
+  try {
+    await admin.auth().getUserByEmail(email);
+    return { taken: true };
+  } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      return { taken: false };
+    }
+    console.error("Error checking email in auth:", error);
+    throw new functions.https.HttpsError("internal", "Error checking email");
+  }
+});
 
 // Email transporter for forgot-password OTP flow.
 // Credentials loaded from functions/.env (GMAIL_EMAIL and GMAIL_PASSWORD).

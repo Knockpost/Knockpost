@@ -22,8 +22,7 @@ import '../../services/post_service.dart';
 import 'package:intl/intl.dart';
 import '../../models/daily_glimpse_card_model.dart';
 import '../../services/daily_glimpse_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../../services/image_cache_manager.dart';
+
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'video_cache_manager.dart';
 import 'performance_service.dart';
-import 'dart:async';
+
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 /// Centralized manager for Glimpse video controllers implementing a strict Sliding Window Architecture
