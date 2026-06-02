@@ -23,11 +23,6 @@ class ConnectionService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   CollectionReference get _col => _db.collection('connections');
-  
-  // Cache for mutual connections
-  List<String>? _cachedMutuals;
-  DateTime? _lastMutualsFetch;
-  final Duration _mutualsCacheDuration = const Duration(minutes: 5);
 
   String? get _myUid => AuthService.instance.currentUser?.uid;
 
@@ -445,58 +440,6 @@ class ConnectionService {
           .toList();
     } catch (e) {
       debugPrint('ConnectionService.getKnockerUids error: $e');
-      return [];
-    }
-  }
-
-  /// Fetch UIDs of connections: people who knocked [targetUid] AND who are MUTUAL connections of the logged-in user.
-  /// Optimized to avoid massive reads on popular target profiles and uses local caching.
-  Future<List<String>> getCommonMutualConnections(String targetUid) async {
-    final me = _myUid;
-    if (me == null || me == targetUid) return [];
-    
-    try {
-      List<String> myMutuals;
-
-      // Check if we have valid cached mutuals
-      if (_cachedMutuals != null &&
-          _lastMutualsFetch != null &&
-          DateTime.now().difference(_lastMutualsFetch!) < _mutualsCacheDuration) {
-        myMutuals = _cachedMutuals!;
-      } else {
-        // 1. Get true mutual connections directly from the optimized collection
-        myMutuals = await getMutualConnectionUids();
-
-        // Update Cache
-        _cachedMutuals = myMutuals;
-        _lastMutualsFetch = DateTime.now();
-      }
-
-      if (myMutuals.isEmpty) return [];
-
-      // 4. Instead of querying ALL knockers of the target (which could be 100k+ for famous users),
-      // we check if our mutual friends have knocked the target.
-      // Since the doc ID is predictably '${fromUid}_${toUid}', we can use direct document reads.
-      final List<Future<DocumentSnapshot>> futures = [];
-      for (final mutualUid in myMutuals) {
-        futures.add(_col.doc(_docId(mutualUid, targetUid)).get());
-      }
-      
-      final snaps = await Future.wait(futures);
-      final List<String> commonMutuals = [];
-      
-      for (final snap in snaps) {
-        if (snap.exists) {
-          final data = snap.data() as Map<String, dynamic>?;
-          if (data != null && data['status'] == 'accepted') {
-            commonMutuals.add(data['fromUid'] as String);
-          }
-        }
-      }
-
-      return commonMutuals;
-    } catch (e) {
-      debugPrint('ConnectionService.getCommonMutualConnections error: $e');
       return [];
     }
   }

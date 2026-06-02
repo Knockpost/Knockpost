@@ -81,13 +81,13 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
       }
     });
 
-    // Fetch mutual connections with this profile
+    // Fetch people who knocked this profile
     _loadKnockers();
   }
 
   Future<void> _loadKnockers() async {
     try {
-      final uids = await ConnectionService.instance.getCommonMutualConnections(_user.id);
+      final uids = await ConnectionService.instance.getKnockerUids(_user.id);
       if (uids.isEmpty || !mounted) return;
 
       final results = await Future.wait(

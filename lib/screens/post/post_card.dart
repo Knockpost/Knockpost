@@ -80,7 +80,7 @@ class PostCard extends StatefulWidget {
   State<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin {
+class _PostCardState extends State<PostCard> {
   static final Set<String> _viewedPosts = {};
   bool _doubleTapped = false;
   AudioPlayer? _audioPlayer;
@@ -90,9 +90,6 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
 
   bool get _hasMusic =>
       widget.musicUrl != null && widget.musicUrl!.isNotEmpty;
-
-  @override
-  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -164,7 +161,6 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return VisibilityDetector(
       key: Key('post_card_${widget.postId ?? widget.hashCode}'),
       onVisibilityChanged: (info) {
