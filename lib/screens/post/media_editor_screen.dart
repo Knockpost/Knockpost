@@ -807,11 +807,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  _toolBtn(
-                    Icons.layers_rounded,
-                    'Overlay',
-                    _EditorTool.overlay,
-                  ),
+                  _musicToolBtn(),
                   const SizedBox(width: 12),
                   _toolBtn(Icons.crop_rotate_rounded, 'Edit', _EditorTool.edit),
                   const SizedBox(width: 12),
@@ -825,7 +821,11 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                   const SizedBox(width: 12),
                   _toolBtn(Icons.text_fields_rounded, 'Text', _EditorTool.text),
                   const SizedBox(width: 12),
-                  _musicToolBtn(),
+                  _toolBtn(
+                    Icons.layers_rounded,
+                    'Overlay',
+                    _EditorTool.overlay,
+                  ),
                 ],
               ),
             ),
