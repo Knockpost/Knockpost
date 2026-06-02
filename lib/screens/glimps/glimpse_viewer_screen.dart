@@ -748,15 +748,17 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
                       shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    glimpse.relativeTime,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
+                  if (_user!.isOwnProfile) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      glimpse.relativeTime,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
