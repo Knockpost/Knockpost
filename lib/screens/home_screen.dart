@@ -42,6 +42,7 @@ import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
 import '../services/performance_service.dart';
+import '../services/feed_cache_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -87,8 +88,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFeed({bool refresh = false}) async {
+  Future<void> _loadFeed({bool refresh = false, bool isManualRefresh = false}) async {
+    if (isManualRefresh) {
+      if (!FeedCacheService.instance.canManualRefresh) {
+        if (FeedCacheService.instance.hasValidCache && _feedItems.isEmpty) {
+          final cache = FeedCacheService.instance.getCache()!;
+          setState(() {
+            _feedItems = cache.posts;
+            _lastFeedDoc = cache.lastDoc;
+            _hasMoreFeed = cache.posts.length >= 20;
+            _isLoadingFeed = false;
+          });
+        }
+        return;
+      }
+      FeedCacheService.instance.recordManualRefresh();
+      FeedCacheService.instance.clear();
+    }
+
     if (refresh) {
+      if (!isManualRefresh && FeedCacheService.instance.hasValidCache) {
+        final cache = FeedCacheService.instance.getCache()!;
+        setState(() {
+          _feedItems = cache.posts;
+          _lastFeedDoc = cache.lastDoc;
+          _hasMoreFeed = cache.posts.length >= 20;
+          _isLoadingFeed = false;
+        });
+        return;
+      }
+
       if (_isLoadingFeed && _feedItems.isNotEmpty) return;
       setState(() {
         _hasMoreFeed = true;
@@ -107,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
       currentUserId: currentUser?.id ?? '',
       currentUserModel: currentUser,
       startAfter: _lastFeedDoc,
-      limit: 15,
+      limit: 20,
     );
 
     stopWatch.stop();
@@ -121,11 +150,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         if (refresh) {
           _feedItems = result.posts;
+          FeedCacheService.instance.saveCache(result.posts, result.lastDoc);
         } else {
           _feedItems.addAll(result.posts);
+          FeedCacheService.instance.appendCache(result.posts, result.lastDoc);
         }
         _lastFeedDoc = result.lastDoc;
-        _hasMoreFeed = result.posts.length == 15;
+        _hasMoreFeed = result.posts.length == 20;
         _isLoadingFeed = false;
         _isLoadingMore = false;
         if (refresh) {
@@ -713,7 +744,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return KnockPostRefreshIndicator(
                                   onRefresh: () async {
                                     KnockHaptics.tap();
-                                    await _loadFeed(refresh: true);
+                                    await _loadFeed(refresh: true, isManualRefresh: true);
                                   },
                                   child: NestedScrollView(
                                     physics: isScrollLocked
@@ -875,17 +906,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 }
 
                                                 return PostInnerScrollLockRegistrar(
-                                                  child: ListView.builder(
+                                                  child: CustomScrollView(
                                                     physics: isScrollLocked
                                                         ? const NeverScrollableScrollPhysics()
                                                         : null,
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          bottom: 90,
-                                                        ),
-                                                    itemCount:
-                                                        activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
-                                                    itemBuilder: (context, index) {
+                                                    slivers: [
+                                                      SliverPadding(
+                                                        padding: const EdgeInsets.only(bottom: 90),
+                                                        sliver: SliverList(
+                                                          delegate: SliverChildBuilderDelegate(
+                                                            (context, index) {
                                                       const glimpseStripIndex =
                                                           1;
                                                       const peopleStripIndex =
@@ -1120,7 +1150,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             ),
                                                         ],
                                                       );
-                                                    },
+                                                            },
+                                                            childCount: activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 );
                                               },

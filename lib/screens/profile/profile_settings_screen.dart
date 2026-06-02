@@ -1665,10 +1665,14 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
       final uid = user?.uid ?? 'anonymous';
       
       // Save to Firestore just in case
-      await DatabaseService.instance.submitFeedback(
-        uid: uid,
-        message: text,
-      );
+      try {
+        await DatabaseService.instance.submitFeedback(
+          uid: uid,
+          message: text,
+        );
+      } catch (e) {
+        debugPrint('Firestore feedback save failed: $e');
+      }
 
       final Uri emailLaunchUri = Uri(
         scheme: 'mailto',
@@ -1679,16 +1683,26 @@ class _FeedbackScreenState extends State<_FeedbackScreen> {
         }),
       );
       
+      bool launched = false;
       try {
-        await launchUrl(emailLaunchUri);
+        launched = await launchUrl(
+          emailLaunchUri,
+          mode: LaunchMode.externalApplication,
+        );
       } catch (e) {
         debugPrint('Could not launch email app: $e');
       }
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thank you! Redirecting to email app...')),
-        );
+        if (launched) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Thank you! Redirecting to email app...')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Feedback saved. No email app found to open.')),
+          );
+        }
         Navigator.pop(context);
       }
     } catch (e) {

@@ -8,6 +8,7 @@ import '../../../services/performance_service.dart';
 import '../../../services/image_cache_manager.dart';
 import '../../../services/user_cache_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 import 'glimpse_viewer_screen.dart';
 
 class GlimpsCard extends StatelessWidget {
@@ -87,17 +88,13 @@ class GlimpsCard extends StatelessWidget {
               Builder(builder: (context) {
                 if (thumbnailPath.isEmpty) return const SizedBox.shrink();
                 
-                final isVideoUrl = thumbnailPath.toLowerCase().endsWith('.mp4') || 
-                                   thumbnailPath.toLowerCase().endsWith('.mov') || 
-                                   thumbnailPath.toLowerCase().endsWith('.mkv');
+                final isVideoUrl = thumbnailPath.toLowerCase().contains('.mp4') || 
+                                   thumbnailPath.toLowerCase().contains('.mov') || 
+                                   thumbnailPath.toLowerCase().contains('.mkv') ||
+                                   thumbnailPath.toLowerCase().contains('.webm');
                 
                 if (isVideoUrl) {
-                   return Container(
-                     color: Colors.grey.shade900,
-                     child: const Center(
-                       child: Icon(Icons.videocam, color: Colors.white54, size: 30),
-                     ),
-                   );
+                   return _GlimpseVideoThumbnail(path: thumbnailPath);
                 }
 
                 Widget buildImage(BoxFit fit) {
@@ -116,12 +113,38 @@ class GlimpsCard extends StatelessWidget {
                         PerformanceService.instance.incrementGlimpsImageCacheMiss();
                         return Container(color: Colors.grey.shade900);
                       },
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey.shade900,
-                        child: const Center(
-                          child: Icon(Icons.error, color: Colors.white54),
-                        ),
-                      ),
+                      errorWidget: (_, __, ___) {
+                        if (optimizedThumbnailPath != null && 
+                            optimizedThumbnailPath.isNotEmpty && 
+                            optimizedThumbnailPath != thumbnailPath) {
+                          // Fallback to original unoptimized image if the optimized one fails
+                          return CachedNetworkImage(
+                            imageUrl: thumbnailPath,
+                            fit: fit,
+                            cacheManager: KnockpostImageCacheManager.instance,
+                            imageBuilder: (context, imageProvider) {
+                              PerformanceService.instance.incrementGlimpsImageCacheHit();
+                              return Image(image: imageProvider, fit: fit);
+                            },
+                            placeholder: (context, url) {
+                              PerformanceService.instance.incrementGlimpsImageCacheMiss();
+                              return Container(color: Colors.grey.shade900);
+                            },
+                            errorWidget: (_, __, ___) => Container(
+                              color: Colors.grey.shade900,
+                              child: const Center(
+                                child: Icon(Icons.error, color: Colors.white54),
+                              ),
+                            ),
+                          );
+                        }
+                        return Container(
+                          color: Colors.grey.shade900,
+                          child: const Center(
+                            child: Icon(Icons.error, color: Colors.white54),
+                          ),
+                        );
+                      },
                     );
                   } else if (thumbnailPath.isNotEmpty) {
                     return Image.file(File(thumbnailPath), fit: fit);
@@ -272,3 +295,73 @@ class GlimpsCard extends StatelessWidget {
     );
   }
 }
+
+class _GlimpseVideoThumbnail extends StatefulWidget {
+  final String path;
+
+  const _GlimpseVideoThumbnail({required this.path});
+
+  @override
+  State<_GlimpseVideoThumbnail> createState() => _GlimpseVideoThumbnailState();
+}
+
+class _GlimpseVideoThumbnailState extends State<_GlimpseVideoThumbnail> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.path.startsWith('http')) {
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    } else if (widget.path.startsWith('assets/')) {
+      _controller = VideoPlayerController.asset(
+        widget.path,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    } else {
+      _controller = VideoPlayerController.file(
+        File(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+    }
+
+    _controller
+        .initialize()
+        .then((_) {
+          if (mounted) setState(() => _initialized = true);
+        })
+        .catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return Container(
+        color: Colors.grey.shade900,
+        child: const Center(
+          child: Icon(Icons.videocam, color: Colors.white54, size: 32),
+        ),
+      );
+    }
+
+    return FittedBox(
+      fit: BoxFit.cover,
+      child: SizedBox(
+        width: _controller.value.size.width,
+        height: _controller.value.size.height,
+        child: VideoPlayer(_controller),
+      ),
+    );
+  }
+}
+
