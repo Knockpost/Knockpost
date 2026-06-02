@@ -302,11 +302,20 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
   void initState() {
     super.initState();
     if (widget.path.startsWith('http')) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.path));
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else if (widget.path.startsWith('assets/')) {
-      _controller = VideoPlayerController.asset(widget.path);
+      _controller = VideoPlayerController.asset(
+        widget.path,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else {
-      _controller = VideoPlayerController.file(File(widget.path));
+      _controller = VideoPlayerController.file(
+        File(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     }
 
     _controller

@@ -109,6 +109,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     setState(() => _isPosting = true);
     KnockHaptics.tap();
 
+
     final type = widget.isWaves
         ? PostType.waves
         : (widget.isGlimpse

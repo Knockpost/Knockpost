@@ -21,6 +21,13 @@ class ConnectionService {
   ConnectionService._();
   static final ConnectionService instance = ConnectionService._();
 
+  final Map<String, ({KnockStatus status, DateTime fetchedAt})> _statusCache = {};
+  static const Duration _statusTtl = Duration(minutes: 2);
+
+  void invalidateKnockCache(String uid) {
+    _statusCache.remove(uid);
+  }
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   CollectionReference get _col => _db.collection('connections');
 
@@ -72,6 +79,7 @@ class ConnectionService {
         'totalKnocksReceived': FieldValue.increment(1),
       }).catchError((_) {}); 
       DatabaseService.instance.recalculateCreatorRank(toUid);
+      invalidateKnockCache(toUid);
     } catch (e) {
       KnockStateManager.instance.setOptimisticStatus(toUid, previousStatus);
       debugPrint('ConnectionService.sendKnock error: $e');
@@ -124,6 +132,7 @@ class ConnectionService {
         receiverUid: fromUid,
         type: NotificationType.knockBack,
       );
+      invalidateKnockCache(fromUid);
     } catch (e) {
       KnockStateManager.instance.setOptimisticStatus(fromUid, previousStatus);
       debugPrint('ConnectionService.acceptKnock error: $e');
@@ -165,6 +174,7 @@ class ConnectionService {
         'totalKnocksReceived': FieldValue.increment(-1),
       }).catchError((_) {});
       DatabaseService.instance.recalculateCreatorRank(otherUid);
+      invalidateKnockCache(otherUid);
     } catch (e) {
       KnockStateManager.instance.setOptimisticStatus(otherUid, previousStatus);
       debugPrint('ConnectionService.removeKnock error: $e');
@@ -193,6 +203,7 @@ class ConnectionService {
         receiverUid: fromUid,
         type: NotificationType.knockAccept,
       );
+      invalidateKnockCache(fromUid);
     } catch (e) {
       KnockStateManager.instance.setOptimisticStatus(fromUid, previousStatus);
       debugPrint('ConnectionService.approveKnock error: $e');
@@ -229,6 +240,7 @@ class ConnectionService {
         'totalKnocksReceived': FieldValue.increment(-1),
       }).catchError((_) {});
       DatabaseService.instance.recalculateCreatorRank(me);
+      invalidateKnockCache(fromUid);
     } catch (e) {
       KnockStateManager.instance.setOptimisticStatus(fromUid, previousStatus);
       debugPrint('ConnectionService.declineKnock error: $e');
@@ -243,43 +255,59 @@ class ConnectionService {
     final me = _myUid;
     if (me == null) return KnockStatus.none;
 
+    final now = DateTime.now();
+    if (_statusCache.containsKey(otherUid)) {
+      final entry = _statusCache[otherUid]!;
+      if (now.difference(entry.fetchedAt) < _statusTtl) {
+        return entry.status;
+      } else {
+        _statusCache.remove(otherUid);
+      }
+    }
+
     try {
       // Check if I knocked them
-      final iKnockedSnap = await _col.doc(_docId(me, otherUid)).get();
+      final iKnockedSnap = await _col.doc(_docId(me, otherUid)).get(const GetOptions(source: Source.serverAndCache));
       // Check if they knocked me
-      final theyKnockedSnap = await _col.doc(_docId(otherUid, me)).get();
+      final theyKnockedSnap = await _col.doc(_docId(otherUid, me)).get(const GetOptions(source: Source.serverAndCache));
 
       final iKnocked = iKnockedSnap.exists;
       final theyKnocked = theyKnockedSnap.exists;
 
-      if (!iKnocked && !theyKnocked) return KnockStatus.none;
+      if (!iKnocked && !theyKnocked) {
+        _statusCache[otherUid] = (status: KnockStatus.none, fetchedAt: now);
+        return KnockStatus.none;
+      }
 
       final iStatus = iKnocked ? (iKnockedSnap.data() as Map)['status'] : null;
       final theyStatus = theyKnocked ? (theyKnockedSnap.data() as Map)['status'] : null;
 
+      KnockStatus result = KnockStatus.none;
+
       // Both accepted → mutual
       if (iKnocked && theyKnocked &&
           iStatus == 'accepted' && theyStatus == 'accepted') {
-        return KnockStatus.mutualKnocked;
+        result = KnockStatus.mutualKnocked;
       }
-
       // I knocked and accepted (open profile case) → knocked
-      if (iKnocked && iStatus == 'accepted' && !theyKnocked) {
-        return KnockStatus.knocked;
+      else if (iKnocked && iStatus == 'accepted' && !theyKnocked) {
+        result = KnockStatus.knocked;
       }
-
       // I knocked, still pending
-      if (iKnocked && iStatus == 'pending') return KnockStatus.pending;
-
+      else if (iKnocked && iStatus == 'pending') {
+        result = KnockStatus.pending;
+      }
       // They knocked me
-      if (theyKnocked && !iKnocked) {
+      else if (theyKnocked && !iKnocked) {
         if (theyStatus == 'pending') {
-          return KnockStatus.theyKnockedYouPending;
+          result = KnockStatus.theyKnockedYouPending;
+        } else {
+          result = KnockStatus.theyKnockedYou;
         }
-        return KnockStatus.theyKnockedYou;
       }
 
-      return KnockStatus.none;
+      _statusCache[otherUid] = (status: result, fetchedAt: now);
+      return result;
     } catch (e) {
       debugPrint('ConnectionService.getKnockStatus error: $e');
       return KnockStatus.none;

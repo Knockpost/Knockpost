@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../models/post_model.dart';
 import '../../../models/user_model.dart';
@@ -161,7 +162,10 @@ class GlimpsCard extends StatelessWidget {
                     return Stack(
                       fit: StackFit.expand,
                       children: [
-                        buildImage(BoxFit.cover),
+                        ImageFiltered(
+                          imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.clamp),
+                          child: buildImage(BoxFit.cover),
+                        ),
                         Container(color: Colors.black.withValues(alpha: 0.35)),
                         buildForeground(buildImage(BoxFit.cover)),
                       ],

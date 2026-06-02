@@ -15,6 +15,8 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/video_post_processing.dart';
+import '../../models/media_transform.dart';
+import '../../utils/media_transform_utils.dart';
 import '../shared/final_post_screen.dart';
 import '../shared/music_editor_screen.dart';
 import '../shared/music_picker_screen.dart';
@@ -42,8 +44,8 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
   final AudioPlayer _sourceAudioPlayer = AudioPlayer();
   final AudioPlayer _musicPlayer = AudioPlayer();
   final TextEditingController _textInputController = TextEditingController();
-  final Map<VideoPostAspect, VideoPostTransform> _transforms = {
-    for (final aspect in VideoPostAspect.values) aspect: VideoPostTransform(),
+  final Map<VideoPostAspect, MediaTransform> _transforms = {
+    for (final aspect in VideoPostAspect.values) aspect: const MediaTransform.identity(),
   };
 
   final List<_EditableVideoText> _textOverlays = [];
@@ -105,7 +107,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
   Color _draftTextColor = Colors.white;
   VideoPostTextFont _draftTextFont = VideoPostTextFont.classic;
 
-  VideoPostTransform get _currentTransform => _transforms[_selectedAspect]!;
+  MediaTransform get _currentTransform => _transforms[_selectedAspect]!;
   Duration get _totalDuration => _sourceInfo?.duration ?? Duration.zero;
 
   bool get _hasOriginalAudio => _sourceInfo?.hasAudio ?? false;
@@ -370,7 +372,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
 
   Future<void> _resetCurrentTransform() async {
     KnockHaptics.tap();
-    setState(() => _transforms[_selectedAspect] = VideoPostTransform());
+    setState(() => _transforms[_selectedAspect] = const MediaTransform.identity());
   }
 
   Future<void> _setOriginalAudioVolume(double value) async {
@@ -422,6 +424,21 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
       _selectedMusic = overlayResult['track'] as MusicTrack;
       _selectedMusicFile = null;
       _musicTrimStart = Duration(seconds: overlayResult['trimStartSeconds'] as int);
+      
+      final double musicDurSec = overlayResult['trimDurationSeconds'] as double? ?? 15.0;
+      final desiredVideoDuration = Duration(milliseconds: (musicDurSec * 1000).round());
+      
+      if (_totalDuration > desiredVideoDuration) {
+        final newTrimEnd = _trimStart + desiredVideoDuration;
+        if (newTrimEnd <= _totalDuration) {
+          _trimEnd = newTrimEnd;
+        } else {
+          _trimEnd = _totalDuration;
+          _trimStart = _trimEnd - desiredVideoDuration;
+          if (_trimStart < Duration.zero) _trimStart = Duration.zero;
+        }
+      }
+
       _musicVolume = overlayResult['musicVolume'] as double? ?? 1.0;
       _originalAudioVolume = overlayResult['originalVolume'] as double? ?? _originalAudioVolume;
       _isLoadingMusic = true;
@@ -593,7 +610,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
           sourceSize: _sourceSize,
           previewFrameSize: _previewFrameSize,
           outputSize: _selectedAspect.outputSize,
-          transform: _currentTransform.copy(),
+          transform: _currentTransform,
           trimStart: _trimStart,
           trimEnd: _trimEnd,
           coverTime: _coverTime,
@@ -727,10 +744,16 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
         final frameSize = Size(constraints.maxWidth, constraints.maxHeight);
         _previewFrameSize = frameSize;
 
-        final transform = _currentTransform;
-        transform.offset = VideoPostProcessing.clampOffset(proposedOffset: transform.offset, scale: transform.scale, sourceSize: _sourceSize, frameSize: frameSize);
+        final transform = _currentTransform.copyWith(
+          containerWidth: frameSize.width,
+          containerHeight: frameSize.height,
+        );
 
-        final drawRect = VideoPostProcessing.buildPreviewDrawRect(frameSize: frameSize, sourceSize: _sourceSize, transform: transform);
+        final drawRect = MediaTransformUtils.buildDrawRect(
+          canvasSize: frameSize, 
+          mediaSize: _sourceSize, 
+          transform: transform
+        );
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(16),
@@ -746,15 +769,26 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
             onDoubleTap: _resetCurrentTransform,
             onScaleStart: (details) {
               _gestureBaseScale = transform.scale;
-              _gestureBaseOffset = transform.offset;
+              _gestureBaseOffset = Offset(transform.translateX, transform.translateY);
               _gestureStartFocal = details.focalPoint;
             },
             onScaleUpdate: (details) {
-              final newScale = (_gestureBaseScale * details.scale).clamp(1.0, 5.0).toDouble();
+              final newScale = MediaTransformUtils.clampScale(_gestureBaseScale * details.scale);
               final proposedOffset = _gestureBaseOffset + (details.focalPoint - _gestureStartFocal);
+              
+              final clampedOffset = MediaTransformUtils.clampOffset(
+                proposed: proposedOffset, 
+                scale: newScale, 
+                mediaSize: _sourceSize, 
+                canvasSize: frameSize
+              );
+              
               setState(() {
-                transform.scale = newScale;
-                transform.offset = VideoPostProcessing.clampOffset(proposedOffset: proposedOffset, scale: transform.scale, sourceSize: _sourceSize, frameSize: frameSize);
+                _transforms[_selectedAspect] = transform.copyWith(
+                  scale: newScale,
+                  translateX: clampedOffset.dx,
+                  translateY: clampedOffset.dy,
+                );
               });
             },
             child: Stack(

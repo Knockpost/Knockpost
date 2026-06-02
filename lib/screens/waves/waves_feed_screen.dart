@@ -172,6 +172,7 @@ class _WavesFeedScreenState extends State<WavesFeedScreen> {
                                 currentIndex = newIndex;
                               });
 
+                              // Synchronize sliding window of video controllers
                               final feedUrls = waves.map((w) => w.imagePaths.isNotEmpty ? w.imagePaths.first : '').toList();
                               WavesControllerManager.instance.updateWindow(currentIndex, feedUrls);
 

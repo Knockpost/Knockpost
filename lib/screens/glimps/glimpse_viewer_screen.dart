@@ -22,6 +22,10 @@ import 'package:colorfilter_generator/presets.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../shared/music_editor_screen.dart';
 import '../../services/post_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../services/image_cache_manager.dart';
+import '../../../services/user_cache_service.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GlimpseViewerScreen — Premium full-screen story viewer
@@ -249,7 +253,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
       if (mounted) setState(() => _user = widget.preloadedUsers[widget.authorId]);
       return;
     }
-    final data = await DatabaseService.instance.getUserProfile(widget.authorId, useCache: true);
+    final data = await UserCacheService.instance.getUserProfile(widget.authorId);
     if (data != null && mounted) {
       setState(() {
         _user = UserModel.fromMap(data, widget.authorId);
@@ -833,6 +837,7 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
   VideoPlayerController? _videoController;
   bool _isManagedController = false;
   AudioPlayer? _audioPlayer;
+  bool _isSeekingLoop = false;
 
   final List<Map<String, dynamic>> _carouselEffects = [
     {'id': 'none', 'label': 'Normal'},
@@ -909,66 +914,137 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
         _videoController = GlimpsControllerManager.instance.getControllerIfExists(path);
         if (_videoController != null) {
           _isManagedController = true;
+          
+          widget.progressController.stop();
+
+          bool hasSetup = false;
+          void setupVideo() {
+            if (!mounted || hasSetup) return;
+            hasSetup = true;
+            setState(() {});
+            _videoController!.setLooping(false);
+            // Mute video audio when music is added, otherwise use configured volume
+            final hasMusic = widget.glimpse.musicUrl != null && widget.glimpse.musicUrl!.isNotEmpty && !(widget.glimpse.isVideoPost && widget.glimpse.mediaIsBaked);
+            _videoController!.setVolume(hasMusic ? (widget.glimpse.originalAudioVolume ?? 0.0) : 1.0);
+            _videoController!.play();
+
+            widget.progressController.duration = _videoController!.value.duration;
+            widget.progressController.forward(from: 0);
+          }
+
+          if (_videoController!.value.isInitialized) {
+            setupVideo();
+          } else {
+            void listener() {
+              if (_videoController!.value.isInitialized) {
+                setupVideo();
+                _videoController!.removeListener(listener);
+              }
+            }
+            _videoController!.addListener(listener);
+          }
         } else {
-          _videoController = VideoPlayerController.networkUrl(Uri.parse(path));
           _isManagedController = false;
+          _initUnmanagedVideoAsync(path);
         }
       } else if (path.startsWith('assets/')) {
-        _videoController = VideoPlayerController.asset(path);
+        _videoController = VideoPlayerController.asset(
+          path,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
         _isManagedController = false;
+        _initUnmanagedVideoAsync(path);
       } else {
-        _videoController = VideoPlayerController.file(File(path));
+        _videoController = VideoPlayerController.file(
+          File(path),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
         _isManagedController = false;
-      }
-
-      widget.progressController.stop();
-
-      bool hasSetup = false;
-      void setupVideo() {
-        if (!mounted || hasSetup) return;
-        hasSetup = true;
-        setState(() {});
-        _videoController!.setLooping(false);
-        _videoController!.setVolume(widget.glimpse.originalAudioVolume ?? 1.0);
-        _videoController!.play();
-
-        widget.progressController.duration = _videoController!.value.duration;
-        widget.progressController.forward(from: 0);
-      }
-
-      if (_videoController!.value.isInitialized) {
-        setupVideo();
-      } else {
-        if (_isManagedController) {
-          void listener() {
-            if (_videoController!.value.isInitialized) {
-              setupVideo();
-              _videoController!.removeListener(listener);
-            }
-          }
-          _videoController!.addListener(listener);
-        } else {
-          _videoController!.initialize().then((_) {
-            setupVideo();
-          });
-        }
+        _initUnmanagedVideoAsync(path);
       }
     } else {
       widget.progressController.duration = const Duration(seconds: 6);
       widget.progressController.forward(from: 0);
     }
 
-    if (widget.glimpse.musicUrl != null && widget.glimpse.musicUrl!.isNotEmpty) {
+    final bool hasMusicToPlay = widget.glimpse.musicUrl != null && widget.glimpse.musicUrl!.isNotEmpty && !(widget.glimpse.isVideoPost && widget.glimpse.mediaIsBaked);
+    if (hasMusicToPlay) {
       _audioPlayer = AudioPlayer();
       AudioLifecycleManager.instance.register(_audioPlayer!);
       _setupAudioPlayer();
     }
   }
 
+  Future<void> _initUnmanagedVideoAsync(String path) async {
+    widget.progressController.stop();
+    
+    if (path.startsWith('http')) {
+      final fileInfo = await DefaultCacheManager().getFileFromCache(path);
+      if (!mounted) return;
+
+      if (fileInfo != null && await fileInfo.file.exists()) {
+        _videoController = VideoPlayerController.file(
+          fileInfo.file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      } else {
+        _videoController = VideoPlayerController.networkUrl(
+          Uri.parse(path),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+        DefaultCacheManager().downloadFile(path).then((_) {}).catchError((_) {});
+      }
+    }
+    // For local files or assets, _videoController is already initialized synchronously above.
+
+    try {
+      await _videoController!.initialize();
+      if (!mounted) {
+        _videoController!.dispose();
+        return;
+      }
+      
+      setState(() {});
+      _videoController!.setLooping(false);
+      // Mute video audio when music is added, otherwise use configured volume
+      final hasMusic = widget.glimpse.musicUrl != null && widget.glimpse.musicUrl!.isNotEmpty && !(widget.glimpse.isVideoPost && widget.glimpse.mediaIsBaked);
+      _videoController!.setVolume(hasMusic ? (widget.glimpse.originalAudioVolume ?? 0.0) : 1.0);
+      _videoController!.play();
+
+      widget.progressController.duration = _videoController!.value.duration;
+      widget.progressController.forward(from: 0);
+      
+      // Add a listener to loop video at 15 seconds if music is added to sync with music
+      if (hasMusic) {
+        _videoController!.addListener(() {
+          if (_videoController?.value.isInitialized == true && mounted) {
+            if (_videoController!.value.position >= const Duration(seconds: 15)) {
+              if (!_isSeekingLoop) {
+                _isSeekingLoop = true;
+                _videoController!.seekTo(Duration.zero).then((_) {
+                  if (mounted) _isSeekingLoop = false;
+                });
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Video init error: $e");
+    }
+  }
+
   Future<void> _setupAudioPlayer() async {
     try {
-      await _audioPlayer!.setUrl(widget.glimpse.musicUrl!);
-      await _audioPlayer!.seek(Duration(seconds: widget.glimpse.musicTrimStart ?? 0));
+      final start = widget.glimpse.musicTrimStart ?? 0;
+      final uri = Uri.parse(widget.glimpse.musicUrl!);
+      final source = ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(seconds: start),
+        // Just setting a large end duration ensures we play to the end of the preview
+        end: Duration(seconds: start + 15), 
+      );
+      await _audioPlayer!.setAudioSource(source);
       await _audioPlayer!.setVolume(widget.glimpse.musicVolume ?? 1.0);
       await _audioPlayer!.setLoopMode(LoopMode.one);
       await _audioPlayer!.play();
@@ -999,7 +1075,7 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
         cacheManager: KnockpostImageCacheManager.instance,
         fadeInDuration: const Duration(milliseconds: 150),
         placeholder: (context, url) => Container(color: Colors.black),
-        errorWidget: (context, url, error) => Container(color: Colors.black),
+        errorWidget: (context, url, error) => Container(color: Colors.grey.shade900),
       );
     } else if (path.isNotEmpty) {
       return Image.file(File(path), fit: fit);

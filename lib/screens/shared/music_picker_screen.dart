@@ -42,7 +42,6 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
   String _searchQuery = '';
   bool _isLoadingTracks = false;
   bool _isLoadingAudio = false;
-  bool _isConfirming = false;
   Timer? _debounceTimer;
   MusicTrack? _selectedTrack;
 
@@ -157,28 +156,32 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
     _togglePlayPause(track);
   }
 
-  Future<void> _confirmSelection() async {
+  void _confirmSelection() {
     if (_selectedTrack == null) return;
     KnockHaptics.impact();
     _audioPlayer.stop();
-    setState(() => _isConfirming = true);
+    
+    final trackToReturn = _selectedTrack!;
+    
+    // Fire and forget lyrics fetch
+    _fetchLyricsInBackground(trackToReturn);
+    
+    Navigator.pop(context, trackToReturn);
+  }
 
-    // Fetch lyrics from LRCLIB
+  Future<void> _fetchLyricsInBackground(MusicTrack track) async {
     try {
-      final uri = Uri.parse('https://lrclib.net/api/get?track_name=${Uri.encodeComponent(_selectedTrack!.title)}&artist_name=${Uri.encodeComponent(_selectedTrack!.artist)}');
-      final response = await http.get(uri);
+      final uri = Uri.parse('https://lrclib.net/api/get?track_name=${Uri.encodeComponent(track.title)}&artist_name=${Uri.encodeComponent(track.artist)}');
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['syncedLyrics'] != null && data['syncedLyrics'].toString().isNotEmpty) {
-          _selectedTrack!.syncedLyrics = data['syncedLyrics'];
+          track.syncedLyrics = data['syncedLyrics'];
         }
       }
     } catch (e) {
       debugPrint('LRCLIB Error: $e');
     }
-
-    setState(() => _isConfirming = false);
-    if (mounted) Navigator.pop(context, _selectedTrack);
   }
 
   Future<void> _stopAudio() async {
@@ -248,12 +251,7 @@ class _MusicPickerScreenState extends State<MusicPickerScreen>
                     duration: const Duration(milliseconds: 200),
                     child: GestureDetector(
                       onTap: _selectedTrack != null ? _confirmSelection : null,
-                      child: _isConfirming
-                          ? const SizedBox(
-                              width: 28, height: 28,
-                              child: KnockPostLoadingIndicator(),
-                            )
-                          : const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 28),
                     ),
                   ),
                 ],

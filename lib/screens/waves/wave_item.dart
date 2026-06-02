@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'package:video_player/video_player.dart';
@@ -8,6 +9,8 @@ import '../profile/other_profile_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../models/user_model.dart';
 import '../../models/post_model.dart';
+import '../../models/media_transform.dart';
+import '../../utils/media_transform_utils.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/image_helper.dart';
 import '../../services/current_user_service.dart';
@@ -53,7 +56,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   bool _isControllerInitialized = false;
   AudioPlayer? _audioPlayer;
 
-  bool get _hasMusic => widget.post?.musicUrl != null && widget.post!.musicUrl!.isNotEmpty;
+  bool get _hasMusic => 
+      widget.post?.musicUrl != null && 
+      widget.post!.musicUrl!.isNotEmpty && 
+      !(widget.post!.isVideoPost && widget.post!.mediaIsBaked);
 
   bool isPlaying = true;
   bool showHeart = false;
@@ -72,6 +78,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
   late AnimationController _playPauseAnimController;
   late Animation<double> _playPauseOpacity;
   
+  bool _isSeekingLoop = false;
   Timer? _viewTimer;
 
   @override
@@ -139,7 +146,7 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
       final source = ClippingAudioSource(
         child: AudioSource.uri(uri),
         start: Duration(seconds: start),
-        end: Duration(seconds: start + 60),
+        end: Duration(seconds: start + 15),
       );
 
       await _audioPlayer!.setAudioSource(source);
@@ -185,6 +192,10 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     }
 
     if (_controller != null && _isControllerInitialized) {
+      // Set video volume based on music presence
+      final videoVolume = _hasMusic ? (widget.post?.originalAudioVolume ?? 0.0) : 1.0;
+      _controller!.setVolume(videoVolume);
+
       if (widget.isActive && isPlaying) {
         _controller!.play();
         _trackView();
@@ -196,11 +207,26 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
 
   void _controllerListener() {
     if (_controller?.value.isInitialized == true && mounted && !_isControllerInitialized) {
+      // Set video volume immediately on initialization
+      final videoVolume = _hasMusic ? (widget.post?.originalAudioVolume ?? 0.0) : 1.0;
+      _controller?.setVolume(videoVolume);
+
       setState(() {
         _isControllerInitialized = true;
       });
-      _controller?.removeListener(_controllerListener);
       _syncController();
+    }
+    
+    // Loop video at 15 seconds if music is added to sync with music
+    if (_hasMusic && _controller?.value.isInitialized == true && mounted) {
+      if (_controller!.value.position >= const Duration(seconds: 15)) {
+        if (!_isSeekingLoop) {
+          _isSeekingLoop = true;
+          _controller!.seekTo(Duration.zero).then((_) {
+            if (mounted) _isSeekingLoop = false;
+          });
+        }
+      }
     }
   }
 
@@ -238,7 +264,12 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     if (_controller == null && _audioPlayer == null) return;
 
     if (widget.isActive) {
-      if (_controller != null && _isControllerInitialized) _controller!.play();
+      if (_controller != null && _isControllerInitialized) {
+        // Re-apply correct volume when resuming
+        final videoVolume = _hasMusic ? (widget.post?.originalAudioVolume ?? 0.0) : 1.0;
+        _controller!.setVolume(videoVolume);
+        _controller!.play();
+      }
       if (_audioPlayer != null) _audioPlayer!.play();
       isPlaying = true;
       _playPauseAnimController.reverse();
@@ -452,27 +483,61 @@ class _WaveItemState extends State<WaveItem> with TickerProviderStateMixin {
     if (widget.post?.mediaTransform != null) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          final t = widget.post!.mediaTransform!;
-          final cw = (t['containerWidth'] as num?)?.toDouble() ?? constraints.maxWidth;
-          final ch = (t['containerHeight'] as num?)?.toDouble() ?? constraints.maxHeight;
-          final scaleRatioX = cw > 0 ? constraints.maxWidth / cw : 1.0;
-          final scaleRatioY = ch > 0 ? constraints.maxHeight / ch : 1.0;
+          final transform = MediaTransform.fromMap(widget.post!.mediaTransform!);
           
-          final scale = (t['scale'] as num?)?.toDouble() ?? 1.0;
-          final rot = (t['rotation'] as num?)?.toDouble() ?? 0.0;
-          final dx = (t['translateX'] as num?)?.toDouble() ?? 0.0;
-          final dy = (t['translateY'] as num?)?.toDouble() ?? 0.0;
+          final double ratio = (transform.containerWidth > 0 && transform.containerHeight > 0)
+              ? (transform.containerWidth / transform.containerHeight)
+              : (1080 / 1920);
 
-          return ClipRect(
-            child: Transform(
-              transform: Matrix4.identity()
-                ..translateByDouble(dx * scaleRatioX, dy * scaleRatioY, 0.0, 1.0)
-                ..scaleByDouble(scale, scale, 1.0, 1.0)
-                ..rotateZ(rot),
-              alignment: Alignment.center,
-              child: finalLayer,
+          final canvasSize = Size(constraints.maxWidth, constraints.maxWidth / ratio);
+          final rescaled = MediaTransformUtils.rescale(transform, canvasSize);
+
+          final sharpForeground = SizedBox(
+            width: canvasSize.width,
+            height: canvasSize.height,
+            child: ClipRect(
+              child: Transform(
+                transform: Matrix4.identity()
+                  ..translateByDouble(rescaled.translateX, rescaled.translateY, 0.0, 1.0)
+                  ..scaleByDouble(rescaled.scale, rescaled.scale, 1.0, 1.0),
+                alignment: Alignment.center,
+                child: finalLayer,
+              ),
             ),
           );
+
+          if ((canvasSize.height - constraints.maxHeight).abs() < 2.0) {
+            return Center(child: sharpForeground);
+          } else {
+            Widget blurredBackground = const SizedBox.shrink();
+            String? bgUrl;
+            if (widget.post!.isVideoPost && widget.post!.coverImagePath != null) {
+              bgUrl = widget.post!.coverImagePath;
+            } else if (!widget.post!.isVideoPost && widget.post!.imagePaths.isNotEmpty) {
+              bgUrl = widget.post!.imagePaths.first;
+            }
+            if (bgUrl != null && bgUrl.isNotEmpty) {
+              blurredBackground = ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.clamp),
+                child: Transform.scale(
+                  scale: 1.2,
+                  child: ExtendedImage.network(
+                    bgUrl,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+            }
+
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                blurredBackground,
+                Container(color: Colors.black.withValues(alpha: 0.3)),
+                Center(child: sharpForeground),
+              ],
+            );
+          }
         },
       );
     }
