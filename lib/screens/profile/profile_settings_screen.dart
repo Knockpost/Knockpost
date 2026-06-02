@@ -21,6 +21,7 @@ import 'change_password_screen.dart';
 import 'delete_account_screen.dart';
 import 'two_factor_setup_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 /// Profile Settings screen — includes Professional mode toggle
 class ProfileSettingsScreen extends StatefulWidget {
@@ -380,6 +381,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               bg: sectionBg,
               divColor: divColor,
               children: [
+                ProfileSettingsRow(
+                  title: 'Rate App',
+                  subtitle: 'Enjoying KnockPost? Leave a review!',
+                  trailing: Icon(
+                    Icons.star_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                  onTap: () async {
+                    final inAppReview = InAppReview.instance;
+                    if (await inAppReview.isAvailable()) {
+                      inAppReview.requestReview();
+                    }
+                  },
+                ),
                 ProfileSettingsRow(
                   title: 'Feedback',
                   subtitle: 'Tell us what is working and what should improve',
