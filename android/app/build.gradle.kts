@@ -30,8 +30,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.knockpost"
+        applicationId = "com.knockpost.app"
         
         // MANDATORY: minSdk must be at least 24 for compatible dependencies.
         minSdk = 24
