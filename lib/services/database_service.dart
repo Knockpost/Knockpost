@@ -57,9 +57,20 @@ class DatabaseService {
 
   /// Check if a username is already taken.
   Future<bool> checkUsernameTaken(String username) async {
+    final cleanUsername = username.toLowerCase().trim();
+    
+    // Check using the secure Cloud Function
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('checkUsernameTaken');
+      final result = await callable.call({'username': cleanUsername});
+      return result.data['taken'] == true;
+    } catch (e) {
+      debugPrint("Cloud function check username error: $e");
+    }
+
     try {
       final result = await usersCollection
-          .where('username', isEqualTo: username.toLowerCase().trim())
+          .where('username', isEqualTo: cleanUsername)
           .get();
       return result.docs.isNotEmpty;
     } catch (e) {

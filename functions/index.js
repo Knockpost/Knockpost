@@ -699,6 +699,25 @@ exports.checkEmailTaken = functions.https.onCall(async (data, context) => {
   }
 });
 
+exports.checkUsernameTaken = functions.https.onCall(async (data, context) => {
+  const username = data.username;
+  if (!username || typeof username !== "string") {
+    throw new functions.https.HttpsError("invalid-argument", "Username is required");
+  }
+
+  try {
+    const snapshot = await admin.firestore().collection("users")
+      .where("username", "==", username.toLowerCase().trim())
+      .limit(1)
+      .get();
+    
+    return { taken: !snapshot.empty };
+  } catch (error) {
+    console.error("Error checking username in firestore:", error);
+    throw new functions.https.HttpsError("internal", "Error checking username");
+  }
+});
+
 // Email transporter for forgot-password OTP flow.
 // Credentials loaded from functions/.env (GMAIL_EMAIL and GMAIL_PASSWORD).
 // Uses the same transporter as the 2FA OTP flow above.
