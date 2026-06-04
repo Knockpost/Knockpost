@@ -219,9 +219,11 @@ class UserModel {
     String? avatarAsset,
     String? optimizedAvatarUrl,
     bool clearAvatar = false,
+    bool clearOptimizedAvatar = false,
     String? coverImageAsset,
     String? optimizedCoverUrl,
     bool clearCover = false,
+    bool clearOptimizedCover = false,
     int? friendsCount,
     List<String>? mutualFriendsWhoKnocked,
     AccountType? accountType,
@@ -249,11 +251,11 @@ class UserModel {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       avatarAsset: clearAvatar ? null : (avatarAsset ?? this.avatarAsset),
-      optimizedAvatarUrl: clearAvatar ? null : (optimizedAvatarUrl ?? this.optimizedAvatarUrl),
+      optimizedAvatarUrl: (clearAvatar || clearOptimizedAvatar) ? null : (optimizedAvatarUrl ?? this.optimizedAvatarUrl),
       coverImageAsset: clearCover
           ? null
           : (coverImageAsset ?? this.coverImageAsset),
-      optimizedCoverUrl: clearCover
+      optimizedCoverUrl: (clearCover || clearOptimizedCover)
           ? null
           : (optimizedCoverUrl ?? this.optimizedCoverUrl),
       friendsCount: friendsCount ?? this.friendsCount,
