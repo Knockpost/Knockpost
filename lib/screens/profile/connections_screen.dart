@@ -170,8 +170,18 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   void _onKnockBack(String userId) {
     KnockHaptics.impact();
-    GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYou).value =
-        KnockStatus.mutualKnocked;
+
+        
+    setState(() {
+      final userIndex = _incomingAcceptedReal.indexWhere((u) => u.id == userId);
+      if (userIndex != -1) {
+        final user = _incomingAcceptedReal[userIndex];
+        if (!_mutualReal.any((u) => u.id == userId)) {
+          _mutualReal.add(user);
+        }
+      }
+    });
+
     // Persist to Firestore
     ConnectionService.instance.acceptKnock(userId).catchError(
       (e) => debugPrint('ConnectionsScreen._onKnockBack error: $e'),
@@ -180,8 +190,16 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   void _onAcceptKnock(String userId) {
     KnockHaptics.impact();
-    GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYouPending).value =
-        KnockStatus.theyKnockedYou;
+
+        
+    setState(() {
+      final userIndex = _incomingPendingReal.indexWhere((u) => u.id == userId);
+      if (userIndex != -1) {
+        final user = _incomingPendingReal.removeAt(userIndex);
+        _incomingAcceptedReal.add(user);
+      }
+    });
+
     // Persist to Firestore
     ConnectionService.instance.approveKnock(userId).catchError(
       (e) => debugPrint('ConnectionsScreen._onAcceptKnock error: $e'),

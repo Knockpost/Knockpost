@@ -111,12 +111,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   }
 
   void _sendKnock() async {
-    final nextStatus = _user.isEffectivelyOpen
-        ? KnockStatus.knocked
-        : KnockStatus.pending;
-    
-    final previousStatus = _user.knockStatus;
-    _updateKnockStatus(nextStatus);
+
 
     try {
       await ConnectionService.instance.sendKnock(
@@ -124,9 +119,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
         isOpenProfile: _user.isEffectivelyOpen,
       );
     } catch (e) {
-      if (mounted) {
-        _updateKnockStatus(previousStatus);
-      }
+      debugPrint('Error sending knock from OtherProfileScreen: $e');
     }
   }
 
