@@ -322,8 +322,8 @@ class DatabaseService {
       });
       
       // Remove any connection documents between these two users
-      await _firestore.collection('connections').doc('${myUid}_$targetUid').delete();
-      await _firestore.collection('connections').doc('${targetUid}_$myUid').delete();
+      try { await _firestore.collection('connections').doc('${myUid}_$targetUid').delete(); } catch (_) {}
+      try { await _firestore.collection('connections').doc('${targetUid}_$myUid').delete(); } catch (_) {}
     } catch (e) {
       debugPrint("Error blocking user: $e");
       rethrow;
