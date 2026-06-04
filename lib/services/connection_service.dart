@@ -160,9 +160,11 @@ class ConnectionService {
       batch.delete(_col.doc(_docId(me, otherUid)));
 
       // DELETE MUTUAL CONNECTION
-      final sortedUids = [me, otherUid]..sort();
-      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
-      batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      if (currentStatus == KnockStatus.mutualKnocked) {
+        final sortedUids = [me, otherUid]..sort();
+        final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+        batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      }
       
       await batch.commit();
 
@@ -226,9 +228,11 @@ class ConnectionService {
       batch.delete(_col.doc(_docId(fromUid, me)));
 
       // DELETE MUTUAL CONNECTION (Just in case it was mutual)
-      final sortedUids = [me, fromUid]..sort();
-      final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
-      batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      if (currentStatus == KnockStatus.mutualKnocked) {
+        final sortedUids = [me, fromUid]..sort();
+        final mutualId = '${sortedUids[0]}_${sortedUids[1]}';
+        batch.delete(_db.collection('mutual_connections').doc(mutualId));
+      }
       
       await batch.commit();
 
