@@ -13,6 +13,7 @@ import '../../services/storage_service.dart';
 import '../../services/current_user_service.dart';
 import '../../services/image_cache_manager.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/optimized_image.dart';
 import '../../utils/haptic_helper.dart';
 import '../../widgets/system_nav_bar_fill.dart';
 import '../../widgets/knockpost_username_field.dart';
@@ -332,14 +333,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // Refresh local user cache
       await CurrentUserService.instance.loadCurrentUser();
 
+      final bool coverChanged = _coverImageAsset != widget.user.coverImageAsset;
+      final bool avatarChanged = _avatarAsset != widget.user.avatarAsset;
+
       final updated = widget.user.copyWith(
         displayName: _normalizedName,
         username: _normalizedUsername,
         bio: _normalizedBio,
         avatarAsset: finalAvatarUrl,
         clearAvatar: finalAvatarUrl == null,
+        clearOptimizedAvatar: avatarChanged,
         coverImageAsset: finalCoverUrl,
         clearCover: finalCoverUrl == null,
+        clearOptimizedCover: coverChanged,
         socialLinks: _socialLinks,
       );
 
@@ -587,25 +593,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Container(
                 height: 140,
                 width: double.infinity,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: fieldBg,
                   borderRadius: BorderRadius.circular(16),
-                  image: _coverImageAsset != null
-                      ? DecorationImage(
-                          image: _coverImageAsset!.startsWith('http')
-                              ? CachedNetworkImageProvider(
-                                  (_coverImageAsset == widget.user.coverImageAsset && widget.user.optimizedCoverUrl?.isNotEmpty == true) 
-                                      ? widget.user.optimizedCoverUrl! 
-                                      : _coverImageAsset!,
-                                  cacheManager: KnockpostImageCacheManager.instance,
-                                ) as ImageProvider
-                              : _coverImageAsset!.startsWith('assets/')
-                                  ? AssetImage(_coverImageAsset!) as ImageProvider
-                                  : FileImage(File(_coverImageAsset!)),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
                 ),
+                child: (_coverImageAsset != null && _coverImageAsset!.isNotEmpty)
+                    ? (_coverImageAsset!.startsWith('http')
+                        ? OptimizedImage(
+                            rawUrl: _coverImageAsset!,
+                            optimizedUrl: _coverImageAsset == widget.user.coverImageAsset ? widget.user.optimizedCoverUrl : null,
+                            fit: BoxFit.cover,
+                            cacheManager: KnockpostImageCacheManager.instance,
+                            memCacheWidth: (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).round(),
+                          )
+                        : _coverImageAsset!.startsWith('assets/')
+                            ? Image.asset(_coverImageAsset!, fit: BoxFit.cover)
+                            : Image.file(File(_coverImageAsset!), fit: BoxFit.cover))
+                    : null,
               ),
             ),
           ),
@@ -642,29 +647,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       color: bg,
                       border: Border.all(color: bg, width: 4),
                     ),
-                    child: CircleAvatar(
-                      radius: 44,
-                      backgroundColor: fieldBg,
-                      backgroundImage: _avatarAsset != null
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        color: fieldBg,
+                        shape: BoxShape.circle,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (_avatarAsset != null && _avatarAsset!.isNotEmpty)
                           ? (_avatarAsset!.startsWith('http')
-                              ? CachedNetworkImageProvider(
-                                  (_avatarAsset == widget.user.avatarAsset && widget.user.optimizedAvatarUrl?.isNotEmpty == true) 
-                                      ? widget.user.optimizedAvatarUrl! 
-                                      : _avatarAsset!,
+                              ? OptimizedImage(
+                                  rawUrl: _avatarAsset!,
+                                  optimizedUrl: _avatarAsset == widget.user.avatarAsset ? widget.user.optimizedAvatarUrl : null,
+                                  fit: BoxFit.cover,
                                   cacheManager: KnockpostImageCacheManager.instance,
+                                  memCacheWidth: (88 * MediaQuery.of(context).devicePixelRatio).round(),
                                 )
                               : _avatarAsset!.startsWith('assets/')
-                                  ? AssetImage(_avatarAsset!)
-                                  : FileImage(File(_avatarAsset!)))
-                                as ImageProvider
-                          : null,
-                      child: _avatarAsset == null
-                          ? Icon(
+                                  ? Image.asset(_avatarAsset!, fit: BoxFit.cover)
+                                  : Image.file(File(_avatarAsset!), fit: BoxFit.cover))
+                          : Icon(
                               Icons.person_rounded,
                               size: 56,
                               color: isDark ? Colors.white54 : Colors.black45,
-                            )
-                          : null,
+                            ),
                     ),
                   ),
                 ),
