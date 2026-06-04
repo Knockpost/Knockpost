@@ -41,6 +41,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   List<UserModel> _incomingAcceptedReal = [];
   List<UserModel> _mutualReal = [];
 
+  bool _isLoading = true;
+
   // Track which users have been dismissed from the lists
   final Set<String> _dismissedIds = {};
   final Map<String, VoidCallback> _knockListeners = {};
@@ -64,6 +66,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   }
 
   Future<void> _loadData() async {
+    if (mounted) setState(() => _isLoading = true);
+
     final futures = await Future.wait([
       ConnectionService.instance.getSentPendingKnockUids(),
       ConnectionService.instance.getSentAcceptedKnockUids(),
@@ -72,30 +76,37 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
       ConnectionService.instance.getMutualConnectionUids(),
     ]);
 
-    final sentPending = await _loadUsersFromUids(futures[0]);
-    final sentAccepted = await _loadUsersFromUids(futures[1]);
-    final incomingPending = await _loadUsersFromUids(futures[2]);
-    final incomingAccepted = await _loadUsersFromUids(futures[3]);
-    final mutual = await _loadUsersFromUids(futures[4]);
+    // PARALLELIZE the category profile fetching
+    final profileFutures = await Future.wait([
+      _loadUsersFromUids(futures[0]),
+      _loadUsersFromUids(futures[1]),
+      _loadUsersFromUids(futures[2]),
+      _loadUsersFromUids(futures[3]),
+      _loadUsersFromUids(futures[4]),
+    ]);
 
     if (mounted) {
       setState(() {
-        _sentPendingReal = sentPending;
-        _sentAcceptedReal = sentAccepted;
-        _incomingPendingReal = incomingPending;
-        _incomingAcceptedReal = incomingAccepted;
-        _mutualReal = mutual;
+        _sentPendingReal = profileFutures[0];
+        _sentAcceptedReal = profileFutures[1];
+        _incomingPendingReal = profileFutures[2];
+        _incomingAcceptedReal = profileFutures[3];
+        _mutualReal = profileFutures[4];
+        _isLoading = false;
       });
     }
   }
 
   Future<List<UserModel>> _loadUsersFromUids(List<String> uids) async {
-    final users = <UserModel>[];
-    for (final uid in uids) {
+    // PARALLELIZE the N user profile fetches
+    final userFutures = uids.map((uid) async {
       final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
-      if (data != null) users.add(UserModel.fromMap(data, uid));
-    }
-    return users;
+      if (data != null) return UserModel.fromMap(data, uid);
+      return null;
+    });
+    
+    final users = await Future.wait(userFutures);
+    return users.whereType<UserModel>().toList();
   }
 
   @override
@@ -349,24 +360,30 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
                   // ── Swipeable list content ──
                   Expanded(
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: _onPageChanged,
-                      children: [
-                        RefreshIndicator(
-                          onRefresh: _loadData,
-                          color: isDark ? Colors.white : Colors.black,
-                          backgroundColor: bg,
-                          child: _buildYouKnockedList(isDark, textColor),
-                        ),
-                        RefreshIndicator(
-                          onRefresh: _loadData,
-                          color: isDark ? Colors.white : Colors.black,
-                          backgroundColor: bg,
-                          child: _buildKnockedYouList(isDark, textColor),
-                        ),
-                      ],
-                    ),
+                    child: _isLoading 
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          )
+                        : PageView(
+                            controller: _pageController,
+                            onPageChanged: _onPageChanged,
+                            children: [
+                              RefreshIndicator(
+                                onRefresh: _loadData,
+                                color: isDark ? Colors.white : Colors.black,
+                                backgroundColor: bg,
+                                child: _buildYouKnockedList(isDark, textColor),
+                              ),
+                              RefreshIndicator(
+                                onRefresh: _loadData,
+                                color: isDark ? Colors.white : Colors.black,
+                                backgroundColor: bg,
+                                child: _buildKnockedYouList(isDark, textColor),
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
