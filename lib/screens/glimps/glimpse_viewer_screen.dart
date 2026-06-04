@@ -278,6 +278,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _goToNext() {
+    if (!mounted) return;
     if (_currentIndex < widget.glimpses.length - 1) {
       setState(() => _currentIndex++);
       _recordCurrentGlimpseView();
@@ -304,6 +305,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _goToPrevious() {
+    if (!mounted) return;
     if (_currentIndex > 0) {
       setState(() => _currentIndex--);
       _recordCurrentGlimpseView();
@@ -349,7 +351,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
-    if (!_isDragging) return;
+    if (!_isDragging || !mounted) return;
     setState(() {
       _dragOffsetY = (_dragOffsetY + details.delta.dy).clamp(0, 400);
       _dragScale = (1.0 - (_dragOffsetY / 800)).clamp(0.7, 1.0);
@@ -357,7 +359,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _onVerticalDragEnd(DragEndDetails details) {
-    if (!_isDragging) return;
+    if (!_isDragging || !mounted) return;
     _isDragging = false;
 
     final velocity = details.primaryVelocity ?? 0;

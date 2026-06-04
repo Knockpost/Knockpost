@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../utils/haptic_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +62,19 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
     super.dispose();
   }
 
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(fn);
+      });
+    } else {
+      setState(fn);
+    }
+  }
+
   /// How far the indicator has traveled (0..1 clamped).
   double get _pullProgress =>
       (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
@@ -81,13 +95,13 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
     _hasTriggeredHaptic = false;
     _lastHapticTick = 0;
     if (!_isRefreshing) {
-      setState(() => _dragOffset = 0);
+      _safeSetState(() => _dragOffset = 0);
     }
   }
 
   Future<void> _startRefresh() async {
     if (_isRefreshing) return;
-    setState(() => _isRefreshing = true);
+    _safeSetState(() => _isRefreshing = true);
     _spinController.repeat();
 
     try {
@@ -102,7 +116,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
     } finally {
       if (mounted) {
         _spinController.stop();
-        setState(() {
+        _safeSetState(() {
           _isRefreshing = false;
           _dragOffset = 0;
           _isDragging = false;
@@ -127,7 +141,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
         KnockHaptics.impact();
         _startRefresh();
       } else if (!_isRefreshing && mounted) {
-        setState(() => _dragOffset = 0);
+        _safeSetState(() => _dragOffset = 0);
       }
     });
   }
@@ -138,7 +152,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
         notification.overscroll < 0 &&
         !_isRefreshing) {
       if (mounted) {
-        setState(() {
+        _safeSetState(() {
           _isDragging = true;
           _dragOffset += -notification.overscroll * 0.6;
         });
@@ -156,7 +170,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
       // User is at the very top and pulling further down
       if (pos.pixels <= pos.minScrollExtent && delta < 0) {
         if (mounted) {
-          setState(() {
+          _safeSetState(() {
             _isDragging = true;
             _dragOffset += -delta * 0.6; // damping
           });
@@ -168,7 +182,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
       // User is scrolling back up while in pull state
       if (_isDragging && delta > 0) {
         if (mounted) {
-          setState(() {
+          _safeSetState(() {
             _dragOffset = (_dragOffset - delta).clamp(0.0, double.infinity);
           });
         }
@@ -187,7 +201,7 @@ class _KnockPostRefreshIndicatorState extends State<KnockPostRefreshIndicator>
         KnockHaptics.impact();
         _startRefresh();
       } else if (!_isRefreshing && mounted) {
-        setState(() => _dragOffset = 0);
+        _safeSetState(() => _dragOffset = 0);
       }
     }
 
