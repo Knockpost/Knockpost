@@ -181,7 +181,7 @@ service cloud.firestore {
     // ── Mutual Connections ──
     match /mutual_connections/{mutualId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow create, update: if isSignedIn() && request.auth.uid in request.resource.data.participants;
       allow delete: if isSignedIn() && request.auth.uid in resource.data.participants;
     }
 
