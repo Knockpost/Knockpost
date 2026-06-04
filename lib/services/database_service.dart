@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -56,9 +57,20 @@ class DatabaseService {
 
   /// Check if a username is already taken.
   Future<bool> checkUsernameTaken(String username) async {
+    final cleanUsername = username.toLowerCase().trim();
+    
+    // Check using the secure Cloud Function
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('checkUsernameTaken');
+      final result = await callable.call({'username': cleanUsername});
+      return result.data['taken'] == true;
+    } catch (e) {
+      debugPrint("Cloud function check username error: $e");
+    }
+
     try {
       final result = await usersCollection
-          .where('username', isEqualTo: username.toLowerCase().trim())
+          .where('username', isEqualTo: cleanUsername)
           .get();
       return result.docs.isNotEmpty;
     } catch (e) {
@@ -69,9 +81,20 @@ class DatabaseService {
 
   /// Check if an email is already taken.
   Future<bool> checkEmailTaken(String email) async {
+    final cleanEmail = email.toLowerCase().trim();
+    
+    // Check using the secure Cloud Function
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('checkEmailTaken');
+      final result = await callable.call({'email': cleanEmail});
+      return result.data['taken'] == true;
+    } catch (e) {
+      debugPrint("Cloud function check email error: $e");
+    }
+
     try {
       final result = await usersCollection
-          .where('email', isEqualTo: email.toLowerCase().trim())
+          .where('email', isEqualTo: cleanEmail)
           .get();
       return result.docs.isNotEmpty;
     } catch (e) {

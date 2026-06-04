@@ -89,7 +89,7 @@ class _PostCardState extends State<PostCard> {
   Timer? _viewTimer;
 
   bool get _hasMusic =>
-      widget.musicUrl != null && widget.musicUrl!.isNotEmpty;
+      widget.musicUrl != null && widget.musicUrl!.isNotEmpty && !(widget.isVideoPost && widget.mediaIsBaked);
 
   @override
   void initState() {
@@ -233,6 +233,7 @@ class _PostCardState extends State<PostCard> {
               imagePaths: widget.imagePaths,
               optimizedImagePaths: widget.optimizedImagePaths,
               isVideoPost: widget.isVideoPost,
+              isBakedVideo: widget.mediaIsBaked,
               onDoubleTap: _onDoubleTap,
               mediaAspectRatio: widget.mediaAspectRatio,
             ),

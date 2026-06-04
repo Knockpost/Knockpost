@@ -190,20 +190,52 @@ class _GridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     if ((post.type == PostType.media || post.type == PostType.waves) &&
         post.imagePaths.isNotEmpty) {
-      final imagePath = post.imagePaths.first;
+      final rawImagePath = post.imagePaths.first;
       final hasVideoExtension =
-          imagePath.toLowerCase().endsWith('.mp4') ||
-          imagePath.toLowerCase().endsWith('.mov') ||
-          imagePath.toLowerCase().endsWith('.mkv');
+          rawImagePath.toLowerCase().endsWith('.mp4') ||
+          rawImagePath.toLowerCase().endsWith('.mov') ||
+          rawImagePath.toLowerCase().endsWith('.mkv');
       final isVideo = hasVideoExtension || post.type == PostType.waves;
 
       Widget imageWidget;
       if (isVideo) {
-        imageWidget = _VideoThumbnail(path: imagePath);
+        imageWidget = _VideoThumbnail(path: rawImagePath);
       } else {
+        final optimizedPaths = post.optimizedImagePaths;
+        final imagePath = optimizedPaths != null &&
+                optimizedPaths.isNotEmpty &&
+                optimizedPaths.first.isNotEmpty
+            ? optimizedPaths.first
+            : rawImagePath;
         final provider = ImageHelper.resolveImage(imagePath);
         imageWidget = provider != null
-            ? Image(image: provider, fit: BoxFit.cover)
+            ? Image(
+                image: provider,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) {
+                  if (imagePath != rawImagePath) {
+                    final fallback = ImageHelper.resolveImage(rawImagePath);
+                    if (fallback != null) {
+                      return Image(
+                        image: fallback,
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.low,
+                        gaplessPlayback: true,
+                        errorBuilder: (context, err, stack) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                        ),
+                      );
+                    }
+                  }
+                  return Container(
+                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                  );
+                },
+              )
             : Container(color: Colors.grey);
       }
 
@@ -270,11 +302,20 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
   void initState() {
     super.initState();
     if (widget.path.startsWith('http')) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.path));
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else if (widget.path.startsWith('assets/')) {
-      _controller = VideoPlayerController.asset(widget.path);
+      _controller = VideoPlayerController.asset(
+        widget.path,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else {
-      _controller = VideoPlayerController.file(File(widget.path));
+      _controller = VideoPlayerController.file(
+        File(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     }
 
     _controller

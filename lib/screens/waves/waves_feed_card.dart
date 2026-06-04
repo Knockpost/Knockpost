@@ -60,6 +60,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
   // ── Interaction state ───────────────────────────────────────────────────
   bool _showSoundIndicator = false;
 
+
   // ── Spacing & sizing constants ──────────────────────────────────────────
   static const double _overlayPaddingH = 16.0;
   static const double _overlayPaddingBottom = 16.0;
@@ -97,7 +98,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
       final source = ClippingAudioSource(
         child: AudioSource.uri(uri),
         start: Duration(seconds: start),
-        end: Duration(seconds: start + 60),
+        end: Duration(seconds: start + 15),
       );
 
       await _audioPlayer!.setAudioSource(source);
@@ -125,11 +126,20 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
     if (path.isEmpty) return;
 
     if (path.startsWith('http')) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(path));
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else if (path.startsWith('assets/')) {
-      _controller = VideoPlayerController.asset(path);
+      _controller = VideoPlayerController.asset(
+        path,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else {
-      _controller = VideoPlayerController.file(File(path));
+      _controller = VideoPlayerController.file(
+        File(path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     }
 
     _controller!.initialize().then((_) {

@@ -41,10 +41,18 @@ void main() async {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
       // ── Crashlytics: capture all Flutter framework errors ──
-      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      FlutterError.onError = (FlutterErrorDetails details) {
+        if (details.exceptionAsString().contains('HttpException')) {
+          return; // Ignore HttpException from cached_network_image to prevent Crashlytics spam
+        }
+        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+      };
 
       // ── Crashlytics: capture platform dispatcher errors ──
       PlatformDispatcher.instance.onError = (error, stack) {
+        if (error.toString().contains('HttpException')) {
+          return true; // Ignore HttpException
+        }
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
         return true;
       };

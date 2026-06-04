@@ -82,7 +82,16 @@ class DailyGlimpseCardWidget extends StatelessWidget {
               }
               final provider = ImageHelper.resolveImage(thumbnailPath);
               return provider != null
-                  ? Image(image: provider, fit: BoxFit.cover)
+                  ? Image(
+                      image: provider,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.low,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                      ),
+                    )
                   : const Icon(Icons.error, size: 24);
             },
           ),
@@ -109,11 +118,20 @@ class _GlimpseVideoThumbnailState extends State<_GlimpseVideoThumbnail> {
   void initState() {
     super.initState();
     if (widget.path.startsWith('http')) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.path));
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else if (widget.path.startsWith('assets/')) {
-      _controller = VideoPlayerController.asset(widget.path);
+      _controller = VideoPlayerController.asset(
+        widget.path,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     } else {
-      _controller = VideoPlayerController.file(File(widget.path));
+      _controller = VideoPlayerController.file(
+        File(widget.path),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
     }
 
     _controller

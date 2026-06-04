@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../../utils/haptic_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,6 +20,48 @@ class SignupEmailScreen extends StatefulWidget {
 class _SignupEmailScreenState extends State<SignupEmailScreen> {
   final TextEditingController emailController = TextEditingController();
   bool isLoading = false;
+  bool isCheckingEmail = false;
+  String? _errorMessage;
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    emailController.dispose();
+    super.dispose();
+  }
+
+  void _onEmailChanged(String val) {
+    if (_errorMessage != null) {
+      setState(() {
+        _errorMessage = null;
+      });
+    }
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    final email = val.trim();
+    if (email.isNotEmpty && email.contains('@')) {
+      setState(() {
+        isCheckingEmail = true;
+      });
+      _debounce = Timer(const Duration(milliseconds: 500), () async {
+        bool emailTaken = await DatabaseService.instance.checkEmailTaken(email);
+        if (mounted) {
+          setState(() {
+            isCheckingEmail = false;
+            if (emailTaken) {
+              _errorMessage = "You already have an account with this email.";
+            }
+          });
+        }
+      });
+    } else {
+      setState(() {
+        isCheckingEmail = false;
+      });
+    }
+  }
 
   void goNext() async {
     // Dismiss the keyboard
@@ -34,6 +77,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
     setState(() {
       isLoading = true;
+      _errorMessage = null;
     });
 
     try {
@@ -41,14 +85,10 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
       bool emailTaken = await DatabaseService.instance.checkEmailTaken(email);
       if (emailTaken) {
         if (mounted) {
-          setState(() { isLoading = false; });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Account already exists with this email! Please log in."),
-              backgroundColor: Colors.redAccent,
-              duration: Duration(seconds: 4),
-            ),
-          );
+          setState(() { 
+            isLoading = false; 
+            _errorMessage = "You already have an account with this email.";
+          });
         }
         return;
       }
@@ -187,15 +227,32 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
                         borderRadius: BorderRadius.circular(16),
+                        border: _errorMessage != null
+                            ? Border.all(color: Colors.redAccent, width: 1.5)
+                            : null,
                       ),
                       child: TextField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        onChanged: _onEmailChanged,
                         decoration: InputDecoration(
                           hintText: "Email address",
                           hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border: InputBorder.none,
+                          suffixIcon: isCheckingEmail
+                              ? Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: isDark ? Colors.white54 : Colors.black54,
+                                    ),
+                                  ),
+                                )
+                              : null,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 20,
@@ -203,6 +260,18 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                         ),
                       ),
                     ),
+
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 16),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(height: 28),
 

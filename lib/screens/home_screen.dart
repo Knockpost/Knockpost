@@ -42,6 +42,7 @@ import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
 import '../services/performance_service.dart';
+import '../services/feed_cache_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final PageController _pageController;
   late final ValueNotifier<int> _navIndexNotifier;
   double _scrollDelta = 0;
-  bool _showBars = true;
+  final ValueNotifier<bool> _showBarsNotifier = ValueNotifier<bool>(true);
   int _currentNavIndex = 0;
   int _feedSeed = 0;
 
@@ -87,8 +88,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFeed({bool refresh = false}) async {
+  Future<void> _loadFeed({bool refresh = false, bool isManualRefresh = false}) async {
+    if (isManualRefresh) {
+      if (!FeedCacheService.instance.canManualRefresh) {
+        if (FeedCacheService.instance.hasValidCache && _feedItems.isEmpty) {
+          final cache = FeedCacheService.instance.getCache()!;
+          setState(() {
+            _feedItems = cache.posts;
+            _lastFeedDoc = cache.lastDoc;
+            _hasMoreFeed = cache.posts.length >= 20;
+            _isLoadingFeed = false;
+          });
+        }
+        return;
+      }
+      FeedCacheService.instance.recordManualRefresh();
+      FeedCacheService.instance.clear();
+    }
+
     if (refresh) {
+      if (!isManualRefresh && FeedCacheService.instance.hasValidCache) {
+        final cache = FeedCacheService.instance.getCache()!;
+        setState(() {
+          _feedItems = cache.posts;
+          _lastFeedDoc = cache.lastDoc;
+          _hasMoreFeed = cache.posts.length >= 20;
+          _isLoadingFeed = false;
+        });
+        return;
+      }
+
       if (_isLoadingFeed && _feedItems.isNotEmpty) return;
       setState(() {
         _hasMoreFeed = true;
@@ -107,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
       currentUserId: currentUser?.id ?? '',
       currentUserModel: currentUser,
       startAfter: _lastFeedDoc,
-      limit: 15,
+      limit: 20,
     );
 
     stopWatch.stop();
@@ -121,11 +150,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         if (refresh) {
           _feedItems = result.posts;
+          FeedCacheService.instance.saveCache(result.posts, result.lastDoc);
         } else {
           _feedItems.addAll(result.posts);
+          FeedCacheService.instance.appendCache(result.posts, result.lastDoc);
         }
         _lastFeedDoc = result.lastDoc;
-        _hasMoreFeed = result.posts.length == 15;
+        _hasMoreFeed = result.posts.length == 20;
         _isLoadingFeed = false;
         _isLoadingMore = false;
         if (refresh) {
@@ -152,6 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _postScrollLockController.dispose();
     _postPageSwipeLockController.dispose();
     _navIndexNotifier.dispose();
+    _showBarsNotifier.dispose();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -161,10 +193,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentNavIndex == index) return;
     setState(() {
       _currentNavIndex = index;
-      // Always show bars when switching tabs — only vertical scroll should hide them
-      _showBars = true;
       _scrollDelta = 0;
     });
+    // Always show bars when switching tabs — only vertical scroll should hide them
+    _showBarsNotifier.value = true;
     _navIndexNotifier.value = index;
   }
 
@@ -185,14 +217,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (dy > 0) {
         // Scrolling down — accumulate distance
         _scrollDelta += dy;
-        if (_scrollDelta > 50 && _showBars) {
-          setState(() => _showBars = false);
+        if (_scrollDelta > 50 && _showBarsNotifier.value) {
+          _showBarsNotifier.value = false;
         }
       } else if (dy < 0) {
         // Scrolling up — show immediately
         _scrollDelta = 0;
-        if (!_showBars) {
-          setState(() => _showBars = true);
+        if (!_showBarsNotifier.value) {
+          _showBarsNotifier.value = true;
         }
       }
     }
@@ -661,27 +693,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // ── FAB (X/Twitter-style fade + scale) ──────────────────
           floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
-              ? AnimatedOpacity(
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOut,
-                  opacity: _showBars ? 1.0 : 0.0,
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeOut,
-                    scale: _showBars ? 1.0 : 0.0,
-                    child: FloatingActionButton(
-                      backgroundColor: const Color(0xFF1B1D1F),
-                      onPressed: () {
-                        KnockHaptics.tap();
-                        _showCreateMenu(context, isDark, bgColor, textColor);
-                      },
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 26,
+              ? ValueListenableBuilder<bool>(
+                  valueListenable: _showBarsNotifier,
+                  builder: (context, showBars, _) {
+                    return AnimatedOpacity(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      opacity: showBars ? 1.0 : 0.0,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                        scale: showBars ? 1.0 : 0.0,
+                        child: FloatingActionButton(
+                          backgroundColor: const Color(0xFF1B1D1F),
+                          onPressed: () {
+                            KnockHaptics.tap();
+                            _showCreateMenu(context, isDark, bgColor, textColor);
+                          },
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 )
               : null,
 
@@ -713,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return KnockPostRefreshIndicator(
                                   onRefresh: () async {
                                     KnockHaptics.tap();
-                                    await _loadFeed(refresh: true);
+                                    await _loadFeed(refresh: true, isManualRefresh: true);
                                   },
                                   child: NestedScrollView(
                                     physics: isScrollLocked
@@ -875,17 +912,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 }
 
                                                 return PostInnerScrollLockRegistrar(
-                                                  child: ListView.builder(
+                                                  child: CustomScrollView(
+                                                    cacheExtent: 3000,
                                                     physics: isScrollLocked
                                                         ? const NeverScrollableScrollPhysics()
                                                         : null,
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          bottom: 90,
-                                                        ),
-                                                    itemCount:
-                                                        activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
-                                                    itemBuilder: (context, index) {
+                                                    slivers: [
+                                                      SliverPadding(
+                                                        padding: const EdgeInsets.only(bottom: 90),
+                                                        sliver: SliverList(
+                                                          delegate: SliverChildBuilderDelegate(
+                                                            (context, index) {
                                                       const glimpseStripIndex =
                                                           1;
                                                       const peopleStripIndex =
@@ -1038,6 +1075,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         );
                                                       } else {
                                                         card = PostCard(
+                                                          key: ValueKey(post.id),
                                                           imagePaths:
                                                               post.imagePaths,
                                                           optimizedImagePaths: post.optimizedImagePaths,
@@ -1120,7 +1158,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             ),
                                                         ],
                                                       );
-                                                    },
+                                                            },
+                                                            childCount: activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 );
                                               },
@@ -1181,22 +1224,27 @@ class _HomeScreenState extends State<HomeScreen> {
           // ── BOTTOM NAV BAR ──────────────────────────────────────────
           // ClipRect ensures the nav is clipped as it slides out of view
           bottomNavigationBar: ClipRect(
-            child: AnimatedSlide(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              offset: _showBars ? Offset.zero : const Offset(0, 1),
-              child: ValueListenableBuilder<int>(
-                valueListenable: _navIndexNotifier,
-                builder: (context, currentIndex, _) {
-                  return CustomBottomNav(
-                    currentIndex: currentIndex,
-                    onTap: (index) {
-                      if (currentIndex == index) return;
-                      _animateToTab(index);
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showBarsNotifier,
+              builder: (context, showBars, _) {
+                return AnimatedSlide(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  offset: showBars ? Offset.zero : const Offset(0, 1),
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _navIndexNotifier,
+                    builder: (context, currentIndex, _) {
+                      return CustomBottomNav(
+                        currentIndex: currentIndex,
+                        onTap: (index) {
+                          if (currentIndex == index) return;
+                          _animateToTab(index);
+                        },
+                      );
                     },
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),

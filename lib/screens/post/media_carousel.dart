@@ -15,6 +15,7 @@ class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
   final List<String>? optimizedImagePaths; // from C1 Phase
   final bool isVideoPost;
+  final bool isBakedVideo;
   final VoidCallback? onDoubleTap;
   final double? mediaAspectRatio;
 
@@ -23,6 +24,7 @@ class MediaCarousel extends StatefulWidget {
     required this.imagePaths,
     this.optimizedImagePaths,
     this.isVideoPost = false,
+    this.isBakedVideo = false,
     this.onDoubleTap,
     this.mediaAspectRatio,
   });
@@ -283,7 +285,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
         pathLower.contains('.avi');
 
     if (isVideo) {
-      return _VideoItem(path: path, isAsset: path.startsWith('assets/'));
+      return _VideoItem(path: path, isAsset: path.startsWith('assets/'), isBakedVideo: widget.isBakedVideo);
     }
 
     if (path.startsWith('assets/')) {
@@ -300,6 +302,11 @@ class _MediaCarouselState extends State<MediaCarousel> {
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
         cacheManager: KnockpostImageCacheManager.instance,
+        placeholder: (context, url) => Container(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade900
+              : Colors.grey.shade200,
+        ),
         errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
       );
     } else {
@@ -316,8 +323,9 @@ class _MediaCarouselState extends State<MediaCarousel> {
 class _VideoItem extends StatefulWidget {
   final String path;
   final bool isAsset;
+  final bool isBakedVideo;
 
-  const _VideoItem({required this.path, required this.isAsset});
+  const _VideoItem({required this.path, required this.isAsset, this.isBakedVideo = false});
 
   @override
   State<_VideoItem> createState() => _VideoItemState();
@@ -348,7 +356,7 @@ class _VideoItemState extends State<_VideoItem> {
     }
 
     _controller.initialize().then((_) {
-      _controller.setVolume(0);
+      _controller.setVolume(widget.isBakedVideo ? 1.0 : 0);
       _controller.setLooping(true);
       _controller.play();
       if (mounted) {

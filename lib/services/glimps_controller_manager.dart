@@ -4,6 +4,8 @@ import 'package:video_player/video_player.dart';
 import 'video_cache_manager.dart';
 import 'performance_service.dart';
 
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+
 /// Centralized manager for Glimpse video controllers implementing a strict Sliding Window Architecture
 /// to prevent memory leaks, initialize stampedes, and ensure smooth horizontal scrolling.
 class GlimpsControllerManager extends ChangeNotifier {
@@ -70,18 +72,30 @@ class GlimpsControllerManager extends ChangeNotifier {
     final completer = Completer<void>();
     _initLocks[url] = completer.future;
 
-    try {
-      final fileInfo = await KnockpostVideoCacheManager.instance.getFileFromCache(url);
-      
-      // If evicted while checking cache, abort instantly
-      if (!_initLocks.containsKey(url)) return;
+    _initializeVideoAsync(url, completer);
+  }
 
+  Future<void> _initializeVideoAsync(String url, Completer<void> lockCompleter) async {
+    try {
       VideoPlayerController controller;
-      if (fileInfo != null) {
-        controller = VideoPlayerController.file(fileInfo.file);
+      
+      final fileInfo = await KnockpostVideoCacheManager.instance.getFileFromCache(url);
+      if (fileInfo != null && await fileInfo.file.exists()) {
+        controller = VideoPlayerController.file(
+          fileInfo.file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
       } else {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(url),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
         KnockpostVideoCacheManager.instance.downloadFile(url);
-        controller = VideoPlayerController.networkUrl(Uri.parse(url));
+      }
+
+      if (!_initLocks.containsKey(url)) {
+        controller.dispose();
+        return;
       }
 
       _controllers[url] = controller;
@@ -99,10 +113,10 @@ class GlimpsControllerManager extends ChangeNotifier {
     } catch (e) {
       debugPrint("Glimpse Video init error: $e");
     } finally {
-      if (_initLocks[url] == completer.future) {
+      if (_initLocks[url] == lockCompleter.future) {
         _initLocks.remove(url);
       }
-      if (!completer.isCompleted) completer.complete();
+      if (!lockCompleter.isCompleted) lockCompleter.complete();
     }
   }
 

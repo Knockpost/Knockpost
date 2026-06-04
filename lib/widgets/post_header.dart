@@ -95,6 +95,10 @@ class _PostHeaderState extends State<PostHeader> {
 
   void _startAlternation() {
     if (!_hasMusic || widget.timestamp == null) return;
+    
+    // For others' posts with music, keep the music pill permanently visible and don't alternate
+    if (!widget.user.isOwnProfile) return;
+
     // Stagger start with a random delay (0–3s) so consecutive posts
     // with music don't animate in perfect sync.
     final initialDelay = Duration(
@@ -107,6 +111,7 @@ class _PostHeaderState extends State<PostHeader> {
 
   void _scheduleNextToggle() {
     if (!mounted || !_hasMusic || widget.timestamp == null) return;
+    if (!widget.user.isOwnProfile) return;
     
     // Timestamp stays for 4s, Music Pill stays for 6s
     final duration = _showMusicPill 
@@ -304,7 +309,7 @@ class _PostHeaderState extends State<PostHeader> {
                           ],
                         ],
                       ),
-                      if (widget.timestamp != null)
+                      if (widget.timestamp != null && (widget.user.isOwnProfile || _hasMusic))
                         Padding(
                           padding: const EdgeInsets.only(top: 1),
                           child: RepaintBoundary(
@@ -342,7 +347,7 @@ class _PostHeaderState extends State<PostHeader> {
                                       ),
                                     );
                                   },
-                                  child: _showMusicPill && _hasMusic
+                                  child: (_hasMusic && (!widget.user.isOwnProfile || _showMusicPill))
                                       ? MusicPill(
                                           key: const ValueKey('music_pill'),
                                           title: widget.musicTitle!,

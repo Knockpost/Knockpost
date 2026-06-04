@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 import 'package:flutter/material.dart';
 
@@ -109,6 +110,7 @@ class _FinalPostScreenState extends State<FinalPostScreen>
     setState(() => _isPosting = true);
     KnockHaptics.tap();
 
+
     final type = widget.isWaves
         ? PostType.waves
         : (widget.isGlimpse
@@ -155,9 +157,13 @@ class _FinalPostScreenState extends State<FinalPostScreen>
         post: newPost,
         mediaFiles: widget.files,
         coverFile: widget.coverImageFile,
-      ).then((_) {
+      ).then((_) async {
         final durationMs = DateTime.now().difference(startTime).inMilliseconds;
         PerformanceService.instance.logGlimpsUploadCompleted(durationMs);
+        final inAppReview = InAppReview.instance;
+        if (await inAppReview.isAvailable()) {
+          inAppReview.requestReview();
+        }
       }).catchError((e) {
         PerformanceService.instance.incrementGlimpsUploadFailed();
         GlimpsFeedManager.instance.removeGlimpse(newPost.id);
@@ -185,6 +191,11 @@ class _FinalPostScreenState extends State<FinalPostScreen>
         mediaFiles: widget.files,
         coverFile: widget.coverImageFile,
       );
+
+      final inAppReview = InAppReview.instance;
+      if (await inAppReview.isAvailable()) {
+        inAppReview.requestReview();
+      }
 
       if (mounted) {
         Navigator.pop(context); // Pop loading dialog
