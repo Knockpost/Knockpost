@@ -605,6 +605,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             optimizedUrl: _coverImageAsset == widget.user.coverImageAsset ? widget.user.optimizedCoverUrl : null,
                             fit: BoxFit.cover,
                             cacheManager: KnockpostImageCacheManager.instance,
+                            memCacheWidth: (MediaQuery.of(context).size.width * MediaQuery.of(context).devicePixelRatio).round(),
                           )
                         : _coverImageAsset!.startsWith('assets/')
                             ? Image.asset(_coverImageAsset!, fit: BoxFit.cover)
@@ -661,6 +662,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   optimizedUrl: _avatarAsset == widget.user.avatarAsset ? widget.user.optimizedAvatarUrl : null,
                                   fit: BoxFit.cover,
                                   cacheManager: KnockpostImageCacheManager.instance,
+                                  memCacheWidth: (88 * MediaQuery.of(context).devicePixelRatio).round(),
                                 )
                               : _avatarAsset!.startsWith('assets/')
                                   ? Image.asset(_avatarAsset!, fit: BoxFit.cover)
