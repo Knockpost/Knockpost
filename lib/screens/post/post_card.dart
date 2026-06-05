@@ -11,6 +11,14 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../../services/post_service.dart';
 import '../../services/feed_state_service.dart';
 import 'dart:async';
+import '../../services/feed_media_pool.dart';
+
+// --- EXPERIMENT INSTRUMENTATION ---
+int _vdCallbackCount = 0;
+int _vdExecutionTimeMicroseconds = 0;
+DateTime _vdLastLogTime = DateTime.now();
+bool _vdThrottled = false;
+// ----------------------------------
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PostCard — Unified post rendering with music sticker overlay
@@ -87,6 +95,7 @@ class _PostCardState extends State<PostCard> {
   bool _isPlaying = false;
   bool _isVisible = false;
   Timer? _viewTimer;
+  StreamSubscription<bool>? _poolPlayingSub;
 
   bool get _hasMusic =>
       widget.musicUrl != null && widget.musicUrl!.isNotEmpty && !(widget.isVideoPost && widget.mediaIsBaked);
@@ -95,7 +104,19 @@ class _PostCardState extends State<PostCard> {
   void initState() {
     super.initState();
     if (_hasMusic) {
-      _initAudio();
+      if (useNewMediaPool) {
+        // Pool architecture: don't initialize player here, just listen to global state
+        _poolPlayingSub = FeedMediaPool.instance.audioPlayingStream?.listen((playing) {
+          if (!mounted || !_isVisible) return;
+          if (FeedMediaPool.instance.currentAudioUrl == widget.musicUrl) {
+            setState(() => _isPlaying = playing);
+          } else if (_isPlaying) {
+            setState(() => _isPlaying = false);
+          }
+        });
+      } else {
+        _initAudio();
+      }
     }
   }
 
@@ -130,9 +151,16 @@ class _PostCardState extends State<PostCard> {
   @override
   void dispose() {
     _viewTimer?.cancel();
-    if (_audioPlayer != null) {
-      AudioLifecycleManager.instance.unregister(_audioPlayer!);
-      _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
+    _poolPlayingSub?.cancel();
+    if (!useNewMediaPool) {
+      if (_audioPlayer != null) {
+        AudioLifecycleManager.instance.unregister(_audioPlayer!);
+        _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
+      }
+    } else {
+      if (_isVisible && _hasMusic) {
+        FeedMediaPool.instance.pauseAudio();
+      }
     }
     super.dispose();
   }
@@ -150,50 +178,110 @@ class _PostCardState extends State<PostCard> {
 
   void _togglePlayback() {
     KnockHaptics.tap();
-    if (_isPlaying) {
-      _audioPlayer?.pause();
-      AudioLifecycleManager.instance.isGlobalMuted = true;
+    if (useNewMediaPool) {
+      if (_isPlaying) {
+        FeedMediaPool.instance.pauseAudio();
+        AudioLifecycleManager.instance.isGlobalMuted = true;
+        setState(() => _isPlaying = false);
+      } else {
+        FeedMediaPool.instance.playAudio(widget.musicUrl!, trimStart: widget.musicTrimStart ?? 0);
+        AudioLifecycleManager.instance.isGlobalMuted = false;
+        setState(() => _isPlaying = true);
+      }
     } else {
-      _audioPlayer?.play();
-      AudioLifecycleManager.instance.isGlobalMuted = false;
+      if (_isPlaying) {
+        _audioPlayer?.pause();
+        AudioLifecycleManager.instance.isGlobalMuted = true;
+      } else {
+        _audioPlayer?.play();
+        AudioLifecycleManager.instance.isGlobalMuted = false;
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return VisibilityDetector(
-      key: Key('post_card_${widget.postId ?? widget.hashCode}'),
+      key: widget.key ?? Key('post_${widget.postId}'),
       onVisibilityChanged: (info) {
-        if (!mounted) return;
-        final visibleFraction = info.visibleFraction;
-        _isVisible = visibleFraction >= 0.5;
-
-        if (_isVisible && widget.postId != null && !widget.postId!.startsWith('demo_')) {
-          if (!_viewedPosts.contains(widget.postId!)) {
-            _viewTimer ??= Timer(const Duration(seconds: 2), () {
-              if (mounted && _isVisible) {
-                _viewedPosts.add(widget.postId!);
-                FeedStateService.instance.incrementView(widget.postId!, widget.user.id);
-              }
-              _viewTimer = null;
-            });
-          }
-        } else {
-          // Post is not visible enough — cancel any pending view timer
-          _viewTimer?.cancel();
-          _viewTimer = null;
+        final stopwatch = Stopwatch()..start();
+        
+        // Ensure throttling is applied for experiment
+        if (!_vdThrottled) {
+          VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 100);
+          _vdThrottled = true;
+          debugPrint('=== EXPERIMENT: VisibilityDetector Throttled to 100ms ===');
         }
 
-        if (_audioPlayer != null) {
-          if (!_isVisible) {
-            if (_isPlaying) {
-              _audioPlayer?.pause();
+        final visibleFraction = info.visibleFraction;
+        final bool isNowVisible = visibleFraction >= 0.5;
+
+        if (_isVisible != isNowVisible) {
+          _isVisible = isNowVisible;
+
+          if (mounted) {
+            setState(() {});
+          }
+
+          if (_isVisible && widget.postId != null && !widget.postId!.startsWith('demo_')) {
+            if (!_viewedPosts.contains(widget.postId!)) {
+              _viewTimer ??= Timer(const Duration(seconds: 2), () {
+                if (mounted && _isVisible) {
+                  _viewedPosts.add(widget.postId!);
+                  FeedStateService.instance.incrementView(widget.postId!, widget.user.id);
+                }
+                _viewTimer = null;
+              });
             }
           } else {
-            if (!AudioLifecycleManager.instance.isGlobalMuted) {
-              _audioPlayer?.play();
+            // Post is not visible enough — cancel any pending view timer
+            _viewTimer?.cancel();
+            _viewTimer = null;
+          }
+
+          if (_hasMusic) {
+            if (useNewMediaPool) {
+              if (!_isVisible) {
+                if (_isPlaying) {
+                  FeedMediaPool.instance.pauseAudio();
+                  setState(() => _isPlaying = false);
+                }
+              } else {
+                if (!AudioLifecycleManager.instance.isGlobalMuted) {
+                  FeedMediaPool.instance.playAudio(widget.musicUrl!, trimStart: widget.musicTrimStart ?? 0);
+                }
+              }
+            } else {
+              if (_audioPlayer != null) {
+                if (!_isVisible) {
+                  if (_isPlaying) {
+                    _audioPlayer?.pause();
+                  }
+                } else {
+                  if (!AudioLifecycleManager.instance.isGlobalMuted) {
+                    _audioPlayer?.play();
+                  }
+                }
+              }
             }
           }
+        }
+        
+        stopwatch.stop();
+        _vdCallbackCount++;
+        _vdExecutionTimeMicroseconds += stopwatch.elapsedMicroseconds;
+        
+        final now = DateTime.now();
+        if (now.difference(_vdLastLogTime).inSeconds >= 1) {
+          debugPrint('=== EXPERIMENT METRICS ===');
+          debugPrint('Callbacks per second: $_vdCallbackCount');
+          debugPrint('Total callback execution time: ${_vdExecutionTimeMicroseconds / 1000} ms');
+          debugPrint('Average time per callback: ${_vdExecutionTimeMicroseconds / (_vdCallbackCount == 0 ? 1 : _vdCallbackCount)} microseconds');
+          debugPrint('==========================');
+          
+          _vdCallbackCount = 0;
+          _vdExecutionTimeMicroseconds = 0;
+          _vdLastLogTime = now;
         }
       },
       child: RepaintBoundary(
@@ -237,6 +325,7 @@ class _PostCardState extends State<PostCard> {
               isBakedVideo: widget.mediaIsBaked,
               onDoubleTap: _onDoubleTap,
               mediaAspectRatio: widget.mediaAspectRatio,
+              isVisible: _isVisible, // Pass visibility down to pool
             ),
 
             // ── Music overlay (handled by MusicStickerWidget) ──

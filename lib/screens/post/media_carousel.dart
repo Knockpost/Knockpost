@@ -9,6 +9,7 @@ import '../../widgets/zoomable_post_image.dart';
 import '../../../services/image_cache_manager.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/optimized_image.dart';
+import '../../services/feed_media_pool.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
@@ -17,6 +18,7 @@ class MediaCarousel extends StatefulWidget {
   final bool isBakedVideo;
   final VoidCallback? onDoubleTap;
   final double? mediaAspectRatio;
+  final bool isVisible; // Visibility from parent
 
   const MediaCarousel({
     super.key,
@@ -26,6 +28,7 @@ class MediaCarousel extends StatefulWidget {
     this.isBakedVideo = false,
     this.onDoubleTap,
     this.mediaAspectRatio,
+    this.isVisible = false,
   });
 
   @override
@@ -137,11 +140,13 @@ class _MediaCarouselState extends State<MediaCarousel> {
                   child: _buildZoomableImage(
                     widget.imagePaths.first,
                     widget.optimizedImagePaths?.isNotEmpty == true ? widget.optimizedImagePaths!.first : null,
+                    0,
                   ),
                 )
               : _buildZoomableImage(
                   widget.imagePaths.first,
                   widget.optimizedImagePaths?.isNotEmpty == true ? widget.optimizedImagePaths!.first : null,
+                  0,
                 ),
         ),
       );
@@ -188,7 +193,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
                           final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > index)
                               ? widget.optimizedImagePaths![index]
                               : null;
-                          return _buildZoomableImage(widget.imagePaths[index], optimizedUrl);
+                          return _buildZoomableImage(widget.imagePaths[index], optimizedUrl, index);
                         },
                       ),
                     ),
@@ -258,17 +263,17 @@ class _MediaCarouselState extends State<MediaCarousel> {
     );
   }
 
-  Widget _buildZoomableImage(String path, [String? optimizedUrl]) {
+  Widget _buildZoomableImage(String path, [String? optimizedUrl, int index = 0]) {
     return ZoomablePostImage(
       onDoubleTap: widget.onDoubleTap,
       onInteractionChanged: _hasMultipleImages
           ? _handleZoomInteractionChanged
           : null,
-      child: _buildImage(path, optimizedUrl),
+      child: _buildImage(path, optimizedUrl, index),
     );
   }
 
-  Widget _buildImage(String path, [String? optimizedUrl]) {
+  Widget _buildImage(String path, [String? optimizedUrl, int index = 0]) {
     final pathLower = path.toLowerCase();
     final isVideo = widget.isVideoPost ||
         pathLower.contains('.mp4') ||
@@ -278,7 +283,13 @@ class _MediaCarouselState extends State<MediaCarousel> {
         pathLower.contains('.avi');
 
     if (isVideo) {
-      return _VideoItem(path: path, isAsset: path.startsWith('assets/'), isBakedVideo: widget.isBakedVideo);
+      return _VideoItem(
+        path: path, 
+        isAsset: path.startsWith('assets/'), 
+        isBakedVideo: widget.isBakedVideo,
+        isVisible: widget.isVisible && _currentPage == index,
+        thumbnailUrl: optimizedUrl,
+      );
     }
 
     if (path.startsWith('assets/')) {
@@ -317,20 +328,82 @@ class _VideoItem extends StatefulWidget {
   final String path;
   final bool isAsset;
   final bool isBakedVideo;
+  final bool isVisible;
+  final String? thumbnailUrl;
 
-  const _VideoItem({required this.path, required this.isAsset, this.isBakedVideo = false});
+  const _VideoItem({
+    required this.path, 
+    required this.isAsset, 
+    this.isBakedVideo = false,
+    this.isVisible = false,
+    this.thumbnailUrl,
+  });
 
   @override
   State<_VideoItem> createState() => _VideoItemState();
 }
 
 class _VideoItemState extends State<_VideoItem> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _initialized = false;
+  bool _showThumbnail = true;
 
   @override
   void initState() {
     super.initState();
+    if (!useNewMediaPool) {
+      _initOld();
+    } else {
+      // In new architecture, we only initialize if visible immediately
+      if (widget.isVisible) {
+        _initFromPool();
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _VideoItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (useNewMediaPool) {
+      if (widget.isVisible && !oldWidget.isVisible) {
+        if (!_initialized) {
+          _initFromPool();
+        } else {
+          _controller?.play();
+        }
+      } else if (!widget.isVisible && oldWidget.isVisible) {
+        _controller?.pause();
+      }
+    }
+  }
+
+  Future<void> _initFromPool() async {
+    _controller = await FeedMediaPool.instance.getVideoController(
+      widget.path,
+      isAsset: widget.isAsset,
+      isBakedVideo: widget.isBakedVideo,
+    );
+    
+    if (mounted) {
+      setState(() {
+        _initialized = true;
+      });
+      _controller!.addListener(_checkPlayback);
+      if (widget.isVisible) {
+        _controller!.play();
+      }
+    }
+  }
+
+  void _checkPlayback() {
+    if (_controller != null && _controller!.value.isInitialized && _controller!.value.isPlaying && _showThumbnail) {
+      if (mounted) {
+        setState(() => _showThumbnail = false);
+      }
+    }
+  }
+
+  void _initOld() {
     if (widget.path.startsWith('http')) {
       _controller = VideoPlayerController.networkUrl(
         Uri.parse(widget.path),
@@ -348,13 +421,14 @@ class _VideoItemState extends State<_VideoItem> {
       );
     }
 
-    _controller.initialize().then((_) {
-      _controller.setVolume(widget.isBakedVideo ? 1.0 : 0);
-      _controller.setLooping(true);
-      _controller.play();
+    _controller!.initialize().then((_) {
+      _controller!.setVolume(widget.isBakedVideo ? 1.0 : 0);
+      _controller!.setLooping(true);
+      _controller!.play();
       if (mounted) {
         setState(() {
           _initialized = true;
+          _showThumbnail = false;
         });
       }
     });
@@ -362,22 +436,28 @@ class _VideoItemState extends State<_VideoItem> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (!useNewMediaPool) {
+      _controller?.dispose();
+    } else {
+      _controller?.removeListener(_checkPlayback);
+      // Pool manages the actual disposal
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_initialized) {
-      return AspectRatio(
-        aspectRatio: _controller.value.aspectRatio,
+    Widget videoWidget;
+    if (_initialized && _controller != null) {
+      videoWidget = AspectRatio(
+        aspectRatio: _controller!.value.aspectRatio,
         child: GestureDetector(
           onTap: () {
             setState(() {
-              if (_controller.value.isPlaying) {
-                _controller.pause();
+              if (_controller!.value.isPlaying) {
+                _controller!.pause();
               } else {
-                _controller.play();
+                _controller!.play();
               }
             });
           },
@@ -387,12 +467,12 @@ class _VideoItemState extends State<_VideoItem> {
               FittedBox(
                 fit: BoxFit.cover,
                 child: SizedBox(
-                  width: _controller.value.size.width,
-                  height: _controller.value.size.height,
-                  child: VideoPlayer(_controller),
+                  width: _controller!.value.size.width,
+                  height: _controller!.value.size.height,
+                  child: VideoPlayer(_controller!),
                 ),
               ),
-              if (!_controller.value.isPlaying)
+              if (!_controller!.value.isPlaying)
                 Container(
                   color: Colors.black.withValues(alpha: 0.3),
                   child: const Center(
@@ -403,35 +483,60 @@ class _VideoItemState extends State<_VideoItem> {
                     ),
                   ),
                 ),
-              Positioned(
-                top: 10,
-                left: 10,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.videocam, color: Colors.white, size: 16),
-                ),
-              ),
             ],
           ),
         ),
       );
-    }
-    return AspectRatio(
-      aspectRatio: 4 / 5,
-      child: Container(
-        color: Colors.black,
-        child: const Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: KnockPostLoadingIndicator(),
+    } else {
+      videoWidget = AspectRatio(
+        aspectRatio: 4 / 5,
+        child: Container(
+          color: Colors.black,
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: KnockPostLoadingIndicator(),
+            ),
           ),
         ),
-      ),
+      );
+    }
+
+    // Wrap with the zero-delay thumbnail strategy
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        videoWidget,
+        
+        // Zero-Delay Thumbnail Mask
+        if (useNewMediaPool && _showThumbnail)
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: _showThumbnail ? 1.0 : 0.0,
+            child: widget.thumbnailUrl != null
+                ? OptimizedImage(
+                    rawUrl: widget.thumbnailUrl!,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.low,
+                    cacheManager: KnockpostImageCacheManager.instance,
+                  )
+                : Container(color: Colors.black), // Fallback if no thumbnail
+          ),
+
+        Positioned(
+          top: 10,
+          left: 10,
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: const BoxDecoration(
+              color: Colors.black54,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.videocam, color: Colors.white, size: 16),
+          ),
+        ),
+      ],
     );
   }
 }
