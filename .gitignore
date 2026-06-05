@@ -50,3 +50,8 @@ app.*.map.json
 functions/.env
 functions/.env.local
 functions/.secret.local
+
+# Node modules and build caches
+node_modules/
+.firebase/
+.next/
