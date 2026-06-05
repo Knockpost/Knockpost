@@ -51,6 +51,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "56941114478-27hl9t1t516ieolcau91qa59qi2kiuag.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.knockpost.app",
+            "certificate_hash": "dbfdf6432acb0612997c59d2449210b3f33d7370"
+          }
+        },
+        {
           "client_id": "56941114478-99oi3tmack3hmtelf5l0vp6j4oe8hson.apps.googleusercontent.com",
           "client_type": 3
         }
