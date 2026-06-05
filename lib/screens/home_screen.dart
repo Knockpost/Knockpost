@@ -63,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _feedSeed = 0;
 
   List<({PostModel post, UserModel author})> _feedItems = [];
+  List<({PostModel post, UserModel author})> _processedFeedItems = [];
   bool _isLoadingFeed = true;
   bool _isLoadingMore = false;
   DocumentSnapshot? _lastFeedDoc;
@@ -79,11 +80,74 @@ class _HomeScreenState extends State<HomeScreen> {
     _postPageSwipeLockController = PostPageSwipeLockController()
       ..register(_pageController);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
+    GlobalPostState.deletedPostIds.addListener(_onDeletedPostsChanged);
     _loadFeed(refresh: true);
   }
 
+  void _onDeletedPostsChanged() {
+    final deletedIds = GlobalPostState.deletedPostIds.value;
+    bool changed = false;
+    final newProcessed = _processedFeedItems.where((item) {
+      if (deletedIds.contains(item.post.id)) {
+        changed = true;
+        return false;
+      }
+      return true;
+    }).toList();
+    
+    if (changed) {
+      setState(() {
+        _processedFeedItems = newProcessed;
+      });
+    }
+  }
+
+  void _processAndAppendFeedItems(List<({PostModel post, UserModel author})> newItems, {bool isRefresh = false}) {
+    if (isRefresh) {
+      _processedFeedItems.clear();
+      _feedSeed = DateTime.now().millisecondsSinceEpoch;
+    }
+
+    final deletedIds = GlobalPostState.deletedPostIds.value;
+    final filteredNew = newItems.where((item) => 
+      !deletedIds.contains(item.post.id) && 
+      item.post.type != PostType.glimps
+    ).toList();
+    
+    // Sort the new batch safely
+    filteredNew.sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+    
+    // Interleave waves for the new batch
+    final interleavedNew = <({PostModel post, UserModel author})>[];
+    final pendingWaves = <({PostModel post, UserModel author})>[];
+    for (final item in filteredNew) {
+      if (item.post.type == PostType.waves) {
+        if (interleavedNew.isNotEmpty && interleavedNew.last.post.type == PostType.waves) {
+          pendingWaves.add(item);
+        } else {
+          interleavedNew.add(item);
+        }
+      } else {
+        interleavedNew.add(item);
+        if (pendingWaves.isNotEmpty) {
+          interleavedNew.add(pendingWaves.removeAt(0));
+        }
+      }
+    }
+    // Fix: add any remaining waves that weren't added
+    interleavedNew.addAll(pendingWaves);
+    
+    // Shuffle the new batch independently if seed is set
+    if (_feedSeed != 0 && interleavedNew.isNotEmpty) {
+      // Use _processedFeedItems.length to offset the seed, ensuring stable shuffle per batch
+      interleavedNew.shuffle(Random(_feedSeed + _processedFeedItems.length));
+    }
+
+    _processedFeedItems.addAll(interleavedNew);
+  }
+
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 800) {
       _loadFeed(refresh: false);
     }
   }
@@ -95,8 +159,9 @@ class _HomeScreenState extends State<HomeScreen> {
           final cache = FeedCacheService.instance.getCache()!;
           setState(() {
             _feedItems = cache.posts;
+            _processAndAppendFeedItems(cache.posts, isRefresh: true);
             _lastFeedDoc = cache.lastDoc;
-            _hasMoreFeed = cache.posts.length >= 20;
+            _hasMoreFeed = true;
             _isLoadingFeed = false;
           });
         }
@@ -111,19 +176,20 @@ class _HomeScreenState extends State<HomeScreen> {
         final cache = FeedCacheService.instance.getCache()!;
         setState(() {
           _feedItems = cache.posts;
+          _processAndAppendFeedItems(cache.posts, isRefresh: true);
           _lastFeedDoc = cache.lastDoc;
-          _hasMoreFeed = cache.posts.length >= 20;
+          _hasMoreFeed = true;
           _isLoadingFeed = false;
         });
-        return;
+        return; // Restored the return to prevent continuous background fetching
+      } else {
+        if (_isLoadingFeed && _feedItems.isNotEmpty) return;
+        setState(() {
+          _hasMoreFeed = true;
+          _lastFeedDoc = null;
+          _isLoadingFeed = true;
+        });
       }
-
-      if (_isLoadingFeed && _feedItems.isNotEmpty) return;
-      setState(() {
-        _hasMoreFeed = true;
-        _lastFeedDoc = null;
-        _isLoadingFeed = true;
-      });
     } else {
       if (!_hasMoreFeed || _isLoadingMore || _isLoadingFeed) return;
       setState(() => _isLoadingMore = true);
@@ -135,8 +201,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await PostService.instance.getFeedPostsPaginated(
       currentUserId: currentUser?.id ?? '',
       currentUserModel: currentUser,
-      startAfter: _lastFeedDoc,
-      limit: 20,
+      startAfter: refresh ? null : _lastFeedDoc,
+      limit: 25,
     );
 
     stopWatch.stop();
@@ -150,18 +216,17 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         if (refresh) {
           _feedItems = result.posts;
+          _processAndAppendFeedItems(result.posts, isRefresh: true);
           FeedCacheService.instance.saveCache(result.posts, result.lastDoc);
         } else {
           _feedItems.addAll(result.posts);
+          _processAndAppendFeedItems(result.posts, isRefresh: false);
           FeedCacheService.instance.appendCache(result.posts, result.lastDoc);
         }
         _lastFeedDoc = result.lastDoc;
-        _hasMoreFeed = result.posts.length == 20;
+        _hasMoreFeed = result.hasMore;
         _isLoadingFeed = false;
         _isLoadingMore = false;
-        if (refresh) {
-          _feedSeed = DateTime.now().millisecondsSinceEpoch;
-        }
       });
     }
   }
@@ -180,6 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    GlobalPostState.deletedPostIds.removeListener(_onDeletedPostsChanged);
     _postScrollLockController.dispose();
     _postPageSwipeLockController.dispose();
     _navIndexNotifier.dispose();
@@ -834,342 +900,155 @@ class _HomeScreenState extends State<HomeScreen> {
                                     },
                                     body: _isLoadingFeed
                                         ? const KnockPostLoadingIndicator()
-                                        : ValueListenableBuilder<Set<String>>(
-                                            valueListenable: GlobalPostState.deletedPostIds,
-                                            builder: (context, deletedIds, _) {
-                                              final feedItems = _feedItems;
-                                              
-                                              // Filter and sort
-                                              final sorted = feedItems
-                                                        .where(
-                                                          (item) =>
-                                                              !deletedIds
-                                                                  .contains(
-                                                                    item
-                                                                        .post
-                                                                        .id,
-                                                                  ) &&
-                                                              item.post.type !=
-                                                                  PostType
-                                                                      .glimps,
-                                                        )
-                                                        .toList()
-                                                      ..sort(
-                                                        (a, b) => b
-                                                            .post
-                                                            .createdAt
-                                                            .compareTo(
-                                                              a.post.createdAt,
+                                        : PostInnerScrollLockRegistrar(
+                                            child: CustomScrollView(
+                                              cacheExtent: 3000,
+                                              physics: isScrollLocked
+                                                  ? const NeverScrollableScrollPhysics()
+                                                  : null,
+                                              slivers: [
+                                                SliverPadding(
+                                                  padding: const EdgeInsets.only(bottom: 90),
+                                                  sliver: SliverList(
+                                                    delegate: SliverChildBuilderDelegate(
+                                                      (context, index) {
+                                                        const glimpseStripIndex = 1;
+                                                        const peopleStripIndex = 3;
+                                                        final totalItems = _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0);
+                                                        final isLast = index == totalItems - 1;
+
+                                                        if (_isLoadingMore && isLast) {
+                                                          return const Padding(
+                                                            padding: EdgeInsets.symmetric(vertical: 20),
+                                                            child: Center(
+                                                              child: CircularProgressIndicator(strokeWidth: 2),
                                                             ),
-                                                      );
+                                                          );
+                                                        }
 
-                                                // Interleave waves
-                                                final activeItems =
-                                                    <
-                                                      ({
-                                                        PostModel post,
-                                                        UserModel author,
-                                                      })
-                                                    >[];
-                                                final pendingWaves =
-                                                    <
-                                                      ({
-                                                        PostModel post,
-                                                        UserModel author,
-                                                      })
-                                                    >[];
-                                                for (final item in sorted) {
-                                                  if (item.post.type ==
-                                                      PostType.waves) {
-                                                    if (activeItems
-                                                            .isNotEmpty &&
-                                                        activeItems
-                                                                .last
-                                                                .post
-                                                                .type ==
-                                                            PostType.waves) {
-                                                      pendingWaves.add(item);
-                                                    } else {
-                                                      activeItems.add(item);
-                                                    }
-                                                  } else {
-                                                    activeItems.add(item);
-                                                    if (pendingWaves
-                                                        .isNotEmpty) {
-                                                      activeItems.add(
-                                                        pendingWaves.removeAt(
-                                                          0,
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
-                                                }
-
-                                                if (_feedSeed != 0) {
-                                                  activeItems.shuffle(
-                                                    Random(_feedSeed),
-                                                  );
-                                                }
-
-                                                return PostInnerScrollLockRegistrar(
-                                                  child: CustomScrollView(
-                                                    cacheExtent: 3000,
-                                                    physics: isScrollLocked
-                                                        ? const NeverScrollableScrollPhysics()
-                                                        : null,
-                                                    slivers: [
-                                                      SliverPadding(
-                                                        padding: const EdgeInsets.only(bottom: 90),
-                                                        sliver: SliverList(
-                                                          delegate: SliverChildBuilderDelegate(
-                                                            (context, index) {
-                                                      const glimpseStripIndex =
-                                                          1;
-                                                      const peopleStripIndex =
-                                                          3;
-                                                      final totalItems =
-                                                          activeItems.length +
-                                                          2 + (_isLoadingMore ? 1 : 0);
-                                                      final isLast =
-                                                          index ==
-                                                          totalItems - 1;
-
-                                                      if (_isLoadingMore && isLast) {
-                                                        return const Padding(
-                                                          padding: EdgeInsets.symmetric(vertical: 20),
-                                                          child: Center(
-                                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                                          ),
-                                                        );
-                                                      }
-
-                                                      if (index ==
-                                                          glimpseStripIndex) {
-                                                        return Column(
-                                                          children: [
-                                                            const GlimpsStrip(),
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    top: 6,
-                                                                    bottom: 2,
-                                                                  ),
-                                                              child: Container(
-                                                                height: 2.5,
-                                                                margin:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          20,
-                                                                    ),
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          )
-                                                                    : Colors
-                                                                          .black
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          ),
+                                                        if (index == glimpseStripIndex) {
+                                                          return Column(
+                                                            children: [
+                                                              const GlimpsStrip(),
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                child: Container(
+                                                                  height: 2.5,
+                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                                ),
                                                               ),
-                                                            ),
-                                                          ],
-                                                        );
-                                                      }
-                                                      if (index ==
-                                                          peopleStripIndex) {
-                                                        return Column(
-                                                          children: [
-                                                            const PeopleSuggestionStrip(),
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    top: 6,
-                                                                    bottom: 2,
-                                                                  ),
-                                                              child: Container(
-                                                                height: 2.5,
-                                                                margin:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          20,
-                                                                    ),
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          )
-                                                                    : Colors
-                                                                          .black
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          ),
+                                                            ],
+                                                          );
+                                                        }
+                                                        if (index == peopleStripIndex) {
+                                                          return Column(
+                                                            children: [
+                                                              const PeopleSuggestionStrip(),
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                child: Container(
+                                                                  height: 2.5,
+                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                                ),
                                                               ),
-                                                            ),
-                                                          ],
-                                                        );
-                                                      }
+                                                            ],
+                                                          );
+                                                        }
 
-                                                      int postIndex = index;
-                                                      if (index >
-                                                          peopleStripIndex) {
-                                                        postIndex -= 2;
-                                                      } else if (index >
-                                                          glimpseStripIndex) {
-                                                        postIndex -= 1;
-                                                      }
+                                                        int postIndex = index;
+                                                        if (index > peopleStripIndex) {
+                                                          postIndex -= 2;
+                                                        } else if (index > glimpseStripIndex) {
+                                                          postIndex -= 1;
+                                                        }
 
-                                                      if (postIndex >=
-                                                          activeItems.length) {
-                                                        return const SizedBox.shrink();
-                                                      }
+                                                        if (postIndex >= _processedFeedItems.length) {
+                                                          return const SizedBox.shrink();
+                                                        }
 
-                                                      final post =
-                                                          activeItems[postIndex]
-                                                              .post;
-                                                      final author =
-                                                          activeItems[postIndex]
-                                                              .author;
+                                                        final item = _processedFeedItems[postIndex];
+                                                        final post = item.post;
+                                                        final author = item.author;
 
-                                                      Widget card;
-                                                      if (post.type ==
-                                                          PostType.text) {
-                                                        card = ThoughtCard(
-                                                          user: author,
-                                                          text: post.text,
-                                                          likes: post.likes,
-                                                          views: post.views,
-                                                          postId: post.id,
-                                                          timestamp: post
-                                                              .timestampText,
-                                                        );
-                                                      } else if (post.type ==
-                                                          PostType.waves) {
-                                                        card = WavesFeedCard(
-                                                          post: post,
-                                                          user: author,
-                                                          onTap: () {
-                                                            final videoUrl =
-                                                                post
-                                                                    .imagePaths
-                                                                    .isNotEmpty
-                                                                ? post
-                                                                      .imagePaths
-                                                                      .first
-                                                                : null;
-                                                            if (videoUrl !=
-                                                                null) {
-                                                              WavesFeedState
-                                                                      .requestedVideoUrl
-                                                                      .value =
-                                                                  videoUrl;
-                                                            }
-                                                            _animateToTab(2);
-                                                          },
-                                                        );
-                                                      } else {
-                                                        card = PostCard(
-                                                          key: ValueKey(post.id),
-                                                          imagePaths:
-                                                              post.imagePaths,
-                                                          optimizedImagePaths: post.optimizedImagePaths,
-                                                          user: author,
-                                                          caption: post.text,
-                                                          likes: post.likes,
-                                                          views: post.views,
-                                                          postId: post.id,
-                                                          timestamp: post
-                                                              .timestampText,
-                                                          musicUrl:
-                                                              post.musicUrl,
-                                                          musicTitle:
-                                                              post.musicTitle,
-                                                          musicArtist:
-                                                              post.musicArtist,
-                                                          musicCoverUrl: post
-                                                              .musicCoverUrl,
-                                                          musicTrimStart: post
-                                                              .musicTrimStart,
-                                                          musicStickerConfig: post.musicStickerConfig,
-                                                          musicVolume: post.musicVolume,
-                                                          originalAudioVolume: post.originalAudioVolume,
-                                                          filterIndex:
-                                                              post.filterIndex,
-                                                          textOverlays:
-                                                              post.textOverlays,
-                                                          drawPaths:
-                                                              post.drawPaths,
-                                                          isVideoPost:
-                                                              post.isVideoPost ||
-                                                              post.type ==
-                                                                  PostType
-                                                                      .waves,
-                                                          videoHasSound: post
-                                                              .videoHasSound,
-                                                          coverImagePath: post
-                                                              .coverImagePath,
-                                                          mediaAspectRatio: post
-                                                              .mediaAspectRatio,
-                                                          mediaIsBaked:
-                                                              post.mediaIsBaked,
-                                                        );
-                                                      }
-
-                                                      return Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          card,
-                                                          if (!isLast)
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    top: 6,
-                                                                    bottom: 2,
-                                                                  ),
-                                                              child: Container(
-                                                                height: 2.5,
-                                                                margin:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          20,
-                                                                    ),
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          )
-                                                                    : Colors
-                                                                          .black
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          ),
-                                                              ),
-                                                            ),
-                                                        ],
-                                                      );
+                                                        Widget card;
+                                                        if (post.type == PostType.text) {
+                                                          card = ThoughtCard(
+                                                            user: author,
+                                                            text: post.text,
+                                                            likes: post.likes,
+                                                            views: post.views,
+                                                            postId: post.id,
+                                                            timestamp: post.timestampText,
+                                                          );
+                                                        } else if (post.type == PostType.waves) {
+                                                          card = WavesFeedCard(
+                                                            post: post,
+                                                            user: author,
+                                                            onTap: () {
+                                                              final videoUrl = post.imagePaths.isNotEmpty ? post.imagePaths.first : null;
+                                                              if (videoUrl != null) {
+                                                                WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                                              }
+                                                              _animateToTab(2);
                                                             },
-                                                            childCount: activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
+                                                          );
+                                                        } else {
+                                                          card = PostCard(
+                                                            key: ValueKey(post.id),
+                                                            imagePaths: post.imagePaths,
+                                                            optimizedImagePaths: post.optimizedImagePaths,
+                                                            user: author,
+                                                            caption: post.text,
+                                                            likes: post.likes,
+                                                            views: post.views,
+                                                            postId: post.id,
+                                                            timestamp: post.timestampText,
+                                                            musicUrl: post.musicUrl,
+                                                            musicTitle: post.musicTitle,
+                                                            musicArtist: post.musicArtist,
+                                                            musicCoverUrl: post.musicCoverUrl,
+                                                            musicTrimStart: post.musicTrimStart,
+                                                            musicStickerConfig: post.musicStickerConfig,
+                                                            musicVolume: post.musicVolume,
+                                                            originalAudioVolume: post.originalAudioVolume,
+                                                            filterIndex: post.filterIndex,
+                                                            textOverlays: post.textOverlays,
+                                                            drawPaths: post.drawPaths,
+                                                            isVideoPost: post.isVideoPost || post.type == PostType.waves,
+                                                            videoHasSound: post.videoHasSound,
+                                                            coverImagePath: post.coverImagePath,
+                                                            mediaAspectRatio: post.mediaAspectRatio,
+                                                            mediaIsBaked: post.mediaIsBaked,
+                                                          );
+                                                        }
+
+                                                        return Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            card,
+                                                            if (!isLast)
+                                                              Padding(
+                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                                child: Container(
+                                                                  height: 2.5,
+                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        );
+                                                      },
+                                                      childCount: _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0),
+                                                    ),
                                                   ),
-                                                );
-                                              },
+                                                ),
+                                              ],
                                             ),
-                                          ), // NestedScrollView
-                                        ); // KnockPostRefreshIndicator
+                                          ),
+                                  ),
+                                );
                               },
                             ),
                           ),

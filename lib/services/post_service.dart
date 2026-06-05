@@ -248,7 +248,7 @@ class PostService {
 
   /// Paginated fetch for the home feed.
   /// Replaces getFeedPostsWithAuthors snapshot stream.
-  Future<({List<({PostModel post, UserModel author})> posts, DocumentSnapshot? lastDoc})> getFeedPostsPaginated({
+  Future<({List<({PostModel post, UserModel author})> posts, DocumentSnapshot? lastDoc, bool hasMore})> getFeedPostsPaginated({
     required String currentUserId,
     required UserModel? currentUserModel,
     DocumentSnapshot? startAfter,
@@ -264,7 +264,7 @@ class PostService {
       final snapshot = await query.get();
 
       if (snapshot.docs.isEmpty) {
-        return (posts: <({PostModel post, UserModel author})>[], lastDoc: null);
+        return (posts: <({PostModel post, UserModel author})>[], lastDoc: null, hasMore: false);
       }
 
       final fetchedPosts = snapshot.docs
@@ -340,10 +340,12 @@ class PostService {
         validPosts.add((post: post, author: author));
       }
 
-      return (posts: validPosts, lastDoc: snapshot.docs.last);
+      final bool hasMore = snapshot.docs.length == limit;
+
+      return (posts: validPosts, lastDoc: snapshot.docs.last, hasMore: hasMore);
     } catch (e) {
       debugPrint("Error in getFeedPostsPaginated: $e");
-      return (posts: <({PostModel post, UserModel author})>[], lastDoc: null);
+      return (posts: <({PostModel post, UserModel author})>[], lastDoc: null, hasMore: false);
     }
   }
 
