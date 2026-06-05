@@ -571,11 +571,27 @@ class _ShowcaseDetailScreenState extends State<_ShowcaseDetailScreen> {
               ),
             ),
           ),
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            opacity: _showNavBar ? 1.0 : 0.0,
-            child: SystemNavBarFill(color: bg),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              opacity: _showNavBar ? 1.0 : 0.0,
+              child: Builder(
+                builder: (context) {
+                  final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+                  if (bottomPadding == 0) return const SizedBox.shrink();
+                  return IgnorePointer(
+                    child: Container(
+                      height: bottomPadding,
+                      color: bg,
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
