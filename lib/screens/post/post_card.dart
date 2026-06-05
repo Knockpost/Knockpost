@@ -196,7 +196,8 @@ class _PostCardState extends State<PostCard> {
           }
         }
       },
-      child: Column(
+      child: RepaintBoundary(
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
@@ -283,6 +284,7 @@ class _PostCardState extends State<PostCard> {
         const SizedBox(height: 10),
       ],
     ),
+      ),
     );
   }
 

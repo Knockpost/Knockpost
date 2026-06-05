@@ -36,6 +36,14 @@ class ThoughtCard extends StatefulWidget {
 class _ThoughtCardState extends State<ThoughtCard> {
   bool _doubleTapped = false;
 
+  // Cached TextStyle to avoid GoogleFonts lookup on every build
+  static final TextStyle _baseTextStyle = GoogleFonts.inter(
+    fontSize: 15.5,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+    letterSpacing: -0.1,
+  );
+
   void _onDoubleTap() {
     KnockHaptics.impact();
     setState(() {
@@ -49,7 +57,8 @@ class _ThoughtCardState extends State<ThoughtCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return RepaintBoundary(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
@@ -82,11 +91,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Text(
                   widget.text,
-                  style: GoogleFonts.inter(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w400,
-                    height: 1.5,
-                    letterSpacing: -0.1,
+                  style: _baseTextStyle.copyWith(
                     color: isDark
                         ? Colors.white.withValues(alpha: 0.9)
                         : Colors.black.withValues(alpha: 0.85),
@@ -117,6 +122,7 @@ class _ThoughtCardState extends State<ThoughtCard> {
 
         const SizedBox(height: 10),
       ],
+    ),
     );
   }
 }

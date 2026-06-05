@@ -9,6 +9,8 @@ import '../../utils/image_helper.dart';
 import '../../widgets/reaction_bar.dart';
 import '../../services/current_user_service.dart';
 import '../../services/post_service.dart';
+import '../../services/image_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../profile/other_profile_screen.dart';
 import '../profile/profile_screen.dart';
 import 'widgets/more_options_sheet.dart';
@@ -257,7 +259,8 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
     return VisibilityDetector(
       key: Key('wave_${widget.post.id}_$hashCode'),
       onVisibilityChanged: _onVisibilityChanged,
-      child: Padding(
+      child: RepaintBoundary(
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
@@ -330,6 +333,7 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -361,10 +365,12 @@ class _WavesFeedCardState extends State<WavesFeedCard> {
         if (path.startsWith('assets/')) {
           image = Image.asset(path, fit: BoxFit.cover);
         } else if (path.startsWith('http')) {
-          image = Image.network(
-            path,
+          image = CachedNetworkImage(
+            imageUrl: path,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) =>
+            cacheManager: KnockpostImageCacheManager.instance,
+            filterQuality: FilterQuality.low,
+            errorWidget: (context, url, error) =>
                 Container(color: const Color(0xFF0A0A0A)),
           );
         } else {

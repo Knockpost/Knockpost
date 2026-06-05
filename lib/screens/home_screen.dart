@@ -818,236 +818,248 @@ class _HomeScreenState extends State<HomeScreen> {
                                     KnockHaptics.tap();
                                     await _loadFeed(refresh: true, isManualRefresh: true);
                                   },
-                                  child: NestedScrollView(
+                                  child: CustomScrollView(
                                     physics: isScrollLocked
                                         ? const NeverScrollableScrollPhysics()
                                         : const AlwaysScrollableScrollPhysics(
-                                            parent:
-                                                ClampingScrollPhysics(),
+                                            parent: ClampingScrollPhysics(),
                                           ),
                                     controller: _scrollController,
-                                    headerSliverBuilder: (context, innerBoxIsScrolled) {
-                                      return [
-                                        SliverAppBar(
-                                          backgroundColor: bgColor,
-                                          surfaceTintColor: bgColor,
-                                          elevation: 0,
-                                          floating: true,
-                                          snap: true,
-                                          titleSpacing: 20,
-                                          centerTitle: false,
-                                          title: Text(
-                                            "KnockPost",
-                                            style: AppTypography.appTitle.copyWith(color: textColor),
-                                          ),
-                                          actions: [
-                                            StreamBuilder<int>(
-                                              stream: NotificationService
-                                                  .instance
-                                                  .streamUnreadCount(),
-                                              builder: (context, snapshot) {
-                                                final unreadCount =
-                                                    snapshot.data ?? 0;
-                                                return Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: Icon(
-                                                        Icons
-                                                            .notifications_none,
-                                                        color: textColor,
-                                                      ),
-                                                      onPressed: () {
-                                                        KnockHaptics.tap();
-                                                        Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                            builder: (_) =>
-                                                                const NotificationsScreen(),
-                                                          ),
-                                                        );
-                                                      },
+                                    cacheExtent: 1500,
+                                    slivers: [
+                                      SliverAppBar(
+                                        backgroundColor: bgColor,
+                                        surfaceTintColor: bgColor,
+                                        elevation: 0,
+                                        floating: true,
+                                        snap: true,
+                                        titleSpacing: 20,
+                                        centerTitle: false,
+                                        title: Text(
+                                          "KnockPost",
+                                          style: AppTypography.appTitle.copyWith(color: textColor),
+                                        ),
+                                        actions: [
+                                          StreamBuilder<int>(
+                                            stream: NotificationService
+                                                .instance
+                                                .streamUnreadCount(),
+                                            builder: (context, snapshot) {
+                                              final unreadCount =
+                                                  snapshot.data ?? 0;
+                                              return Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons
+                                                          .notifications_none,
+                                                      color: textColor,
                                                     ),
-                                                    if (unreadCount > 0)
-                                                      Positioned(
-                                                        top: 12,
-                                                        right: 12,
+                                                    onPressed: () {
+                                                      KnockHaptics.tap();
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              const NotificationsScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                  if (unreadCount > 0)
+                                                    Positioned(
+                                                      top: 12,
+                                                      right: 12,
+                                                      child: Container(
+                                                        width: 10,
+                                                        height: 10,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              color: Colors
+                                                                  .redAccent,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border:
+                                                                  Border.all(
+                                                                    color:
+                                                                        bgColor,
+                                                                    width: 2,
+                                                                  ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      if (_isLoadingFeed)
+                                        const SliverFillRemaining(
+                                          child: KnockPostLoadingIndicator(),
+                                        )
+                                      else
+                                        SliverPadding(
+                                          padding: const EdgeInsets.only(bottom: 90),
+                                          sliver: SliverList(
+                                            delegate: SliverChildBuilderDelegate(
+                                              (context, index) {
+                                                const glimpseStripIndex = 1;
+                                                const peopleStripIndex = 3;
+                                                final totalItems = _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0);
+                                                final isLast = index == totalItems - 1;
+
+                                                if (_isLoadingMore && isLast) {
+                                                  return const Padding(
+                                                    padding: EdgeInsets.symmetric(vertical: 20),
+                                                    child: Center(
+                                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                                    ),
+                                                  );
+                                                }
+
+                                                if (index == glimpseStripIndex) {
+                                                  return Column(
+                                                    children: [
+                                                      const GlimpsStrip(),
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 6, bottom: 2),
                                                         child: Container(
-                                                          width: 10,
-                                                          height: 10,
-                                                          decoration:
-                                                              BoxDecoration(
-                                                                color: Colors
-                                                                    .redAccent,
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                                border:
-                                                                    Border.all(
-                                                                      color:
-                                                                          bgColor,
-                                                                      width: 2,
-                                                                    ),
-                                                              ),
+                                                          height: 2.5,
+                                                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }
+                                                if (index == peopleStripIndex) {
+                                                  return Column(
+                                                    children: [
+                                                      const PeopleSuggestionStrip(),
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                        child: Container(
+                                                          height: 2.5,
+                                                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }
+
+                                                int postIndex = index;
+                                                if (index > peopleStripIndex) {
+                                                  postIndex -= 2;
+                                                } else if (index > glimpseStripIndex) {
+                                                  postIndex -= 1;
+                                                }
+
+                                                if (postIndex >= _processedFeedItems.length) {
+                                                  return const SizedBox.shrink();
+                                                }
+
+                                                final item = _processedFeedItems[postIndex];
+                                                final post = item.post;
+                                                final author = item.author;
+
+                                                Widget card;
+                                                if (post.type == PostType.text) {
+                                                  card = ThoughtCard(
+                                                    user: author,
+                                                    text: post.text,
+                                                    likes: post.likes,
+                                                    views: post.views,
+                                                    postId: post.id,
+                                                    timestamp: post.timestampText,
+                                                  );
+                                                } else if (post.type == PostType.waves) {
+                                                  card = WavesFeedCard(
+                                                    post: post,
+                                                    user: author,
+                                                    onTap: () {
+                                                      final videoUrl = post.imagePaths.isNotEmpty ? post.imagePaths.first : null;
+                                                      if (videoUrl != null) {
+                                                        WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                                      }
+                                                      _animateToTab(2);
+                                                    },
+                                                  );
+                                                } else {
+                                                  card = PostCard(
+                                                    key: ValueKey(post.id),
+                                                    imagePaths: post.imagePaths,
+                                                    optimizedImagePaths: post.optimizedImagePaths,
+                                                    user: author,
+                                                    caption: post.text,
+                                                    likes: post.likes,
+                                                    views: post.views,
+                                                    postId: post.id,
+                                                    timestamp: post.timestampText,
+                                                    musicUrl: post.musicUrl,
+                                                    musicTitle: post.musicTitle,
+                                                    musicArtist: post.musicArtist,
+                                                    musicCoverUrl: post.musicCoverUrl,
+                                                    musicTrimStart: post.musicTrimStart,
+                                                    musicStickerConfig: post.musicStickerConfig,
+                                                    musicVolume: post.musicVolume,
+                                                    originalAudioVolume: post.originalAudioVolume,
+                                                    filterIndex: post.filterIndex,
+                                                    textOverlays: post.textOverlays,
+                                                    drawPaths: post.drawPaths,
+                                                    isVideoPost: post.isVideoPost || post.type == PostType.waves,
+                                                    videoHasSound: post.videoHasSound,
+                                                    coverImagePath: post.coverImagePath,
+                                                    mediaAspectRatio: post.mediaAspectRatio,
+                                                    mediaIsBaked: post.mediaIsBaked,
+                                                  );
+                                                }
+
+                                                return Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    card,
+                                                    if (!isLast)
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                        child: Container(
+                                                          height: 2.5,
+                                                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
                                                         ),
                                                       ),
                                                   ],
                                                 );
                                               },
-                                            ),
-                                          ],
-                                        ),
-                                      ];
-                                    },
-                                    body: _isLoadingFeed
-                                        ? const KnockPostLoadingIndicator()
-                                        : PostInnerScrollLockRegistrar(
-                                            child: CustomScrollView(
-                                              cacheExtent: 3000,
-                                              physics: isScrollLocked
-                                                  ? const NeverScrollableScrollPhysics()
-                                                  : null,
-                                              slivers: [
-                                                SliverPadding(
-                                                  padding: const EdgeInsets.only(bottom: 90),
-                                                  sliver: SliverList(
-                                                    delegate: SliverChildBuilderDelegate(
-                                                      (context, index) {
-                                                        const glimpseStripIndex = 1;
-                                                        const peopleStripIndex = 3;
-                                                        final totalItems = _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0);
-                                                        final isLast = index == totalItems - 1;
-
-                                                        if (_isLoadingMore && isLast) {
-                                                          return const Padding(
-                                                            padding: EdgeInsets.symmetric(vertical: 20),
-                                                            child: Center(
-                                                              child: CircularProgressIndicator(strokeWidth: 2),
-                                                            ),
-                                                          );
-                                                        }
-
-                                                        if (index == glimpseStripIndex) {
-                                                          return Column(
-                                                            children: [
-                                                              const GlimpsStrip(),
-                                                              Padding(
-                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
-                                                                child: Container(
-                                                                  height: 2.5,
-                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                                                                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          );
-                                                        }
-                                                        if (index == peopleStripIndex) {
-                                                          return Column(
-                                                            children: [
-                                                              const PeopleSuggestionStrip(),
-                                                              Padding(
-                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
-                                                                child: Container(
-                                                                  height: 2.5,
-                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                                                                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          );
-                                                        }
-
-                                                        int postIndex = index;
-                                                        if (index > peopleStripIndex) {
-                                                          postIndex -= 2;
-                                                        } else if (index > glimpseStripIndex) {
-                                                          postIndex -= 1;
-                                                        }
-
-                                                        if (postIndex >= _processedFeedItems.length) {
-                                                          return const SizedBox.shrink();
-                                                        }
-
-                                                        final item = _processedFeedItems[postIndex];
-                                                        final post = item.post;
-                                                        final author = item.author;
-
-                                                        Widget card;
-                                                        if (post.type == PostType.text) {
-                                                          card = ThoughtCard(
-                                                            user: author,
-                                                            text: post.text,
-                                                            likes: post.likes,
-                                                            views: post.views,
-                                                            postId: post.id,
-                                                            timestamp: post.timestampText,
-                                                          );
-                                                        } else if (post.type == PostType.waves) {
-                                                          card = WavesFeedCard(
-                                                            post: post,
-                                                            user: author,
-                                                            onTap: () {
-                                                              final videoUrl = post.imagePaths.isNotEmpty ? post.imagePaths.first : null;
-                                                              if (videoUrl != null) {
-                                                                WavesFeedState.requestedVideoUrl.value = videoUrl;
-                                                              }
-                                                              _animateToTab(2);
-                                                            },
-                                                          );
-                                                        } else {
-                                                          card = PostCard(
-                                                            key: ValueKey(post.id),
-                                                            imagePaths: post.imagePaths,
-                                                            optimizedImagePaths: post.optimizedImagePaths,
-                                                            user: author,
-                                                            caption: post.text,
-                                                            likes: post.likes,
-                                                            views: post.views,
-                                                            postId: post.id,
-                                                            timestamp: post.timestampText,
-                                                            musicUrl: post.musicUrl,
-                                                            musicTitle: post.musicTitle,
-                                                            musicArtist: post.musicArtist,
-                                                            musicCoverUrl: post.musicCoverUrl,
-                                                            musicTrimStart: post.musicTrimStart,
-                                                            musicStickerConfig: post.musicStickerConfig,
-                                                            musicVolume: post.musicVolume,
-                                                            originalAudioVolume: post.originalAudioVolume,
-                                                            filterIndex: post.filterIndex,
-                                                            textOverlays: post.textOverlays,
-                                                            drawPaths: post.drawPaths,
-                                                            isVideoPost: post.isVideoPost || post.type == PostType.waves,
-                                                            videoHasSound: post.videoHasSound,
-                                                            coverImagePath: post.coverImagePath,
-                                                            mediaAspectRatio: post.mediaAspectRatio,
-                                                            mediaIsBaked: post.mediaIsBaked,
-                                                          );
-                                                        }
-
-                                                        return Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          children: [
-                                                            card,
-                                                            if (!isLast)
-                                                              Padding(
-                                                                padding: const EdgeInsets.only(top: 6, bottom: 2),
-                                                                child: Container(
-                                                                  height: 2.5,
-                                                                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                                                                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
-                                                                ),
-                                                              ),
-                                                          ],
-                                                        );
-                                                      },
-                                                      childCount: _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                              findChildIndexCallback: (Key key) {
+                                                if (key is ValueKey<String>) {
+                                                  final id = key.value;
+                                                  for (int i = 0; i < _processedFeedItems.length; i++) {
+                                                    if (_processedFeedItems[i].post.id == id) {
+                                                      // Account for the 2 interleaved strips
+                                                      const glimpseStripIndex = 1;
+                                                      const peopleStripIndex = 3;
+                                                      int listIndex = i;
+                                                      if (listIndex >= peopleStripIndex - 1) {
+                                                        listIndex += 2;
+                                                      } else if (listIndex >= glimpseStripIndex) {
+                                                        listIndex += 1;
+                                                      }
+                                                      return listIndex;
+                                                    }
+                                                  }
+                                                }
+                                                return null;
+                                              },
+                                              childCount: _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0),
                                             ),
                                           ),
+                                        ),
+                                    ],
                                   ),
+
                                 );
                               },
                             ),

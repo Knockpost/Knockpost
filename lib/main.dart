@@ -14,6 +14,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'theme/theme_controller.dart';
 import 'utils/audio_lifecycle_manager.dart';
 import 'services/view_batch_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -27,6 +28,9 @@ void main() async {
   runZonedGuarded<Future<void>>(() async {
     try {
       WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+      // Reduce VisibilityDetector polling from 100ms (default) to 500ms.
+      // View counting has a 2-second timer guard, so 500ms is plenty.
+      VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 500);
       AudioLifecycleManager.instance.init();
       FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
