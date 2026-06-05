@@ -11,7 +11,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../../services/post_service.dart';
 import '../../services/feed_state_service.dart';
 import 'dart:async';
-import '../../services/feed_media_pool.dart';
 
 // --- EXPERIMENT INSTRUMENTATION ---
 int _vdCallbackCount = 0;
@@ -95,7 +94,6 @@ class _PostCardState extends State<PostCard> {
   bool _isPlaying = false;
   bool _isVisible = false;
   Timer? _viewTimer;
-  StreamSubscription<bool>? _poolPlayingSub;
 
   bool get _hasMusic =>
       widget.musicUrl != null && widget.musicUrl!.isNotEmpty && !(widget.isVideoPost && widget.mediaIsBaked);
@@ -104,19 +102,7 @@ class _PostCardState extends State<PostCard> {
   void initState() {
     super.initState();
     if (_hasMusic) {
-      if (useNewMediaPool) {
-        // Pool architecture: don't initialize player here, just listen to global state
-        _poolPlayingSub = FeedMediaPool.instance.audioPlayingStream?.listen((playing) {
-          if (!mounted || !_isVisible) return;
-          if (FeedMediaPool.instance.currentAudioUrl == widget.musicUrl) {
-            setState(() => _isPlaying = playing);
-          } else if (_isPlaying) {
-            setState(() => _isPlaying = false);
-          }
-        });
-      } else {
-        _initAudio();
-      }
+      _initAudio();
     }
   }
 
@@ -137,7 +123,7 @@ class _PostCardState extends State<PostCard> {
       _audioPlayer!.setLoopMode(LoopMode.one);
       
       if (_isVisible && !AudioLifecycleManager.instance.isGlobalMuted) {
-        _audioPlayer!.play();
+        AudioLifecycleManager.instance.playExclusive(_audioPlayer!);
       }
 
       _audioPlayer!.playingStream.listen((playing) {
@@ -151,16 +137,9 @@ class _PostCardState extends State<PostCard> {
   @override
   void dispose() {
     _viewTimer?.cancel();
-    _poolPlayingSub?.cancel();
-    if (!useNewMediaPool) {
-      if (_audioPlayer != null) {
-        AudioLifecycleManager.instance.unregister(_audioPlayer!);
-        _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
-      }
-    } else {
-      if (_isVisible && _hasMusic) {
-        FeedMediaPool.instance.pauseAudio();
-      }
+    if (_audioPlayer != null) {
+      AudioLifecycleManager.instance.unregister(_audioPlayer!);
+      _audioPlayer!.stop().whenComplete(() => _audioPlayer!.dispose());
     }
     super.dispose();
   }
@@ -178,24 +157,14 @@ class _PostCardState extends State<PostCard> {
 
   void _togglePlayback() {
     KnockHaptics.tap();
-    if (useNewMediaPool) {
-      if (_isPlaying) {
-        FeedMediaPool.instance.pauseAudio();
-        AudioLifecycleManager.instance.isGlobalMuted = true;
-        setState(() => _isPlaying = false);
-      } else {
-        FeedMediaPool.instance.playAudio(widget.musicUrl!, trimStart: widget.musicTrimStart ?? 0);
-        AudioLifecycleManager.instance.isGlobalMuted = false;
-        setState(() => _isPlaying = true);
-      }
+    if (_isPlaying) {
+      _audioPlayer?.pause();
+      AudioLifecycleManager.instance.isGlobalMuted = true;
     } else {
-      if (_isPlaying) {
-        _audioPlayer?.pause();
-        AudioLifecycleManager.instance.isGlobalMuted = true;
-      } else {
-        _audioPlayer?.play();
-        AudioLifecycleManager.instance.isGlobalMuted = false;
+      if (_audioPlayer != null) {
+        AudioLifecycleManager.instance.playExclusive(_audioPlayer!);
       }
+      AudioLifecycleManager.instance.isGlobalMuted = false;
     }
   }
 
@@ -240,27 +209,14 @@ class _PostCardState extends State<PostCard> {
           }
 
           if (_hasMusic) {
-            if (useNewMediaPool) {
+            if (_audioPlayer != null) {
               if (!_isVisible) {
                 if (_isPlaying) {
-                  FeedMediaPool.instance.pauseAudio();
-                  setState(() => _isPlaying = false);
+                  _audioPlayer?.pause();
                 }
               } else {
                 if (!AudioLifecycleManager.instance.isGlobalMuted) {
-                  FeedMediaPool.instance.playAudio(widget.musicUrl!, trimStart: widget.musicTrimStart ?? 0);
-                }
-              }
-            } else {
-              if (_audioPlayer != null) {
-                if (!_isVisible) {
-                  if (_isPlaying) {
-                    _audioPlayer?.pause();
-                  }
-                } else {
-                  if (!AudioLifecycleManager.instance.isGlobalMuted) {
-                    _audioPlayer?.play();
-                  }
+                  AudioLifecycleManager.instance.playExclusive(_audioPlayer!);
                 }
               }
             }
