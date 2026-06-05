@@ -59,6 +59,14 @@
           }
         },
         {
+          "client_id": "56941114478-s01nf8u82arad7a40c1k6dk4v273ru9r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.knockpost.app",
+            "certificate_hash": "33b689a907d2bf1fbaa32982192b163786b858df"
+          }
+        },
+        {
           "client_id": "56941114478-99oi3tmack3hmtelf5l0vp6j4oe8hson.apps.googleusercontent.com",
           "client_type": 3
         }
