@@ -4,6 +4,8 @@ import '../models/post_model.dart';
 import '../models/user_model.dart';
 import 'post_service.dart';
 import 'user_cache_service.dart';
+import 'video_cache_manager.dart';
+import 'image_cache_manager.dart';
 
 /// Manages the state and pagination of the Glimps feed, replacing the global Stream.
 class GlimpsFeedManager extends ChangeNotifier {
@@ -54,6 +56,7 @@ class GlimpsFeedManager extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+      _preloadTopGlimpses();
     }
   }
 
@@ -111,6 +114,29 @@ class GlimpsFeedManager extends ChangeNotifier {
           notifyListeners();
         }
       }));
+    }
+  }
+
+  void _preloadTopGlimpses() {
+    final Map<String, PostModel> topGlimpses = {};
+    for (var g in _glimpses) {
+      if (!topGlimpses.containsKey(g.authorId)) {
+        topGlimpses[g.authorId] = g;
+      }
+      if (topGlimpses.length >= 5) break;
+    }
+
+    for (var g in topGlimpses.values) {
+      if (g.imagePaths.isNotEmpty) {
+        final path = g.imagePaths.first;
+        final pathLower = path.toLowerCase();
+        final isVideo = pathLower.contains('.mp4') || pathLower.contains('.mov') || pathLower.contains('.mkv') || pathLower.contains('.webm');
+        if (isVideo) {
+          KnockpostVideoCacheManager.instance.downloadFile(path);
+        } else {
+          KnockpostImageCacheManager.instance.downloadFile(path);
+        }
+      }
     }
   }
 

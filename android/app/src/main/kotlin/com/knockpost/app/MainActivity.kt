@@ -1,4 +1,4 @@
-package com.example.knockpost
+package com.knockpost.app
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

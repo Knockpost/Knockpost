@@ -42,6 +42,7 @@ import '../services/current_user_service.dart';
 import '../services/post_service.dart';
 import '../services/notification_service.dart';
 import '../services/performance_service.dart';
+import '../services/feed_cache_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,11 +58,12 @@ class _HomeScreenState extends State<HomeScreen> {
   late final PageController _pageController;
   late final ValueNotifier<int> _navIndexNotifier;
   double _scrollDelta = 0;
-  bool _showBars = true;
+  final ValueNotifier<bool> _showBarsNotifier = ValueNotifier<bool>(true);
   int _currentNavIndex = 0;
   int _feedSeed = 0;
 
   List<({PostModel post, UserModel author})> _feedItems = [];
+  List<({PostModel post, UserModel author})> _processedFeedItems = [];
   bool _isLoadingFeed = true;
   bool _isLoadingMore = false;
   DocumentSnapshot? _lastFeedDoc;
@@ -78,23 +80,116 @@ class _HomeScreenState extends State<HomeScreen> {
     _postPageSwipeLockController = PostPageSwipeLockController()
       ..register(_pageController);
     _navIndexNotifier = ValueNotifier<int>(_currentNavIndex);
+    GlobalPostState.deletedPostIds.addListener(_onDeletedPostsChanged);
     _loadFeed(refresh: true);
   }
 
+  void _onDeletedPostsChanged() {
+    final deletedIds = GlobalPostState.deletedPostIds.value;
+    bool changed = false;
+    final newProcessed = _processedFeedItems.where((item) {
+      if (deletedIds.contains(item.post.id)) {
+        changed = true;
+        return false;
+      }
+      return true;
+    }).toList();
+    
+    if (changed) {
+      setState(() {
+        _processedFeedItems = newProcessed;
+      });
+    }
+  }
+
+  void _processAndAppendFeedItems(List<({PostModel post, UserModel author})> newItems, {bool isRefresh = false}) {
+    if (isRefresh) {
+      _processedFeedItems.clear();
+      _feedSeed = DateTime.now().millisecondsSinceEpoch;
+    }
+
+    final deletedIds = GlobalPostState.deletedPostIds.value;
+    final filteredNew = newItems.where((item) => 
+      !deletedIds.contains(item.post.id) && 
+      item.post.type != PostType.glimps
+    ).toList();
+    
+    // Sort the new batch safely
+    filteredNew.sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+    
+    // Interleave waves for the new batch
+    final interleavedNew = <({PostModel post, UserModel author})>[];
+    final pendingWaves = <({PostModel post, UserModel author})>[];
+    for (final item in filteredNew) {
+      if (item.post.type == PostType.waves) {
+        if (interleavedNew.isNotEmpty && interleavedNew.last.post.type == PostType.waves) {
+          pendingWaves.add(item);
+        } else {
+          interleavedNew.add(item);
+        }
+      } else {
+        interleavedNew.add(item);
+        if (pendingWaves.isNotEmpty) {
+          interleavedNew.add(pendingWaves.removeAt(0));
+        }
+      }
+    }
+    // Fix: add any remaining waves that weren't added
+    interleavedNew.addAll(pendingWaves);
+    
+    // Shuffle the new batch independently if seed is set
+    if (_feedSeed != 0 && interleavedNew.isNotEmpty) {
+      // Use _processedFeedItems.length to offset the seed, ensuring stable shuffle per batch
+      interleavedNew.shuffle(Random(_feedSeed + _processedFeedItems.length));
+    }
+
+    _processedFeedItems.addAll(interleavedNew);
+  }
+
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 800) {
       _loadFeed(refresh: false);
     }
   }
 
-  Future<void> _loadFeed({bool refresh = false}) async {
+  Future<void> _loadFeed({bool refresh = false, bool isManualRefresh = false}) async {
+    if (isManualRefresh) {
+      if (!FeedCacheService.instance.canManualRefresh) {
+        if (FeedCacheService.instance.hasValidCache && _feedItems.isEmpty) {
+          final cache = FeedCacheService.instance.getCache()!;
+          setState(() {
+            _feedItems = cache.posts;
+            _processAndAppendFeedItems(cache.posts, isRefresh: true);
+            _lastFeedDoc = cache.lastDoc;
+            _hasMoreFeed = true;
+            _isLoadingFeed = false;
+          });
+        }
+        return;
+      }
+      FeedCacheService.instance.recordManualRefresh();
+      FeedCacheService.instance.clear();
+    }
+
     if (refresh) {
-      if (_isLoadingFeed && _feedItems.isNotEmpty) return;
-      setState(() {
-        _hasMoreFeed = true;
-        _lastFeedDoc = null;
-        _isLoadingFeed = true;
-      });
+      if (!isManualRefresh && FeedCacheService.instance.hasValidCache) {
+        final cache = FeedCacheService.instance.getCache()!;
+        setState(() {
+          _feedItems = cache.posts;
+          _processAndAppendFeedItems(cache.posts, isRefresh: true);
+          _lastFeedDoc = cache.lastDoc;
+          _hasMoreFeed = true;
+          _isLoadingFeed = false;
+        });
+        return; // Restored the return to prevent continuous background fetching
+      } else {
+        if (_isLoadingFeed && _feedItems.isNotEmpty) return;
+        setState(() {
+          _hasMoreFeed = true;
+          _lastFeedDoc = null;
+          _isLoadingFeed = true;
+        });
+      }
     } else {
       if (!_hasMoreFeed || _isLoadingMore || _isLoadingFeed) return;
       setState(() => _isLoadingMore = true);
@@ -106,8 +201,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await PostService.instance.getFeedPostsPaginated(
       currentUserId: currentUser?.id ?? '',
       currentUserModel: currentUser,
-      startAfter: _lastFeedDoc,
-      limit: 15,
+      startAfter: refresh ? null : _lastFeedDoc,
+      limit: 25,
     );
 
     stopWatch.stop();
@@ -121,16 +216,17 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         if (refresh) {
           _feedItems = result.posts;
+          _processAndAppendFeedItems(result.posts, isRefresh: true);
+          FeedCacheService.instance.saveCache(result.posts, result.lastDoc);
         } else {
           _feedItems.addAll(result.posts);
+          _processAndAppendFeedItems(result.posts, isRefresh: false);
+          FeedCacheService.instance.appendCache(result.posts, result.lastDoc);
         }
         _lastFeedDoc = result.lastDoc;
-        _hasMoreFeed = result.posts.length == 15;
+        _hasMoreFeed = result.hasMore;
         _isLoadingFeed = false;
         _isLoadingMore = false;
-        if (refresh) {
-          _feedSeed = DateTime.now().millisecondsSinceEpoch;
-        }
       });
     }
   }
@@ -149,9 +245,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    GlobalPostState.deletedPostIds.removeListener(_onDeletedPostsChanged);
     _postScrollLockController.dispose();
     _postPageSwipeLockController.dispose();
     _navIndexNotifier.dispose();
+    _showBarsNotifier.dispose();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -161,10 +259,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentNavIndex == index) return;
     setState(() {
       _currentNavIndex = index;
-      // Always show bars when switching tabs — only vertical scroll should hide them
-      _showBars = true;
       _scrollDelta = 0;
     });
+    // Always show bars when switching tabs — only vertical scroll should hide them
+    _showBarsNotifier.value = true;
     _navIndexNotifier.value = index;
   }
 
@@ -185,14 +283,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (dy > 0) {
         // Scrolling down — accumulate distance
         _scrollDelta += dy;
-        if (_scrollDelta > 50 && _showBars) {
-          setState(() => _showBars = false);
+        if (_scrollDelta > 50 && _showBarsNotifier.value) {
+          _showBarsNotifier.value = false;
         }
       } else if (dy < 0) {
         // Scrolling up — show immediately
         _scrollDelta = 0;
-        if (!_showBars) {
-          setState(() => _showBars = true);
+        if (!_showBarsNotifier.value) {
+          _showBarsNotifier.value = true;
         }
       }
     }
@@ -661,27 +759,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // ── FAB (X/Twitter-style fade + scale) ──────────────────
           floatingActionButton: (_currentNavIndex == 0 || _currentNavIndex == 4)
-              ? AnimatedOpacity(
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOut,
-                  opacity: _showBars ? 1.0 : 0.0,
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeOut,
-                    scale: _showBars ? 1.0 : 0.0,
-                    child: FloatingActionButton(
-                      backgroundColor: const Color(0xFF1B1D1F),
-                      onPressed: () {
-                        KnockHaptics.tap();
-                        _showCreateMenu(context, isDark, bgColor, textColor);
-                      },
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 26,
+              ? ValueListenableBuilder<bool>(
+                  valueListenable: _showBarsNotifier,
+                  builder: (context, showBars, _) {
+                    return AnimatedOpacity(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      opacity: showBars ? 1.0 : 0.0,
+                      child: AnimatedScale(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                        scale: showBars ? 1.0 : 0.0,
+                        child: FloatingActionButton(
+                          backgroundColor: const Color(0xFF1B1D1F),
+                          onPressed: () {
+                            KnockHaptics.tap();
+                            _showCreateMenu(context, isDark, bgColor, textColor);
+                          },
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 )
               : null,
 
@@ -713,419 +816,251 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return KnockPostRefreshIndicator(
                                   onRefresh: () async {
                                     KnockHaptics.tap();
-                                    await _loadFeed(refresh: true);
+                                    await _loadFeed(refresh: true, isManualRefresh: true);
                                   },
-                                  child: NestedScrollView(
+                                  child: CustomScrollView(
                                     physics: isScrollLocked
                                         ? const NeverScrollableScrollPhysics()
                                         : const AlwaysScrollableScrollPhysics(
-                                            parent:
-                                                ClampingScrollPhysics(),
+                                            parent: ClampingScrollPhysics(),
                                           ),
                                     controller: _scrollController,
-                                    headerSliverBuilder: (context, innerBoxIsScrolled) {
-                                      return [
-                                        SliverAppBar(
-                                          backgroundColor: bgColor,
-                                          surfaceTintColor: bgColor,
-                                          elevation: 0,
-                                          floating: true,
-                                          snap: true,
-                                          titleSpacing: 20,
-                                          centerTitle: false,
-                                          title: Text(
-                                            "KnockPost",
-                                            style: AppTypography.appTitle.copyWith(color: textColor),
-                                          ),
-                                          actions: [
-                                            StreamBuilder<int>(
-                                              stream: NotificationService
-                                                  .instance
-                                                  .streamUnreadCount(),
-                                              builder: (context, snapshot) {
-                                                final unreadCount =
-                                                    snapshot.data ?? 0;
-                                                return Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: Icon(
-                                                        Icons
-                                                            .notifications_none,
-                                                        color: textColor,
-                                                      ),
-                                                      onPressed: () {
-                                                        KnockHaptics.tap();
-                                                        Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                            builder: (_) =>
-                                                                const NotificationsScreen(),
-                                                          ),
-                                                        );
-                                                      },
+                                    cacheExtent: 1500,
+                                    slivers: [
+                                      SliverAppBar(
+                                        backgroundColor: bgColor,
+                                        surfaceTintColor: bgColor,
+                                        elevation: 0,
+                                        floating: true,
+                                        snap: true,
+                                        titleSpacing: 20,
+                                        centerTitle: false,
+                                        title: Text(
+                                          "KnockPost",
+                                          style: AppTypography.appTitle.copyWith(color: textColor),
+                                        ),
+                                        actions: [
+                                          StreamBuilder<int>(
+                                            stream: NotificationService
+                                                .instance
+                                                .streamUnreadCount(),
+                                            builder: (context, snapshot) {
+                                              final unreadCount =
+                                                  snapshot.data ?? 0;
+                                              return Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons
+                                                          .notifications_none,
+                                                      color: textColor,
                                                     ),
-                                                    if (unreadCount > 0)
-                                                      Positioned(
-                                                        top: 12,
-                                                        right: 12,
+                                                    onPressed: () {
+                                                      KnockHaptics.tap();
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              const NotificationsScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                  if (unreadCount > 0)
+                                                    Positioned(
+                                                      top: 12,
+                                                      right: 12,
+                                                      child: Container(
+                                                        width: 10,
+                                                        height: 10,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              color: Colors
+                                                                  .redAccent,
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border:
+                                                                  Border.all(
+                                                                    color:
+                                                                        bgColor,
+                                                                    width: 2,
+                                                                  ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      if (_isLoadingFeed)
+                                        const SliverFillRemaining(
+                                          child: KnockPostLoadingIndicator(),
+                                        )
+                                      else
+                                        SliverPadding(
+                                          padding: const EdgeInsets.only(bottom: 90),
+                                          sliver: SliverList(
+                                            delegate: SliverChildBuilderDelegate(
+                                              (context, index) {
+                                                const glimpseStripIndex = 1;
+                                                const peopleStripIndex = 3;
+                                                final totalItems = _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0);
+                                                final isLast = index == totalItems - 1;
+
+                                                if (_isLoadingMore && isLast) {
+                                                  return const Padding(
+                                                    padding: EdgeInsets.symmetric(vertical: 20),
+                                                    child: Center(
+                                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                                    ),
+                                                  );
+                                                }
+
+                                                if (index == glimpseStripIndex) {
+                                                  return Column(
+                                                    children: [
+                                                      const GlimpsStrip(),
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 6, bottom: 2),
                                                         child: Container(
-                                                          width: 10,
-                                                          height: 10,
-                                                          decoration:
-                                                              BoxDecoration(
-                                                                color: Colors
-                                                                    .redAccent,
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                                border:
-                                                                    Border.all(
-                                                                      color:
-                                                                          bgColor,
-                                                                      width: 2,
-                                                                    ),
-                                                              ),
+                                                          height: 2.5,
+                                                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }
+                                                if (index == peopleStripIndex) {
+                                                  return Column(
+                                                    children: [
+                                                      const PeopleSuggestionStrip(),
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                        child: Container(
+                                                          height: 2.5,
+                                                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }
+
+                                                int postIndex = index;
+                                                if (index > peopleStripIndex) {
+                                                  postIndex -= 2;
+                                                } else if (index > glimpseStripIndex) {
+                                                  postIndex -= 1;
+                                                }
+
+                                                if (postIndex >= _processedFeedItems.length) {
+                                                  return const SizedBox.shrink();
+                                                }
+
+                                                final item = _processedFeedItems[postIndex];
+                                                final post = item.post;
+                                                final author = item.author;
+
+                                                Widget card;
+                                                if (post.type == PostType.text) {
+                                                  card = ThoughtCard(
+                                                    user: author,
+                                                    text: post.text,
+                                                    likes: post.likes,
+                                                    views: post.views,
+                                                    postId: post.id,
+                                                    timestamp: post.timestampText,
+                                                  );
+                                                } else if (post.type == PostType.waves) {
+                                                  card = WavesFeedCard(
+                                                    post: post,
+                                                    user: author,
+                                                    onTap: () {
+                                                      final videoUrl = post.imagePaths.isNotEmpty ? post.imagePaths.first : null;
+                                                      if (videoUrl != null) {
+                                                        WavesFeedState.requestedVideoUrl.value = videoUrl;
+                                                      }
+                                                      _animateToTab(2);
+                                                    },
+                                                  );
+                                                } else {
+                                                  card = PostCard(
+                                                    key: ValueKey(post.id),
+                                                    imagePaths: post.imagePaths,
+                                                    optimizedImagePaths: post.optimizedImagePaths,
+                                                    user: author,
+                                                    caption: post.text,
+                                                    likes: post.likes,
+                                                    views: post.views,
+                                                    postId: post.id,
+                                                    timestamp: post.timestampText,
+                                                    musicUrl: post.musicUrl,
+                                                    musicTitle: post.musicTitle,
+                                                    musicArtist: post.musicArtist,
+                                                    musicCoverUrl: post.musicCoverUrl,
+                                                    musicTrimStart: post.musicTrimStart,
+                                                    musicStickerConfig: post.musicStickerConfig,
+                                                    musicVolume: post.musicVolume,
+                                                    originalAudioVolume: post.originalAudioVolume,
+                                                    filterIndex: post.filterIndex,
+                                                    textOverlays: post.textOverlays,
+                                                    drawPaths: post.drawPaths,
+                                                    isVideoPost: post.isVideoPost || post.type == PostType.waves,
+                                                    videoHasSound: post.videoHasSound,
+                                                    coverImagePath: post.coverImagePath,
+                                                    mediaAspectRatio: post.mediaAspectRatio,
+                                                    mediaIsBaked: post.mediaIsBaked,
+                                                  );
+                                                }
+
+                                                return Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    card,
+                                                    if (!isLast)
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 6, bottom: 2),
+                                                        child: Container(
+                                                          height: 2.5,
+                                                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                                                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
                                                         ),
                                                       ),
                                                   ],
                                                 );
                                               },
-                                            ),
-                                          ],
-                                        ),
-                                      ];
-                                    },
-                                    body: _isLoadingFeed
-                                        ? const KnockPostLoadingIndicator()
-                                        : ValueListenableBuilder<Set<String>>(
-                                            valueListenable: GlobalPostState.deletedPostIds,
-                                            builder: (context, deletedIds, _) {
-                                              final feedItems = _feedItems;
-                                              
-                                              // Filter and sort
-                                              final sorted = feedItems
-                                                        .where(
-                                                          (item) =>
-                                                              !deletedIds
-                                                                  .contains(
-                                                                    item
-                                                                        .post
-                                                                        .id,
-                                                                  ) &&
-                                                              item.post.type !=
-                                                                  PostType
-                                                                      .glimps,
-                                                        )
-                                                        .toList()
-                                                      ..sort(
-                                                        (a, b) => b
-                                                            .post
-                                                            .createdAt
-                                                            .compareTo(
-                                                              a.post.createdAt,
-                                                            ),
-                                                      );
-
-                                                // Interleave waves
-                                                final activeItems =
-                                                    <
-                                                      ({
-                                                        PostModel post,
-                                                        UserModel author,
-                                                      })
-                                                    >[];
-                                                final pendingWaves =
-                                                    <
-                                                      ({
-                                                        PostModel post,
-                                                        UserModel author,
-                                                      })
-                                                    >[];
-                                                for (final item in sorted) {
-                                                  if (item.post.type ==
-                                                      PostType.waves) {
-                                                    if (activeItems
-                                                            .isNotEmpty &&
-                                                        activeItems
-                                                                .last
-                                                                .post
-                                                                .type ==
-                                                            PostType.waves) {
-                                                      pendingWaves.add(item);
-                                                    } else {
-                                                      activeItems.add(item);
-                                                    }
-                                                  } else {
-                                                    activeItems.add(item);
-                                                    if (pendingWaves
-                                                        .isNotEmpty) {
-                                                      activeItems.add(
-                                                        pendingWaves.removeAt(
-                                                          0,
-                                                        ),
-                                                      );
+                                              findChildIndexCallback: (Key key) {
+                                                if (key is ValueKey<String>) {
+                                                  final id = key.value;
+                                                  for (int i = 0; i < _processedFeedItems.length; i++) {
+                                                    if (_processedFeedItems[i].post.id == id) {
+                                                      // Account for the 2 interleaved strips
+                                                      const glimpseStripIndex = 1;
+                                                      const peopleStripIndex = 3;
+                                                      int listIndex = i;
+                                                      if (listIndex >= peopleStripIndex - 1) {
+                                                        listIndex += 2;
+                                                      } else if (listIndex >= glimpseStripIndex) {
+                                                        listIndex += 1;
+                                                      }
+                                                      return listIndex;
                                                     }
                                                   }
                                                 }
-
-                                                if (_feedSeed != 0) {
-                                                  activeItems.shuffle(
-                                                    Random(_feedSeed),
-                                                  );
-                                                }
-
-                                                return PostInnerScrollLockRegistrar(
-                                                  child: ListView.builder(
-                                                    physics: isScrollLocked
-                                                        ? const NeverScrollableScrollPhysics()
-                                                        : null,
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          bottom: 90,
-                                                        ),
-                                                    itemCount:
-                                                        activeItems.length + 2 + (_isLoadingMore ? 1 : 0),
-                                                    itemBuilder: (context, index) {
-                                                      const glimpseStripIndex =
-                                                          1;
-                                                      const peopleStripIndex =
-                                                          3;
-                                                      final totalItems =
-                                                          activeItems.length +
-                                                          2 + (_isLoadingMore ? 1 : 0);
-                                                      final isLast =
-                                                          index ==
-                                                          totalItems - 1;
-
-                                                      if (_isLoadingMore && isLast) {
-                                                        return const Padding(
-                                                          padding: EdgeInsets.symmetric(vertical: 20),
-                                                          child: Center(
-                                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                                          ),
-                                                        );
-                                                      }
-
-                                                      if (index ==
-                                                          glimpseStripIndex) {
-                                                        return Column(
-                                                          children: [
-                                                            const GlimpsStrip(),
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    top: 6,
-                                                                    bottom: 2,
-                                                                  ),
-                                                              child: Container(
-                                                                height: 2.5,
-                                                                margin:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          20,
-                                                                    ),
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          )
-                                                                    : Colors
-                                                                          .black
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        );
-                                                      }
-                                                      if (index ==
-                                                          peopleStripIndex) {
-                                                        return Column(
-                                                          children: [
-                                                            const PeopleSuggestionStrip(),
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    top: 6,
-                                                                    bottom: 2,
-                                                                  ),
-                                                              child: Container(
-                                                                height: 2.5,
-                                                                margin:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          20,
-                                                                    ),
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          )
-                                                                    : Colors
-                                                                          .black
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        );
-                                                      }
-
-                                                      int postIndex = index;
-                                                      if (index >
-                                                          peopleStripIndex) {
-                                                        postIndex -= 2;
-                                                      } else if (index >
-                                                          glimpseStripIndex) {
-                                                        postIndex -= 1;
-                                                      }
-
-                                                      if (postIndex >=
-                                                          activeItems.length) {
-                                                        return const SizedBox.shrink();
-                                                      }
-
-                                                      final post =
-                                                          activeItems[postIndex]
-                                                              .post;
-                                                      final author =
-                                                          activeItems[postIndex]
-                                                              .author;
-
-                                                      Widget card;
-                                                      if (post.type ==
-                                                          PostType.text) {
-                                                        card = ThoughtCard(
-                                                          user: author,
-                                                          text: post.text,
-                                                          likes: post.likes,
-                                                          views: post.views,
-                                                          postId: post.id,
-                                                          timestamp: post
-                                                              .timestampText,
-                                                        );
-                                                      } else if (post.type ==
-                                                          PostType.waves) {
-                                                        card = WavesFeedCard(
-                                                          post: post,
-                                                          user: author,
-                                                          onTap: () {
-                                                            final videoUrl =
-                                                                post
-                                                                    .imagePaths
-                                                                    .isNotEmpty
-                                                                ? post
-                                                                      .imagePaths
-                                                                      .first
-                                                                : null;
-                                                            if (videoUrl !=
-                                                                null) {
-                                                              WavesFeedState
-                                                                      .requestedVideoUrl
-                                                                      .value =
-                                                                  videoUrl;
-                                                            }
-                                                            _animateToTab(2);
-                                                          },
-                                                        );
-                                                      } else {
-                                                        card = PostCard(
-                                                          imagePaths:
-                                                              post.imagePaths,
-                                                          user: author,
-                                                          caption: post.text,
-                                                          likes: post.likes,
-                                                          views: post.views,
-                                                          postId: post.id,
-                                                          timestamp: post
-                                                              .timestampText,
-                                                          musicUrl:
-                                                              post.musicUrl,
-                                                          musicTitle:
-                                                              post.musicTitle,
-                                                          musicArtist:
-                                                              post.musicArtist,
-                                                          musicCoverUrl: post
-                                                              .musicCoverUrl,
-                                                          musicTrimStart: post
-                                                              .musicTrimStart,
-                                                          musicStickerConfig: post.musicStickerConfig,
-                                                          musicVolume: post.musicVolume,
-                                                          originalAudioVolume: post.originalAudioVolume,
-                                                          filterIndex:
-                                                              post.filterIndex,
-                                                          textOverlays:
-                                                              post.textOverlays,
-                                                          drawPaths:
-                                                              post.drawPaths,
-                                                          isVideoPost:
-                                                              post.isVideoPost ||
-                                                              post.type ==
-                                                                  PostType
-                                                                      .waves,
-                                                          videoHasSound: post
-                                                              .videoHasSound,
-                                                          coverImagePath: post
-                                                              .coverImagePath,
-                                                          mediaAspectRatio: post
-                                                              .mediaAspectRatio,
-                                                          mediaIsBaked:
-                                                              post.mediaIsBaked,
-                                                        );
-                                                      }
-
-                                                      return Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          card,
-                                                          if (!isLast)
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.only(
-                                                                    top: 6,
-                                                                    bottom: 2,
-                                                                  ),
-                                                              child: Container(
-                                                                height: 2.5,
-                                                                margin:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          20,
-                                                                    ),
-                                                                color: isDark
-                                                                    ? Colors
-                                                                          .white
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          )
-                                                                    : Colors
-                                                                          .black
-                                                                          .withValues(
-                                                                            alpha:
-                                                                                0.08,
-                                                                          ),
-                                                              ),
-                                                            ),
-                                                        ],
-                                                      );
-                                                    },
-                                                  ),
-                                                );
+                                                return null;
                                               },
+                                              childCount: _processedFeedItems.length + 2 + (_isLoadingMore ? 1 : 0),
                                             ),
-                                          ), // NestedScrollView
-                                        ); // KnockPostRefreshIndicator
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+
+                                );
                               },
                             ),
                           ),
@@ -1180,22 +1115,27 @@ class _HomeScreenState extends State<HomeScreen> {
           // ── BOTTOM NAV BAR ──────────────────────────────────────────
           // ClipRect ensures the nav is clipped as it slides out of view
           bottomNavigationBar: ClipRect(
-            child: AnimatedSlide(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              offset: _showBars ? Offset.zero : const Offset(0, 1),
-              child: ValueListenableBuilder<int>(
-                valueListenable: _navIndexNotifier,
-                builder: (context, currentIndex, _) {
-                  return CustomBottomNav(
-                    currentIndex: currentIndex,
-                    onTap: (index) {
-                      if (currentIndex == index) return;
-                      _animateToTab(index);
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showBarsNotifier,
+              builder: (context, showBars, _) {
+                return AnimatedSlide(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  offset: showBars ? Offset.zero : const Offset(0, 1),
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _navIndexNotifier,
+                    builder: (context, currentIndex, _) {
+                      return CustomBottomNav(
+                        currentIndex: currentIndex,
+                        onTap: (index) {
+                          if (currentIndex == index) return;
+                          _animateToTab(index);
+                        },
+                      );
                     },
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),

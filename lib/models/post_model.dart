@@ -23,11 +23,13 @@ class PostModel {
   final PostDuration duration;
 
   final List<String> imagePaths; // empty for text posts
+  final List<String>? optimizedImagePaths; // from C1 Phase
   final double? mediaAspectRatio;
   final bool mediaIsBaked;
   final bool isVideoPost;
   final bool videoHasSound;
   final String? coverImagePath;
+  final String? optimizedCoverImagePath; // from C1 Phase
   final String text; // empty for media-only posts
 
   final String? musicUrl;
@@ -55,11 +57,13 @@ class PostModel {
     required this.type,
     required this.duration,
     this.imagePaths = const [],
+    this.optimizedImagePaths,
     this.mediaAspectRatio,
     this.mediaIsBaked = false,
     this.isVideoPost = false,
     this.videoHasSound = false,
     this.coverImagePath,
+    this.optimizedCoverImagePath,
     this.text = '',
     this.musicUrl,
     this.musicTitle,
@@ -149,7 +153,9 @@ class PostModel {
     bool? isVideoPost,
     bool? videoHasSound,
     String? coverImagePath,
+    String? optimizedCoverImagePath,
     List<String>? imagePaths,
+    List<String>? optimizedImagePaths,
     String? musicUrl,
     String? musicTitle,
     String? musicArtist,
@@ -169,11 +175,13 @@ class PostModel {
       type: type,
       duration: duration,
       imagePaths: imagePaths ?? this.imagePaths,
+      optimizedImagePaths: optimizedImagePaths ?? this.optimizedImagePaths,
       mediaAspectRatio: mediaAspectRatio ?? this.mediaAspectRatio,
       mediaIsBaked: mediaIsBaked ?? this.mediaIsBaked,
       isVideoPost: isVideoPost ?? this.isVideoPost,
       videoHasSound: videoHasSound ?? this.videoHasSound,
       coverImagePath: coverImagePath ?? this.coverImagePath,
+      optimizedCoverImagePath: optimizedCoverImagePath ?? this.optimizedCoverImagePath,
       text: text,
       musicUrl: musicUrl ?? this.musicUrl,
       musicTitle: musicTitle ?? this.musicTitle,
@@ -200,11 +208,13 @@ class PostModel {
       'type': type.name,
       'duration': duration.name,
       'imagePaths': imagePaths,
+      'optimizedImagePaths': optimizedImagePaths,
       'mediaAspectRatio': mediaAspectRatio,
       'mediaIsBaked': mediaIsBaked,
       'isVideoPost': isVideoPost,
       'videoHasSound': videoHasSound,
       'coverImagePath': coverImagePath,
+      'optimizedCoverImagePath': optimizedCoverImagePath,
       'text': text,
       'musicUrl': musicUrl,
       'musicTitle': musicTitle,
@@ -237,11 +247,13 @@ class PostModel {
         orElse: () => PostDuration.h24,
       ),
       imagePaths: List<String>.from(map['imagePaths'] ?? []),
+      optimizedImagePaths: map['optimizedImagePaths'] != null ? List<String>.from(map['optimizedImagePaths']) : null,
       mediaAspectRatio: map['mediaAspectRatio']?.toDouble(),
       mediaIsBaked: map['mediaIsBaked'] ?? false,
       isVideoPost: map['isVideoPost'] ?? false,
       videoHasSound: map['videoHasSound'] ?? false,
       coverImagePath: map['coverImagePath'],
+      optimizedCoverImagePath: map['optimizedCoverImagePath'],
       text: map['text'] ?? '',
       musicUrl: map['musicUrl'],
       musicTitle: map['musicTitle'],

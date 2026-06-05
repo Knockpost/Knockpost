@@ -22,6 +22,7 @@ import 'dart:async';
 
 class PostCard extends StatefulWidget {
   final List<String> imagePaths;
+  final List<String>? optimizedImagePaths; // from C1 Phase
   final UserModel user;
   final String caption;
   final int likes;
@@ -49,6 +50,7 @@ class PostCard extends StatefulWidget {
   const PostCard({
     super.key,
     required this.imagePaths,
+    this.optimizedImagePaths,
     required this.user,
     this.caption = '',
     this.likes = 0,
@@ -194,7 +196,8 @@ class _PostCardState extends State<PostCard> {
           }
         }
       },
-      child: Column(
+      child: RepaintBoundary(
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
@@ -229,6 +232,7 @@ class _PostCardState extends State<PostCard> {
           children: [
             MediaCarousel(
               imagePaths: widget.imagePaths,
+              optimizedImagePaths: widget.optimizedImagePaths,
               isVideoPost: widget.isVideoPost,
               isBakedVideo: widget.mediaIsBaked,
               onDoubleTap: _onDoubleTap,
@@ -280,6 +284,7 @@ class _PostCardState extends State<PostCard> {
         const SizedBox(height: 10),
       ],
     ),
+      ),
     );
   }
 

@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/haptic_helper.dart';
@@ -13,6 +14,7 @@ import '../../../services/current_user_service.dart';
 import '../../../services/database_service.dart';
 import '../../../services/feed_state_service.dart';
 import '../../../services/glimps_controller_manager.dart';
+import '../../../services/image_cache_manager.dart';
 import '../../utils/image_helper.dart';
 import '../waves/widgets/more_options_sheet.dart';
 import 'package:just_audio/just_audio.dart';
@@ -20,8 +22,7 @@ import 'package:colorfilter_generator/presets.dart';
 import '../../utils/audio_lifecycle_manager.dart';
 import '../shared/music_editor_screen.dart';
 import '../../services/post_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../../services/image_cache_manager.dart';
+
 import '../../../services/user_cache_service.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
@@ -43,6 +44,7 @@ void openGlimpseViewer(
   required List<String> authorIds,
   required int initialAuthorIndex,
   int initialGlimpseIndex = 0,
+  Map<String, UserModel> preloadedUsers = const {},
   String? heroTag,
 }) {
   Navigator.of(context).push(
@@ -52,6 +54,7 @@ void openGlimpseViewer(
         authorIds: authorIds,
         initialAuthorIndex: initialAuthorIndex,
         initialGlimpseIndex: initialGlimpseIndex,
+        preloadedUsers: preloadedUsers,
         heroTag: heroTag,
       ),
     ),
@@ -91,6 +94,7 @@ class GlimpseViewerScreen extends StatefulWidget {
   final List<String> authorIds;
   final int initialAuthorIndex;
   final int initialGlimpseIndex;
+  final Map<String, UserModel> preloadedUsers;
   final String? heroTag;
 
   const GlimpseViewerScreen({
@@ -99,6 +103,7 @@ class GlimpseViewerScreen extends StatefulWidget {
     required this.authorIds,
     required this.initialAuthorIndex,
     this.initialGlimpseIndex = 0,
+    this.preloadedUsers = const {},
     this.heroTag,
   });
 
@@ -158,6 +163,7 @@ class _GlimpseViewerScreenState extends State<GlimpseViewerScreen> {
             glimpses: glimpses,
             authorId: authorId,
             initialIndex: isInitialAuthor ? widget.initialGlimpseIndex : 0,
+            preloadedUsers: widget.preloadedUsers,
             onFinished: _goToNextUser,
             onGoToPreviousUser: _goToPrevUser,
           );
@@ -172,6 +178,7 @@ class _SingleUserGlimpseViewer extends StatefulWidget {
   final List<PostModel> glimpses;
   final String authorId;
   final int initialIndex;
+  final Map<String, UserModel> preloadedUsers;
   final VoidCallback onFinished;
   final VoidCallback onGoToPreviousUser;
 
@@ -180,6 +187,7 @@ class _SingleUserGlimpseViewer extends StatefulWidget {
     required this.glimpses,
     required this.authorId,
     this.initialIndex = 0,
+    this.preloadedUsers = const {},
     required this.onFinished,
     required this.onGoToPreviousUser,
   });
@@ -240,6 +248,10 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
       if (mounted) setState(() => _user = cu);
       return;
     }
+    if (widget.preloadedUsers.containsKey(widget.authorId)) {
+      if (mounted) setState(() => _user = widget.preloadedUsers[widget.authorId]);
+      return;
+    }
     final data = await UserCacheService.instance.getUserProfile(widget.authorId);
     if (data != null && mounted) {
       setState(() {
@@ -266,6 +278,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _goToNext() {
+    if (!mounted) return;
     if (_currentIndex < widget.glimpses.length - 1) {
       setState(() => _currentIndex++);
       _recordCurrentGlimpseView();
@@ -292,6 +305,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _goToPrevious() {
+    if (!mounted) return;
     if (_currentIndex > 0) {
       setState(() => _currentIndex--);
       _recordCurrentGlimpseView();
@@ -337,7 +351,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
-    if (!_isDragging) return;
+    if (!_isDragging || !mounted) return;
     setState(() {
       _dragOffsetY = (_dragOffsetY + details.delta.dy).clamp(0, 400);
       _dragScale = (1.0 - (_dragOffsetY / 800)).clamp(0.7, 1.0);
@@ -345,7 +359,7 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
   }
 
   void _onVerticalDragEnd(DragEndDetails details) {
-    if (!_isDragging) return;
+    if (!_isDragging || !mounted) return;
     _isDragging = false;
 
     final velocity = details.primaryVelocity ?? 0;
@@ -736,15 +750,17 @@ class _SingleUserGlimpseViewerState extends State<_SingleUserGlimpseViewer>
                       shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    glimpse.relativeTime,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
+                  if (_user!.isOwnProfile) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      glimpse.relativeTime,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -1060,8 +1076,9 @@ class _GlimpseMediaItemState extends State<_GlimpseMediaItem> {
         imageUrl: path,
         fit: fit,
         cacheManager: KnockpostImageCacheManager.instance,
-        placeholder: (_, __) => Container(color: Colors.black),
-        errorWidget: (_, __, ___) => Container(color: Colors.grey.shade900),
+        fadeInDuration: const Duration(milliseconds: 150),
+        placeholder: (context, url) => Container(color: Colors.black),
+        errorWidget: (context, url, error) => Container(color: Colors.grey.shade900),
       );
     } else if (path.isNotEmpty) {
       return Image.file(File(path), fit: fit);

@@ -5,9 +5,10 @@ import '../../../models/user_model.dart';
 import '../../../services/post_cache_service.dart';
 import '../../../services/user_cache_service.dart';
 import '../../../widgets/knockpost_avatar.dart';
-import '../../single_post_screen.dart';
+import '../../../widgets/optimized_image.dart';
 import '../../../services/image_cache_manager.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../single_post_screen.dart';
 
 class PostMessagePreview extends StatefulWidget {
   final String postId;
@@ -99,6 +100,7 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
 
     final hasImage = _post!.imagePaths.isNotEmpty || _post!.coverImagePath != null;
     final imageUrl = _post!.coverImagePath ?? (_post!.imagePaths.isNotEmpty ? _post!.imagePaths.first : null);
+    final optimizedUrl = _post!.optimizedCoverImagePath ?? (_post!.optimizedImagePaths?.isNotEmpty == true ? _post!.optimizedImagePaths!.first : null);
 
     return GestureDetector(
       onTap: () {
@@ -161,8 +163,9 @@ class _PostMessagePreviewState extends State<PostMessagePreview> {
                 width: double.infinity,
                 color: isDark ? Colors.black26 : Colors.black12,
                 child: imageUrl.startsWith('http') 
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl, 
+                  ? OptimizedImage(
+                      rawUrl: imageUrl,
+                      optimizedUrl: optimizedUrl,
                       fit: BoxFit.cover,
                       cacheManager: KnockpostImageCacheManager.instance,
                     )

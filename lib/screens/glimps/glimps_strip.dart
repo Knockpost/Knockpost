@@ -134,6 +134,7 @@ class _GlimpsStripState extends State<GlimpsStrip> {
                       groupedGlimpses: groupedGlimpses,
                       authorIds: authorIds,
                       initialAuthorIndex: index,
+                      preloadedUsers: {currentUser.id: currentUser},
                     );
                   }
 
@@ -149,6 +150,7 @@ class _GlimpsStripState extends State<GlimpsStrip> {
                     groupedGlimpses: groupedGlimpses,
                     authorIds: authorIds,
                     initialAuthorIndex: index,
+                    preloadedUsers: authorsCache,
                   );
                 },
               ),

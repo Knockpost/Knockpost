@@ -2,16 +2,17 @@ import 'dart:async';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../widgets/post_scroll_lock_scope.dart';
 import '../../widgets/zoomable_post_image.dart';
 import '../../../services/image_cache_manager.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/optimized_image.dart';
 
 class MediaCarousel extends StatefulWidget {
   final List<String> imagePaths;
+  final List<String>? optimizedImagePaths; // from C1 Phase
   final bool isVideoPost;
   final bool isBakedVideo;
   final VoidCallback? onDoubleTap;
@@ -20,6 +21,7 @@ class MediaCarousel extends StatefulWidget {
   const MediaCarousel({
     super.key,
     required this.imagePaths,
+    this.optimizedImagePaths,
     this.isVideoPost = false,
     this.isBakedVideo = false,
     this.onDoubleTap,
@@ -132,9 +134,15 @@ class _MediaCarouselState extends State<MediaCarousel> {
           child: widget.mediaAspectRatio != null
               ? AspectRatio(
                   aspectRatio: widget.mediaAspectRatio!,
-                  child: _buildZoomableImage(widget.imagePaths.first),
+                  child: _buildZoomableImage(
+                    widget.imagePaths.first,
+                    widget.optimizedImagePaths?.isNotEmpty == true ? widget.optimizedImagePaths!.first : null,
+                  ),
                 )
-              : _buildZoomableImage(widget.imagePaths.first),
+              : _buildZoomableImage(
+                  widget.imagePaths.first,
+                  widget.optimizedImagePaths?.isNotEmpty == true ? widget.optimizedImagePaths!.first : null,
+                ),
         ),
       );
     }
@@ -177,44 +185,41 @@ class _MediaCarouselState extends State<MediaCarousel> {
                           _onScroll(); // ensure timer resets on page snap
                         },
                         itemBuilder: (context, index) {
-                          return _buildZoomableImage(widget.imagePaths[index]);
+                          final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > index)
+                              ? widget.optimizedImagePaths![index]
+                              : null;
+                          return _buildZoomableImage(widget.imagePaths[index], optimizedUrl);
                         },
                       ),
                     ),
 
-                    // Glassmorphic premium chip — top right with fade
+                    // Premium chip — top right with fade (no BackdropFilter for GPU perf)
                     Positioned(
                       top: 14,
                       right: 14,
                       child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 300),
                         opacity: _showIndicator ? 1.0 : 0.0,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.35),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  width: 0.5,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                "${_currentPage + 1} of ${widget.imagePaths.length}",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              width: 0.5,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            "${_currentPage + 1} of ${widget.imagePaths.length}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
                             ),
                           ),
                         ),
@@ -253,17 +258,17 @@ class _MediaCarouselState extends State<MediaCarousel> {
     );
   }
 
-  Widget _buildZoomableImage(String path) {
+  Widget _buildZoomableImage(String path, [String? optimizedUrl]) {
     return ZoomablePostImage(
       onDoubleTap: widget.onDoubleTap,
       onInteractionChanged: _hasMultipleImages
           ? _handleZoomInteractionChanged
           : null,
-      child: _buildImage(path),
+      child: _buildImage(path, optimizedUrl),
     );
   }
 
-  Widget _buildImage(String path) {
+  Widget _buildImage(String path, [String? optimizedUrl]) {
     final pathLower = path.toLowerCase();
     final isVideo = widget.isVideoPost ||
         pathLower.contains('.mp4') ||
@@ -276,32 +281,35 @@ class _MediaCarouselState extends State<MediaCarousel> {
       return _VideoItem(path: path, isAsset: path.startsWith('assets/'), isBakedVideo: widget.isBakedVideo);
     }
 
-    if (path.startsWith('/') ||
-        path.startsWith('file://') ||
-        path.startsWith('C:') ||
-        path.contains('/data/user/')) {
-      return Image.file(
-        File(path),
+    if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
         fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
+        filterQuality: FilterQuality.low,
         errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
       );
     } else if (path.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: path,
+      return OptimizedImage(
+        rawUrl: path,
+        optimizedUrl: optimizedUrl,
         fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
+        filterQuality: FilterQuality.low,
         cacheManager: KnockpostImageCacheManager.instance,
+        placeholder: (context, url) => Container(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade900
+              : Colors.grey.shade200,
+        ),
         errorWidget: (context, url, error) => const Center(child: Icon(Icons.error)),
       );
+    } else {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.low,
+        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
+      );
     }
-
-    return Image.asset(
-      path,
-      fit: BoxFit.cover,
-      filterQuality: FilterQuality.high,
-      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.error)),
-    );
   }
 }
 

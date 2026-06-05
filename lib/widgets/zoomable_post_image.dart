@@ -30,6 +30,13 @@ class ZoomablePostImage extends StatefulWidget {
 
 class _ZoomablePostImageState extends State<ZoomablePostImage>
     with SingleTickerProviderStateMixin {
+  final GlobalKey _childKey = GlobalKey();
+
+  Widget get _keyedChild => RepaintBoundary(
+    key: _childKey,
+    child: widget.child,
+  );
+
   static const double _identityEpsilon = 0.001;
   static const double _softClampResistance = 0.12;
   static const double _horizontalPanLimitFactor = 0.80;
@@ -345,7 +352,7 @@ class _ZoomablePostImageState extends State<ZoomablePostImage>
         return SizedBox.expand(
           child: ValueListenableBuilder<int>(
             valueListenable: _overlayRefreshTick,
-            child: RepaintBoundary(child: widget.child),
+            child: _keyedChild,
             builder: (context, _, child) {
               final rect = _overlayRect;
               if (rect == null) {
@@ -526,10 +533,10 @@ class _ZoomablePostImageState extends State<ZoomablePostImage>
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onDoubleTap: widget.onDoubleTap,
-        child: RepaintBoundary(
-          child: _showInlineSource
-              ? widget.child
-              : SizedBox(
+        child: _showInlineSource
+            ? _keyedChild
+            : RepaintBoundary(
+                child: SizedBox(
                   width: _cachedViewportSize?.width ?? _viewportSize.width,
                   height: _cachedViewportSize?.height ?? _viewportSize.height,
                   child: ColoredBox(
@@ -537,7 +544,7 @@ class _ZoomablePostImageState extends State<ZoomablePostImage>
                     child: const SizedBox.expand(),
                   ),
                 ),
-        ),
+              ),
       ),
     );
   }

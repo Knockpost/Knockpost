@@ -41,6 +41,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   List<UserModel> _incomingAcceptedReal = [];
   List<UserModel> _mutualReal = [];
 
+  bool _isLoading = true;
+
   // Track which users have been dismissed from the lists
   final Set<String> _dismissedIds = {};
   final Map<String, VoidCallback> _knockListeners = {};
@@ -59,41 +61,52 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     );
     Future.microtask(() => _listAnimController.forward());
 
-    // Subscribe to real knock streams
-    ConnectionService.instance.streamSentPendingKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _sentPendingReal = users);
+    // Perform one-time fetch (Phase C3 Optimization)
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) setState(() => _isLoading = true);
+
+    final futures = await Future.wait([
+      ConnectionService.instance.getSentPendingKnockUids(),
+      ConnectionService.instance.getSentAcceptedKnockUids(),
+      ConnectionService.instance.getIncomingPendingKnockUids(),
+      ConnectionService.instance.getIncomingAcceptedKnockUids(),
+      ConnectionService.instance.getMutualConnectionUids(),
+    ]);
+
+    // PARALLELIZE the category profile fetching
+    final profileFutures = await Future.wait([
+      _loadUsersFromUids(futures[0]),
+      _loadUsersFromUids(futures[1]),
+      _loadUsersFromUids(futures[2]),
+      _loadUsersFromUids(futures[3]),
+      _loadUsersFromUids(futures[4]),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _sentPendingReal = profileFutures[0];
+        _sentAcceptedReal = profileFutures[1];
+        _incomingPendingReal = profileFutures[2];
+        _incomingAcceptedReal = profileFutures[3];
+        _mutualReal = profileFutures[4];
+        _isLoading = false;
       });
-    });
-    ConnectionService.instance.streamSentAcceptedKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _sentAcceptedReal = users);
-      });
-    });
-    ConnectionService.instance.streamIncomingPendingKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _incomingPendingReal = users);
-      });
-    });
-    ConnectionService.instance.streamIncomingAcceptedKnockUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _incomingAcceptedReal = users);
-      });
-    });
-    ConnectionService.instance.streamMutualConnectionUids().listen((uids) {
-      _loadUsersFromUids(uids).then((users) {
-        if (mounted) setState(() => _mutualReal = users);
-      });
-    });
+    }
   }
 
   Future<List<UserModel>> _loadUsersFromUids(List<String> uids) async {
-    final users = <UserModel>[];
-    for (final uid in uids) {
+    // PARALLELIZE the N user profile fetches
+    final userFutures = uids.map((uid) async {
       final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
-      if (data != null) users.add(UserModel.fromMap(data, uid));
-    }
-    return users;
+      if (data != null) return UserModel.fromMap(data, uid);
+      return null;
+    });
+    
+    final users = await Future.wait(userFutures);
+    return users.whereType<UserModel>().toList();
   }
 
   @override
@@ -157,8 +170,18 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   void _onKnockBack(String userId) {
     KnockHaptics.impact();
-    GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYou).value =
-        KnockStatus.mutualKnocked;
+
+        
+    setState(() {
+      final userIndex = _incomingAcceptedReal.indexWhere((u) => u.id == userId);
+      if (userIndex != -1) {
+        final user = _incomingAcceptedReal[userIndex];
+        if (!_mutualReal.any((u) => u.id == userId)) {
+          _mutualReal.add(user);
+        }
+      }
+    });
+
     // Persist to Firestore
     ConnectionService.instance.acceptKnock(userId).catchError(
       (e) => debugPrint('ConnectionsScreen._onKnockBack error: $e'),
@@ -167,8 +190,16 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
   void _onAcceptKnock(String userId) {
     KnockHaptics.impact();
-    GlobalKnockState.getNotifier(userId, KnockStatus.theyKnockedYouPending).value =
-        KnockStatus.theyKnockedYou;
+
+        
+    setState(() {
+      final userIndex = _incomingPendingReal.indexWhere((u) => u.id == userId);
+      if (userIndex != -1) {
+        final user = _incomingPendingReal.removeAt(userIndex);
+        _incomingAcceptedReal.add(user);
+      }
+    });
+
     // Persist to Firestore
     ConnectionService.instance.approveKnock(userId).catchError(
       (e) => debugPrint('ConnectionsScreen._onAcceptKnock error: $e'),
@@ -347,14 +378,30 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
 
                   // ── Swipeable list content ──
                   Expanded(
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: _onPageChanged,
-                      children: [
-                        _buildYouKnockedList(isDark, textColor),
-                        _buildKnockedYouList(isDark, textColor),
-                      ],
-                    ),
+                    child: _isLoading 
+                        ? Center(
+                            child: CircularProgressIndicator(
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          )
+                        : PageView(
+                            controller: _pageController,
+                            onPageChanged: _onPageChanged,
+                            children: [
+                              RefreshIndicator(
+                                onRefresh: _loadData,
+                                color: isDark ? Colors.white : Colors.black,
+                                backgroundColor: bg,
+                                child: _buildYouKnockedList(isDark, textColor),
+                              ),
+                              RefreshIndicator(
+                                onRefresh: _loadData,
+                                color: isDark ? Colors.white : Colors.black,
+                                backgroundColor: bg,
+                                child: _buildKnockedYouList(isDark, textColor),
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -679,6 +726,7 @@ class _StaggeredCardList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(0, 6, 0, 24),
       itemCount: itemCount,
       itemBuilder: (context, index) {

@@ -64,10 +64,14 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
 
     _tabController = TabController(length: 3, vsync: this);
 
-    // Load posts from Firestore
-    PostService.instance.getUserPosts(_user.id).listen((posts) {
-      if (mounted) setState(() => _posts = posts);
-    });
+    // Load posts from Firestore (Phase C3 Optimization)
+    if (widget.posts.isNotEmpty) {
+      _posts = widget.posts;
+    } else {
+      PostService.instance.getUserPostsPaginated(_user.id, limit: 100).then((res) {
+        if (mounted) setState(() => _posts = res.posts);
+      });
+    }
 
     // Fetch the latest knock status from Firestore
     ConnectionService.instance.getKnockStatus(_user.id).then((status) {
@@ -107,12 +111,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   }
 
   void _sendKnock() async {
-    final nextStatus = _user.isEffectivelyOpen
-        ? KnockStatus.knocked
-        : KnockStatus.pending;
-    
-    final previousStatus = _user.knockStatus;
-    _updateKnockStatus(nextStatus);
+
 
     try {
       await ConnectionService.instance.sendKnock(
@@ -120,9 +119,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
         isOpenProfile: _user.isEffectivelyOpen,
       );
     } catch (e) {
-      if (mounted) {
-        _updateKnockStatus(previousStatus);
-      }
+      debugPrint('Error sending knock from OtherProfileScreen: $e');
     }
   }
 

@@ -29,16 +29,19 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
       if (q != _searchQuery) setState(() => _searchQuery = q);
     });
 
-    _connectionSub = ConnectionService.instance.streamMutualConnectionUids().listen((uids) async {
-      final users = <UserModel>[];
-      for (final uid in uids) {
-        final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
-        if (data != null) users.add(UserModel.fromMap(data, uid));
-      }
-      if (mounted) {
-        setState(() => _mutualConnections = users);
-      }
-    });
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final uids = await ConnectionService.instance.getMutualConnectionUids();
+    final users = <UserModel>[];
+    for (final uid in uids) {
+      final data = await DatabaseService.instance.getUserProfile(uid, useCache: true);
+      if (data != null) users.add(UserModel.fromMap(data, uid));
+    }
+    if (mounted) {
+      setState(() => _mutualConnections = users);
+    }
   }
 
   List<UserModel> get _filteredUsers {

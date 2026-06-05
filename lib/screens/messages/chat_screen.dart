@@ -715,7 +715,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   }
                                 }
 
-                                return _AnimatedMessageItem(
+                                return KeyedSubtree(
                                   key: ValueKey(msg.id),
                                   child: _buildMessageRow(
                                     msg, parentMsg,
@@ -1645,53 +1645,6 @@ class _FastLongPressTileState extends State<_FastLongPressTile> {
         if ((d.primaryVelocity ?? 0) > 600) widget.onSwipeReply();
       },
       child: widget.child,
-    );
-  }
-}
-
-class _AnimatedMessageItem extends StatefulWidget {
-  final Widget child;
-
-  const _AnimatedMessageItem({super.key, required this.child});
-
-  @override
-  State<_AnimatedMessageItem> createState() => _AnimatedMessageItemState();
-}
-
-class _AnimatedMessageItemState extends State<_AnimatedMessageItem>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _opacity;
-  late final Animation<Offset> _offset;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _offset = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-    
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(
-        position: _offset,
-        child: widget.child,
-      ),
     );
   }
 }

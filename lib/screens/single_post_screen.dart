@@ -129,6 +129,7 @@ class _SinglePostScreenState extends State<SinglePostScreen> {
                       : PostCard(
                           postId: widget.post.id,
                           imagePaths: widget.post.imagePaths,
+                          optimizedImagePaths: widget.post.optimizedImagePaths,
                           user: widget.author,
                           caption: widget.post.text,
                           likes: widget.post.likes,

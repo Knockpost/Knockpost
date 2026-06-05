@@ -10,8 +10,11 @@ import 'theme/app_theme.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'theme/theme_controller.dart';
 import 'utils/audio_lifecycle_manager.dart';
+import 'services/view_batch_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -25,16 +28,35 @@ void main() async {
   runZonedGuarded<Future<void>>(() async {
     try {
       WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+      // Reduce VisibilityDetector polling from 100ms (default) to 500ms.
+      // View counting has a 2-second timer guard, so 500ms is plenty.
+      VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 500);
       AudioLifecycleManager.instance.init();
       FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await ViewBatchService.instance.init();
+      
+      // ── S5: Advanced Threat Protection (App Check) ──
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: AndroidProvider.playIntegrity,
+        appleProvider: AppleProvider.deviceCheck,
+      );
+
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
       // ── Crashlytics: capture all Flutter framework errors ──
-      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      FlutterError.onError = (FlutterErrorDetails details) {
+        if (details.exceptionAsString().contains('HttpException')) {
+          return; // Ignore HttpException from cached_network_image to prevent Crashlytics spam
+        }
+        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+      };
 
       // ── Crashlytics: capture platform dispatcher errors ──
       PlatformDispatcher.instance.onError = (error, stack) {
+        if (error.toString().contains('HttpException')) {
+          return true; // Ignore HttpException
+        }
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
         return true;
       };
