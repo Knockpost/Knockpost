@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/global_post_state.dart';
@@ -234,6 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     CurrentUserService.instance.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_registered', false);
     if (context.mounted) {
       Navigator.pushAndRemoveUntil(
         context,

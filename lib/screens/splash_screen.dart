@@ -69,12 +69,15 @@ class _SplashScreenState extends State<SplashScreen> {
 
         // If not marked registered locally, check Firestore (prefer cache)
         Map<String, dynamic>? userProfile;
+        bool fetchFailed = false;
         try {
           userProfile = await DatabaseService.instance.getUserProfile(user.uid, useCache: true);
         } catch (_) {
           try {
             userProfile = await DatabaseService.instance.getUserProfile(user.uid).timeout(const Duration(seconds: 5));
-          } catch (_) {}
+          } catch (_) {
+            fetchFailed = true;
+          }
         }
 
         if (mounted) {
@@ -89,7 +92,18 @@ class _SplashScreenState extends State<SplashScreen> {
             WavesFeedManager.instance.loadInitial();
             
             _navigate(const HomeScreen());
+          } else if (fetchFailed) {
+            // Firestore fetch failed (offline/timeout) — don't punish the user
+            // by sending them to signup. Trust Firebase Auth and go to HomeScreen.
+            debugPrint('Splash: Firestore fetch failed, trusting Firebase Auth');
+            await CurrentUserService.instance.loadCurrentUser().timeout(
+              const Duration(seconds: 3),
+              onTimeout: () {},
+            );
+            WavesFeedManager.instance.loadInitial();
+            _navigate(const HomeScreen());
           } else {
+            // Firestore fetch succeeded but returned null = truly new user
             _navigate(
               SignupUsernameScreen(email: user.email ?? "", isGoogleSignup: true),
             );

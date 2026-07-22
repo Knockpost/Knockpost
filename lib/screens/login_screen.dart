@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
@@ -391,6 +392,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   purpose: 'Login Verification',
                   onVerified: () async {
                     await CurrentUserService.instance.loadCurrentUser();
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('is_registered', true);
                     if (mounted) {
                       Navigator.pushAndRemoveUntil(
                         context,
@@ -404,6 +407,8 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           } else {
             await CurrentUserService.instance.loadCurrentUser();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_registered', true);
             if (!mounted) return;
             Navigator.pushAndRemoveUntil(
               context,
@@ -484,6 +489,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     purpose: 'Login Verification',
                     onVerified: () async {
                       await CurrentUserService.instance.loadCurrentUser();
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('is_registered', true);
                       if (mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
@@ -497,6 +504,8 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             } else {
               await CurrentUserService.instance.loadCurrentUser();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('is_registered', true);
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
