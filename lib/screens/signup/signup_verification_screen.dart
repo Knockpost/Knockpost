@@ -5,6 +5,10 @@ import '../../utils/haptic_helper.dart';
 import '../../services/auth_service.dart';
 import '../login_screen.dart';
 import 'signup_username_screen.dart';
+import '../../services/database_service.dart';
+import '../../services/current_user_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../home_screen.dart';
 
 class SignupVerificationScreen extends StatefulWidget {
   final String email;
@@ -38,6 +42,28 @@ class _SignupVerificationScreenState extends State<SignupVerificationScreen> {
       );
       
       if (mounted) {
+        final currentUser = AuthService.instance.currentUser;
+        if (currentUser != null) {
+          final userProfile = await DatabaseService.instance.getUserProfile(currentUser.uid);
+          
+          if (userProfile != null) {
+            // User already has a profile (they are just verifying an existing account during login)
+            if (!mounted) return;
+            await CurrentUserService.instance.loadCurrentUser();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_registered', true);
+            
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (route) => false,
+            );
+            return;
+          }
+        }
+
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

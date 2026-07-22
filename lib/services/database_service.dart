@@ -158,6 +158,8 @@ class DatabaseService {
     Map<String, String>? socialLinks,
     String? accountType,
     String? privacyType,
+    bool clearProfileImage = false,
+    bool clearCoverImage = false,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -168,10 +170,17 @@ class DatabaseService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (profileImageUrl != null) {
+      if (clearProfileImage) {
+        data['profileImageUrl'] = FieldValue.delete();
+        data['profileImageOptimizedUrl'] = FieldValue.delete();
+      } else if (profileImageUrl != null) {
         data['profileImageUrl'] = profileImageUrl;
       }
-      if (coverImageUrl != null) {
+
+      if (clearCoverImage) {
+        data['coverImageUrl'] = FieldValue.delete();
+        data['coverImageOptimizedUrl'] = FieldValue.delete();
+      } else if (coverImageUrl != null) {
         data['coverImageUrl'] = coverImageUrl;
       }
       if (socialLinks != null) {

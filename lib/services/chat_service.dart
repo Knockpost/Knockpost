@@ -26,8 +26,6 @@ class ChatService {
   CollectionReference get _chats => _db.collection('chats');
 
   // Stream caching
-  Stream<List<ChatRoom>>? _chatRoomsStream;
-  final Map<String, Stream<List<ChatMessage>>> _messageStreamCache = {};
   static final Map<String, DateTime> _lastNotificationSentTimes = {};
 
   // ── Chat ID ────────────────────────────────────────────────────────────────
@@ -46,7 +44,7 @@ class ChatService {
       return const Stream.empty();
     }
     
-    _chatRoomsStream ??= _chats
+    return _chats
         .where('participants', arrayContains: me)
         .snapshots()
         .map((snap) {
@@ -59,49 +57,27 @@ class ChatService {
         return bTime.compareTo(aTime);
       });
       return list;
-    }).asBroadcastStream();
-
-    return _chatRoomsStream!;
+    });
   }
 
   Stream<List<ChatMessage>> streamMessages(String chatId, {int limit = 50}) {
-    final cacheKey = '$chatId::$limit';
-
-    if (_messageStreamCache.containsKey(cacheKey)) {
-      PerformanceService.instance.incrementMessagingStreamCacheHit();
-      PerformanceService.instance.incrementMessagingStreamReuse();
-    } else {
-      PerformanceService.instance.incrementMessagingStreamCacheMiss();
-    }
-
-    return _messageStreamCache.putIfAbsent(cacheKey, () {
-      return _chats
-          .doc(chatId)
-          .collection('messages')
-          .orderBy('timestamp', descending: true)
-          .limit(limit)
-          .snapshots()
-          .map((snap) {
-            return snap.docs.map((d) {
-              return ChatMessage.fromMap(d.data(), d.id);
-            }).toList();
-          }).asBroadcastStream();
-    });
+    // Firestore SDK natively caches data, manual broadcast caching drops initial snapshot events
+    return _chats
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) {
+          return snap.docs.map((d) {
+            return ChatMessage.fromMap(d.data(), d.id);
+          }).toList();
+        });
   }
 
   void disposeChatStreams(String chatId) {
-    int disposedCount = 0;
-    _messageStreamCache.removeWhere((key, _) {
-      if (key.startsWith('$chatId::')) {
-        disposedCount++;
-        return true;
-      }
-      return false;
-    });
-
-    for (var i = 0; i < disposedCount; i++) {
-      PerformanceService.instance.incrementMessagingStreamDisposal();
-    }
+    // Left empty since we removed manual stream caching. 
+    // Dart's garbage collector and Firestore's native listener management will handle cleanup.
   }
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -288,6 +264,21 @@ class ChatService {
       ChatLogger.instance.info('markChatAsRead', 'Marked ${unseenSnap.docs.length} messages as read');
     } catch (e, stack) {
       ChatLogger.instance.error('markChatAsRead', 'Error marking chat as read', e, stack);
+    }
+  }
+
+  // ── Delete Chat ───────────────────────────────────────────────────────────
+
+  Future<void> deleteChat(String chatId) async {
+    final me = _myUid;
+    if (me == null) return;
+    try {
+      await _chats.doc(chatId).update({
+        'participants': FieldValue.arrayRemove([me])
+      });
+      ChatLogger.instance.info('deleteChat', 'Removed $me from chat $chatId');
+    } catch (e) {
+      ChatLogger.instance.warning('deleteChat', 'Failed to delete chat $chatId: $e');
     }
   }
 

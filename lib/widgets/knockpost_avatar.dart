@@ -45,7 +45,11 @@ class KnockPostAvatar extends StatelessWidget {
   });
 
   bool get _hasUrl => url != null && url!.isNotEmpty;
-  bool get _isNetwork => _hasUrl && url!.startsWith('http');
+  bool get _isNetwork {
+    if (!_hasUrl) return false;
+    final uri = Uri.tryParse(url!);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+  }
   bool get _isAsset => _hasUrl && url!.startsWith('assets/');
 
   @override

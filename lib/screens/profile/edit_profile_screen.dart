@@ -328,6 +328,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         profileImageUrl: finalAvatarUrl,
         coverImageUrl: finalCoverUrl,
         socialLinks: _socialLinks,
+        clearProfileImage: finalAvatarUrl == null,
+        clearCoverImage: finalCoverUrl == null,
       );
 
       // Refresh local user cache

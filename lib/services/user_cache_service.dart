@@ -30,6 +30,27 @@ class UserCacheService {
   // Request Deduplication to prevent cache stampedes
   final Map<String, Future<Map<String, dynamic>?>> _inFlightRequests = {};
 
+  /// Synchronously fetch a user profile from the memory cache if it's fresh.
+  /// Returns null if not cached or expired.
+  Map<String, dynamic>? getCachedUserProfile(String uid) {
+    final now = DateTime.now();
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final ttl = (uid == myUid) ? _currentUserTtl : _otherUserTtl;
+
+    if (_cache.containsKey(uid)) {
+      final entry = _cache[uid]!;
+      if (now.difference(entry.fetchedAt) < ttl) {
+        // Move to end (most recently used)
+        _cache.remove(uid);
+        _cache[uid] = entry;
+        return entry.data;
+      } else {
+        _cache.remove(uid);
+      }
+    }
+    return null;
+  }
+
   /// Fetch a user profile, utilizing the memory cache if fresh.
   Future<Map<String, dynamic>?> getUserProfile(String uid, {bool forceRefresh = false, bool isFeedAuthor = false, bool isWavesAuthor = false, bool isMessagingAuthor = false, bool isSharedPostAuthor = false}) async {
     final now = DateTime.now();
