@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(color: isDark ? Colors.white : Colors.black),
 
                           decoration: InputDecoration(
-                            hintText: "Email",
+                            hintText: "Username or Email",
                             hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
 
                             filled: true,
@@ -297,10 +297,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 10),
 
-                        const LegalAgreementText(),
-
-                        const SizedBox(height: 10),
-
                         GestureDetector(
                           onTap: () {
                             KnockHaptics.tap();
@@ -328,6 +324,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
+            /// LEGAL TEXT — pinned to bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+              child: const LegalAgreementText(),
+            ),
+
           ],
         ),
       ),
@@ -338,13 +342,13 @@ class _LoginScreenState extends State<LoginScreen> {
     // Dismiss the keyboard
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final email = userController.text.trim();
+    final input = userController.text.trim();
     final password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (input.isEmpty || password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both email and password.')),
+        const SnackBar(content: Text('Please enter your username/email and password.')),
       );
       return;
     }
@@ -353,9 +357,26 @@ class _LoginScreenState extends State<LoginScreen> {
       isLoading = true;
     });
 
+    String loginEmail = input;
+
+    // Check if input is a username (doesn't contain '@')
+    if (!input.contains('@')) {
+      final emailFromDb = await DatabaseService.instance.getEmailFromUsername(input);
+      if (emailFromDb == null) {
+        if (mounted) {
+          setState(() { isLoading = false; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Username not found.")),
+          );
+        }
+        return;
+      }
+      loginEmail = emailFromDb;
+    }
+
     try {
       await AuthService.instance.signInWithEmailAndPassword(
-        email: email,
+        email: loginEmail,
         password: password,
       );
 

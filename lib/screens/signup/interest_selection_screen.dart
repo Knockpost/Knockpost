@@ -16,6 +16,7 @@ class InterestSelectionScreen extends StatefulWidget {
   final String username;
   final String password;
   final String fullName;
+  final String bio;
   final File? profileImage;
   final bool isGoogleSignup;
 
@@ -25,6 +26,7 @@ class InterestSelectionScreen extends StatefulWidget {
     required this.username,
     required this.password,
     required this.fullName,
+    required this.bio,
     this.profileImage,
     this.isGoogleSignup = false,
   });
@@ -65,6 +67,10 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       );
       return;
     }
+
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       String? profileImageUrl;
@@ -108,6 +114,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
         email: widget.email,
         username: widget.username,
         fullName: widget.fullName,
+        bio: widget.bio,
         profileImageUrl: profileImageUrl ?? "",
         interests: selectedInterests.toList(),
       );
@@ -202,10 +209,12 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                   ),
                   child: Center(
                     child: isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
-                            child: KnockPostLoadingIndicator(),
+                            child: KnockPostLoadingIndicator(
+                              color: isDark ? Colors.black : Colors.white,
+                            ),
                           )
                         : Text(
                             "Continue",

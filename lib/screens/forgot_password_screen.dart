@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:knockpost/widgets/knockpost_refresh.dart';
 import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
 import 'verify_otp_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -30,10 +31,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     // Dismiss the keyboard
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final email = emailController.text.trim();
-    if (email.isEmpty) {
+    final input = emailController.text.trim();
+    if (input.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your email")),
+        const SnackBar(content: Text("Please enter your username or email")),
       );
       return;
     }
@@ -42,8 +43,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       isLoading = true;
     });
 
+    String targetEmail = input;
+    if (!input.contains('@')) {
+      final emailFromDb = await DatabaseService.instance.getEmailFromUsername(input);
+      if (emailFromDb == null) {
+        if (mounted) {
+          setState(() { isLoading = false; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Username not found.")),
+          );
+        }
+        return;
+      }
+      targetEmail = emailFromDb;
+    }
+
     try {
-      await AuthService.instance.sendEmailOtp(email: email);
+      await AuthService.instance.sendEmailOtp(email: targetEmail);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('6-digit code sent to your email.')),
@@ -51,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => VerifyOtpScreen(email: email),
+            builder: (context) => VerifyOtpScreen(email: targetEmail),
           ),
         );
       }
@@ -142,7 +158,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const SizedBox(height: 14),
 
                     Text(
-                      "Enter your email to receive a 6-digit verification code.",
+                      "Enter your username or email to receive a 6-digit verification code.",
                       style: TextStyle(
                         fontSize: 15,
                         color: isDark ? Colors.white54 : Colors.black54,
@@ -162,7 +178,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         keyboardType: TextInputType.emailAddress,
                         style: TextStyle(color: isDark ? Colors.white : Colors.black),
                         decoration: InputDecoration(
-                          hintText: "Email address",
+                          hintText: "Username or Email",
                           hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(

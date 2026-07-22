@@ -33,6 +33,7 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
   bool _showErrors = false;
   
   PasswordStrength _strength = PasswordStrength.none;
+  Color _strengthColor = Colors.transparent;
   List<String> _errorMessages = [];
   bool _isValid = false;
 
@@ -100,7 +101,7 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
   }
 
   void _validate(String text) {
-    List<String> errors = [];
+    List<String> missingCriteria = [];
     int score = 0;
     
     if (text.isEmpty) {
@@ -108,54 +109,27 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
       return;
     }
 
-    // Check common passwords
-    if (_commonPasswords.contains(text.toLowerCase())) {
-      errors.add("Password is too common");
-    }
-
-    // Length check
-    if (text.length < 8 || text.length > 32) {
-      errors.add("Password must be between 8 and 32 characters");
+    // Length check is mandatory
+    bool hasLength = text.length >= 8 && text.length <= 32;
+    if (!hasLength) {
+      missingCriteria.add("Must be between 8 and 32 characters");
     } else {
       score += 1;
     }
 
-    // Uppercase
-    if (!RegExp(r'[A-Z]').hasMatch(text)) {
-      errors.add("Must contain at least 1 uppercase letter");
-    } else {
-      score += 1;
-    }
-
-    // Lowercase
-    if (!RegExp(r'[a-z]').hasMatch(text)) {
-      errors.add("Must contain at least 1 lowercase letter");
-    } else {
-      score += 1;
-    }
-
-    // Number
-    if (!RegExp(r'[0-9]').hasMatch(text)) {
-      errors.add("Must contain at least 1 number");
-    } else {
-      score += 1;
-    }
-
-    // Special Char
-    if (!RegExp(r'[!@#\$%^&*]').hasMatch(text)) {
-      errors.add("Must contain at least 1 special character (!@#\$%^&*)");
-    } else {
-      score += 1;
-    }
-
-    bool isValid = errors.isEmpty;
-    PasswordStrength strength;
-    double targetWidthFactor;
-    Color targetColor;
+    if (!RegExp(r'[A-Z]').hasMatch(text)) { missingCriteria.add("An uppercase letter"); } else { score += 1; }
+    if (!RegExp(r'[a-z]').hasMatch(text)) { missingCriteria.add("A lowercase letter"); } else { score += 1; }
+    if (!RegExp(r'[0-9]').hasMatch(text)) { missingCriteria.add("A number"); } else { score += 1; }
+    if (!RegExp(r'[!@#\$%^&*]').hasMatch(text)) { missingCriteria.add("A special character"); } else { score += 1; }
 
     if (_commonPasswords.contains(text.toLowerCase())) {
       score = 0;
+      missingCriteria = ["Password is too common"];
     }
+
+    PasswordStrength strength;
+    double targetWidthFactor;
+    Color targetColor;
 
     if (score <= 2) {
       strength = PasswordStrength.weak;
@@ -164,25 +138,34 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
     } else if (score <= 4) {
       strength = PasswordStrength.medium;
       targetWidthFactor = 0.66;
-      targetColor = Colors.orange;
+      targetColor = Colors.amber; // Yellow
     } else {
       strength = PasswordStrength.strong;
       targetWidthFactor = 1.0;
       targetColor = Colors.green;
     }
 
-    if (text.isEmpty) {
-      strength = PasswordStrength.none;
-      targetWidthFactor = 0.0;
-      targetColor = Colors.transparent;
+    bool isValid = strength == PasswordStrength.medium || strength == PasswordStrength.strong;
+    
+    // Strict length requirement for any valid password
+    if (!hasLength) {
+      isValid = false;
+      strength = PasswordStrength.weak;
+      targetWidthFactor = 0.33;
+      targetColor = Colors.red;
     }
 
-    _updateState(strength, errors, isValid, targetWidthFactor, targetColor);
+    // If valid, hide the missing criteria to keep the UI clean, 
+    // unless you want to show suggestions. Here we clear them.
+    List<String> displayErrors = isValid ? [] : missingCriteria;
+
+    _updateState(strength, displayErrors, isValid, targetWidthFactor, targetColor);
   }
 
   void _updateState(PasswordStrength strength, List<String> errors, bool isValid, double targetWidth, Color targetColor) {
-    if (_strength != strength || _isValid != isValid || _errorMessages.length != errors.length) {
+    if (_strength != strength || _isValid != isValid || _errorMessages.length != errors.length || _strengthColor != targetColor) {
       setState(() {
+        _strengthColor = targetColor;
         _strength = strength;
         _errorMessages = errors;
         _isValid = isValid;
@@ -238,7 +221,7 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
     final bool hasError = _showErrors && !_isValid;
     final Color currentBorderColor = hasError 
         ? Colors.red 
-        : (_isValid ? Colors.green : (widget.borderColor ?? Colors.transparent));
+        : (_isValid ? _strengthColor : (widget.borderColor ?? Colors.transparent));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,6 +230,7 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
           offset: Offset(_shakeOffset, 0),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(16),
@@ -286,27 +270,16 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
                 AnimatedBuilder(
                   animation: _strengthAnimController,
                   builder: (context, child) {
+                    final widthFactor = _strengthWidthAnimation.value;
                     return Container(
                       height: 3,
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white12 : Colors.black12,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(14),
-                          bottomRight: Radius.circular(14),
-                        ),
-                      ),
+                      color: isDark ? Colors.white12 : Colors.black12,
                       child: FractionallySizedBox(
                         alignment: Alignment.centerLeft,
-                        widthFactor: _strengthWidthAnimation.value,
+                        widthFactor: widthFactor,
                         child: Container(
-                          decoration: BoxDecoration(
-                            color: _strengthColorAnimation.value,
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(14),
-                              bottomRight: Radius.circular(14),
-                            ),
-                          ),
+                          color: _strengthColorAnimation.value,
                         ),
                       ),
                     );
@@ -327,13 +300,13 @@ class _KnockPostPasswordFieldState extends State<KnockPostPasswordField> with Ti
                 Text(
                   _getStrengthText(),
                   style: TextStyle(
-                    color: _strengthColorAnimation.value ?? Colors.grey, 
+                    color: _strengthColor, 
                     fontSize: 13, 
                     fontWeight: FontWeight.w700
                   ),
                 ),
                 if (_isValid)
-                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
+                  Icon(Icons.check_circle_rounded, color: _strengthColor, size: 16),
               ],
             ),
           ),

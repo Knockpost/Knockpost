@@ -305,7 +305,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                       ),
                     ),
 
-                    const LegalAgreementText(),
+                    const SizedBox(height: 22),
 
                     Center(
                       child: GestureDetector(
@@ -324,6 +324,9 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                 ),
               ),
             ),
+
+            // 🔥 Bottom section — pinned to bottom, professional look
+            const LegalAgreementText(),
 
           ],
         ),

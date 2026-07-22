@@ -103,12 +103,26 @@ class DatabaseService {
     }
   }
 
+  /// Resolve an email address from a username using Cloud Function
+  Future<String?> getEmailFromUsername(String username) async {
+    final cleanUsername = username.toLowerCase().trim();
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('getEmailFromUsername');
+      final result = await callable.call({'username': cleanUsername});
+      return result.data['email'] as String?;
+    } catch (e) {
+      debugPrint("Error getting email from username: $e");
+      return null;
+    }
+  }
+
   /// Create a user profile in Firestore
   Future<void> createUserProfile({
     required String uid,
     required String email,
     required String username,
     required String fullName,
+    required String bio,
     String profileImageUrl = "",
     List<String> interests = const [],
   }) async {
@@ -120,6 +134,7 @@ class DatabaseService {
         'username': username.toLowerCase().trim(),
         'displayName': fullName,
         'displayNameLower': fullName.toLowerCase().trim(),
+        'bio': bio,
         'profileImageUrl': profileImageUrl,
         'interests': interests,
         'createdAt': FieldValue.serverTimestamp(),
