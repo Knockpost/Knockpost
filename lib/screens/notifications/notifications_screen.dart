@@ -6,6 +6,7 @@ import '../../models/user_model.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/current_user_service.dart';
+import '../../services/user_cache_service.dart';
 import '../profile/other_profile_screen.dart';
 import '../../utils/haptic_helper.dart';
 import '../../utils/global_knock_state.dart';
@@ -45,6 +46,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   int _limit = 50;
   bool _isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
+  
+  List<NotificationModel> _cachedNotifs = [];
+  DateTime? _lastRefreshTime;
 
   @override
   void initState() {
@@ -125,13 +129,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: StreamBuilder<List<NotificationModel>>(
         stream: NotificationService.instance.streamNotifications(limit: _limit),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.hasData) {
+            _cachedNotifs = snapshot.data!;
+          }
+
+          if (_cachedNotifs.isEmpty && snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: KnockPostLoadingIndicator(),
             );
           }
 
-          final allNotifs = snapshot.data ?? [];
+          final allNotifs = _cachedNotifs;
           
           if (allNotifs.isEmpty) {
             return const Padding(
@@ -173,34 +181,41 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             // > 30 days are cleaned up by cleanupOldNotifications()
           }
 
+          final flattenedItems = <Widget>[];
+          
+          if (todayNotifs.isNotEmpty) {
+            flattenedItems.add(_SectionHeader(label: 'Today', isDark: isDark));
+            flattenedItems.addAll(todayNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))));
+          }
+          if (yesterdayNotifs.isNotEmpty) {
+            flattenedItems.add(_SectionHeader(label: 'Yesterday', isDark: isDark));
+            flattenedItems.addAll(yesterdayNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))));
+          }
+          if (earlierThisWeekNotifs.isNotEmpty) {
+            flattenedItems.add(_SectionHeader(label: 'Earlier This Week', isDark: isDark));
+            flattenedItems.addAll(earlierThisWeekNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))));
+          }
+          if (earlierThisMonthNotifs.isNotEmpty) {
+            flattenedItems.add(_SectionHeader(label: 'Earlier This Month', isDark: isDark));
+            flattenedItems.addAll(earlierThisMonthNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))));
+          }
+          
+          flattenedItems.add(const SizedBox(height: 24));
+
           return KnockPostRefreshIndicator(
             onRefresh: () async {
-              // Wait a short duration to show the elegant loading animation
-              // since StreamBuilder already keeps data perfectly in sync.
-              await Future.delayed(const Duration(milliseconds: 1200));
+              final now = DateTime.now();
+              if (_lastRefreshTime == null || now.difference(_lastRefreshTime!) > const Duration(seconds: 10)) {
+                _lastRefreshTime = now;
+                // Since StreamBuilder is realtime, we just show the elegant animation
+                await Future.delayed(const Duration(milliseconds: 1200));
+              }
             },
-            child: ListView(
+            child: ListView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-              children: [
-                if (todayNotifs.isNotEmpty) ...[
-                  _SectionHeader(label: 'Today', isDark: isDark),
-                  ...todayNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
-                ],
-                if (yesterdayNotifs.isNotEmpty) ...[
-                  _SectionHeader(label: 'Yesterday', isDark: isDark),
-                  ...yesterdayNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
-                ],
-                if (earlierThisWeekNotifs.isNotEmpty) ...[
-                  _SectionHeader(label: 'Earlier This Week', isDark: isDark),
-                  ...earlierThisWeekNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
-                ],
-                if (earlierThisMonthNotifs.isNotEmpty) ...[
-                  _SectionHeader(label: 'Earlier This Month', isDark: isDark),
-                  ...earlierThisMonthNotifs.map((n) => _NotifTileFuture(key: ValueKey(n.id), notif: n, isDark: isDark, isNewlyRead: _newlyReadIds.contains(n.id))),
-                ],
-                const SizedBox(height: 24),
-              ],
+              itemCount: flattenedItems.length,
+              itemBuilder: (context, index) => flattenedItems[index],
             ),
           );
         },
@@ -251,21 +266,30 @@ class _NotifTileFuture extends StatefulWidget {
   State<_NotifTileFuture> createState() => _NotifTileFutureState();
 }
 
-class _NotifTileFutureState extends State<_NotifTileFuture> with AutomaticKeepAliveClientMixin {
-  late Future<Map<String, dynamic>?> _profileFuture;
-
-  @override
-  bool get wantKeepAlive => true;
+class _NotifTileFutureState extends State<_NotifTileFuture> {
+  Map<String, dynamic>? _cachedProfile;
+  Future<Map<String, dynamic>?>? _profileFuture;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = DatabaseService.instance.getUserProfile(widget.notif.triggerUserId, useCache: true);
+    _cachedProfile = UserCacheService.instance.getCachedUserProfile(widget.notif.triggerUserId);
+    if (_cachedProfile == null) {
+      _profileFuture = DatabaseService.instance.getUserProfile(widget.notif.triggerUserId, useCache: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    if (_cachedProfile != null) {
+      final user = UserModel.fromMap(_cachedProfile!, widget.notif.triggerUserId);
+      return _NotifTile(
+        notif: widget.notif, 
+        user: user, 
+        isDark: widget.isDark, 
+        isNewlyRead: widget.isNewlyRead,
+      );
+    }
 
     return FutureBuilder<Map<String, dynamic>?>(
       future: _profileFuture,
@@ -363,7 +387,7 @@ class _NotifTile extends StatelessWidget {
     );
   }
 
-  Widget _right(KnockStatus status, ValueNotifier<KnockStatus> notifier) {
+  Widget _right(BuildContext context, KnockStatus status, ValueNotifier<KnockStatus> notifier) {
     if (notif.type == NotificationType.knock || notif.type == NotificationType.knockAccept || notif.type == NotificationType.knockBack) {
       return _KnockBackButton(isDark: isDark, user: user, status: status, notifier: notifier);
     }
@@ -377,6 +401,7 @@ class _NotifTile extends StatelessWidget {
             width: 44,
             height: 44,
             fit: BoxFit.cover,
+            memCacheWidth: (44 * MediaQuery.devicePixelRatioOf(context)).toInt(),
             placeholder: (context, url) => Container(
               width: 44,
               height: 44,
@@ -546,7 +571,7 @@ class _NotifTile extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(child: _body(textColor, subColor, status)),
                 const SizedBox(width: 12),
-                _right(status, notifier),
+                _right(context, status, notifier),
               ],
             );
           },
