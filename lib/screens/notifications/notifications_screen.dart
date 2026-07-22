@@ -66,6 +66,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _onScroll() {
+    if (!_scrollController.hasClients) return;
+
+    // Do not trigger pagination if the list doesn't even fill the screen
+    if (_scrollController.position.maxScrollExtent <= 0) return;
+
+    // Do not trigger pagination if we've already fetched all available items
+    if (_cachedNotifs.length < _limit) return;
+
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoadingMore) {
         _isLoadingMore = true;
