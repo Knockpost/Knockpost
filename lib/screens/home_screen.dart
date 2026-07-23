@@ -61,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _scrollDelta = 0;
   final ValueNotifier<bool> _showBarsNotifier = ValueNotifier<bool>(true);
   int _currentNavIndex = 0;
+  final GlobalKey<SearchScreenState> _searchScreenKey = GlobalKey<SearchScreenState>();
   int _feedSeed = 0;
 
   List<({PostModel post, UserModel author})> _feedItems = [];
@@ -260,6 +261,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _setCurrentNavIndex(int index) {
     if (_currentNavIndex == index) return;
+    // Clear search state when leaving the search tab
+    if (_currentNavIndex == 1 && index != 1) {
+      _searchScreenKey.currentState?.clearSearch();
+    }
     setState(() {
       _currentNavIndex = index;
       _scrollDelta = 0;
@@ -1069,7 +1074,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      const _KeepAlivePage(child: SearchScreen()),
+                      _KeepAlivePage(child: SearchScreen(key: _searchScreenKey)),
                       ValueListenableBuilder<int>(
                         valueListenable: _navIndexNotifier,
                         builder: (context, currentIndex, _) {

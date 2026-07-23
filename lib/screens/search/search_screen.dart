@@ -14,10 +14,10 @@ class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  State<SearchScreen> createState() => SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
 
@@ -27,6 +27,21 @@ class _SearchScreenState extends State<SearchScreen> {
   List<UserModel> _results = [];
   bool _isLoading = false;
   bool _hasSearched = false;
+
+  /// Called by HomeScreen when the user navigates away from the search tab.
+  void clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    _searchFocus.unfocus();
+    if (mounted) {
+      setState(() {
+        _searchQuery = '';
+        _results = [];
+        _hasSearched = false;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
