@@ -166,4 +166,12 @@ class FeedStateService {
     PerformanceService.instance.incrementGlimpsViewDedupMiss();
     return true; // Newly viewed
   }
+
+  /// Returns true if the user has already reacted to this post (from local cache).
+  /// Used by the feed algorithm to deprioritize already-interacted posts.
+  bool hasUserReacted(String postId) {
+    final notifier = _stateMap[postId];
+    if (notifier == null) return false;
+    return notifier.value.userReaction != null;
+  }
 }
