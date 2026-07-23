@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -26,11 +28,17 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
+  static const String appName = 'KnockPost';
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
   // ── In-flight deduplication: prevents duplicate pushes from rapid taps ──
   final Set<String> _recentlySentIds = {};
+  StreamSubscription<RemoteMessage>? _foregroundMessageSub;
+  StreamSubscription<RemoteMessage>? _openedMessageSub;
+  StreamSubscription<String>? _tokenRefreshSub;
+  bool _isInitialized = false;
 
   String? get _myUid => AuthService.instance.currentUser?.uid;
 
@@ -43,6 +51,11 @@ class NotificationService {
 
   Future<void> initFCM() async {
     try {
+      if (_isInitialized) {
+        await _saveToken();
+        return;
+      }
+
       // 1. Request Permission
       NotificationSettings settings = await _fcm.requestPermission(
         alert: true,
@@ -60,19 +73,22 @@ class NotificationService {
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         
         // 2. Get and save FCM token
-        await _saveToken();
+        await _saveToken(permissionStatus: settings.authorizationStatus);
 
         // 3. Listen for token refresh (critical for reliability)
-        _fcm.onTokenRefresh.listen((newToken) async {
+        _tokenRefreshSub = _fcm.onTokenRefresh.listen((newToken) async {
           debugPrint('FCM Token Refreshed');
           if (_myUid != null) {
             await _db.collection('users').doc(_myUid).update({
               'fcmToken': newToken,
+              'fcmTokens': FieldValue.arrayUnion([newToken]),
+              'timezoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+              'notificationTokenUpdatedAt': FieldValue.serverTimestamp(),
             });
           }
         });
 
-        // 4. Foreground notification presentation (iOS & Android 13+)
+        // 4. Foreground notification presentation for Apple platforms.
         await _fcm.setForegroundNotificationPresentationOptions(
           alert: false,  // We handle foreground display ourselves with our custom banner
           badge: true,
@@ -80,18 +96,25 @@ class NotificationService {
         );
 
         // 5. Foreground messages → show elegant in-app banner
-        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+        _foregroundMessageSub =
+            FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
         // 6. Background notification tap → navigate
-        FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+        _openedMessageSub =
+            FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
         // 7. Terminated state → check if opened via notification
         RemoteMessage? initialMessage = await _fcm.getInitialMessage();
         if (initialMessage != null) {
           _handleNotificationTap(initialMessage);
         }
+
+        _isInitialized = true;
       } else {
         debugPrint('Notification permission denied');
+        await _saveNotificationContext(
+          permissionStatus: settings.authorizationStatus,
+        );
       }
     } catch (e) {
       debugPrint("FCM Init error: $e");
@@ -99,17 +122,40 @@ class NotificationService {
   }
 
   /// Save FCM token to Firestore. Called on init and app restart.
-  Future<void> _saveToken() async {
+  Future<void> _saveToken({AuthorizationStatus? permissionStatus}) async {
     try {
       String? token = await _fcm.getToken();
       if (token != null && _myUid != null) {
         await _db.collection('users').doc(_myUid).update({
           'fcmToken': token,
+          'fcmTokens': FieldValue.arrayUnion([token]),
+          'timezoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+          'lastAppOpenedAt': FieldValue.serverTimestamp(),
+          'notificationTokenUpdatedAt': FieldValue.serverTimestamp(),
+          if (permissionStatus != null)
+            'notificationPermissionStatus': permissionStatus.name,
         });
         debugPrint('FCM token saved');
       }
     } catch (e) {
       debugPrint('Error saving FCM token: $e');
+    }
+  }
+
+  Future<void> _saveNotificationContext({
+    AuthorizationStatus? permissionStatus,
+  }) async {
+    final uid = _myUid;
+    if (uid == null) return;
+    try {
+      await _db.collection('users').doc(uid).update({
+        'timezoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+        'lastAppOpenedAt': FieldValue.serverTimestamp(),
+        if (permissionStatus != null)
+          'notificationPermissionStatus': permissionStatus.name,
+      });
+    } catch (e) {
+      debugPrint('Error saving notification context: $e');
     }
   }
 
@@ -125,12 +171,12 @@ class NotificationService {
         
         CustomInAppNotification.show(
           context,
-          title: message.notification!.title ?? 'knockpost',
+          title: message.notification!.title ?? appName,
           body: message.notification!.body ?? '',
           type: type,
           profileImageUrl: profileImageUrl,
           onTap: () {
-            // Navigation based on notification type is handled by _handleNotificationTap
+            _handleNotificationTap(message);
           },
         );
       }
@@ -190,12 +236,22 @@ class NotificationService {
     final uid = _myUid;
     if (uid == null) return;
     try {
-      final batch = _db.batch();
-      batch.update(_userNotifs(uid).doc(notificationId), {'isRead': true});
-      batch.update(_db.collection('users').doc(uid), {
-        'unreadNotificationCount': FieldValue.increment(-1),
+      final notifRef = _userNotifs(uid).doc(notificationId);
+      final userRef = _db.collection('users').doc(uid);
+
+      await _db.runTransaction((transaction) async {
+        final snap = await transaction.get(notifRef);
+        if (!snap.exists) return;
+
+        final data = snap.data() as Map<String, dynamic>?;
+        final isUnread = data?['isRead'] == false;
+        if (!isUnread) return;
+
+        transaction.update(notifRef, {'isRead': true});
+        transaction.update(userRef, {
+          'unreadNotificationCount': FieldValue.increment(-1),
+        });
       });
-      await batch.commit();
     } catch (e) {
       debugPrint('Error marking notification as read: $e');
     }
@@ -453,5 +509,15 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error cleaning up old notifications: $e');
     }
+  }
+
+  Future<void> dispose() async {
+    await _foregroundMessageSub?.cancel();
+    await _openedMessageSub?.cancel();
+    await _tokenRefreshSub?.cancel();
+    _foregroundMessageSub = null;
+    _openedMessageSub = null;
+    _tokenRefreshSub = null;
+    _isInitialized = false;
   }
 }

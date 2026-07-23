@@ -58,11 +58,17 @@ class CurrentUserService with WidgetsBindingObserver {
   void _updateOnlineStatus(bool isOnline) {
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) return;
-    
-    FirebaseFirestore.instance.collection('users').doc(uid).update({
+
+    final updates = <String, dynamic>{
       'isOnline': isOnline,
       'lastSeen': FieldValue.serverTimestamp(),
-    }).catchError((_) {});
+      'timezoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+    };
+    if (isOnline) {
+      updates['lastAppOpenedAt'] = FieldValue.serverTimestamp();
+    }
+    
+    FirebaseFirestore.instance.collection('users').doc(uid).update(updates).catchError((_) {});
   }
 
   /// User data update করার পরে (e.g. profile edit) refresh করো
