@@ -62,9 +62,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool get _isUsernameValid => _normalizedUsername.isNotEmpty;
 
+  bool get _isBioValid => _normalizedBio.isNotEmpty;
+
   bool get _canSave {
     if (!_hasChanges || _isSaving) return false;
-    if (!_isNameValid || !_isUsernameValid || !_isUsernameAvailable) return false;
+    if (!_isNameValid || !_isUsernameValid || !_isUsernameAvailable || !_isBioValid) return false;
     if (_bioWordCount > 40) return false;
     return true;
   }
@@ -407,12 +409,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   fontSize: 16,
                 ),
               ),
-              actions: const [SizedBox(width: 48)],
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: TextButton(
+                    onPressed: _canSave ? _save : null,
+                    style: TextButton.styleFrom(
+                      foregroundColor: _canSave ? textColor : subColor,
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    child: Text(_isSaving ? 'Saving' : 'Save'),
+                  ),
+                ),
+              ],
             ),
             body: ListView(
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
-                    children: [
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+              children: [
                       _buildMediaSection(
                         bg: bg,
                         fieldBg: fieldBg,
@@ -456,14 +474,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               .split(RegExp(r'\s+'))
                               .where((e) => e.isNotEmpty)
                               .length;
+                          final isEmpty = value.text.trim().isEmpty;
                           final isOver = wordCount > 40;
+                          final hasError = isEmpty || isOver;
                           return Stack(
                             children: [
                               _EditField(
                                 controller: _bioCtrl,
                                 hint: 'A little something about you...',
                                 bg: fieldBg,
-                                borderColor: isOver
+                                borderColor: hasError
                                     ? Colors.red.withValues(alpha: 0.5)
                                     : borderColor,
                                 textColor: textColor,
@@ -556,19 +576,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ],
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomActionBar(
-              bg: bg,
-              fieldBg: fieldBg,
-              textColor: textColor,
-              subColor: subColor,
-              borderColor: borderColor,
-              isDark: isDark,
             ),
           ),
           SystemNavBarFill(color: bg),
@@ -706,68 +713,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildBottomActionBar({
-    required Color bg,
-    required Color fieldBg,
-    required Color textColor,
-    required Color subColor,
-    required Color borderColor,
-    required bool isDark,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-          color: bg,
-          border: Border(top: BorderSide(color: borderColor)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
-              blurRadius: 24,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _BottomActionButton(
-                      label: 'Cancel',
-                      backgroundColor: fieldBg,
-                      foregroundColor: textColor,
-                      borderColor: borderColor,
-                      onTap: _isSaving
-                          ? null
-                          : () {
-                              KnockHaptics.selection();
-                              Navigator.pop(context);
-                            },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _BottomActionButton(
-                      label: _isSaving ? 'Saving...' : 'Save',
-                      backgroundColor: _canSave
-                          ? textColor
-                          : textColor.withValues(alpha: isDark ? 0.18 : 0.12),
-                      foregroundColor: _canSave ? bg : subColor,
-                      borderColor: Colors.transparent,
-                      onTap: _canSave ? _save : null,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-  }
+
 }
 
 class _FieldLabel extends StatelessWidget {
@@ -837,52 +783,6 @@ class _EditField extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: InputBorder.none,
           counterText: '',
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomActionButton extends StatelessWidget {
-  final String label;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final Color borderColor;
-  final VoidCallback? onTap;
-
-  const _BottomActionButton({
-    required this.label,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.borderColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          height: 52,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: foregroundColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
         ),
       ),
     );

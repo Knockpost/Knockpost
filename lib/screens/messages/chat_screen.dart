@@ -673,6 +673,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ? const Center(child: KnockPostLoadingIndicator())
                         : ListView.builder(
                               controller: _scrollController,
+                              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                               reverse: true,
                               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
