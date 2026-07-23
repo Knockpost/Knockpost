@@ -479,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             files: [File(photo.path)],
                             initialCaption: captionController.text.trim(),
                             onDone: (croppedFiles, aspectRatio) {
-                              Navigator.pushReplacement(
+                              Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => MediaEditorScreen(
@@ -549,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               initialCaption: captionController.text.trim(),
                               isGlimpse: false,
                               onDone: (croppedFiles, aspectRatio) {
-                                Navigator.pushReplacement(
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => MediaEditorScreen(

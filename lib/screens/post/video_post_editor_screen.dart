@@ -630,7 +630,7 @@ class _VideoPostEditorScreenState extends State<VideoPostEditorScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => FinalPostScreen(

@@ -357,7 +357,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
 
     if (!mounted) return;
 
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => FinalPostScreen(
@@ -462,9 +462,11 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
           children: [
             // ── 1. The Media + Overlay (Confined to 4:5 ratio) ─────────────
             Center(
-              child: AspectRatio(
-                aspectRatio: widget.aspectRatio,
-                child: LayoutBuilder(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(25),
+                child: AspectRatio(
+                  aspectRatio: widget.aspectRatio,
+                  child: LayoutBuilder(
                   builder: (context, constraints) {
                     if (_editorBoxWidth != constraints.maxWidth ||
                         _editorBoxHeight != constraints.maxHeight) {
@@ -590,6 +592,7 @@ class _MediaEditorScreenState extends State<MediaEditorScreen>
                       ),
                     );
                   },
+                  ),
                 ),
               ),
             ),
