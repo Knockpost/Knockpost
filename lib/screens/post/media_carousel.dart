@@ -50,6 +50,24 @@ class _MediaCarouselState extends State<MediaCarousel> {
     super.initState();
     _pageController = PageController();
     _startHideTimer();
+    _prefetchCarouselImages();
+  }
+
+  /// Prefetch next images in the carousel so they load instantly when swiped
+  void _prefetchCarouselImages() {
+    if (widget.imagePaths.length <= 1) return;
+    
+    for (int i = 1; i < widget.imagePaths.length; i++) {
+      final path = widget.imagePaths[i];
+      if (path.startsWith('http')) {
+        // Use optimized URL if available, else raw
+        final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > i)
+            ? widget.optimizedImagePaths![i]
+            : null;
+        final urlToCache = (optimizedUrl != null && optimizedUrl.isNotEmpty) ? optimizedUrl : path;
+        KnockpostImageCacheManager.instance.downloadFile(urlToCache);
+      }
+    }
   }
 
   @override
