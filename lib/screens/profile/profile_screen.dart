@@ -117,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             builder: (context, isScrollLocked, _) {
               return KnockPostRefreshIndicator(
                 onRefresh: () async {
-                  await Future.delayed(const Duration(milliseconds: 400));
+                  await _loadPosts();
                 },
                 child: NestedScrollView(
                 controller: _scrollController,

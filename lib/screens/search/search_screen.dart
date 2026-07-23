@@ -215,6 +215,7 @@ class SearchScreenState extends State<SearchScreen> {
 
     // Results list
     return ListView.builder(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       itemCount: _results.length,
       itemBuilder: (context, index) {
         final user = _results[index];

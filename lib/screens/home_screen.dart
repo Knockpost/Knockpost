@@ -829,8 +829,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: CustomScrollView(
                                     physics: isScrollLocked
                                         ? const NeverScrollableScrollPhysics()
-                                        : const AlwaysScrollableScrollPhysics(
-                                            parent: ClampingScrollPhysics(),
+                                        : const BouncingScrollPhysics(
+                                            parent: AlwaysScrollableScrollPhysics(),
                                           ),
                                     controller: _scrollController,
                                     cacheExtent: 1500,

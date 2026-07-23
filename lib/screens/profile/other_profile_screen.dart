@@ -19,6 +19,7 @@ import '../../services/post_service.dart';
 import '../../services/connection_service.dart';
 import '../../services/database_service.dart';
 import '../../services/current_user_service.dart';
+import '../../widgets/knockpost_refresh.dart';
 
 /// Viewing someone ELSE's profile.
 class OtherProfileScreen extends StatefulWidget {
@@ -307,11 +308,25 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
               child: ValueListenableBuilder<bool>(
                 valueListenable: _postScrollLockController,
                 builder: (context, isScrollLocked, _) {
-                  return NestedScrollView(
+                  return KnockPostRefreshIndicator(
+                    onRefresh: () async {
+                      final res = await PostService.instance.getUserPostsPaginated(_user.id, limit: 100);
+                      final status = await ConnectionService.instance.getKnockStatus(_user.id);
+                      if (mounted) {
+                        setState(() {
+                          _posts = res.posts;
+                          if (_user.knockStatus != status) {
+                            _user = _user.copyWith(knockStatus: status);
+                            GlobalKnockState.getNotifier(_user.id, status).value = status;
+                          }
+                        });
+                      }
+                    },
+                    child: NestedScrollView(
                     controller: _scrollController,
                     physics: isScrollLocked
                         ? const NeverScrollableScrollPhysics()
-                        : const ClampingScrollPhysics(),
+                        : const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
                     headerSliverBuilder: (context, innerBoxIsScrolled) => [
                       // Profile Header
                       SliverToBoxAdapter(
@@ -383,6 +398,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                               ),
                             ],
                           ),
+                  ),
                   );
                 },
               ),
