@@ -538,27 +538,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                           GestureDetector(
                             onTap: () { KnockHaptics.tap(); _showImageSourceBottomSheet(); },
-                            child: CircleAvatar(
-                              radius: 55,
-                              backgroundColor: isDark 
-                                  ? const Color(0xFF2A2A2A)
-                                  : const Color(0xFFF2F2F2),
-                              backgroundImage:
-                                  selectedImage !=
-                                          null
-                                      ? FileImage(
-                                          selectedImage!)
-                                      : null,
-                              child:
-                                  selectedImage ==
-                                          null
-                                      ? Icon(
-                                          Icons
-                                              .person,
-                                          size: 50,
-                                          color: isDark ? Colors.white54 : Colors.black54,
-                                        )
-                                      : null,
+                            child: Container(
+                              width: 110,
+                              height: 110,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
+                                borderRadius: BorderRadius.circular(55 * 0.85),
+                                image: selectedImage != null 
+                                    ? DecorationImage(image: FileImage(selectedImage!), fit: BoxFit.cover) 
+                                    : null,
+                              ),
+                              child: selectedImage == null 
+                                  ? Icon(
+                                      Icons.person,
+                                      size: 50,
+                                      color: isDark ? Colors.white54 : Colors.black54,
+                                    )
+                                  : null,
                             ),
                           ),
 

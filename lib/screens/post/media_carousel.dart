@@ -133,7 +133,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(25),
           child: widget.mediaAspectRatio != null
               ? AspectRatio(
                   aspectRatio: widget.mediaAspectRatio!,
@@ -159,7 +159,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(25),
             child: Listener(
               behavior: HitTestBehavior.opaque,
               onPointerDown: _handleCarouselPointerDown,
