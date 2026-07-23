@@ -221,7 +221,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             },
             child: ListView.builder(
               controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               itemCount: flattenedItems.length,
               itemBuilder: (context, index) => flattenedItems[index],
             ),
