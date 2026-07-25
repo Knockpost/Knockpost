@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:video_player/video_player.dart';
 import 'package:knockpost/utils/audio_lifecycle_manager.dart';
+import 'video_cache_manager.dart';
 
 /// -------------------------------------------------------------------------
 /// FEATURE FLAG: Easy Rollback
@@ -63,7 +64,7 @@ class FeedMediaPool {
   Stream<bool>? get audioPlayingStream => _globalAudioPlayer?.playingStream;
 
   // ── Global Video LRU Pool ──
-  static const int maxVideoControllers = 3;
+  static const int maxVideoControllers = 5;
   final Map<String, VideoPlayerController> _videoControllers = {};
   final List<String> _videoLru = [];
 
@@ -86,13 +87,26 @@ class FeedMediaPool {
       oldestController?.dispose();
     }
 
-    // Create new controller
+    // Create new controller — cache-first for network URLs
     VideoPlayerController controller;
     if (path.startsWith('http')) {
-      controller = VideoPlayerController.networkUrl(
-        Uri.parse(path),
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-      );
+      // Check disk cache first for instant playback
+      final fileInfo = await KnockpostVideoCacheManager.instance.getFileFromCache(path);
+      if (fileInfo != null && await fileInfo.file.exists()) {
+        // INSTANT PLAYBACK FROM DISK CACHE!
+        controller = VideoPlayerController.file(
+          fileInfo.file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      } else {
+        // Network stream + start background caching
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(path),
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+        // Background cache for next time
+        KnockpostVideoCacheManager.instance.downloadFile(path);
+      }
     } else if (isAsset || path.startsWith('assets/')) {
       controller = VideoPlayerController.asset(
         path,

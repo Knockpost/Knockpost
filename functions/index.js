@@ -166,103 +166,362 @@ function hashOtp(otp) {
 
 // ── Priority Mapping ─────────────────────────────────────────────────────────
 
+const BRAND_NAME = "KnockPost";
+const MAX_FCM_TOKENS_PER_USER = 10;
+const CHANNEL_IDS = {
+  high: "knockpost_high",
+  medium: "knockpost_medium",
+  low: "knockpost_low",
+};
+
 const PRIORITY_CONFIG = {
-  // HIGH: instant push + vibration + sound
-  knock:       { priority: "high", channelId: "knockpost_high",   sound: true },
-  knockAccept: { priority: "high", channelId: "knockpost_high",   sound: true },
-  knockBack:   { priority: "high", channelId: "knockpost_high",   sound: true },
-  message:     { priority: "high", channelId: "knockpost_high",   sound: true },
-  comment:     { priority: "high", channelId: "knockpost_high",   sound: true },
-  mention:     { priority: "high", channelId: "knockpost_high",   sound: true },
-  // MEDIUM: normal push
-  like:        { priority: "high", channelId: "knockpost_medium", sound: true },
-  waveLike:    { priority: "high", channelId: "knockpost_medium", sound: true },
-  // LOW: silent/grouped
-  suggestion:  { priority: "normal", channelId: "knockpost_low",  sound: false },
-  milestone:   { priority: "normal", channelId: "knockpost_low",  sound: false },
+  // HIGH: user-actionable and time-sensitive.
+  knock:       { priority: "high",   channelId: CHANNEL_IDS.high,   sound: true,  vibrate: true,  notificationPriority: "max" },
+  knockAccept: { priority: "high",   channelId: CHANNEL_IDS.high,   sound: true,  vibrate: true,  notificationPriority: "max" },
+  knockBack:   { priority: "high",   channelId: CHANNEL_IDS.high,   sound: true,  vibrate: true,  notificationPriority: "max" },
+  message:     { priority: "high",   channelId: CHANNEL_IDS.high,   sound: true,  vibrate: true,  notificationPriority: "max" },
+  comment:     { priority: "high",   channelId: CHANNEL_IDS.high,   sound: true,  vibrate: true,  notificationPriority: "max" },
+  mention:     { priority: "high",   channelId: CHANNEL_IDS.high,   sound: true,  vibrate: true,  notificationPriority: "max" },
+
+  // MEDIUM: visible, relevant, not urgent.
+  like:         { priority: "normal", channelId: CHANNEL_IDS.medium, sound: false, vibrate: false, notificationPriority: "default" },
+  waveLike:     { priority: "normal", channelId: CHANNEL_IDS.medium, sound: false, vibrate: false, notificationPriority: "default" },
+  friendActivity: { priority: "normal", channelId: CHANNEL_IDS.medium, sound: false, vibrate: false, notificationPriority: "default", collapseKey: "friend_activity" },
+
+  // LOW: calm catch-up nudges.
+  engagement:  { priority: "normal", channelId: CHANNEL_IDS.low,    sound: false, vibrate: false, notificationPriority: "low", collapseKey: "engagement", ttl: 6 * 60 * 60 * 1000 },
+  suggestion:  { priority: "normal", channelId: CHANNEL_IDS.low,    sound: false, vibrate: false, notificationPriority: "low" },
+  milestone:   { priority: "normal", channelId: CHANNEL_IDS.low,    sound: false, vibrate: false, notificationPriority: "low" },
 };
 
 // ── Human-Style Notification Wording ─────────────────────────────────────────
 
-function buildNotificationContent(type, senderName, data) {
+const FRIEND_ACTIVITY_TEMPLATES = [
+  "{name} shared an update.",
+  "{name} shared something new.",
+  "{name} added a new moment.",
+  "{name} shared a fresh thought.",
+  "{name} has something new for you.",
+  "There is something new from {name}.",
+  "{name} posted a new moment.",
+  "{name} added something worth catching.",
+  "{name} shared a quiet update.",
+  "{name} has a fresh moment waiting.",
+  "{name} brought something new to your feed.",
+  "{name} shared a new piece of their day.",
+  "{name} added a fresh post.",
+  "{name} shared what is new today.",
+  "{name} has a new update in your feed.",
+  "{name} added a moment you may like.",
+  "{name} shared something recent.",
+  "{name} has a new post waiting.",
+  "{name} added something fresh.",
+  "Someone you know shared something today.",
+];
+
+const LIKE_TEMPLATES = [
+  "{name} liked your post.",
+  "{name} reacted to your post.",
+  "{name} left a little love on your post.",
+  "{name} noticed something you shared.",
+  "{name} liked your latest moment.",
+];
+
+const WAVE_LIKE_TEMPLATES = [
+  "{name} liked your Wave.",
+  "{name} reacted to your Wave.",
+  "{name} noticed your Wave.",
+  "{name} liked something you shared in Waves.",
+];
+
+const MENTION_TEMPLATES = [
+  "{name} mentioned you.",
+  "{name} brought you into a post.",
+  "{name} mentioned you in a new update.",
+];
+
+const KNOCK_TEMPLATES = {
+  pending: [
+    "{name} requested to knock you.",
+    "{name} would like to connect.",
+    "{name} sent you a Knock request.",
+  ],
+  direct: [
+    "{name} knocked you.",
+    "{name} connected with you.",
+    "{name} sent you a Knock.",
+  ],
+  accepted: [
+    "{name} accepted your Knock request.",
+    "{name} approved your Knock.",
+    "{name} welcomed your Knock.",
+  ],
+  back: [
+    "{name} knocked you back.",
+    "{name} connected back with you.",
+    "{name} returned your Knock.",
+  ],
+};
+
+const ENGAGEMENT_TEMPLATES = {
+  morning: [
+    "Good morning. Something new is waiting for you.",
+    "Start your day with fresh updates from people you care about.",
+    "Your friends shared new moments while you were away.",
+    "A few fresh updates arrived overnight.",
+    "Your feed has a quiet catch-up waiting.",
+    "New moments are ready when you are.",
+    "Fresh posts from your people are waiting.",
+    "There is something new to start the day with.",
+  ],
+  afternoon: [
+    "Take a short break. Something new is waiting.",
+    "Fresh updates have arrived.",
+    "Catch up in under a minute.",
+    "A few new moments landed in your feed.",
+    "Your people shared something new today.",
+    "There is a quick catch-up waiting for you.",
+    "Fresh posts are ready when you have a moment.",
+    "A small update from your circle is waiting.",
+  ],
+  evening: [
+    "Wind down with today's latest updates.",
+    "End your day with fresh moments from friends.",
+    "Your KnockPost feed has something new.",
+    "A few new moments are waiting from today.",
+    "Catch up with what your people shared today.",
+    "There is something new to settle into.",
+    "Fresh updates from your circle are waiting.",
+    "Your evening catch-up is ready.",
+  ],
+};
+
+function hashString(value) {
+  const text = String(value || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function pickTemplate(templates, seed) {
+  return templates[hashString(seed) % templates.length];
+}
+
+function renderTemplate(template, values) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => values[key] || "");
+}
+
+function cleanDisplayName(name) {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  return trimmed || "Someone";
+}
+
+function truncateText(value, maxLength = 96) {
+  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3).trim()}...`;
+}
+
+function friendActivityBody(senderName, seed) {
+  return renderTemplate(
+    pickTemplate(FRIEND_ACTIVITY_TEMPLATES, seed),
+    { name: cleanDisplayName(senderName) }
+  );
+}
+
+function buildNotificationContent(type, senderName, data = {}) {
+  const name = cleanDisplayName(senderName);
+  const seed = `${type}_${data.postId || ""}_${data.notificationId || ""}_${name}`;
+
   switch (type) {
     case "knock":
-      // Check if this is a pending request or direct knock
       if (data.isPendingRequest === true) {
         return {
-          title: "KnockPost",
-          body: `${senderName} requested to knock you`,
+          title: BRAND_NAME,
+          body: renderTemplate(pickTemplate(KNOCK_TEMPLATES.pending, seed), { name }),
         };
       }
       return {
-        title: "knockpost",
-        body: `${senderName} knocked you`,
+        title: BRAND_NAME,
+        body: renderTemplate(pickTemplate(KNOCK_TEMPLATES.direct, seed), { name }),
       };
 
     case "knockAccept":
       return {
-        title: "knockpost",
-        body: `${senderName} accepted your knock request`,
+        title: BRAND_NAME,
+        body: renderTemplate(pickTemplate(KNOCK_TEMPLATES.accepted, seed), { name }),
       };
 
     case "knockBack":
       return {
-        title: "knockpost",
-        body: `${senderName} knocked you back`,
+        title: BRAND_NAME,
+        body: renderTemplate(pickTemplate(KNOCK_TEMPLATES.back, seed), { name }),
       };
 
     case "like":
       return {
-        title: "knockpost",
-        body: `${senderName} liked your post`,
+        title: BRAND_NAME,
+        body: renderTemplate(pickTemplate(LIKE_TEMPLATES, seed), { name }),
       };
 
     case "waveLike":
       return {
-        title: "knockpost",
-        body: `${senderName} liked your Wave`,
+        title: BRAND_NAME,
+        body: renderTemplate(pickTemplate(WAVE_LIKE_TEMPLATES, seed), { name }),
+      };
+
+    case "friendActivity":
+      return {
+        title: BRAND_NAME,
+        body: friendActivityBody(name, seed),
       };
 
     case "comment": {
-      const snippet = data.commentSnippet || "";
-      if (snippet) {
-        return {
-          title: "KnockPost",
-          body: `${senderName} replied on your post: "${snippet}"`,
-        };
-      }
+      const snippet = truncateText(data.commentSnippet || "");
       return {
-        title: "knockpost",
-        body: `${senderName} replied on your post`,
+        title: BRAND_NAME,
+        body: snippet ? `${name} replied on your post: "${snippet}"` : `${name} replied on your post.`,
       };
     }
 
     case "mention":
       return {
-        title: "knockpost",
-        body: `${senderName} mentioned you`,
+        title: BRAND_NAME,
+        body: renderTemplate(pickTemplate(MENTION_TEMPLATES, seed), { name }),
       };
 
     case "message": {
-      const msgSnippet = data.commentSnippet || "";
-      if (msgSnippet) {
-        return {
-          title: senderName,
-          body: msgSnippet,
-        };
-      }
+      const msgSnippet = truncateText(data.commentSnippet || "");
       return {
-        title: senderName,
-        body: "sent you a message",
+        title: name,
+        body: msgSnippet || "Sent you a message.",
       };
     }
 
     default:
       return {
-        title: "knockpost",
-        body: `${senderName} interacted with you`,
+        title: BRAND_NAME,
+        body: `${name} shared something new.`,
       };
   }
+}
+
+function stringifyData(data) {
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => [key, String(value)])
+  );
+}
+
+function buildPushPayload({ type, content, data, config, tag, badge = 1 }) {
+  const aps = {
+    alert: {
+      title: content.title,
+      body: content.body,
+    },
+    badge,
+    "thread-id": type,
+  };
+  if (config.sound) {
+    aps.sound = "default";
+  }
+
+  const android = {
+    priority: config.priority,
+    notification: {
+      channelId: config.channelId,
+      priority: config.notificationPriority || (config.priority === "high" ? "max" : "default"),
+      defaultSound: config.sound,
+      defaultVibrateTimings: config.vibrate === true,
+      icon: "ic_notification",
+      color: "#111111",
+      tag,
+    },
+  };
+  if (config.collapseKey) {
+    android.collapseKey = config.collapseKey;
+  }
+  if (config.ttl) {
+    android.ttl = config.ttl;
+  }
+
+  return {
+    notification: {
+      title: content.title,
+      body: content.body,
+    },
+    data: stringifyData(data),
+    android,
+    apns: { payload: { aps } },
+  };
+}
+
+function getFcmTokens(userData) {
+  const tokens = new Set();
+  if (typeof userData.fcmToken === "string" && userData.fcmToken.trim()) {
+    tokens.add(userData.fcmToken.trim());
+  }
+  if (Array.isArray(userData.fcmTokens)) {
+    userData.fcmTokens.forEach((token) => {
+      if (typeof token === "string" && token.trim()) {
+        tokens.add(token.trim());
+      }
+    });
+  }
+  return Array.from(tokens).slice(0, MAX_FCM_TOKENS_PER_USER);
+}
+
+function isStaleFcmError(error) {
+  return error?.code === "messaging/invalid-registration-token" ||
+    error?.code === "messaging/registration-token-not-registered";
+}
+
+async function cleanUpStaleTokens(userRef, userData, staleTokens) {
+  if (!staleTokens.length) return;
+  const updates = {
+    fcmTokens: admin.firestore.FieldValue.arrayRemove(...staleTokens),
+  };
+  if (staleTokens.includes(userData.fcmToken)) {
+    updates.fcmToken = admin.firestore.FieldValue.delete();
+  }
+  await userRef.update(updates);
+}
+
+async function sendPayloadToUser({ userRef, userData, payload }) {
+  const tokens = getFcmTokens(userData);
+  if (tokens.length === 0) {
+    return { successCount: 0, failureCount: 0 };
+  }
+
+  if (tokens.length === 1) {
+    try {
+      const response = await admin.messaging().send({ ...payload, token: tokens[0] });
+      return { successCount: 1, failureCount: 0, response };
+    } catch (error) {
+      if (isStaleFcmError(error)) {
+        await cleanUpStaleTokens(userRef, userData, [tokens[0]]);
+      }
+      throw error;
+    }
+  }
+
+  const response = await admin.messaging().sendEachForMulticast({
+    ...payload,
+    tokens,
+  });
+
+  const staleTokens = [];
+  response.responses.forEach((sendResponse, index) => {
+    if (!sendResponse.success && isStaleFcmError(sendResponse.error)) {
+      staleTokens.push(tokens[index]);
+    }
+  });
+  await cleanUpStaleTokens(userRef, userData, staleTokens);
+  return response;
 }
 
 // ─── Email OTP 2FA ────────────────────────────────────────────
@@ -428,7 +687,8 @@ exports.sendPushNotification = functions.firestore
       // ── Fetch receiver profile only ──
       // Security Hardening (Phase N2): The sender info is securely embedded in the payload, 
       // eliminating 50% of the read load (triggerUserDoc read is removed).
-      const userDoc = await db.collection("users").doc(receiverId).get();
+      const userRef = db.collection("users").doc(receiverId);
+      const userDoc = await userRef.get();
 
       if (!userDoc.exists) {
         console.log(`Receiver ${receiverId} not found.`);
@@ -436,9 +696,8 @@ exports.sendPushNotification = functions.firestore
       }
 
       const userData = userDoc.data();
-      const fcmToken = userData.fcmToken;
 
-      if (!fcmToken) {
+      if (getFcmTokens(userData).length === 0) {
         console.log(`No FCM token for ${receiverId}.`);
         return null;
       }
@@ -452,7 +711,7 @@ exports.sendPushNotification = functions.firestore
 
       // ── Determine notification type and check for pending knock request ──
       const type = notificationData.type || "unknown";
-      let enrichedData = { ...notificationData };
+      let enrichedData = { ...notificationData, notificationId };
 
       if (type === "knock") {
         try {
@@ -473,13 +732,12 @@ exports.sendPushNotification = functions.firestore
 
       // ── Priority config ──
       const config = PRIORITY_CONFIG[type] || PRIORITY_CONFIG.like;
+      const tag = `${type}_${notificationData.postId || triggerUserId}`;
 
       // ── Build FCM payload ──
-      const payload = {
-        notification: {
-          title: content.title,
-          body: content.body,
-        },
+      const payload = buildPushPayload({
+        type,
+        content,
         data: {
           type: type,
           triggerUserId: triggerUserId || "",
@@ -488,37 +746,13 @@ exports.sendPushNotification = functions.firestore
           profileImageUrl: profileImageUrl,
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
-        android: {
-          priority: config.priority,
-          notification: {
-            channelId: config.channelId,
-            priority: config.priority === "high" ? "max" : "default",
-            defaultSound: config.sound,
-            defaultVibrateTimings: config.sound,
-            icon: "ic_notification",
-            // Group notifications by type for smart stacking
-            tag: `${type}_${notificationData.postId || triggerUserId}`,
-          },
-        },
-        apns: {
-          payload: {
-            aps: {
-              alert: {
-                title: content.title,
-                body: content.body,
-              },
-              sound: config.sound ? "default" : null,
-              badge: 1,
-              "mutable-content": 1,
-              "thread-id": type,
-            },
-          },
-        },
-        token: fcmToken,
-      };
+        config,
+        tag,
+        badge: Math.max(1, userData.unreadNotificationCount || 1),
+      });
 
       // ── Send push ──
-      const response = await admin.messaging().send(payload);
+      const response = await sendPayloadToUser({ userRef, userData, payload });
       console.log(`✓ Push sent to ${receiverId} [${type}]:`, response);
 
       // ── Mark as pushSent (idempotent flag) ──
@@ -526,17 +760,6 @@ exports.sendPushNotification = functions.firestore
 
     } catch (error) {
       console.error(`✗ Push failed for ${receiverId}:`, error);
-
-      // ── Stale token cleanup ──
-      if (
-        error.code === "messaging/invalid-registration-token" ||
-        error.code === "messaging/registration-token-not-registered"
-      ) {
-        console.log(`Removing stale FCM token for ${receiverId}`);
-        await db.collection("users").doc(receiverId).update({
-          fcmToken: admin.firestore.FieldValue.delete(),
-        });
-      }
     }
 
     return null;
@@ -563,6 +786,11 @@ exports.sendPushOnNotificationUpdate = functions.firestore
     // ── Guard: Don't send notification to self ──
     if (receiverId === triggerUserId) return null;
 
+    if (afterData.isRead !== false || beforeData.isRead !== true) {
+      console.log(`Update for ${notificationId}: notification was not re-opened from a read state. Skipping.`);
+      return null;
+    }
+
     // ── Guard: Ensure this is a GENUINE new interaction from the client ──
     // The client always updates the `timestamp` field with FieldValue.serverTimestamp()
     // on every new interaction. If the timestamp hasn't changed (e.g., just `isRead: true`
@@ -577,16 +805,16 @@ exports.sendPushOnNotificationUpdate = functions.firestore
 
     try {
       // ── Fetch receiver + sender profiles in parallel ──
+      const userRef = db.collection("users").doc(receiverId);
       const [userDoc, triggerUserDoc] = await Promise.all([
-        db.collection("users").doc(receiverId).get(),
+        userRef.get(),
         db.collection("users").doc(triggerUserId).get(),
       ]);
 
       if (!userDoc.exists) return null;
 
       const userData = userDoc.data();
-      const fcmToken = userData.fcmToken;
-      if (!fcmToken) return null;
+      if (getFcmTokens(userData).length === 0) return null;
 
       // ── S4 Anti-Spoofing: Build sender info authoritatively ──
       const triggerUserData = triggerUserDoc.exists ? triggerUserDoc.data() : {};
@@ -594,7 +822,7 @@ exports.sendPushOnNotificationUpdate = functions.firestore
       const profileImageUrl = triggerUserData.avatarUrl || triggerUserData.profileImageUrl || "";
 
       const type = afterData.type || "unknown";
-      let enrichedData = { ...afterData };
+      let enrichedData = { ...afterData, notificationId };
 
       if (type === "knock") {
         try {
@@ -612,12 +840,11 @@ exports.sendPushOnNotificationUpdate = functions.firestore
 
       const content = buildNotificationContent(type, senderName, enrichedData);
       const config = PRIORITY_CONFIG[type] || PRIORITY_CONFIG.like;
+      const tag = `${type}_${afterData.postId || triggerUserId}`;
 
-      const payload = {
-        notification: {
-          title: content.title,
-          body: content.body,
-        },
+      const payload = buildPushPayload({
+        type,
+        content,
         data: {
           type: type,
           triggerUserId: triggerUserId || "",
@@ -626,35 +853,12 @@ exports.sendPushOnNotificationUpdate = functions.firestore
           profileImageUrl: profileImageUrl,
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
-        android: {
-          priority: config.priority,
-          notification: {
-            channelId: config.channelId,
-            priority: config.priority === "high" ? "max" : "default",
-            defaultSound: config.sound,
-            defaultVibrateTimings: config.sound,
-            icon: "ic_notification",
-            tag: `${type}_${afterData.postId || triggerUserId}`,
-          },
-        },
-        apns: {
-          payload: {
-            aps: {
-              alert: {
-                title: content.title,
-                body: content.body,
-              },
-              sound: config.sound ? "default" : null,
-              badge: 1,
-              "mutable-content": 1,
-              "thread-id": type,
-            },
-          },
-        },
-        token: fcmToken,
-      };
+        config,
+        tag,
+        badge: Math.max(1, userData.unreadNotificationCount || 1),
+      });
 
-      const response = await admin.messaging().send(payload);
+      const response = await sendPayloadToUser({ userRef, userData, payload });
       console.log(`✓ Re-push sent to ${receiverId} [${type}]:`, response);
 
       // Mark pushSent
@@ -662,17 +866,343 @@ exports.sendPushOnNotificationUpdate = functions.firestore
 
     } catch (error) {
       console.error(`✗ Re-push failed for ${receiverId}:`, error);
-
-      if (
-        error.code === "messaging/invalid-registration-token" ||
-        error.code === "messaging/registration-token-not-registered"
-      ) {
-        await db.collection("users").doc(receiverId).update({
-          fcmToken: admin.firestore.FieldValue.delete(),
-        });
-      }
     }
 
+    return null;
+  });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SMART DAILY RE-ENGAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+// A calm catch-up system:
+//   • no push while the user is active or recently opened the app
+//   • no push without fresh content from connected people
+//   • local daytime/evening only
+//   • one catch-up per local day, with adaptive spacing
+//   • personalized friend activity copy beats generic reminders
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ENGAGEMENT_MAX_USERS_PER_RUN = 300;
+const ENGAGEMENT_CONCURRENCY = 20;
+const ENGAGEMENT_CONNECTION_LIMIT = 120;
+const ENGAGEMENT_AUTHOR_CHUNK_SIZE = 30;
+const ENGAGEMENT_MIN_IDLE_HOURS = 6;
+const ENGAGEMENT_QUIET_START_HOUR = 22;
+const ENGAGEMENT_QUIET_END_HOUR = 8;
+
+function timestampMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  return 0;
+}
+
+function localDateKey(now, timezoneOffsetMinutes = 0) {
+  const local = new Date(now.getTime() + timezoneOffsetMinutes * 60 * 1000);
+  return local.toISOString().slice(0, 10);
+}
+
+function localHour(now, timezoneOffsetMinutes = 0) {
+  const local = new Date(now.getTime() + timezoneOffsetMinutes * 60 * 1000);
+  return local.getUTCHours();
+}
+
+function isQuietHour(hour) {
+  return hour >= ENGAGEMENT_QUIET_START_HOUR || hour < ENGAGEMENT_QUIET_END_HOUR;
+}
+
+function engagementTimeBucket(hour) {
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
+}
+
+function engagementMinGapHours(idleHours) {
+  if (idleHours < 24) return 36;      // active users get fewer reminders
+  if (idleHours < 72) return 24;      // recently inactive users get gentle help
+  if (idleHours < 168) return 36;     // longer idle, slower cadence
+  return 72;                          // dormant users should not be chased
+}
+
+function isPostStillRelevant(postData, createdAtMillis, now) {
+  const ageHours = (now.getTime() - createdAtMillis) / (60 * 60 * 1000);
+  const duration = postData.duration || "lifetime";
+  if (duration === "h24") return ageHours < 24;
+  if (duration === "h36") return ageHours < 36;
+  return true;
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+async function getConnectionRanks(uid) {
+  const ranks = new Map();
+  const [mutualSnap, sentSnap, receivedSnap] = await Promise.all([
+    db.collection("mutual_connections")
+      .where("participants", "array-contains", uid)
+      .limit(ENGAGEMENT_CONNECTION_LIMIT)
+      .get(),
+    db.collection("connections")
+      .where("fromUid", "==", uid)
+      .where("status", "==", "accepted")
+      .limit(ENGAGEMENT_CONNECTION_LIMIT)
+      .get(),
+    db.collection("connections")
+      .where("toUid", "==", uid)
+      .where("status", "==", "accepted")
+      .limit(ENGAGEMENT_CONNECTION_LIMIT)
+      .get(),
+  ]);
+
+  mutualSnap.docs.forEach((doc) => {
+    const participants = Array.isArray(doc.data().participants) ? doc.data().participants : [];
+    const otherUid = participants.find((id) => id !== uid);
+    if (otherUid) ranks.set(otherUid, 0);
+  });
+  sentSnap.docs.forEach((doc) => {
+    const otherUid = doc.data().toUid;
+    if (otherUid && !ranks.has(otherUid)) ranks.set(otherUid, 1);
+  });
+  receivedSnap.docs.forEach((doc) => {
+    const otherUid = doc.data().fromUid;
+    if (otherUid && !ranks.has(otherUid)) ranks.set(otherUid, 1);
+  });
+
+  return ranks;
+}
+
+async function getAuthorProfiles(authorIds) {
+  if (authorIds.length === 0) return new Map();
+  const refs = authorIds.map((authorId) => db.collection("users").doc(authorId));
+  const docs = await db.getAll(...refs);
+  const profiles = new Map();
+  docs.forEach((doc) => {
+    if (doc.exists) profiles.set(doc.id, doc.data());
+  });
+  return profiles;
+}
+
+async function getFreshConnectedPosts({ uid, userData, connectionRanks, afterMillis, now }) {
+  const connectedIds = Array.from(connectionRanks.keys()).slice(0, ENGAGEMENT_CONNECTION_LIMIT);
+  if (connectedIds.length === 0) return { posts: [], authorProfiles: new Map() };
+
+  const afterTimestamp = admin.firestore.Timestamp.fromMillis(afterMillis);
+  const posts = [];
+
+  for (const chunk of chunkArray(connectedIds, ENGAGEMENT_AUTHOR_CHUNK_SIZE)) {
+    const snap = await db.collection("posts")
+      .where("authorId", "in", chunk)
+      .where("createdAt", ">", afterTimestamp)
+      .orderBy("createdAt", "desc")
+      .limit(12)
+      .get();
+
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      const createdAtMillis = timestampMillis(data.createdAt);
+      if (!createdAtMillis || !isPostStillRelevant(data, createdAtMillis, now)) return;
+      posts.push({
+        id: doc.id,
+        authorId: data.authorId,
+        createdAtMillis,
+        rank: connectionRanks.get(data.authorId) ?? 2,
+        type: data.type || "post",
+      });
+    });
+  }
+
+  posts.sort((a, b) => (a.rank - b.rank) || (b.createdAtMillis - a.createdAtMillis));
+  const authorIds = Array.from(new Set(posts.map((post) => post.authorId)));
+  const authorProfiles = await getAuthorProfiles(authorIds);
+  const viewerBlocked = new Set(Array.isArray(userData.blockedUsers) ? userData.blockedUsers : []);
+
+  const visiblePosts = posts.filter((post) => {
+    const author = authorProfiles.get(post.authorId);
+    if (!author) return false;
+    if (viewerBlocked.has(post.authorId)) return false;
+    if (Array.isArray(author.blockedUsers) && author.blockedUsers.includes(uid)) return false;
+    return true;
+  });
+
+  return { posts: visiblePosts, authorProfiles };
+}
+
+function buildEngagementContent({ uid, posts, authorProfiles, localHourValue }) {
+  const bucket = engagementTimeBucket(localHourValue);
+  const topPost = posts[0];
+  if (!topPost) {
+    return {
+      title: BRAND_NAME,
+      body: pickTemplate(ENGAGEMENT_TEMPLATES[bucket], `${uid}_${bucket}`),
+      reason: "generic",
+    };
+  }
+
+  const topAuthor = authorProfiles.get(topPost.authorId) || {};
+  const topName = cleanDisplayName(topAuthor.displayName || topAuthor.username);
+  const uniqueAuthorIds = Array.from(new Set(posts.map((post) => post.authorId)));
+
+  if (uniqueAuthorIds.length === 1 && posts.length === 1) {
+    return {
+      title: BRAND_NAME,
+      body: friendActivityBody(topName, `${uid}_${topPost.id}_${bucket}`),
+      reason: "single_friend_post",
+    };
+  }
+
+  if (uniqueAuthorIds.length === 1) {
+    return {
+      title: BRAND_NAME,
+      body: `${topName} shared ${posts.length} new updates.`,
+      reason: "single_friend_multiple_posts",
+    };
+  }
+
+  const otherCount = uniqueAuthorIds.length - 1;
+  return {
+    title: BRAND_NAME,
+    body: `${topName} and ${otherCount} other${otherCount === 1 ? "" : "s"} shared new moments.`,
+    reason: "multiple_friends",
+  };
+}
+
+async function processEngagementCandidate(userDoc, now) {
+  const uid = userDoc.id;
+  const userData = userDoc.data();
+  const userRef = userDoc.ref;
+
+  if (userData.isOnline === true || getFcmTokens(userData).length === 0) {
+    return { sent: false, reason: "active_or_no_token" };
+  }
+
+  const lastSeenMillis = timestampMillis(userData.lastSeen) || timestampMillis(userData.lastAppOpenedAt);
+  if (!lastSeenMillis) {
+    return { sent: false, reason: "missing_last_seen" };
+  }
+
+  const idleHours = (now.getTime() - lastSeenMillis) / (60 * 60 * 1000);
+  if (idleHours < ENGAGEMENT_MIN_IDLE_HOURS) {
+    return { sent: false, reason: "recently_active" };
+  }
+
+  const timezoneOffsetMinutes = Number.isFinite(userData.timezoneOffsetMinutes)
+    ? userData.timezoneOffsetMinutes
+    : 0;
+  const localHourValue = localHour(now, timezoneOffsetMinutes);
+  if (isQuietHour(localHourValue)) {
+    return { sent: false, reason: "quiet_hours" };
+  }
+
+  const engagementState = userData.notificationState?.engagement || {};
+  const todayKey = localDateKey(now, timezoneOffsetMinutes);
+  const sentTodayCount = engagementState.lastSentLocalDate === todayKey
+    ? engagementState.sentTodayCount || 0
+    : 0;
+  if (sentTodayCount >= 1) {
+    return { sent: false, reason: "daily_cap" };
+  }
+
+  const lastSentMillis = timestampMillis(engagementState.lastSentAt);
+  const minGapHours = engagementMinGapHours(idleHours);
+  if (lastSentMillis && ((now.getTime() - lastSentMillis) / (60 * 60 * 1000)) < minGapHours) {
+    return { sent: false, reason: "adaptive_gap" };
+  }
+
+  const lastContentWatermarkMillis = timestampMillis(engagementState.lastContentWatermark);
+  const afterMillis = Math.max(lastSeenMillis, lastContentWatermarkMillis || 0);
+  const connectionRanks = await getConnectionRanks(uid);
+  const { posts, authorProfiles } = await getFreshConnectedPosts({
+    uid,
+    userData,
+    connectionRanks,
+    afterMillis,
+    now,
+  });
+
+  if (posts.length === 0) {
+    return { sent: false, reason: "no_new_connected_content" };
+  }
+
+  const latestContentMillis = Math.max(...posts.map((post) => post.createdAtMillis));
+  const content = buildEngagementContent({
+    uid,
+    posts,
+    authorProfiles,
+    localHourValue,
+  });
+  const config = PRIORITY_CONFIG.engagement;
+  const payload = buildPushPayload({
+    type: "engagement",
+    content,
+    data: {
+      type: "engagement",
+      reason: content.reason,
+      newPostCount: posts.length,
+      topAuthorId: posts[0].authorId,
+      topPostId: posts[0].id,
+      click_action: "FLUTTER_NOTIFICATION_CLICK",
+    },
+    config,
+    tag: `engagement_${uid}`,
+    badge: Math.max(1, userData.unreadNotificationCount || 1),
+  });
+
+  const response = await sendPayloadToUser({ userRef, userData, payload });
+  await userRef.update({
+    "notificationState.engagement.lastSentAt": admin.firestore.FieldValue.serverTimestamp(),
+    "notificationState.engagement.lastSentLocalDate": todayKey,
+    "notificationState.engagement.sentTodayCount": sentTodayCount + 1,
+    "notificationState.engagement.lastContentWatermark": admin.firestore.Timestamp.fromMillis(latestContentMillis),
+    "notificationState.engagement.lastReason": content.reason,
+  });
+
+  return { sent: true, reason: content.reason, response };
+}
+
+exports.sendSmartEngagementNotifications = functions.pubsub
+  .schedule("every 60 minutes")
+  .timeZone("UTC")
+  .onRun(async () => {
+    const now = new Date();
+    const usersSnapshot = await db.collection("users")
+      .where("fcmToken", "!=", null)
+      .limit(ENGAGEMENT_MAX_USERS_PER_RUN)
+      .get();
+
+    let sent = 0;
+    const skipped = {};
+    const docs = usersSnapshot.docs;
+
+    for (let i = 0; i < docs.length; i += ENGAGEMENT_CONCURRENCY) {
+      const batch = docs.slice(i, i + ENGAGEMENT_CONCURRENCY);
+      const results = await Promise.all(batch.map(async (doc) => {
+        try {
+          return await processEngagementCandidate(doc, now);
+        } catch (error) {
+          console.error(`Engagement notification failed for ${doc.id}:`, error);
+          return { sent: false, reason: "error" };
+        }
+      }));
+
+      results.forEach((result) => {
+        if (result.sent) {
+          sent++;
+        } else {
+          skipped[result.reason] = (skipped[result.reason] || 0) + 1;
+        }
+      });
+    }
+
+    console.log("Smart engagement notification run complete.", {
+      candidates: docs.length,
+      sent,
+      skipped,
+    });
     return null;
   });
 
@@ -715,6 +1245,30 @@ exports.checkUsernameTaken = functions.https.onCall(async (data, context) => {
   } catch (error) {
     console.error("Error checking username in firestore:", error);
     throw new functions.https.HttpsError("internal", "Error checking username");
+  }
+});
+
+exports.getEmailFromUsername = functions.https.onCall(async (data, context) => {
+  const username = data.username;
+  if (!username || typeof username !== "string") {
+    throw new functions.https.HttpsError("invalid-argument", "Username is required");
+  }
+
+  try {
+    const snapshot = await admin.firestore().collection("users")
+      .where("username", "==", username.toLowerCase().trim())
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      return { email: null };
+    }
+    
+    const userData = snapshot.docs[0].data();
+    return { email: userData.email };
+  } catch (error) {
+    console.error("Error getting email by username:", error);
+    throw new functions.https.HttpsError("internal", "Error getting email by username");
   }
 });
 

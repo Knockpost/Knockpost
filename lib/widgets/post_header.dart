@@ -280,7 +280,7 @@ class _PostHeaderState extends State<PostHeader> {
               children: [
                 KnockPostAvatar(
                   url: user.avatarAsset,
-                  radius: 18,
+                  radius: 24,
                   name: user.displayName,
                 ),
                 const SizedBox(width: 10),

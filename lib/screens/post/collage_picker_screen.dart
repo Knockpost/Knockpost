@@ -292,14 +292,14 @@ class _CollagePickerScreenState extends State<CollagePickerScreen> {
       if (mounted) {
         setState(() => _isExporting = false);
         if (widget.isGlimpse) {
-          Navigator.pushReplacement(
+          Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => WavesEditorScreen(files: [file]),
             ),
           );
         } else {
-          Navigator.pushReplacement(
+          Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => MediaEditorScreen(files: [file], initialCaption: ''),

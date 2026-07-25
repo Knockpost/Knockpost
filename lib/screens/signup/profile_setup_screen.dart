@@ -29,6 +29,8 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController bioController = TextEditingController();
+  bool _showErrors = false;
 
   File? selectedImage;
   DateTime? selectedDate;
@@ -375,16 +377,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   void goNext() {
     final name = nameController.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your full name")),
-      );
-      return;
-    }
+    final bio = bioController.text.trim();
     
-    if (selectedDate == null) {
+    if (name.isEmpty || bio.isEmpty || selectedDate == null) {
+      setState(() {
+        _showErrors = true;
+      });
+      KnockHaptics.vibrate();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select your date of birth")),
+        const SnackBar(content: Text("Please fill all the mandatory fields")),
       );
       return;
     }
@@ -411,6 +412,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           username: widget.username,
           password: widget.password,
           fullName: name,
+          bio: bio,
           profileImage: selectedImage,
           isGoogleSignup: widget.isGoogleSignup,
         ),
@@ -536,27 +538,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                           GestureDetector(
                             onTap: () { KnockHaptics.tap(); _showImageSourceBottomSheet(); },
-                            child: CircleAvatar(
-                              radius: 55,
-                              backgroundColor: isDark 
-                                  ? const Color(0xFF2A2A2A)
-                                  : const Color(0xFFF2F2F2),
-                              backgroundImage:
-                                  selectedImage !=
-                                          null
-                                      ? FileImage(
-                                          selectedImage!)
-                                      : null,
-                              child:
-                                  selectedImage ==
-                                          null
-                                      ? Icon(
-                                          Icons
-                                              .person,
-                                          size: 50,
-                                          color: isDark ? Colors.white54 : Colors.black54,
-                                        )
-                                      : null,
+                            child: Container(
+                              width: 110,
+                              height: 110,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
+                                borderRadius: BorderRadius.circular(55 * 0.85),
+                                image: selectedImage != null 
+                                    ? DecorationImage(image: FileImage(selectedImage!), fit: BoxFit.cover) 
+                                    : null,
+                              ),
+                              child: selectedImage == null 
+                                  ? Icon(
+                                      Icons.person,
+                                      size: 50,
+                                      color: isDark ? Colors.white54 : Colors.black54,
+                                    )
+                                  : null,
                             ),
                           ),
 
@@ -592,12 +590,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     const SizedBox(height: 40),
 
                     // NAME
-                    Container(
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
-                        borderRadius:
-                            BorderRadius.circular(
-                                16),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _showErrors && nameController.text.trim().isEmpty 
+                              ? Colors.red 
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
                       ),
                       child: TextField(
                         controller:
@@ -621,15 +624,52 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                     const SizedBox(height: 20),
 
+                    // BIO
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _showErrors && bioController.text.trim().isEmpty 
+                              ? Colors.red 
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: bioController,
+                        maxLines: 3,
+                        minLines: 1,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
+                          hintText: "Bio",
+                          hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
                     // DOB
                     GestureDetector(
                       onTap: () { KnockHaptics.tap(); pickDate(); },
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF2F2F2),
-                          borderRadius:
-                              BorderRadius
-                                  .circular(16),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _showErrors && selectedDate == null
+                                ? Colors.red 
+                                : Colors.transparent,
+                            width: 1.5,
+                          ),
                         ),
                         padding:
                             const EdgeInsets

@@ -911,16 +911,13 @@ class _ZoomableAvatarState extends State<_ZoomableAvatar> {
   Widget _buildAvatarContent() {
     final user = widget.user;
     final isCreator = user.accountType == AccountType.creator;
-    final borderWidth = isCreator ? 3.0 : 4.0;
+    final borderWidth = isCreator ? 1.5 : 2.0;
 
     return Container(
+      padding: EdgeInsets.all(borderWidth),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
         color: widget.bg,
-        border: Border.all(
-          color: widget.bg,
-          width: borderWidth,
-        ),
+        borderRadius: BorderRadius.circular((widget.radius * 0.85) + borderWidth),
       ),
       child: KnockPostAvatar(
         url: user.avatarAsset,
@@ -1023,16 +1020,13 @@ class _ZoomOverlayState extends State<_ZoomOverlay> with SingleTickerProviderSta
   Widget _buildAvatarContent() {
     final user = widget.user;
     final isCreator = user.accountType == AccountType.creator;
-    final borderWidth = isCreator ? 3.0 : 4.0;
+    final borderWidth = isCreator ? 1.5 : 2.0;
 
     return Container(
+      padding: EdgeInsets.all(borderWidth),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: widget.bg, 
-        border: Border.all(
-          color: widget.bg,
-          width: borderWidth,
-        ),
+        color: widget.bg,
+        borderRadius: BorderRadius.circular((widget.radius * 0.85) + borderWidth),
       ),
       child: KnockPostAvatar(
         url: user.avatarAsset,

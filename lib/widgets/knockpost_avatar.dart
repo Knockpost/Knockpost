@@ -45,7 +45,11 @@ class KnockPostAvatar extends StatelessWidget {
   });
 
   bool get _hasUrl => url != null && url!.isNotEmpty;
-  bool get _isNetwork => _hasUrl && url!.startsWith('http');
+  bool get _isNetwork {
+    if (!_hasUrl) return false;
+    final uri = Uri.tryParse(url!);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+  }
   bool get _isAsset => _hasUrl && url!.startsWith('assets/');
 
   @override
@@ -60,22 +64,34 @@ class KnockPostAvatar extends StatelessWidget {
 
     // ── Asset image (instant, no loading state needed) ──
     if (_isAsset) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: bgColor,
-        backgroundImage: AssetImage(url!),
+      return Container(
+        width: radius * 2,
+        height: radius * 2,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(radius * 0.85),
+          image: DecorationImage(
+            image: AssetImage(url!),
+            fit: BoxFit.cover,
+          ),
+        ),
       );
     }
 
     // ── Local file image (instant) ──
     if (!_isNetwork) {
       final file = File(url!);
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: bgColor,
-        backgroundImage: FileImage(file),
-        onBackgroundImageError: (_, __) {},
-        child: null,
+      return Container(
+        width: radius * 2,
+        height: radius * 2,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(radius * 0.85),
+          image: DecorationImage(
+            image: FileImage(file),
+            fit: BoxFit.cover,
+          ),
+        ),
       );
     }
 
@@ -91,9 +107,14 @@ class KnockPostAvatar extends StatelessWidget {
   }
 
   Widget _buildFallbackCircle(Color bgColor, bool isDark) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: bgColor,
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(radius * 0.85),
+      ),
       child: _buildFallbackContent(isDark),
     );
   }
@@ -147,7 +168,8 @@ class _NetworkAvatar extends StatelessWidget {
     return SizedBox(
       width: diameter,
       height: diameter,
-      child: ClipOval(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius * 0.85),
         child: ColoredBox(
           color: bgColor,
           child: OptimizedImage(

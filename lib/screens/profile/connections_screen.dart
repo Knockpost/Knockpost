@@ -427,7 +427,6 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     if (allEntries.isEmpty) {
       return _buildEmptyState(
         isDark,
-        '👋',
         'No connections yet',
         'Start knocking to connect with people',
       );
@@ -480,7 +479,6 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
     if (allEntries.isEmpty) {
       return _buildEmptyState(
         isDark,
-        '🚪',
         'No pending knocks',
         'When someone knocks, they\'ll appear here',
       );
@@ -508,15 +506,13 @@ class _ConnectionsScreenState extends State<ConnectionsScreen>
   }
 
   Widget _buildEmptyState(
-      bool isDark, String emoji, String title, String subtitle) {
+      bool isDark, String title, String subtitle) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 48)),
-            const SizedBox(height: 16),
             Text(
               title,
               style: TextStyle(

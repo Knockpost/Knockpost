@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import '../utils/haptic_helper.dart';
 import '../utils/global_post_state.dart';
@@ -43,6 +44,7 @@ import '../services/post_service.dart';
 import '../services/notification_service.dart';
 import '../services/performance_service.dart';
 import '../services/feed_cache_service.dart';
+import '../services/feed_state_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _scrollDelta = 0;
   final ValueNotifier<bool> _showBarsNotifier = ValueNotifier<bool>(true);
   int _currentNavIndex = 0;
-  int _feedSeed = 0;
+  final GlobalKey<SearchScreenState> _searchScreenKey = GlobalKey<SearchScreenState>();
 
   List<({PostModel post, UserModel author})> _feedItems = [];
   List<({PostModel post, UserModel author})> _processedFeedItems = [];
@@ -105,7 +107,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _processAndAppendFeedItems(List<({PostModel post, UserModel author})> newItems, {bool isRefresh = false}) {
     if (isRefresh) {
       _processedFeedItems.clear();
-      _feedSeed = DateTime.now().millisecondsSinceEpoch;
     }
 
     final deletedIds = GlobalPostState.deletedPostIds.value;
@@ -114,36 +115,119 @@ class _HomeScreenState extends State<HomeScreen> {
       item.post.type != PostType.glimps
     ).toList();
     
-    // Sort the new batch safely
+    if (filteredNew.isEmpty) return;
+
+    // Sort by recency first (newest on top)
     filteredNew.sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
-    
-    // Interleave waves for the new batch
-    final interleavedNew = <({PostModel post, UserModel author})>[];
-    final pendingWaves = <({PostModel post, UserModel author})>[];
+
+    // ── Step 1: Separate reacted vs. unreacted posts ──
+    // Posts the user already reacted to go to the bottom
+    final unreacted = <({PostModel post, UserModel author})>[];
+    final reacted = <({PostModel post, UserModel author})>[];
     for (final item in filteredNew) {
-      if (item.post.type == PostType.waves) {
-        if (interleavedNew.isNotEmpty && interleavedNew.last.post.type == PostType.waves) {
-          pendingWaves.add(item);
-        } else {
-          interleavedNew.add(item);
-        }
+      if (FeedStateService.instance.hasUserReacted(item.post.id)) {
+        reacted.add(item);
       } else {
-        interleavedNew.add(item);
-        if (pendingWaves.isNotEmpty) {
-          interleavedNew.add(pendingWaves.removeAt(0));
+        unreacted.add(item);
+      }
+    }
+
+    // ── Step 2: Author bucketing for diversity ──
+    // Group unreacted posts by authorId, preserving recency order within each bucket
+    final authorBuckets = <String, List<({PostModel post, UserModel author})>>{};
+    final authorOrder = <String>[]; // Track first-seen order for round-robin
+    for (final item in unreacted) {
+      final aid = item.post.authorId;
+      if (!authorBuckets.containsKey(aid)) {
+        authorBuckets[aid] = [];
+        authorOrder.add(aid);
+      }
+      authorBuckets[aid]!.add(item);
+    }
+
+    // ── Step 3: Round-robin interleave (ensures 2+ author gap) ──
+    // Pick one post from each author in rotation until all buckets are empty
+    final interleaved = <({PostModel post, UserModel author})>[];
+    while (authorBuckets.isNotEmpty) {
+      // Iterate through authors in order; pick the first post from each
+      final emptyAuthors = <String>[];
+      for (final aid in authorOrder) {
+        final bucket = authorBuckets[aid];
+        if (bucket == null || bucket.isEmpty) {
+          emptyAuthors.add(aid);
+          continue;
+        }
+        interleaved.add(bucket.removeAt(0));
+        if (bucket.isEmpty) {
+          emptyAuthors.add(aid);
+        }
+      }
+      // Remove exhausted authors
+      for (final aid in emptyAuthors) {
+        authorBuckets.remove(aid);
+        authorOrder.remove(aid);
+      }
+    }
+
+    // ── Step 4: Strict 4-post author spacing fix ──
+    // Ensure no posts from the same author appear within a gap of 3 posts 
+    // (i.e. every block of 4 consecutive posts must have unique authors if possible).
+    const gap = 3;
+    for (int i = 1; i < interleaved.length; i++) {
+      final currentAuthor = interleaved[i].post.authorId;
+      bool hasConflict = false;
+      
+      // Check the previous 'gap' posts
+      final startCheck = (i - gap < 0) ? 0 : i - gap;
+      for (int k = startCheck; k < i; k++) {
+        if (interleaved[k].post.authorId == currentAuthor) {
+          hasConflict = true;
+          break;
+        }
+      }
+
+      if (hasConflict) {
+        // Find a candidate ahead that doesn't conflict with the current window
+        bool swapped = false;
+        for (int j = i + 1; j < interleaved.length; j++) {
+          final candidateAuthor = interleaved[j].post.authorId;
+          bool candidateConflict = false;
+          for (int k = startCheck; k < i; k++) {
+            if (interleaved[k].post.authorId == candidateAuthor) {
+              candidateConflict = true;
+              break;
+            }
+          }
+          
+          if (!candidateConflict) {
+            // Swap i and j
+            final temp = interleaved[i];
+            interleaved[i] = interleaved[j];
+            interleaved[j] = temp;
+            swapped = true;
+            break;
+          }
+        }
+        
+        // Fallback: If a perfect candidate wasn't found (maybe we ran out of unique authors), 
+        // at least try to avoid immediate consecutive duplicates (gap = 1).
+        if (!swapped && interleaved[i].post.authorId == interleaved[i - 1].post.authorId) {
+          for (int j = i + 1; j < interleaved.length; j++) {
+            if (interleaved[j].post.authorId != interleaved[i - 1].post.authorId) {
+              final temp = interleaved[i];
+              interleaved[i] = interleaved[j];
+              interleaved[j] = temp;
+              break;
+            }
+          }
         }
       }
     }
-    // Fix: add any remaining waves that weren't added
-    interleavedNew.addAll(pendingWaves);
-    
-    // Shuffle the new batch independently if seed is set
-    if (_feedSeed != 0 && interleavedNew.isNotEmpty) {
-      // Use _processedFeedItems.length to offset the seed, ensuring stable shuffle per batch
-      interleavedNew.shuffle(Random(_feedSeed + _processedFeedItems.length));
-    }
 
-    _processedFeedItems.addAll(interleavedNew);
+    // ── Step 5: Append reacted posts at the end (still visible, just lower priority) ──
+    interleaved.addAll(reacted);
+
+    _processedFeedItems.addAll(interleaved);
   }
 
   void _onScroll() {
@@ -234,6 +318,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     CurrentUserService.instance.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_registered', false);
     if (context.mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -257,6 +343,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _setCurrentNavIndex(int index) {
     if (_currentNavIndex == index) return;
+    // Clear search state when leaving the search tab
+    if (_currentNavIndex == 1 && index != 1) {
+      _searchScreenKey.currentState?.clearSearch();
+    }
     setState(() {
       _currentNavIndex = index;
       _scrollDelta = 0;
@@ -476,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             files: [File(photo.path)],
                             initialCaption: captionController.text.trim(),
                             onDone: (croppedFiles, aspectRatio) {
-                              Navigator.pushReplacement(
+                              Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => MediaEditorScreen(
@@ -546,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               initialCaption: captionController.text.trim(),
                               isGlimpse: false,
                               onDone: (croppedFiles, aspectRatio) {
-                                Navigator.pushReplacement(
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => MediaEditorScreen(
@@ -821,8 +911,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: CustomScrollView(
                                     physics: isScrollLocked
                                         ? const NeverScrollableScrollPhysics()
-                                        : const AlwaysScrollableScrollPhysics(
-                                            parent: ClampingScrollPhysics(),
+                                        : const BouncingScrollPhysics(
+                                            parent: AlwaysScrollableScrollPhysics(),
                                           ),
                                     controller: _scrollController,
                                     cacheExtent: 1500,
@@ -1066,7 +1156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      const _KeepAlivePage(child: SearchScreen()),
+                      _KeepAlivePage(child: SearchScreen(key: _searchScreenKey)),
                       ValueListenableBuilder<int>(
                         valueListenable: _navIndexNotifier,
                         builder: (context, currentIndex, _) {

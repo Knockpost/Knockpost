@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// Knockpost — Notification Sender (Server-Side)
+// KnockPost — Notification Sender (Server-Side)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // Shared utility for writing notification documents to a user's
@@ -52,12 +52,22 @@ async function sendNotification({ receiverUid, triggerUserId, type, postId, comm
   if (commentSnippet) notifData.commentSnippet = commentSnippet;
 
   try {
-    await admin.firestore()
-      .collection("users")
-      .doc(receiverUid)
-      .collection("notifications")
-      .doc(notifDocId)
-      .set(notifData, { merge: true });
+    const db = admin.firestore();
+    const userRef = db.collection("users").doc(receiverUid);
+    const notifRef = userRef.collection("notifications").doc(notifDocId);
+
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(notifRef);
+      const shouldIncrementUnread =
+        !existing.exists || existing.data()?.isRead === true;
+
+      transaction.set(notifRef, notifData, { merge: true });
+      if (shouldIncrementUnread) {
+        transaction.update(userRef, {
+          unreadNotificationCount: admin.firestore.FieldValue.increment(1),
+        });
+      }
+    });
   } catch (error) {
     console.error(`Failed to send notification to ${receiverUid}:`, error);
   }
@@ -74,12 +84,22 @@ async function deleteNotification(receiverUid, docId) {
   if (!receiverUid || !docId) return;
 
   try {
-    await admin.firestore()
-      .collection("users")
-      .doc(receiverUid)
-      .collection("notifications")
-      .doc(docId)
-      .delete();
+    const db = admin.firestore();
+    const userRef = db.collection("users").doc(receiverUid);
+    const notifRef = userRef.collection("notifications").doc(docId);
+
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(notifRef);
+      if (!existing.exists) return;
+
+      const isUnread = existing.data()?.isRead === false;
+      transaction.delete(notifRef);
+      if (isUnread) {
+        transaction.update(userRef, {
+          unreadNotificationCount: admin.firestore.FieldValue.increment(-1),
+        });
+      }
+    });
   } catch (error) {
     console.error(`Failed to delete notification ${docId} for ${receiverUid}:`, error);
   }

@@ -118,23 +118,30 @@ class GlimpsFeedManager extends ChangeNotifier {
   }
 
   void _preloadTopGlimpses() {
-    final Map<String, PostModel> topGlimpses = {};
+    // Group glimpses by author
+    final Map<String, List<PostModel>> grouped = {};
     for (var g in _glimpses) {
-      if (!topGlimpses.containsKey(g.authorId)) {
-        topGlimpses[g.authorId] = g;
-      }
-      if (topGlimpses.length >= 5) break;
+      grouped.putIfAbsent(g.authorId, () => []).add(g);
     }
 
-    for (var g in topGlimpses.values) {
-      if (g.imagePaths.isNotEmpty) {
-        final path = g.imagePaths.first;
-        final pathLower = path.toLowerCase();
-        final isVideo = pathLower.contains('.mp4') || pathLower.contains('.mov') || pathLower.contains('.mkv') || pathLower.contains('.webm');
-        if (isVideo) {
-          KnockpostVideoCacheManager.instance.downloadFile(path);
-        } else {
-          KnockpostImageCacheManager.instance.downloadFile(path);
+    int authorCount = 0;
+    for (var entry in grouped.entries) {
+      if (authorCount >= 8) break; // Preload top 8 authors' first glimpse
+      authorCount++;
+
+      // For the first 3 authors, preload ALL their glimpses (most likely to be tapped)
+      final glimpsesToPreload = authorCount <= 3 ? entry.value : [entry.value.first];
+
+      for (var g in glimpsesToPreload) {
+        if (g.imagePaths.isNotEmpty) {
+          final path = g.imagePaths.first;
+          final pathLower = path.toLowerCase();
+          final isVideo = pathLower.contains('.mp4') || pathLower.contains('.mov') || pathLower.contains('.mkv') || pathLower.contains('.webm');
+          if (isVideo) {
+            KnockpostVideoCacheManager.instance.downloadFile(path);
+          } else {
+            KnockpostImageCacheManager.instance.downloadFile(path);
+          }
         }
       }
     }

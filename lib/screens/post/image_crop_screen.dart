@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
-enum CropAspect { square, portrait, portrait3x4 }
+enum CropAspect { square, portrait2x3, portrait3x4 }
 
 class ImageCropScreen extends StatefulWidget {
   final List<File> files;
@@ -30,7 +30,7 @@ class ImageCropScreen extends StatefulWidget {
 
 class _ImageCropScreenState extends State<ImageCropScreen>
     with SingleTickerProviderStateMixin {
-  CropAspect _aspect = CropAspect.portrait3x4;
+  CropAspect _aspect = CropAspect.portrait2x3;
   bool _isLoading = true;
   bool _isCropping = false;
   int _currentIndex = 0;
@@ -57,7 +57,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     if (imageSize == null) {
       switch (_aspect) {
         case CropAspect.square: return 1.0;
-        case CropAspect.portrait: return 4.0 / 5.0;
+        case CropAspect.portrait2x3: return 2.0 / 3.0;
         case CropAspect.portrait3x4: return 3.0 / 4.0;
       }
     }
@@ -67,9 +67,8 @@ class _ImageCropScreenState extends State<ImageCropScreen>
     switch (_aspect) {
       case CropAspect.square:
         return 1.0;
-      case CropAspect.portrait:
-        // Instagram-style: if wider, frame shrinks to fit width exactly. If taller, caps at portrait limit.
-        return max(4.0 / 5.0, imgRatio);
+      case CropAspect.portrait2x3:
+        return max(2.0 / 3.0, imgRatio);
       case CropAspect.portrait3x4:
         return max(3.0 / 4.0, imgRatio);
     }
@@ -325,7 +324,7 @@ class _ImageCropScreenState extends State<ImageCropScreen>
                         _lastFrameSize = frameSize;
 
                         return ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(25),
                           child: GestureDetector(
                             onScaleStart: (details) {
                               _gestureBaseScale = _currentTransform.scale;
@@ -521,17 +520,17 @@ class _ImageCropScreenState extends State<ImageCropScreen>
               ),
               const SizedBox(width: 10),
               _aspectChip(
-                label: '4:5',
+                label: '3:4',
                 icon: Icons.crop_portrait_rounded,
-                isSelected: _aspect == CropAspect.portrait,
-                onTap: () => _switchAspect(CropAspect.portrait),
+                isSelected: _aspect == CropAspect.portrait3x4,
+                onTap: () => _switchAspect(CropAspect.portrait3x4),
               ),
               const SizedBox(width: 10),
               _aspectChip(
-                label: '3:4',
-                icon: Icons.photo_size_select_large_rounded,
-                isSelected: _aspect == CropAspect.portrait3x4,
-                onTap: () => _switchAspect(CropAspect.portrait3x4),
+                label: '2:3',
+                icon: Icons.crop_portrait_rounded,
+                isSelected: _aspect == CropAspect.portrait2x3,
+                onTap: () => _switchAspect(CropAspect.portrait2x3),
               ),
             ],
           ),

@@ -149,8 +149,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     await Future.delayed(const Duration(milliseconds: 400));
                   },
                   child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                    padding: const EdgeInsets.only(bottom: 160),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final room = filtered[index];
@@ -198,35 +198,62 @@ class _ChatRoomTile extends StatefulWidget {
 }
 
 class _ChatRoomTileState extends State<_ChatRoomTile> {
+  Map<String, dynamic>? _cachedProfile;
   Future<Map<String, dynamic>?>? _profileFuture;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = UserCacheService.instance.getUserProfile(widget.otherUid, isMessagingAuthor: true);
+    _loadProfile();
   }
 
   @override
   void didUpdateWidget(_ChatRoomTile oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.otherUid != widget.otherUid) {
-      _profileFuture = UserCacheService.instance.getUserProfile(widget.otherUid, isMessagingAuthor: true);
+      _loadProfile();
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _profileFuture,
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink(); // Hide while loading
-        }
-        
-        final data = snap.data;
-        if (data == null) {
-          return const SizedBox.shrink(); // Hide if user is deleted or missing
-        }
+  void _loadProfile() {
+    _cachedProfile = UserCacheService.instance.getCachedUserProfile(widget.otherUid);
+    if (_cachedProfile == null) {
+      _profileFuture = UserCacheService.instance.getUserProfile(widget.otherUid, isMessagingAuthor: true);
+    } else {
+      _profileFuture = null;
+    }
+  }
+
+  void _showDeleteChatDialog(BuildContext context, String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: widget.isDark ? Colors.grey.shade900 : Colors.white,
+        title: Text('Delete Chat?', style: TextStyle(color: widget.isDark ? Colors.white : Colors.black)),
+        content: Text('Are you sure you want to permanently delete this chat with $name?',
+          style: TextStyle(color: widget.isDark ? Colors.white70 : Colors.black87),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ChatService.instance.deleteChat(widget.room.chatId);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(Map<String, dynamic>? data) {
+    if (data == null) {
+      return const SizedBox.shrink(); // Hide if user is deleted or missing
+    }
 
         final name = (data['displayName'] as String?) ??
             (data['username'] as String?) ??
@@ -252,6 +279,10 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
 
         return InkWell(
           enableFeedback: false,
+          onLongPress: () {
+            KnockHaptics.selection();
+            _showDeleteChatDialog(context, name);
+          },
           onTap: () {
             KnockHaptics.selection();
             final user = UserModel(
@@ -343,6 +374,21 @@ class _ChatRoomTileState extends State<_ChatRoomTile> {
             ),
           ),
         );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_cachedProfile != null) {
+      return _buildContent(_cachedProfile);
+    }
+    
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _profileFuture,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink(); // Hide while loading
+        }
+        return _buildContent(snap.data);
       },
     );
   }

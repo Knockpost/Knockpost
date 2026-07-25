@@ -24,7 +24,7 @@ class LegalAgreementText extends StatelessWidget {
     final linkColor = isDark ? Colors.white : Colors.black;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       child: RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
@@ -32,12 +32,12 @@ class LegalAgreementText extends StatelessWidget {
             fontSize: 10.5,
             height: 1.5,
             color: baseColor,
-            fontFamily: 'Inter', // Assuming Inter based on styling
+            fontFamily: 'Inter',
           ),
           children: [
-            const TextSpan(text: 'By continuing, you agree to KnockPost’s '),
+            const TextSpan(text: 'By continuing, you agree to our\n'),
             TextSpan(
-              text: 'Terms & Conditions',
+              text: 'Terms of Use',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: linkColor,
@@ -47,7 +47,7 @@ class LegalAgreementText extends StatelessWidget {
                   _launchUrl('https://knockpost.com/terms');
                 },
             ),
-            const TextSpan(text: ' and '),
+            const TextSpan(text: ' & '),
             TextSpan(
               text: 'Privacy Policy',
               style: TextStyle(
@@ -59,7 +59,6 @@ class LegalAgreementText extends StatelessWidget {
                   _launchUrl('https://knockpost.com/privacy');
                 },
             ),
-            const TextSpan(text: '.'),
           ],
         ),
       ),

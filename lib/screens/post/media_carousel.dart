@@ -50,6 +50,24 @@ class _MediaCarouselState extends State<MediaCarousel> {
     super.initState();
     _pageController = PageController();
     _startHideTimer();
+    _prefetchCarouselImages();
+  }
+
+  /// Prefetch next images in the carousel so they load instantly when swiped
+  void _prefetchCarouselImages() {
+    if (widget.imagePaths.length <= 1) return;
+    
+    for (int i = 1; i < widget.imagePaths.length; i++) {
+      final path = widget.imagePaths[i];
+      if (path.startsWith('http')) {
+        // Use optimized URL if available, else raw
+        final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > i)
+            ? widget.optimizedImagePaths![i]
+            : null;
+        final urlToCache = (optimizedUrl != null && optimizedUrl.isNotEmpty) ? optimizedUrl : path;
+        KnockpostImageCacheManager.instance.downloadFile(urlToCache);
+      }
+    }
   }
 
   @override
@@ -125,7 +143,6 @@ class _MediaCarouselState extends State<MediaCarousel> {
   Widget build(BuildContext context) {
     if (widget.imagePaths.isEmpty) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final double screenWidth = MediaQuery.of(context).size.width;
 
     // Single image — no carousel, no indicators
@@ -133,7 +150,7 @@ class _MediaCarouselState extends State<MediaCarousel> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(25),
           child: widget.mediaAspectRatio != null
               ? AspectRatio(
                   aspectRatio: widget.mediaAspectRatio!,
@@ -153,113 +170,119 @@ class _MediaCarouselState extends State<MediaCarousel> {
     }
 
     // ── Multiple images — Instagram-style carousel ──
-    return Column(
-      children: [
-        // Image carousel
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: _handleCarouselPointerDown,
-              onPointerUp: _handleCarouselPointerEnd,
-              onPointerCancel: _handleCarouselPointerEnd,
-              child: SizedBox(
-                width: screenWidth - 12,
-                child: AspectRatio(
-                  aspectRatio: widget.mediaAspectRatio ?? 1.0,
-                  child: Stack(
-                  children: [
-                    // Swipeable pages
-                    NotificationListener<ScrollNotification>(
-                      onNotification: (notification) {
-                        if (notification is ScrollUpdateNotification) {
-                          _onScroll();
-                        }
-                        return false;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(25),
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _handleCarouselPointerDown,
+          onPointerUp: _handleCarouselPointerEnd,
+          onPointerCancel: _handleCarouselPointerEnd,
+          child: SizedBox(
+            width: screenWidth - 12,
+            child: AspectRatio(
+              aspectRatio: widget.mediaAspectRatio ?? 1.0,
+              child: Stack(
+                children: [
+                  // Swipeable pages
+                  NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification is ScrollUpdateNotification) {
+                        _onScroll();
+                      }
+                      return false;
+                    },
+                    child: PageView.builder(
+                      controller: _pageController,
+                      physics: _isZoomInteractionActive
+                          ? const NeverScrollableScrollPhysics()
+                          : const PageScrollPhysics(),
+                      itemCount: widget.imagePaths.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentPage = index);
+                        _onScroll(); // ensure timer resets on page snap
                       },
-                      child: PageView.builder(
-                        controller: _pageController,
-                        physics: _isZoomInteractionActive
-                            ? const NeverScrollableScrollPhysics()
-                            : const PageScrollPhysics(),
-                        itemCount: widget.imagePaths.length,
-                        onPageChanged: (index) {
-                          setState(() => _currentPage = index);
-                          _onScroll(); // ensure timer resets on page snap
-                        },
-                        itemBuilder: (context, index) {
-                          final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > index)
-                              ? widget.optimizedImagePaths![index]
-                              : null;
-                          return _buildZoomableImage(widget.imagePaths[index], optimizedUrl, index);
-                        },
-                      ),
+                      itemBuilder: (context, index) {
+                        final optimizedUrl = (widget.optimizedImagePaths != null && widget.optimizedImagePaths!.length > index)
+                            ? widget.optimizedImagePaths![index]
+                            : null;
+                        return _buildZoomableImage(widget.imagePaths[index], optimizedUrl, index);
+                      },
                     ),
+                  ),
 
-                    // Premium chip — top right with fade (no BackdropFilter for GPU perf)
-                    Positioned(
-                      top: 14,
-                      right: 14,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 300),
-                        opacity: _showIndicator ? 1.0 : 0.0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                  // Premium chip — top right with fade (no BackdropFilter for GPU perf)
+                  Positioned(
+                    top: 14,
+                    right: 14,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 300),
+                      opacity: _showIndicator ? 1.0 : 0.0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            width: 0.5,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.55),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              width: 0.5,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            "${_currentPage + 1} of ${widget.imagePaths.length}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                            ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "${_currentPage + 1} of ${widget.imagePaths.length}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
-                ),
+                  ),
+
+                  // ── Dot indicators (Inside Frame) ──
+                  Positioned(
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(widget.imagePaths.length, (index) {
+                        final isActive = index == _currentPage;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: isActive ? 6 : 4.5,
+                          height: isActive ? 6 : 4.5,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isActive
+                                ? Colors.white.withValues(alpha: 0.8)
+                                : Colors.white.withValues(alpha: 0.35),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-
-        // ── Dot indicators ──
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(widget.imagePaths.length, (index) {
-            final isActive = index == _currentPage;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: isActive ? 7 : 5.5,
-              height: isActive ? 7 : 5.5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isActive
-                    ? (isDark ? Colors.white : Colors.black87)
-                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-              ),
-            );
-          }),
-        ),
-      ],
+      ),
     );
   }
 

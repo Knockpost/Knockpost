@@ -223,6 +223,31 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
     _seekTo(_positionMs);
   }
 
+  // Pan the entire trim selection left/right
+  void _onTrimPanDrag(DragUpdateDetails details, double width) {
+    final deltaMs = (details.delta.dx / width) * _totalMs;
+    final duration = _endMs - _startMs;
+    double newStart = _startMs + deltaMs;
+    double newEnd = _endMs + deltaMs;
+
+    // Clamp to bounds
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = duration;
+    }
+    if (newEnd > _totalMs) {
+      newEnd = _totalMs;
+      newStart = _totalMs - duration;
+    }
+
+    setState(() {
+      _startMs = newStart;
+      _endMs = newEnd;
+      _positionMs = _positionMs.clamp(_startMs, _endMs);
+    });
+    _seekTo(_positionMs);
+  }
+
   void _finishSelection() {
     KnockHaptics.tap();
     Navigator.pop(context, <String, dynamic>{
@@ -320,24 +345,6 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                         ),
                         child: Column(
                           children: [
-                            // ── Preview section ──
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeOutCubic,
-                              child: _config.showSticker
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(bottom: 20),
-                                      child: MusicStickerWidget(
-                                        title: widget.track.title,
-                                        artist: widget.track.artist,
-                                        coverUrl: widget.track.coverUrl,
-                                        configData: _config.toMap(),
-                                        isPlaying: _isPlaying,
-                                      ),
-                                    )
-                                  : const SizedBox(width: double.infinity),
-                            ),
-
                             // ── Music card ──
                             _buildMusicCard(),
                             const SizedBox(height: 20),
@@ -560,11 +567,9 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
     );
   }
 
-  // ─── TRIMMER SECTION ───────────────────────────────────────────────────────
-
   Widget _buildTrimmerSection() {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(28),
@@ -579,40 +584,40 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
               Text(
                 _fmtDur(_startMs),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   _fmtDur(_endMs - _startMs),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
               Text(
                 _fmtDur(_endMs),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Waveform + trim handles
           LayoutBuilder(
@@ -621,14 +626,10 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
               final startX = (_startMs / _totalMs) * width;
               final endX = (_endMs / _totalMs) * width;
               final playheadX = ((_positionMs.clamp(_startMs, _endMs)) / _totalMs) * width;
+              final selectionWidth = (endX - startX).clamp(0.0, width);
 
-              return GestureDetector(
-                onTapDown: (details) {
-                  final targetMs = (details.localPosition.dx / width) * _totalMs;
-                  _seekTo(targetMs);
-                },
-                child: SizedBox(
-                  height: 64,
+              return SizedBox(
+                  height: 72,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -637,10 +638,10 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.03),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(16),
                             child: CustomPaint(painter: _WaveformPainter()),
                           ),
                         ),
@@ -653,14 +654,16 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                           top: 0,
                           bottom: 0,
                           width: startX,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.65),
-                              borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(14),
-                                bottomLeft: const Radius.circular(14),
-                                topRight: startX >= width ? const Radius.circular(14) : Radius.zero,
-                                bottomRight: startX >= width ? const Radius.circular(14) : Radius.zero,
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(16),
+                                  bottomLeft: const Radius.circular(16),
+                                  topRight: startX >= width ? const Radius.circular(16) : Radius.zero,
+                                  bottomRight: startX >= width ? const Radius.circular(16) : Radius.zero,
+                                ),
                               ),
                             ),
                           ),
@@ -673,14 +676,16 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                           top: 0,
                           bottom: 0,
                           width: width - endX,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.65),
-                              borderRadius: BorderRadius.only(
-                                topRight: const Radius.circular(14),
-                                bottomRight: const Radius.circular(14),
-                                topLeft: endX <= 0 ? const Radius.circular(14) : Radius.zero,
-                                bottomLeft: endX <= 0 ? const Radius.circular(14) : Radius.zero,
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.only(
+                                  topRight: const Radius.circular(16),
+                                  bottomRight: const Radius.circular(16),
+                                  topLeft: endX <= 0 ? const Radius.circular(16) : Radius.zero,
+                                  bottomLeft: endX <= 0 ? const Radius.circular(16) : Radius.zero,
+                                ),
                               ),
                             ),
                           ),
@@ -691,59 +696,83 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                         left: startX,
                         top: 0,
                         bottom: 0,
-                        width: (endX - startX).clamp(0, width),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 100),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: _isDraggingTrim
-                                  ? Colors.white.withValues(alpha: 0.9)
-                                  : Colors.white.withValues(alpha: 0.5),
-                              width: 2,
+                        width: selectionWidth,
+                        child: IgnorePointer(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 80),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _isDraggingTrim
+                                    ? Colors.white.withValues(alpha: 0.95)
+                                    : Colors.white.withValues(alpha: 0.55),
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: _isDraggingTrim
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.white.withValues(alpha: 0.1),
+                                        blurRadius: 16,
+                                        spreadRadius: 2,
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: _isDraggingTrim
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.white.withValues(alpha: 0.08),
-                                      blurRadius: 12,
-                                      spreadRadius: 2,
-                                    ),
-                                  ]
-                                : null,
                           ),
                         ),
                       ),
 
-                      // Playhead
+                      // Middle pan area (drag entire selection left/right)
                       Positioned(
-                        left: (playheadX - 1).clamp(0, width - 2),
+                        left: startX + 12,
                         top: 0,
                         bottom: 0,
-                        child: Container(
-                          width: 2.5,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.3),
-                                blurRadius: 6,
-                              ),
-                            ],
+                        width: (selectionWidth - 24).clamp(0, width),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onHorizontalDragStart: (_) {
+                            KnockHaptics.tap();
+                            setState(() => _isDraggingTrim = true);
+                          },
+                          onHorizontalDragUpdate: (d) => _onTrimPanDrag(d, width),
+                          onHorizontalDragEnd: (_) => setState(() => _isDraggingTrim = false),
+                        ),
+                      ),
+
+                      // Playhead (IgnorePointer so it doesn't block pan gestures)
+                      Positioned(
+                        left: (playheadX - 1.25).clamp(0.0, width - 2.5),
+                        top: 0,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: Container(
+                            width: 2.5,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
 
                       // Start handle
                       Positioned(
-                        left: startX - 14,
-                        top: -2,
-                        bottom: -2,
-                        width: 28,
+                        left: startX - 18,
+                        top: -4,
+                        bottom: -4,
+                        width: 36,
                         child: GestureDetector(
                           behavior: HitTestBehavior.translucent,
-                          onHorizontalDragStart: (_) => setState(() => _isDraggingTrim = true),
+                          onHorizontalDragStart: (_) {
+                            KnockHaptics.tap();
+                            setState(() => _isDraggingTrim = true);
+                          },
                           onHorizontalDragUpdate: (d) => _onTrimStartDrag(d, width),
                           onHorizontalDragEnd: (_) => setState(() => _isDraggingTrim = false),
                           child: Center(child: _trimHandle()),
@@ -752,13 +781,16 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
 
                       // End handle
                       Positioned(
-                        left: endX - 14,
-                        top: -2,
-                        bottom: -2,
-                        width: 28,
+                        left: endX - 18,
+                        top: -4,
+                        bottom: -4,
+                        width: 36,
                         child: GestureDetector(
                           behavior: HitTestBehavior.translucent,
-                          onHorizontalDragStart: (_) => setState(() => _isDraggingTrim = true),
+                          onHorizontalDragStart: (_) {
+                            KnockHaptics.tap();
+                            setState(() => _isDraggingTrim = true);
+                          },
                           onHorizontalDragUpdate: (d) => _onTrimEndDrag(d, width),
                           onHorizontalDragEnd: (_) => setState(() => _isDraggingTrim = false),
                           child: Center(child: _trimHandle()),
@@ -766,31 +798,11 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
                       ),
                     ],
                   ),
-                ),
               );
+
             },
           ),
 
-          const SizedBox(height: 14),
-
-          // Seek slider
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              activeTrackColor: Colors.white,
-              inactiveTrackColor: Colors.white.withValues(alpha: 0.08),
-              thumbColor: Colors.white,
-              overlayColor: Colors.white.withValues(alpha: 0.04),
-              trackShape: const RoundedRectSliderTrackShape(),
-            ),
-            child: Slider(
-              value: _positionMs.clamp(_startMs, _endMs),
-              min: _startMs,
-              max: _endMs <= _startMs ? _startMs + 1 : _endMs,
-              onChanged: (v) => _seekTo(v),
-            ),
-          ),
         ],
       ),
     );
@@ -798,27 +810,29 @@ class _MusicOverlayScreenState extends State<MusicOverlayScreen>
 
   Widget _trimHandle() {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 120),
       width: _isDraggingTrim ? 8 : 5,
-      height: 42,
+      height: 48,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: _isDraggingTrim ? 8 : 4,
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: _isDraggingTrim ? 10 : 4,
           ),
           if (_isDraggingTrim)
             BoxShadow(
-              color: Colors.white.withValues(alpha: 0.15),
-              blurRadius: 10,
+              color: Colors.white.withValues(alpha: 0.2),
+              blurRadius: 12,
               spreadRadius: 1,
             ),
         ],
       ),
     );
   }
+
+
 
   // ─── STICKER TOGGLE ────────────────────────────────────────────────────────
 

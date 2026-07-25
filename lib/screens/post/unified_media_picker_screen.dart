@@ -253,7 +253,7 @@ class _UnifiedMediaPickerScreenState extends State<UnifiedMediaPickerScreen> {
             initialCaption: widget.initialCaption,
             isGlimpse: widget.isGlimpse,
             onDone: (croppedFiles, aspectRatio) {
-              Navigator.pushReplacement(
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => MediaEditorScreen(
