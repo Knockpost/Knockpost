@@ -117,8 +117,13 @@ class _HomeScreenState extends State<HomeScreen> {
     
     if (filteredNew.isEmpty) return;
 
-    // Sort by recency first (newest on top)
-    filteredNew.sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+    if (isRefresh) {
+      // Shuffle on refresh so the feed content feels dynamic and new like Instagram
+      filteredNew.shuffle();
+    } else {
+      // Sort by recency first (newest on top)
+      filteredNew.sort((a, b) => b.post.createdAt.compareTo(a.post.createdAt));
+    }
 
     // ── Step 1: Separate reacted vs. unreacted posts ──
     // Posts the user already reacted to go to the bottom
@@ -271,7 +276,9 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _hasMoreFeed = true;
           _lastFeedDoc = null;
-          _isLoadingFeed = true;
+          if (_feedItems.isEmpty) {
+            _isLoadingFeed = true;
+          }
         });
       }
     } else {
@@ -1218,7 +1225,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       return CustomBottomNav(
                         currentIndex: currentIndex,
                         onTap: (index) {
-                          if (currentIndex == index) return;
+                          if (currentIndex == index) {
+                            if (index == 0) {
+                              _scrollController.animateTo(
+                                0,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut,
+                              );
+                              if (FeedCacheService.instance.canManualRefresh) {
+                                _loadFeed(refresh: true, isManualRefresh: true);
+                              }
+                            }
+                            return;
+                          }
                           _animateToTab(index);
                         },
                       );
