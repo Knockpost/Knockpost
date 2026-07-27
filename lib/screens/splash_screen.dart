@@ -30,21 +30,39 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> startApp() async {
     try {
-      // Run initialization concurrently to slash wait times
-      final futures = await Future.wait([
-        AppLinks().getInitialLink(),
-        SharedPreferences.getInstance(),
-      ]).timeout(const Duration(seconds: 5)); // Reduced to 5s for faster fallback
-
-      final link = futures[0] as Uri?;
-      final prefs = futures[1] as SharedPreferences;
-
-      if (link != null) {
-        final linkString = link.toString();
-        debugPrint("Splash Detected Deep Link: $linkString");
+      // 1. Isolate AppLinks so it doesn't crash the startup if it fails
+      Uri? link;
+      try {
+        link = await AppLinks().getInitialLink().timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint("Splash: AppLinks failed - $e");
       }
 
-      final user = AuthService.instance.currentUser;
+      if (link != null) {
+        debugPrint("Splash Detected Deep Link: ${link.toString()}");
+      }
+
+      // 2. Load SharedPreferences WITHOUT aggressive timeout
+      // Slow devices need time to read from disk, especially after Play Store install
+      SharedPreferences? prefs;
+      try {
+        prefs = await SharedPreferences.getInstance();
+      } catch (e) {
+        debugPrint("Splash: SharedPreferences failed - $e");
+      }
+
+      // 3. Robust Auth State Check
+      // We give Firebase up to 3 seconds to parse the local token.
+      User? user = AuthService.instance.currentUser;
+      if (user == null) {
+        try {
+          user = await AuthService.instance.authStateChanges
+              .firstWhere((u) => u != null)
+              .timeout(const Duration(seconds: 3));
+        } catch (_) {
+          user = null;
+        }
+      }
 
       if (user != null) {
         if (!user.emailVerified) {
@@ -53,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen> {
         }
 
         // ⚡ ULTRA-FAST BYPASS: If we already confirmed they're registered before, skip Firestore!
-        final isRegistered = prefs.getBool('is_registered') ?? false;
+        final isRegistered = prefs?.getBool('is_registered') ?? false;
         if (isRegistered) {
           await CurrentUserService.instance.loadCurrentUser().timeout(
             const Duration(seconds: 3), // Reduced timeout
@@ -82,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
         if (mounted) {
           if (userProfile != null) {
-            await prefs.setBool('is_registered', true);
+            await prefs?.setBool('is_registered', true);
             await CurrentUserService.instance.loadCurrentUser().timeout(
               const Duration(seconds: 3),
               onTimeout: () {},
