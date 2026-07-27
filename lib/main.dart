@@ -15,6 +15,22 @@ import 'theme/theme_controller.dart';
 import 'utils/audio_lifecycle_manager.dart';
 import 'services/view_batch_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// গ্লোবাল স্টপওয়াচ এবং লগ ফাংশন
+final appStopwatch = Stopwatch()..start();
+void authLog(String message) {
+  debugPrint("AUTH_TRACE [${appStopwatch.elapsedMilliseconds}ms]: $message");
+}
+
+class AuthLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    authLog("Lifecycle = ${state.name}");
+  }
+}
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -28,19 +44,44 @@ void main() async {
   runZonedGuarded<Future<void>>(() async {
     try {
       WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+      WidgetsBinding.instance.addObserver(AuthLifecycleObserver());
+      
+      authLog("Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}");
+      authLog("Build mode: ${kReleaseMode ? 'Release' : (kProfileMode ? 'Profile' : 'Debug')}");
+      
       // Reduce VisibilityDetector polling from 100ms (default) to 500ms.
       // View counting has a 2-second timer guard, so 500ms is plenty.
       VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 500);
       AudioLifecycleManager.instance.init();
       FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+      
+      authLog("Starting Firebase.initializeApp");
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      authLog("Firebase.initializeApp completed");
+
+      FirebaseAuth.instance.idTokenChanges().listen((user) {
+        authLog("idTokenChanges fired = ${user?.uid}");
+      });
+      FirebaseAuth.instance.userChanges().listen((user) {
+        authLog("userChanges fired = ${user?.uid}");
+      });
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        authLog("authStateChanges fired = ${user?.uid}");
+      });
+
+      authLog("currentUser instantly after init = ${FirebaseAuth.instance.currentUser?.uid}");
+
       await ViewBatchService.instance.init();
       
+      authLog("Starting AppCheck.activate");
       // ── S5: Advanced Threat Protection (App Check) ──
       await FirebaseAppCheck.instance.activate(
         androidProvider: AndroidProvider.playIntegrity,
         appleProvider: AppleProvider.deviceCheck,
       );
+      authLog("AppCheck.activate completed");
+      
+      authLog("currentUser after AppCheck = ${FirebaseAuth.instance.currentUser?.uid}");
 
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -77,8 +118,14 @@ void main() async {
       PaintingBinding.instance.imageCache.maximumSizeBytes = 300 << 20; // 300 MB
       PaintingBinding.instance.imageCache.maximumSize = 500; // max 500 images
 
+      authLog("Calling runApp()");
       runApp(const MyApp());
     } catch (e, stack) {
+      if (e is FirebaseAuthException) {
+        authLog("Fatal FirebaseAuthException code=${e.code}, message=${e.message}");
+      } else {
+        authLog("Fatal Error in main: $e");
+      }
       debugPrint("Startup Error: $e\n$stack");
       FlutterNativeSplash.remove();
       runApp(

@@ -6,6 +6,7 @@ import '../../services/database_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import '../../main.dart' show authLog;
 
 import 'login_screen.dart';
 import 'home_screen.dart';
@@ -29,6 +30,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> startApp() async {
+    authLog("Splash startApp initialized");
     try {
       // 1. Isolate AppLinks so it doesn't crash the startup if it fails
       Uri? link;
@@ -52,20 +54,40 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       // 3. Robust Auth State Check
-      // We give Firebase up to 3 seconds to parse the local token.
+      authLog("Checking AuthService.instance.currentUser");
       User? user = AuthService.instance.currentUser;
+      authLog("Pre-timeout user check = ${user?.uid}");
+      
+      bool isTimeout = false;
+      String failureReason = "None";
+
       if (user == null) {
+        authLog("authStateChanges waiting for 3000ms...");
         try {
           user = await AuthService.instance.authStateChanges
-              .firstWhere((u) => u != null)
+              .firstWhere((u) {
+                authLog("firstWhere received: ${u?.uid}");
+                return u != null;
+              })
               .timeout(const Duration(seconds: 3));
-        } catch (_) {
+          authLog("received non-null user from stream = ${user?.uid}");
+        } catch (e) {
+          if (e is FirebaseAuthException) {
+            authLog("FirebaseAuthException code=${e.code}, message=${e.message}");
+            failureReason = "FirebaseAuthException: ${e.code}";
+          } else {
+            authLog("Timeout or Error hit after 3000ms. Error: $e");
+            failureReason = "Timeout or Error: $e";
+          }
+          isTimeout = true;
           user = null;
         }
       }
 
       if (user != null) {
+        authLog("User is valid. Checking emailVerified.");
         if (!user.emailVerified) {
+          authLog("Navigate -> SignupVerificationScreen | Reason: EmailVerified = false");
           _navigate(SignupVerificationScreen(email: user.email ?? ""));
           return;
         }
@@ -109,7 +131,9 @@ class _SplashScreenState extends State<SplashScreen> {
             // 🔥 Pre-warm the Waves feed in the background so it's instantly ready
             WavesFeedManager.instance.loadInitial();
             
+            authLog("Navigate -> HomeScreen | Reason: User is valid & registered");
             _navigate(const HomeScreen());
+            return;
           } else if (fetchFailed) {
             // Firestore fetch failed (offline/timeout) — don't punish the user
             // by sending them to signup. Trust Firebase Auth and go to HomeScreen.
@@ -119,18 +143,30 @@ class _SplashScreenState extends State<SplashScreen> {
               onTimeout: () {},
             );
             WavesFeedManager.instance.loadInitial();
+            authLog("Navigate -> HomeScreen | Reason: Firestore fetch failed, trusting Auth");
             _navigate(const HomeScreen());
           } else {
             // Firestore fetch succeeded but returned null = truly new user
+            authLog("Navigate -> SignupUsernameScreen | Reason: User valid but no profile");
             _navigate(
               SignupUsernameScreen(email: user.email ?? "", isGoogleSignup: true),
             );
           }
         }
       } else {
+        authLog("""
+Navigate -> LoginScreen
+Reason:
+currentUser == null
+Timeout = $isTimeout
+FailureReason = $failureReason
+FirebaseInitialized = true
+AppCheckFinished = true
+        """);
         _navigate(const LoginScreen());
       }
     } catch (e, stack) {
+      authLog("Fatal error in startApp: $e");
       debugPrint("Error in startApp: $e\n$stack");
       FlutterNativeSplash.remove(); // Force remove splash screen on any error
       if (mounted) {
